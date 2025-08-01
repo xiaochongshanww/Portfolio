@@ -40,7 +40,7 @@ This project is an automated testing tool for the QianShou dating app using Appi
 2. **Appium Server** running on `http://127.0.0.1:4723`
 3. **ADB (Android Debug Bridge)** properly configured
 4. **Tesseract OCR** installed at `C:\Program Files\Tesseract-OCR\tesseract.exe`
-5. **Tantan App** installed and logged in on the device
+5. **QianShou App** installed and logged in on the device
 
 ### 🚀 Installation
 
@@ -120,7 +120,7 @@ The SQLite database stores user information with the following fields:
 ### ⚠️ Disclaimer
 
 This project is for educational and testing purposes only. Please ensure you comply with:
-- Tantan's Terms of Service
+- QianShou's Terms of Service
 - Local laws and regulations
 - Ethical guidelines for automated testing
 - User privacy and data protection laws
@@ -175,7 +175,7 @@ This project is for educational purposes. Please use responsibly and in accordan
 2. **Appium 服务器** 运行在 `http://127.0.0.1:4723`
 3. **ADB (Android Debug Bridge)** 正确配置
 4. **Tesseract OCR** 安装在 `C:\Program Files\Tesseract-OCR\tesseract.exe`
-5. **探探应用** 已安装并登录设备
+5. **牵手应用** 已安装并登录设备
 
 ### 🚀 安装步骤
 
@@ -256,7 +256,7 @@ SQLite 数据库存储用户信息，包含以下字段：
 ### ⚠️ 免责声明
 
 本项目仅用于教育和测试目的。请确保您遵守：
-- 探探的服务条款
+- 牵手的服务条款
 - 当地法律法规
 - 自动化测试的道德准则
 - 用户隐私和数据保护法律
