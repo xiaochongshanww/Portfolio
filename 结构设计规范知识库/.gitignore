@@ -1,0 +1,33 @@
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# Virtual Environments
+venv/
+env/
+.venv/
+
+# Environment variables
+.env
+
+# IDE configuration files
+.idea/
+.vscode/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Project-specific (generated data, DB, logs)
+/data/processed/
+/data/chunks/
+/db/
+/logs/
+
+# Note: The raw PDF data in /data/raw/ is not ignored by default.
+# If your source PDFs are very large or private, you should add /data/raw/ to this file.
