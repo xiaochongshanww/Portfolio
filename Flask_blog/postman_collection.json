@@ -1,0 +1,9 @@
+{
+  "info": {"name": "FlaskBlog Public API", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},
+  "item": [
+    {"name": "Public Articles List", "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/public/v1/articles", "host": ["{{baseUrl}}"], "path": ["public","v1","articles"]}}},
+    {"name": "Public Article Detail", "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/public/v1/articles/1", "host": ["{{baseUrl}}"], "path": ["public","v1","articles","1"]}}},
+    {"name": "Public Taxonomy", "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/public/v1/taxonomy", "host": ["{{baseUrl}}"], "path": ["public","v1","taxonomy"]}}}
+  ],
+  "variable": [{"key": "baseUrl", "value": "http://localhost:5173"}]
+}

@@ -1,0 +1,71 @@
+name: CI
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: blog
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost" --health-interval=10s --health-timeout=5s --health-retries=5
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install backend deps
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt
+      - name: Wait for MySQL
+        run: |
+          for i in {1..30}; do
+            if mysqladmin ping -h 127.0.0.1 -uroot -proot --silent; then break; fi; sleep 2; done
+      - name: Run migrations
+        working-directory: backend
+        env:
+          DATABASE_URL: mysql+pymysql://root:root@127.0.0.1:3306/blog
+        run: |
+          flask db upgrade
+      - name: Run tests
+        working-directory: backend
+        env:
+          DATABASE_URL: mysql+pymysql://root:root@127.0.0.1:3306/blog
+          REDIS_URL: redis://127.0.0.1:6379/0
+        run: |
+          pytest -q
+      - name: Build backend image
+        run: |
+          docker build -t flaskblog-backend:ci -f backend/Dockerfile backend
+      - name: Archive coverage (optional)
+        if: always()
+        run: echo "(add coverage artifacts here)"
+      - name: Install Node (for Lighthouse)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build --if-present
+      - name: Start backend (Gunicorn) & frontend (preview) for Lighthouse
+        run: |
+          nohup python backend/run.py &
+          npx serve -s frontend/dist -l 5173 &
+          sleep 6
+      - name: Lighthouse CI Collect & Assert
+        run: npx lhci autorun || echo "Lighthouse warnings (non-blocking)"

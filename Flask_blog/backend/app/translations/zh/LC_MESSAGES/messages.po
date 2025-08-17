@@ -1,0 +1,56 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Blog API 1.0\n"
+"Language: zh\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: errors
+msgid "not found"
+msgstr "未找到"
+
+msgid "method not allowed"
+msgstr "方法不被允许"
+
+msgid "rate limit exceeded"
+msgstr "超过速率限制"
+
+msgid "server error"
+msgstr "服务器错误"
+
+msgid "success"
+msgstr "成功"
+
+msgid "parameter validation failed"
+msgstr "参数校验失败"
+
+msgid "authentication failed or token invalid"
+msgstr "认证失败或 Token 无效"
+
+msgid "operation not permitted"
+msgstr "无操作权限"
+
+msgid "resource not found"
+msgstr "资源不存在"
+
+msgid "http method not allowed"
+msgstr "HTTP 方法不被允许"
+
+msgid "resource conflict (email/slug/concurrent)"
+msgstr "资源冲突 (邮箱/slug/并发)"
+
+msgid "too many requests"
+msgstr "请求过多"
+
+msgid "internal server error"
+msgstr "内部服务器错误"
+
+msgid "service degraded"
+msgstr "服务降级"
+
+msgid "missing token"
+msgstr "缺少令牌"
+
+msgid "invalid token"
+msgstr "令牌无效"

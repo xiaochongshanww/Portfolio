@@ -1,0 +1,56 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Blog API 1.0\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+# English can mirror source (identity translations)
+msgid "not found"
+msgstr "not found"
+
+msgid "method not allowed"
+msgstr "method not allowed"
+
+msgid "rate limit exceeded"
+msgstr "rate limit exceeded"
+
+msgid "server error"
+msgstr "server error"
+
+msgid "success"
+msgstr "success"
+
+msgid "parameter validation failed"
+msgstr "parameter validation failed"
+
+msgid "authentication failed or token invalid"
+msgstr "authentication failed or token invalid"
+
+msgid "operation not permitted"
+msgstr "operation not permitted"
+
+msgid "resource not found"
+msgstr "resource not found"
+
+msgid "http method not allowed"
+msgstr "http method not allowed"
+
+msgid "resource conflict (email/slug/concurrent)"
+msgstr "resource conflict (email/slug/concurrent)"
+
+msgid "too many requests"
+msgstr "too many requests"
+
+msgid "internal server error"
+msgstr "internal server error"
+
+msgid "service degraded"
+msgstr "service degraded"
+
+msgid "missing token"
+msgstr "missing token"
+
+msgid "invalid token"
+msgstr "invalid token"
