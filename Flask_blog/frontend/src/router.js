@@ -1,0 +1,49 @@
+// TODO: 重命名为 router.ts 以获得类型支持
+import { createRouter, createWebHistory } from 'vue-router';
+// 关键首页等核心路由可直接静态导入；体量较大的视图按需分包
+import Home from './views/Home.vue';
+import Login from './views/Login.vue';
+import NewArticle from './views/NewArticle.vue';
+const Register = () => import('./views/Register.vue');
+const Profile = () => import('./views/Profile.vue');
+// 其余延迟加载
+const ArticleDetail = () => import(/* webpackChunkName: 'article-detail' */ './views/ArticleDetail.vue');
+const AuthorProfile = () => import(/* webpackChunkName: 'author-profile' */ './views/AuthorProfile.vue');
+const SearchPage = () => import(/* webpackChunkName: 'search-page' */ './views/SearchPage.vue');
+const CategoryPage = () => import('./views/CategoryPage.vue');
+const TagPage = () => import('./views/TagPage.vue');
+const CommentsModeration = () => import(/* webpackChunkName: 'comments-moderation' */ './views/CommentsModeration.vue');
+const TaxonomyAdmin = () => import(/* webpackChunkName: 'taxonomy-admin' */ './views/TaxonomyAdmin.vue');
+const UserAdmin = () => import(/* webpackChunkName: 'user-admin' */ './views/UserAdmin.vue');
+const SearchSynonymsAdmin = () => import('./views/SearchSynonymsAdmin.vue');
+const MetricsDashboard = () => import('./views/MetricsDashboard.vue');
+import { resetMeta } from './composables/useMeta';
+
+const routes = [
+  { path: '/', component: Home },
+  { path: '/login', component: Login },
+  { path: '/register', component: Register },
+  { path: '/me/profile', component: Profile },
+  { path: '/articles/new', component: NewArticle },
+  { path: '/article/:slug', component: ArticleDetail, props: true },
+  { path: '/author/:id', component: AuthorProfile, props: true },
+  { path: '/category/:id', component: CategoryPage, props: true },
+  { path: '/tag/:slug', component: TagPage, props: true },
+  { path: '/search', component: SearchPage }
+  ,{ path: '/moderation/comments', component: CommentsModeration }
+  ,{ path: '/admin/taxonomy', component: TaxonomyAdmin }
+  ,{ path: '/admin/users', component: UserAdmin }
+  ,{ path: '/admin/search/synonyms', component: SearchSynonymsAdmin }
+  ,{ path: '/admin/metrics', component: MetricsDashboard }
+];
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes,
+  scrollBehavior(){ return { top: 0 }; }
+});
+
+// 路由切换时重置为基础 Meta（具体页面再覆盖）
+router.afterEach(()=>{ resetMeta(); });
+
+export default router;
