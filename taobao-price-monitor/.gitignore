@@ -1,0 +1,19 @@
+# Virtual Environment
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Logs
+*.log
+logs/
+
+# VS Code
+.vscode/
+
+# Auth files
+playwright_auth.json
+
+# OS-specific
+.DS_Store

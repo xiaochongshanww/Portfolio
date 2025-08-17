@@ -1,0 +1,76 @@
+{% extends 'layout.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Dashboard</h1>
+
+    <!-- Add Product Form -->
+    <div class="card mb-4">
+        <div class="card-header">Add New Product to Monitor</div>
+        <div class="card-body">
+            <form action="{{ url_for('add_product') }}" method="post">
+                <div class="input-group">
+                    <input type="text" class="form-control" name="product_url" placeholder="Enter Taobao Product URL" required>
+                    <button class="btn btn-primary" type="submit">Add Product</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Monitored Products Table -->
+    <div class="card mb-4">
+        <div class="card-header">Monitored Products</div>
+        <div class="card-body">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Product Name</th>
+                        <th>Current Price</th>
+                        <th>Last Checked</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if products %}
+                        {% for product in products %}
+                            <tr>
+                                <td>{{ product['name'] or 'Not yet scraped' }}<br><small class="text-muted url-break">{{ product['url'] }}</small></td>
+                                <td>{{ '¥%.2f'|format(product['current_price']) if product['current_price'] else 'N/A' }}</td>
+                                <td>{{ product['last_check_time'] or 'N/A' }}</td>
+                                <td class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-info view-chart-btn" data-product-id="{{ product['id'] }}" data-product-name="{{ product['name'] }}">Chart</button>
+                                    <form action="{{ url_for('scrape_product_route', product_id=product['id']) }}" method="post">
+                                        <button type="submit" class="btn btn-sm btn-primary">Scrape</button>
+                                    </form>
+                                    <form action="{{ url_for('remove_product', product_id=product['id']) }}" method="post" onsubmit="return confirm('Are you sure you want to remove this item?');">
+                                        <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center">No products monitored yet. Add one above!</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Price History Chart -->
+    <div class="card mb-5">
+        <div class="card-header">Price History</div>
+        <div class="card-body">
+            <canvas id="priceChart"></canvas>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% endblock %}
