@@ -1,8 +1,21 @@
+# Web API & Serving
 fastapi
 uvicorn[standard]
-PyMuPDF
+
+# Document Processing & Knowledge Base
+unstructured[local-inference]
+paddlepaddle
 paddleocr
+PyMuPDF
 chromadb
+
+# AI Models & SDKs
 zhipuai
 httpx
+
+# Development Tools
 black
+setuptools
+
+# HTML Parsing for Context Enrichment
+beautifulsoup4
