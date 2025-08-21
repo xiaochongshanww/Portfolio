@@ -26,6 +26,9 @@
       <AppFooter />
     </div>
     <GlobalNotify />
+    
+    <!-- 回到顶部按钮 -->
+    <ScrollToTop />
   </div>
 </template>
 
@@ -34,7 +37,8 @@ import { ref, onMounted, onUnmounted, provide } from 'vue';
 import GlobalNotify from './components/GlobalNotify.vue';
 import AppFooter from './components/layout/AppFooter.vue';
 import AppHeader from './components/layout/AppHeader.vue';
-import { useSessionStore } from './stores/session';
+import ScrollToTop from './components/ScrollToTop.vue';
+import { useUserStore } from './stores/user';
 
 const isScrolled = ref(false);
 const sidebarData = ref({
@@ -43,7 +47,7 @@ const sidebarData = ref({
   hotArticles: []
 });
 
-const session = useSessionStore();
+const userStore = useUserStore();
 
 // 滚动检测
 function handleScroll() {
@@ -56,13 +60,11 @@ provide('sidebarData', sidebarData);
 onMounted(async () => {
   window.addEventListener('scroll', handleScroll);
   
-  // 恢复用户登录状态
-  if (session.token && !session.user) {
-    try {
-      await session.fetchUserInfo();
-    } catch (error) {
-      console.log('恢复用户状态失败:', error);
-    }
+  // 初始化用户认证状态
+  try {
+    await userStore.initAuth();
+  } catch (error) {
+    console.log('初始化用户状态失败:', error);
   }
 });
 

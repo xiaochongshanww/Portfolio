@@ -81,6 +81,7 @@ class TagUpdateModel(BaseModel):
 @taxonomy_bp.route('/categories/', methods=['POST'])
 @require_roles('editor','admin')
 def create_category():
+    print(f"访问 create_category")
     try:
         data = CategoryCreateModel(**request.json)
     except ValidationError as e:
@@ -102,6 +103,7 @@ def create_category():
 @taxonomy_bp.route('/categories/', methods=['GET'])
 @require_auth
 def list_categories():
+    print(f"访问 list_categories")
     # allow filter parent_id
     parent_id = request.args.get('parent_id', type=int)
     q = Category.query

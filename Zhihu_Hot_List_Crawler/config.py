@@ -1,0 +1,1 @@
+FET_PROXY_URL = "http://v2.api.juliangip.com/company/dynamic/getips?auto_white=1&num=1&pt=1&result_type=json&trade_no=2016978334949568&sign=181afe2636ac6f3316e139448384cce4"

@@ -11,17 +11,21 @@
         <el-icon size="14" class="text-gray-500"><Collection /></el-icon>
         热门分类
       </h4>
-      <div class="flex flex-wrap gap-2">
+      <div class="flex flex-wrap gap-2 category-buttons-container">
         <el-button 
           v-for="category in displayCategories" 
           :key="category.id" 
           size="small" 
           :type="selectedCategory === String(category.id) ? 'primary' : ''" 
           plain
-          @click="$emit('category-click', category.id)"
+          @click="handleCategoryClick(category.id)"
           class="category-btn"
+          :class="{ 'selected-category': selectedCategory === String(category.id) }"
         >
           {{ category.name }}
+          <el-icon v-if="selectedCategory === String(category.id)" size="12" class="ml-1">
+            <Close />
+          </el-icon>
         </el-button>
         
         <!-- 显示更多分类按钮 -->
@@ -50,7 +54,7 @@
           size="small" 
           :type="selectedTag === tag.slug ? 'primary' : 'info'" 
           class="tag-item"
-          @click="$emit('tag-click', tag.slug)"
+          @click="handleTagClick(tag.slug)"
         >
           #{{ tag.slug }}
         </el-tag>
@@ -72,7 +76,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { Compass, Collection, PriceTag } from '@element-plus/icons-vue'
+import { Compass, Collection, PriceTag, Close } from '@element-plus/icons-vue'
 
 // Props
 const props = defineProps({
@@ -95,7 +99,7 @@ const props = defineProps({
 })
 
 // Events
-defineEmits(['category-click', 'tag-click'])
+const emit = defineEmits(['category-click', 'tag-click'])
 
 // 显示控制
 const showAllCategories = ref(false)
@@ -126,9 +130,32 @@ function toggleShowAllCategories() {
 function toggleShowAllTags() {
   showAllTags.value = !showAllTags.value
 }
+
+function handleCategoryClick(categoryId) {
+  // 如果点击的是当前已选中的分类，则取消选择
+  if (props.selectedCategory === String(categoryId)) {
+    emit('category-click', ''); // 传递空字符串表示取消选择
+  } else {
+    emit('category-click', categoryId);
+  }
+}
+
+function handleTagClick(tagSlug) {
+  // 如果点击的是当前已选中的标签，则取消选择
+  if (props.selectedTag === tagSlug) {
+    emit('tag-click', ''); // 传递空字符串表示取消选择
+  } else {
+    emit('tag-click', tagSlug);
+  }
+}
 </script>
 
 <style scoped>
+
+.category-buttons-container {
+  gap: 8px;
+  row-gap: 12px; /* 增加上下间距 */
+}
 
 .category-btn {
   font-size: 0.75rem;
@@ -140,6 +167,15 @@ function toggleShowAllTags() {
 
 .category-btn:hover {
   transform: translateY(-1px);
+}
+
+.selected-category {
+  position: relative;
+}
+
+.selected-category:hover {
+  background-color: rgb(239 68 68) !important;
+  border-color: rgb(239 68 68) !important;
 }
 
 .tag-item {

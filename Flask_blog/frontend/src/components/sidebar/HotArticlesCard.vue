@@ -8,8 +8,10 @@
     <!-- 加载状态 -->
     <el-skeleton v-if="loading" :rows="4" animated />
     
-    <!-- 文章列表 -->
-    <div v-else-if="articles.length" class="space-y-4">
+    <!-- 非加载状态的内容 -->
+    <template v-else>
+      <!-- 文章列表 -->
+      <div v-if="articles.length" class="space-y-4">
       <article 
         v-for="(article, index) in articles" 
         :key="article.id" 
@@ -44,13 +46,14 @@
           </div>
         </router-link>
       </article>
-    </div>
-    
-    <!-- 空状态 -->
-    <div v-else class="empty-state">
-      <el-icon size="48" class="mb-2 text-gray-300"><DataLine /></el-icon>
-      <p class="text-sm text-gray-400">暂无热门文章</p>
-    </div>
+      </div>
+      
+      <!-- 空状态 -->
+      <div v-else class="empty-state">
+        <el-icon size="48" class="mb-2 text-gray-300"><DataLine /></el-icon>
+        <p class="text-sm text-gray-400">暂无热门文章</p>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -58,7 +61,7 @@
 import { TrendCharts, View, Star, DataLine } from '@element-plus/icons-vue'
 
 // Props
-defineProps({
+const props = defineProps({
   articles: {
     type: Array,
     default: () => []
@@ -68,6 +71,15 @@ defineProps({
     default: false
   }
 })
+
+// 调试信息（可在生产环境移除）
+if (process.env.NODE_ENV === 'development') {
+  console.log('HotArticlesCard - Props received:', {
+    articles: props.articles,
+    loading: props.loading,
+    articlesLength: props.articles?.length
+  });
+}
 
 // 工具函数
 function formatNumber(num) {

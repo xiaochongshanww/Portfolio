@@ -28,7 +28,7 @@
       <!-- 社交链接 -->
       <div class="flex justify-center social-links-container">
         <a 
-          href="https://github.com/xiaochongshan" 
+          href="https://github.com/xiaochongshanww" 
           target="_blank"
           rel="noopener noreferrer"
           class="social-link github-link"
@@ -57,9 +57,12 @@
       <el-dialog 
         v-model="showWechatDialog" 
         title="微信公众号" 
-        width="320px"
+        width="90%"
+        :style="{ maxWidth: '400px', minWidth: '320px' }"
         center
         :show-close="true"
+        :z-index="3000"
+        append-to-body
       >
         <div class="text-center">
           <!-- 二维码区域 -->
@@ -69,7 +72,7 @@
               <img 
                 :src="qrImageSrc" 
                 alt="微信公众号二维码" 
-                class="w-48 h-48 mx-auto border border-gray-200 rounded-lg shadow-sm"
+                class="qr-image"
                 @error="handleQRError"
                 @load="handleQRLoad"
               />
@@ -94,7 +97,7 @@
             <p class="text-gray-600 text-sm">
               {{ qrError ? '请在微信中搜索公众号' : '扫描二维码关注公众号' }}
             </p>
-            <p class="text-gray-800 font-medium">小重山的技术分享</p>
+            <p class="text-gray-800 font-medium">小重山的学习笔记</p>
             <p v-if="qrError" class="text-blue-600 text-sm mt-3 px-3 py-2 bg-blue-50 rounded-lg">
               微信号：xiaochongshan_tech
             </p>
@@ -120,9 +123,9 @@ const qrImageSrc = ref(null)
 
 // 二维码图片备选方案
 const qrImageSources = [
-  '/assets/wechat-qr.png',
-  '/assets/wechat-qr.jpg', 
   '/assets/images/wechat-qr.png',
+  '/assets/images/wechat-qr.jpg', 
+  '/assets/wechat-qr.png',
   '/uploads/wechat-qr.png',
   null // 最后使用备用方案
 ]
@@ -261,5 +264,42 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* 二维码图片容器和尺寸限制 */
+.qr-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 240px;
+  margin: 0 auto;
+  padding: 8px;
+  border: 1px solid rgb(229 231 235);
+  border-radius: 12px;
+  background-color: rgb(249 250 251);
+}
+
+.qr-image {
+  max-width: 100%;
+  max-height: 224px; /* 240px - 16px padding */
+  width: auto;
+  height: auto;
+  object-fit: contain; /* 保持宽高比，完整显示图片 */
+  border-radius: 8px;
+  box-shadow: 0 2px 4px 0 rgb(0 0 0 / 0.1);
+}
+
+/* 确保微信二维码弹窗在最高层级 */
+:deep(.el-dialog__wrapper) {
+  z-index: 3000 !important;
+}
+
+:deep(.el-overlay) {
+  z-index: 3000 !important;
+}
+
+:deep(.el-dialog) {
+  z-index: 3001 !important;
 }
 </style>

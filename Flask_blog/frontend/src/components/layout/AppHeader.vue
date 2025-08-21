@@ -7,8 +7,9 @@
       <div class="flex justify-between items-center w-full">
         <!-- Logo -->
         <div class="flex-shrink-0">
-          <router-link 
-            to="/" 
+          <a 
+            href="/" 
+            @click="handleLogoClick"
             class="flex items-center text-xl font-bold text-blue-600 hover:text-blue-700 transition-colors logo-container"
           >
             <!-- Simple SVG Logo -->
@@ -25,43 +26,47 @@
               </defs>
             </svg>
             小重山的博客
-          </router-link>
+          </a>
         </div>
 
         <!-- Desktop Navigation -->
         <nav class="desktop-nav items-center space-x-8 flex-1 justify-center">
-          <router-link 
-            to="/" 
+          <a 
+            href="/" 
+            @click="handleNavClick('/', $event)"
             class="nav-link"
             :class="{ 'nav-link-active': $route.path === '/' }"
           >
             <el-icon class="mr-1"><HomeFilled /></el-icon>
             主页
-          </router-link>
-          <router-link 
-            to="/categories" 
+          </a>
+          <a 
+            href="/categories" 
+            @click="handleNavClick('/categories', $event)"
             class="nav-link"
             :class="{ 'nav-link-active': $route.path.startsWith('/category') }"
           >
             <el-icon class="mr-1"><Collection /></el-icon>
             分类浏览
-          </router-link>
-          <router-link 
-            to="/hot" 
+          </a>
+          <a 
+            href="/hot" 
+            @click="handleNavClick('/hot', $event)"
             class="nav-link"
             :class="{ 'nav-link-active': $route.path === '/hot' }"
           >
             <el-icon class="mr-1"><TrendCharts /></el-icon>
             热门
-          </router-link>
-          <router-link 
-            to="/about" 
+          </a>
+          <a 
+            href="/about" 
+            @click="handleNavClick('/about', $event)"
             class="nav-link"
             :class="{ 'nav-link-active': $route.path === '/about' }"
           >
             <el-icon class="mr-1"><InfoFilled /></el-icon>
             关于
-          </router-link>
+          </a>
         </nav>
 
         <!-- Desktop User Area -->
@@ -84,31 +89,35 @@
 
           <!-- 已登录状态 -->
           <template v-else>
+            <!-- 写文章按钮 - 主要CTA -->
             <router-link 
               to="/articles/new"
-              class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+              class="write-article-btn"
             >
-              <el-icon class="mr-1"><EditPen /></el-icon>
-              写文章
+              <el-icon class="text-base"><EditPen /></el-icon>
+              <span class="write-article-text">写文章</span>
             </router-link>
 
             <!-- 用户头像下拉菜单 -->
             <el-dropdown @command="handleCommand" trigger="click">
-              <div class="flex items-center cursor-pointer hover:bg-gray-50 rounded-lg p-1.5 transition-colors">
-                <div class="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
+              <div class="user-dropdown-trigger">
+                <div class="user-avatar-container">
                   <img 
                     v-if="me.avatar" 
                     :src="me.avatar" 
                     :alt="me.nickname || me.email"
-                    class="w-full h-full object-cover"
+                    class="user-avatar-img"
                     @error="handleAvatarError"
                   />
-                  <el-icon v-else class="text-white text-sm"><User /></el-icon>
+                  <el-icon v-else class="user-avatar-icon"><User /></el-icon>
                 </div>
-                <div class="ml-2 text-sm">
-                  <div class="font-medium text-gray-900">{{ me.nickname || '用户' }}</div>
+                <div class="user-info">
+                  <div class="user-name" :title="getUserDisplayHint(me)">{{ userDisplayName }}</div>
+                  <div v-if="shouldShowNicknamePrompt" class="nickname-prompt">
+                    <span class="prompt-text">未设置昵称</span>
+                  </div>
                 </div>
-                <el-icon class="ml-1 text-gray-400"><ArrowDown /></el-icon>
+                <el-icon class="dropdown-arrow"><ArrowDown /></el-icon>
               </div>
               <template #dropdown>
                 <el-dropdown-menu>
@@ -118,10 +127,17 @@
                   </el-dropdown-item>
                   <el-dropdown-item command="/me/profile">
                     <el-icon><Setting /></el-icon>
-                    设置
+                    个人设置
+                    <span v-if="shouldShowNicknamePrompt" class="ml-2 text-xs text-blue-600">
+                      (设置昵称)
+                    </span>
                   </el-dropdown-item>
-                  <el-dropdown-item divided v-if="me.role === 'editor' || me.role === 'admin'">
+                  <el-dropdown-item divided v-if="userStore.canAccessAdmin">
                     管理功能
+                  </el-dropdown-item>
+                  <el-dropdown-item :command="'/admin'" v-if="userStore.canAccessAdmin">
+                    <el-icon><DataBoard /></el-icon>
+                    管理控制台
                   </el-dropdown-item>
                   <el-dropdown-item :command="'/admin/taxonomy'" v-if="me.role === 'editor' || me.role === 'admin'">
                     <el-icon><Collection /></el-icon>
@@ -166,6 +182,8 @@
       direction="rtl" 
       size="80%"
       class="mobile-drawer"
+      :z-index="4000"
+      append-to-body
     >
       <div class="flex flex-col h-full">
         <!-- 移动端用户信息 -->
@@ -181,8 +199,11 @@
               <el-icon v-else class="text-white"><User /></el-icon>
             </div>
             <div class="ml-3">
-              <div class="font-medium text-gray-900">{{ me.nickname || '用户' }}</div>
+              <div class="font-medium text-gray-900">{{ userDisplayName }}</div>
               <div class="text-sm text-gray-500">{{ me.email }}</div>
+              <div v-if="shouldShowNicknamePrompt" class="text-xs text-blue-600 mt-1">
+                点击设置昵称
+              </div>
             </div>
           </div>
         </div>
@@ -341,11 +362,12 @@
 import { ref, computed, inject, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
-import { useSessionStore } from '../../stores/session';
+import { useUserStore } from '../../stores/user';
 import { ElMessage } from 'element-plus';
+import { getUserDisplayName, getUserShortName, shouldPromptNickname, getNicknameSuggestion, getUserDisplayHint } from '../../utils/userDisplay';
 import {
   User, EditPen, ArrowDown, Setting, Collection, UserFilled, DataAnalysis,
-  SwitchButton, Menu, HomeFilled, TrendCharts, InfoFilled
+  SwitchButton, Menu, HomeFilled, TrendCharts, InfoFilled, DataBoard
 } from '@element-plus/icons-vue';
 import MobileSidebar from '../sidebar/MobileSidebar.vue';
 
@@ -367,14 +389,33 @@ const props = defineProps({
 
 const router = useRouter();
 const drawer = ref(false);
-const session = useSessionStore();
-const { user: me } = storeToRefs(session);
+const userStore = useUserStore();
+const { user: me } = storeToRefs(userStore);
 const headerRef = ref(null);
 
 // 从props获取侧边栏数据
 const sidebarCategories = computed(() => props.sidebarData?.categories?.slice(0, 6) || []);
 const sidebarTags = computed(() => props.sidebarData?.tags?.slice(0, 8) || []);
 const hotArticles = computed(() => props.sidebarData?.hotArticles?.slice(0, 3) || []);
+
+// 用户显示名称计算属性
+const userDisplayName = computed(() => {
+  if (!me.value) return ''
+  return getUserDisplayName(me.value, { maxLength: 12 })
+})
+
+const userShortName = computed(() => {
+  if (!me.value) return ''
+  return getUserShortName(me.value, 8)
+})
+
+const shouldShowNicknamePrompt = computed(() => {
+  return me.value && shouldPromptNickname(me.value)
+})
+
+const nicknameSuggestion = computed(() => {
+  return me.value ? getNicknameSuggestion(me.value) : null
+})
 
 // 处理下拉菜单命令
 function handleCommand(command) {
@@ -388,7 +429,7 @@ function handleCommand(command) {
 // 处理退出登录
 async function handleLogout() {
   try {
-    await session.logout();
+    await userStore.logout();
     ElMessage.success('已退出登录');
     drawer.value = false;
     router.push('/');
@@ -417,6 +458,50 @@ function handleTagClick(tagSlug) {
 function handleArticleClick(articleSlug) {
   router.push(`/article/${articleSlug}`);
   drawer.value = false;
+}
+
+// 处理Logo点击 - 使用原生导航避免组件状态冲突
+function handleLogoClick(e) {
+  console.log('🏠 AppHeader: Logo点击，检查是否需要原生导航');
+  
+  // 检查当前路由是否为文章编辑页面
+  const currentPath = router.currentRoute.value.path;
+  const isOnNewArticlePage = currentPath === '/articles/new';
+  
+  if (isOnNewArticlePage) {
+    console.log('🏠 AppHeader: 当前在文章编辑页面，使用原生导航避免VNode冲突');
+    e.preventDefault();
+    
+    // 使用原生浏览器导航，完全绕过Vue Router
+    window.location.href = '/';
+    return;
+  }
+  
+  // 其他页面使用正常的Vue Router导航
+  e.preventDefault();
+  router.push('/');
+}
+
+// 处理导航链接点击 - 智能选择导航方式
+function handleNavClick(path, e) {
+  console.log(`🧭 AppHeader: 导航到 ${path}，检查是否需要原生导航`);
+  
+  // 检查当前路由是否为文章编辑页面
+  const currentPath = router.currentRoute.value.path;
+  const isOnNewArticlePage = currentPath === '/articles/new';
+  
+  if (isOnNewArticlePage) {
+    console.log('🧭 AppHeader: 当前在文章编辑页面，使用原生导航避免VNode冲突');
+    e.preventDefault();
+    
+    // 使用原生浏览器导航，完全绕过Vue Router
+    window.location.href = path;
+    return;
+  }
+  
+  // 其他页面使用正常的Vue Router导航
+  e.preventDefault();
+  router.push(path);
 }
 </script>
 
@@ -489,7 +574,23 @@ function handleArticleClick(articleSlug) {
   color: rgb(37 99 235);
 }
 
-/* 移动端抽屉样式 */
+/* 移动端抽屉样式和z-index层级管理 */
+:deep(.mobile-drawer) {
+  z-index: 4000 !important;
+}
+
+:deep(.mobile-drawer .el-drawer__wrapper) {
+  z-index: 4000 !important;
+}
+
+:deep(.mobile-drawer .el-overlay) {
+  z-index: 4000 !important;
+}
+
+:deep(.mobile-drawer .el-drawer) {
+  z-index: 4001 !important;
+}
+
 :deep(.mobile-drawer .el-drawer__header) {
   border-bottom: 1px solid rgb(229 231 235);
   padding-bottom: 1rem;
@@ -548,6 +649,143 @@ a[href="/login"]:hover {
 /* 注册按钮悬停效果 */
 a[href="/register"]:hover {
   background-color: rgb(29 78 216) !important;
+}
+
+/* ===== 登录后用户区域样式优化 ===== */
+
+/* 写文章按钮 - 主要CTA样式 */
+.write-article-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  margin-right: 16px;
+  background: linear-gradient(135deg, rgb(59 130 246), rgb(37 99 235));
+  color: white;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgb(59 130 246 / 0.2);
+}
+
+.write-article-btn:hover {
+  background: linear-gradient(135deg, rgb(37 99 235), rgb(29 78 216));
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgb(59 130 246 / 0.3);
+  color: white;
+}
+
+.write-article-btn:active {
+  transform: translateY(0);
+}
+
+/* 写文章按钮文字在小屏幕隐藏 */
+@media (max-width: 640px) {
+  .write-article-text {
+    display: none;
+  }
+  .write-article-btn {
+    padding: 10px 12px;
+    margin-right: 12px;
+  }
+}
+
+/* 用户下拉菜单触发器 */
+.user-dropdown-trigger {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  background: rgb(248 250 252);
+}
+
+.user-dropdown-trigger:hover {
+  background: rgb(241 245 249);
+  border-color: rgb(226 232 240);
+  box-shadow: 0 2px 4px rgb(0 0 0 / 0.05);
+}
+
+/* 用户头像容器 */
+.user-avatar-container {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgb(59 130 246), rgb(139 92 246));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgb(59 130 246 / 0.2);
+}
+
+.user-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.user-avatar-icon {
+  color: white;
+  font-size: 18px;
+}
+
+/* 用户信息 */
+.user-info {
+  flex: 1;
+  min-width: 0; /* 允许文本截断 */
+}
+
+.user-name {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: rgb(17 24 39);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+/* 下拉箭头 */
+.dropdown-arrow {
+  color: rgb(107 114 128);
+  font-size: 14px;
+  transition: transform 0.2s ease;
+}
+
+.user-dropdown-trigger:hover .dropdown-arrow {
+  color: rgb(59 130 246);
+}
+
+/* 昵称提示样式 */
+.nickname-prompt {
+  margin-top: 2px;
+}
+
+.prompt-text {
+  font-size: 0.75rem;
+  color: rgb(59 130 246);
+  font-weight: 500;
+}
+
+/* 移动端用户区域优化 */
+@media (max-width: 640px) {
+  .user-info {
+    display: none;
+  }
+  .user-dropdown-trigger {
+    padding: 8px;
+    gap: 0;
+  }
+  .dropdown-arrow {
+    display: none;
+  }
 }
 
 /* line-clamp utilities */

@@ -114,12 +114,26 @@ def public_article_detail(slug_or_id):
 @public_bp.route('/taxonomy', methods=['GET'])
 def public_taxonomy():
     from .models import Category, Tag
+    
+    # 添加调试信息
+    print(f'[DEBUG] 开始查询分类和标签数据')
+    
     cats = Category.query.order_by(Category.id.asc()).all()
     tags = Tag.query.order_by(Tag.id.asc()).all()
+    
+    print(f'[DEBUG] 查询到分类数量: {len(cats)}')
+    print(f'[DEBUG] 查询到标签数量: {len(tags)}')
+    
+    if len(cats) > 0:
+        print(f'[DEBUG] 前3个分类: {[(c.id, c.name, c.slug) for c in cats[:3]]}')
+    
     data = {
         'categories': [{'id':c.id,'name':c.name,'slug':c.slug,'parent_id':c.parent_id} for c in cats],
         'tags': [{'id':t.id,'name':t.name,'slug':t.slug} for t in tags]
     }
+    
+    print(f'[DEBUG] 最终数据结构: categories={len(data["categories"])}, tags={len(data["tags"])}')
+    
     etag = compute_etag(data)
     if request.headers.get('If-None-Match') == etag:
         return ('',304,{'ETag':etag})

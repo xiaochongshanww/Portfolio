@@ -1,7 +1,18 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(npm install:*)",
+      "Bash(grep:*)",
+      "Bash(npm run build:*)",
+      "Bash(node:*)",
+      "Bash(rm:*)",
+      "Bash(python:*)",
+      "Bash(docker exec:*)",
+      "Bash(find:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

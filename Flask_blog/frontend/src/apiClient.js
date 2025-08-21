@@ -4,7 +4,13 @@ import axios from 'axios';
 const api = axios.create({ baseURL: '/api/v1' });
 api.interceptors.request.use(cfg => {
   const token = localStorage.getItem('access_token');
-  if(token) cfg.headers.Authorization = 'Bearer ' + token;
+  console.log('🌐 API请求拦截器 - token存在:', !!token);
+  if(token) {
+    cfg.headers.Authorization = 'Bearer ' + token;
+    console.log('🌐 已设置Authorization头');
+  } else {
+    console.log('🌐 未设置Authorization头 - 无token');
+  }
   // CSRF 双提交：若存在 XSRF-TOKEN Cookie 则写入头
   try {
     const cookies = document.cookie.split(';').map(s=>s.trim());

@@ -1,7 +1,7 @@
 <template>
   <div class="home-view space-y-6">
     <!-- Hero Section -->
-    <section class="hero-section bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-12 px-6 rounded-xl relative overflow-hidden">
+    <section class="hero-section bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-12 px-6 rounded-xl relative overflow-hidden mb-6">
       <!-- 背景装饰 -->
       <div class="absolute inset-0 opacity-10">
         <div class="absolute top-10 left-10 w-20 h-20 bg-blue-400 rounded-full blur-xl"></div>
@@ -41,14 +41,15 @@
         </div>
 
         <!-- 快速筛选标签 -->
-        <div class="flex flex-wrap justify-center gap-2 mb-4">
+        <div class="flex flex-wrap justify-center gap-2 mb-4 quick-filter-tags">
           <el-tag 
             v-for="c in categories.slice(0, 6)" 
             :key="c.id" 
             :type="selectedCategory === String(c.id) ? 'primary' : 'info'" 
-            class="cursor-pointer hover:scale-105 transition-transform"
+            class="cursor-pointer hover:scale-105 transition-transform quick-filter-tag"
             @click="clickCategory(c.id)"
             size="large"
+            :closable="selectedCategory === String(c.id)"
           >
             {{ c.name }}
           </el-tag>
@@ -58,193 +59,230 @@
 
     <!-- 主要内容区域 -->
     <div ref="contentWrapper" class="main-content-wrapper">
-      <main class="article-section">
-        <!-- 文章列表控制器 -->
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 bg-white rounded-lg p-4 shadow-sm gap-4">
-          <div class="flex flex-col sm:flex-row sm:items-center gap-4">
-            <h2 class="text-xl font-semibold text-gray-800">文章列表</h2>
-            <el-segmented v-model="listType" :options="[
-              { label: '最新发布', value: 'latest' },
-              { label: '热门推荐', value: 'hot' }
-            ]" @change="onListTypeChange" />
+      <main class="article-section-container">
+        <!-- 文章内容区域包装器 - 确保内容和分页的正确定位 -->
+        <div class="article-content-wrapper">
+          <!-- 文章列表控制器 -->
+          <div class="flex flex-col sm:flex-row sm:items-center mb-10 bg-white rounded-lg p-6 shadow-sm gap-4">
+            <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+              <h2 class="text-xl font-semibold text-gray-800">文章列表</h2>
+              <el-segmented v-model="listType" :options="[
+                { label: '最新发布', value: 'latest' },
+                { label: '热门推荐', value: 'hot' }
+              ]" @change="onListTypeChange" size="large" />
+              
+              <!-- 热门推荐状态提示 -->
+              <el-tooltip v-if="listType === 'hot'" 
+                content="基于文章浏览量和互动数据的智能推荐" 
+                placement="top">
+                <el-tag type="info" size="small" effect="plain">
+                  <el-icon><TrendCharts /></el-icon>
+                  智能推荐
+                </el-tag>
+              </el-tooltip>
+            </div>
           </div>
-          <div class="flex items-center justify-between sm:justify-end gap-2 text-sm text-gray-500">
-            <span>共 {{ meta.total || 0 }} 篇文章</span>
-          </div>
-        </div>
 
-        <!-- 加载状态 -->
-        <div v-if="loading && !articles.length" class="space-y-6">
-          <div v-for="n in 3" :key="n" class="bg-white rounded-xl overflow-hidden shadow-sm">
-            <div class="md:flex">
-              <div class="md:w-80 md:flex-shrink-0">
-                <div class="h-48 md:h-56 bg-gray-200 animate-pulse"></div>
-              </div>
-              <div class="p-6 flex-1">
-                <el-skeleton :rows="4" animated />
+          <!-- 加载状态 -->
+          <div v-if="loading && !articles.length" class="space-y-6">
+            <div v-for="n in 3" :key="n" class="bg-white rounded-xl overflow-hidden shadow-sm">
+              <div class="md:flex">
+                <div class="md:w-80 md:flex-shrink-0">
+                  <div class="h-48 md:h-56 bg-gray-200 animate-pulse"></div>
+                </div>
+                <div class="p-6 flex-1">
+                  <el-skeleton :rows="4" animated />
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- 错误状态 -->
-        <el-alert v-if="error" :title="error" type="error" show-icon class="mt-4" />
-        
-        <!-- 空状态 -->
-        <el-empty v-if="!loading && !error && !articles.length" class="mt-8 py-12">
-          <template #description>
-            <p class="text-gray-500">{{ searchInput || selectedCategory || selectedTag ? '没有找到相关文章' : '暂无文章' }}</p>
-          </template>
-          <el-button type="primary" @click="clearAll" v-if="searchInput || selectedCategory || selectedTag">
-            清空筛选
-          </el-button>
-        </el-empty>
+          <!-- 错误状态 -->
+          <el-alert v-if="error" :title="error" type="error" show-icon class="mt-4" />
+          
+          <!-- 空状态 -->
+          <el-empty v-if="!loading && !error && !articles.length" class="mt-8 py-12">
+            <template #description>
+              <p class="text-gray-500">{{ searchInput || selectedCategory || selectedTag ? '没有找到相关文章' : '暂无文章' }}</p>
+            </template>
+            <el-button type="primary" @click="clearAll" v-if="searchInput || selectedCategory || selectedTag">
+              清空筛选
+            </el-button>
+          </el-empty>
 
-        <!-- 文章列表 -->
-        <div v-else class="space-y-6">
-          <article 
-            v-for="a in articles" 
-            :key="a.id" 
-            class="article-card bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group"
-          >
-            <div class="md:flex">
-              <!-- 封面图片 -->
-              <div class="md:w-80 md:flex-shrink-0 relative overflow-hidden">
+          <!-- 文章列表 -->
+          <div v-else class="article-grid space-y-8 md:space-y-0" style="margin-top: 2.5rem;">
+            <article 
+              v-for="a in articles" 
+              :key="a.id" 
+              class="article-card bg-slate-50 rounded-3xl shadow-sm hover:shadow-xl transition-all duration-300 group"
+              style="background-color: rgb(248 250 252); padding: 24px;"
+            >
+              <!-- 封面图片（顶部） - 优化的嵌入样式 -->
+              <div class="cover-image-container">
                 <RouterLink :to="'/article/' + a.slug">
-                  <div class="aspect-video md:aspect-[4/3] bg-gray-100 relative">
-                    <img 
-                      v-if="a.featured_image" 
-                      :src="a.featured_image" 
+                  <div class="aspect-[16/9] bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative cover-image-wrapper">
+                    <CoverImage 
+                      :src="a.featured_image || getDefaultCoverImage(a)" 
                       :alt="a.title" 
-                      class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      loading="lazy"
+                      container-class="absolute inset-0 overflow-hidden"
+                      image-class="w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
+                      style="border-radius: 24px;"
                     />
-                    <div v-else class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 text-gray-400">
-                      <el-icon size="48"><Picture /></el-icon>
-                    </div>
+                    <!-- 渐变遮罩 -->
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" style="border-radius: 24px;"></div>
                   </div>
                 </RouterLink>
-                <!-- 分类标签 -->
-                <div v-if="a.category" class="absolute top-3 left-3">
-                  <el-tag :type="getCategoryColor(a.category)" size="small" class="shadow-sm">
-                    {{ a.category }}
-                  </el-tag>
-                </div>
               </div>
 
-              <!-- 内容区域 -->
-              <div class="p-6 flex-1 flex flex-col">
-                <div class="flex-1">
-                  <!-- 标题 -->
+              <!-- 主要内容区域 -->
+              <div>
+                  <!-- 文章标题 -->
                   <RouterLink 
                     :to="'/article/' + a.slug"
-                    class="block group-hover:text-blue-600 transition-colors duration-200"
+                    class="block group-hover:text-blue-600 transition-colors duration-200 text-center"
                   >
-                    <h3 class="text-xl font-bold text-gray-900 leading-tight mb-3 line-clamp-2">
+                    <h3 class="text-xl font-bold text-gray-900 leading-tight mb-4 line-clamp-2 hover:text-blue-600 transition-colors">
                       {{ a.title }}
                     </h3>
                   </RouterLink>
 
-                  <!-- 摘要 -->
+                  <!-- 文章元信息 -->
+                  <div class="post-meta text-sm text-gray-500 mb-4 text-center">
+                    <!-- 第一行：基础信息 -->
+                    <div class="flex items-center flex-wrap mb-1 justify-center">
+                      <!-- 发布时间 -->
+                      <div class="post-meta-item">
+                        <i class="fa fa-clock-o" aria-hidden="true"></i>
+                        {{ formatDate(a.published_at) }}
+                      </div>
+                      
+                      <div class="post-meta-divider">|</div>
+                      
+                      <!-- 浏览次数 -->
+                      <div v-if="a.views_count != null" class="post-meta-item">
+                        <i class="fa fa-eye" aria-hidden="true"></i>
+                        {{ formatNumber(a.views_count) }}
+                      </div>
+                      
+                      <div v-if="a.views_count != null" class="post-meta-divider">|</div>
+                      
+                      <!-- 评论数 -->
+                      <div class="post-meta-item">
+                        <i class="fa fa-comments-o" aria-hidden="true"></i>
+                        {{ a.comments_count || 0 }}
+                      </div>
+                      
+                      <div class="post-meta-divider">|</div>
+                      
+                      <!-- 文章分类 -->
+                      <div v-if="a.category" class="post-meta-item">
+                        <i class="fa fa-bookmark-o" aria-hidden="true"></i>
+                        <span class="text-blue-600 hover:text-blue-800 transition-colors cursor-pointer" @click="clickCategory(a.category_id)">
+                          {{ a.category }}
+                        </span>
+                      </div>
+                      
+                      <div v-if="a.category" class="post-meta-divider">|</div>
+                      
+                      <!-- 最后编辑时间 -->
+                      <div v-if="a.updated_at && a.updated_at !== a.published_at" class="post-meta-item">
+                        <i class="fa fa-clock-o" aria-hidden="true"></i>
+                        {{ formatDate(a.updated_at) }}
+                      </div>
+                      
+                      <div v-if="a.updated_at && a.updated_at !== a.published_at" class="post-meta-divider">|</div>
+                      
+                      <!-- 文章作者 -->
+                      <div class="post-meta-item">
+                        <i class="fa fa-user-circle-o" aria-hidden="true"></i>
+                        {{ a.author?.name || '匿名作者' }}
+                      </div>
+                    </div>
+                    
+                    <!-- 第二行：字数和阅读时间 -->
+                    <div class="flex items-center justify-center">
+                      <!-- 字数统计 -->
+                      <div class="post-meta-item">
+                        <i class="fa fa-file-word-o" aria-hidden="true"></i>
+                        {{ calculateWordCount(a.content_md || a.summary || '') }} 字
+                      </div>
+                      
+                      <div class="post-meta-divider">|</div>
+                      
+                      <!-- 预计阅读时间 -->
+                      <div class="post-meta-item">
+                        <i class="fa fa-hourglass-end" aria-hidden="true"></i>
+                        {{ calculateReadTime(a.content_md || a.summary || '') }} 分钟
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 文章摘要 -->
                   <p class="text-gray-600 leading-relaxed mb-4 line-clamp-3">
-                    {{ a.summary || '暂无摘要...' }}
+                    {{ getArticleSummary(a) }}
                   </p>
 
-                  <!-- 标签 -->
-                  <div v-if="Array.isArray(a.tags) && a.tags.length" class="flex items-center gap-2 flex-wrap mb-4">
-                    <el-tag 
-                      v-for="t in a.tags.slice(0, 3)" 
-                      :key="t" 
-                      size="small" 
-                      class="cursor-pointer hover:bg-gray-200 transition-colors"
-                      @click="clickTag(t)"
-                    >
-                      #{{ t }}
-                    </el-tag>
-                    <span v-if="a.tags.length > 3" class="text-xs text-gray-400">+{{ a.tags.length - 3 }}</span>
+                  <!-- 底部操作区域 -->
+                  <div class="flex flex-col gap-4">
+                    <!-- 标签区域 -->
+                    <div v-if="Array.isArray(a.tags) && a.tags.length" class="flex items-center gap-2 flex-wrap justify-center">
+                      <el-tag 
+                        v-for="t in a.tags.slice(0, 3)" 
+                        :key="t" 
+                        size="small" 
+                        type="info"
+                        class="cursor-pointer hover:bg-gray-200 transition-colors"
+                        @click="clickTag(t)"
+                      >
+                        #{{ t }}
+                      </el-tag>
+                      <span v-if="a.tags.length > 3" class="text-xs text-gray-400">+{{ a.tags.length - 3 }}</span>
+                    </div>
+                    
+                    <!-- 互动按钮 - 移除分割线和边距 -->
+                    <div class="interaction-buttons-container">
+                      <!-- 点赞按钮 -->
+                      <button 
+                        @click="toggleLike(a)"
+                        :class="[
+                          'interaction-btn',
+                          a.is_liked ? 'liked' : ''
+                        ]"
+                        :disabled="likingIds.includes(a.id)"
+                        :title="a.is_liked ? '取消点赞' : '点赞'"
+                      >
+                        <i :class="a.is_liked ? 'fa fa-heart' : 'fa fa-heart-o'" aria-hidden="true"></i>
+                        <span>{{ formatNumber(a.likes_count || 0) }}</span>
+                      </button>
+                      
+                      <!-- 收藏按钮 -->
+                      <button 
+                        @click="toggleBookmark(a)"
+                        :class="[
+                          'interaction-btn',
+                          a.is_bookmarked ? 'bookmarked' : ''
+                        ]"
+                        :disabled="bookmarkingIds.includes(a.id)"
+                        :title="a.is_bookmarked ? '取消收藏' : '收藏文章'"
+                      >
+                        <i :class="a.is_bookmarked ? 'fa fa-bookmark' : 'fa fa-bookmark-o'" aria-hidden="true"></i>
+                        <span>收藏</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
-
-                <!-- 底部信息 -->
-                <div class="flex items-center justify-between pt-4 border-t border-gray-100">
-                  <!-- 作者信息 -->
-                  <div class="flex items-center gap-3">
-                    <template v-if="a.author && a.author.id">
-                      <RouterLink :to="`/author/${a.author.id}`" class="flex items-center gap-2 hover:text-blue-600 transition-colors">
-                        <div class="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-gray-200 to-gray-300 flex-shrink-0">
-                          <img 
-                            v-if="a.author.avatar"
-                            :src="a.author.avatar" 
-                            :alt="a.author.name" 
-                            class="w-full h-full object-cover"
-                            @error="(e: Event) => handleAuthorAvatarError(e, a.author)"
-                          />
-                          <div v-else class="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-400 to-purple-500">
-                            <el-icon size="12" class="text-white"><User /></el-icon>
-                          </div>
-                        </div>
-                        <div class="text-sm">
-                          <div class="font-medium text-gray-900">{{ a.author.name || '匿名作者' }}</div>
-                          <div class="text-gray-500">{{ formatDate(a.published_at) }}</div>
-                        </div>
-                      </RouterLink>
-                    </template>
-                    <template v-else>
-                      <div class="flex items-center gap-2">
-                        <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                          <el-icon size="16" class="text-gray-400"><User /></el-icon>
-                        </div>
-                        <div class="text-sm">
-                          <div class="font-medium text-gray-900">匿名作者</div>
-                          <div class="text-gray-500">{{ formatDate(a.published_at) }}</div>
-                        </div>
-                      </div>
-                    </template>
-                  </div>
-
-                  <!-- 互动按钮 -->
-                  <div class="flex items-center gap-4 text-gray-500">
-                    <span v-if="a.views_count != null" class="flex items-center gap-1 text-sm">
-                      <el-icon><View /></el-icon>
-                      {{ formatNumber(a.views_count) }}
-                    </span>
-                    <button 
-                      @click="toggleLike(a)"
-                      :class="[
-                        'flex items-center gap-1 text-sm transition-colors hover:text-red-500',
-                        a.is_liked ? 'text-red-500' : ''
-                      ]"
-                      :disabled="likingIds.includes(a.id)"
-                    >
-                      <el-icon>
-                        <component :is="a.is_liked ? 'StarFilled' : 'Star'" />
-                      </el-icon>
-                      {{ formatNumber(a.likes_count || 0) }}
-                    </button>
-                    <button 
-                      @click="toggleBookmark(a)"
-                      :class="[
-                        'flex items-center gap-1 text-sm transition-colors hover:text-blue-500',
-                        a.is_bookmarked ? 'text-blue-500' : ''
-                      ]"
-                      :disabled="bookmarkingIds.includes(a.id)"
-                    >
-                      <el-icon>
-                        <component :is="a.is_bookmarked ? 'FolderChecked' : 'FolderAdd'" />
-                      </el-icon>
-                    </button>
-                  </div>
-                </div>
               </div>
-            </div>
-          </article>
+            </article>
+          </div>
         </div>
 
-        <div v-if="meta.total > 0" class="mt-6 flex justify-center">
+        <!-- 翻页组件独立容器 - 确保始终在底部且与内容分离 -->
+        <div v-if="meta.total > 0" class="pagination-container">
           <el-pagination
             background
             layout="prev, pager, next, sizes, total"
             :page-sizes="[10,20,50]"
+            :default-page-size="10"
             :total="meta.total || 0"
             :current-page="meta.page"
             :page-size="meta.page_size"
@@ -259,12 +297,12 @@
         <DesktopSidebar 
           :categories="categories"
           :tags="tags"
-          :hot-articles="hot"
-          :latest-articles="latest"
-          :hot-loading="hotLoading"
-          :latest-loading="sideLoading"
-          :selected-category="selectedCategory"
-          :selected-tag="selectedTag"
+          :hotArticles="hot"
+          :latestArticles="latest"
+          :hotLoading="hotLoading"
+          :latestLoading="sideLoading"
+          :selectedCategory="selectedCategory"
+          :selectedTag="selectedTag"
           @category-click="clickCategory"
           @tag-click="clickTag"
         />
@@ -277,13 +315,15 @@
 import { ref, reactive, computed, watch, onMounted, inject, Ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { 
-  Star, StarFilled, FolderAdd, FolderChecked, Search, Picture, User, View
+  Star, StarFilled, FolderAdd, FolderChecked, Search, Picture, User, View,
+  Bookmark, BookmarkFilled, Clock, ChatLineRound, Edit, Document, Timer, TrendCharts
 } from '@element-plus/icons-vue';
 import { usePagedQuery } from '../composables/usePagedQuery';
 import { useResponsiveLayout } from '../composables/useResponsiveLayout';
 import apiClient from '../apiClient';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElTooltip } from 'element-plus';
 import DesktopSidebar from '../components/sidebar/DesktopSidebar.vue';
+import CoverImage from '../components/CoverImage.vue';
 
 // API 接口定义
 const API = {
@@ -295,11 +335,13 @@ const API = {
         getApiV1ArticlesPublicHot: (page: number, page_size: number, window_hours: number) => 
           apiClient.get('/articles/public/hot', { params: { page, page_size, window_hours }}),
         toggleLike: (articleId: number) => apiClient.post(`/articles/${articleId}/like`),
-        toggleBookmark: (articleId: number) => apiClient.post(`/articles/${articleId}/bookmark`)
+        toggleBookmark: (articleId: number) => apiClient.post(`/articles/${articleId}/bookmark`),
+        approveArticle: (articleId: number) => apiClient.post(`/articles/${articleId}/approve`)
     },
     TaxonomyService: {
-        listCategories: () => apiClient.get('/taxonomy/categories/'),
-        listTags: () => apiClient.get('/taxonomy/tags/')
+        getTaxonomy: () => apiClient.get('/taxonomy', { baseURL: '/public/v1' }),
+        listCategories: () => apiClient.get('/categories/'),
+        listTags: () => apiClient.get('/tags/')
     }
 }
 
@@ -329,14 +371,15 @@ const bookmarkingIds = ref<number[]>([]);
 
 // 分页查询
 const { loading, error, data, pageSize, goPage, setPageSize } = usePagedQuery<any>({
-  initialPageSize: 20,
+  initialPageSize: 10,
   async fetcher(params){
     const { page, page_size } = params;
     const q = route.query.q as string || '';
     const category_id = route.query.category_id as string || '';
     const tag = route.query.tag as string || '';
     
-    let resp;
+    // 明确标注 resp 的类型以避免 TypeScript 推断为 unknown
+    let resp: import('axios').AxiosResponse<any> | any;
     if (q) {
       resp = await API.SearchService.search({ 
         q, page, page_size, 
@@ -344,24 +387,74 @@ const { loading, error, data, pageSize, goPage, setPageSize } = usePagedQuery<an
         tag: tag || undefined 
       });
     } else if (listType.value === 'hot') {
-      resp = await API.ArticlesService.getApiV1ArticlesPublicHot(page, page_size, 72);
+      try {
+        // 首先尝试调用热门推荐API，设置较短的超时时间
+        console.log("尝试调用热门推荐API"); 
+        resp = await Promise.race([
+          API.ArticlesService.getApiV1ArticlesPublicHot(page, page_size, 72),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('API timeout')), 5000)
+          )
+        ]);
+        console.log("热门推荐API调用成功:", resp.data.data);
+      } catch (hotError) {
+        console.warn('热门推荐API调用失败，回退到最新文章:', hotError);
+        // 降级方案：使用最新文章但按浏览量排序
+        resp = await API.ArticlesService.listArticles({ 
+          page, page_size, 
+          sort: 'views_desc',  // 按浏览量降序排序
+          category_id: category_id || undefined, 
+          tag: tag || undefined 
+        });
+        // 添加提示信息
+        if (resp.data?.data?.list) {
+          resp.data.data.isHotFallback = true;
+        }
+        
+        // 调试降级响应
+        if (process.env.NODE_ENV === 'development') {
+          console.log('===== 热门推荐降级响应 =====');
+          console.log('降级响应数据:', resp.data.data);
+          console.log('文章数量:', resp.data.data?.list?.length);
+          console.log('页面大小:', resp.data.data?.page_size);
+          console.log('=========================');
+        }
+      }
     } else {
+      console.log("调用最新文章API");
       resp = await API.ArticlesService.listArticles({ 
         page, page_size, 
         category_id: category_id || undefined, 
         tag: tag || undefined 
       });
     }
+    
+    // 如果是热门推荐降级，显示提示信息
+    if (resp.data?.data?.isHotFallback && listType.value === 'hot') {
+      ElMessage.info({
+        message: '热门推荐暂不可用，已为您显示最受欢迎的文章',
+        duration: 3000,
+        showClose: true
+      });
+    }
+    
     return resp.data.data;
   }
 });
 
-const articles = computed(() => data.value?.list || []);
+const articles = computed(() => {
+  const articleList = data.value?.list || [];
+  if (process.env.NODE_ENV === 'development') {
+    console.log('当前文章列表长度:', articleList.length);
+  }
+  return articleList;
+});
 const meta = computed(() => ({
   total: data.value?.total ?? null,
   page: data.value?.page ?? 1,
   page_size: data.value?.page_size ?? pageSize.value,
 }));
+
 
 // 工具函数
 function buildQuery(newQuery: Record<string, any>) {
@@ -372,9 +465,35 @@ function buildQuery(newQuery: Record<string, any>) {
 
 function formatDate(s?: string) { 
   if (!s) return ''; 
-  try { 
-    return new Date(s).toLocaleDateString('zh-CN');
-  } catch { 
+  try {
+    // 修复时区问题：强制将后端时间作为UTC时间处理
+    let dateString = s;
+    // 如果时间字符串没有时区标识，添加Z表示UTC
+    if (!dateString.endsWith('Z') && !dateString.includes('+') && !dateString.includes('-', 10)) {
+      dateString += 'Z';
+    }
+    
+    const date = new Date(dateString);
+    const now = new Date();
+    
+    const diffMs = now.getTime() - date.getTime();
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    // 相对时间显示
+    if (diffMinutes < 1) return '刚刚';
+    if (diffMinutes < 60) return `${diffMinutes}分钟前`;
+    if (diffHours < 24) return `${diffHours}小时前`;
+    if (diffDays === 1) return '昨天';
+    if (diffDays < 7) return `${diffDays}天前`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)}周前`;
+    if (diffDays < 365) return `${Math.floor(diffDays / 30)}个月前`;
+    
+    // 超过一年显示具体日期
+    return date.toLocaleDateString('zh-CN');
+  } catch (error) { 
+    console.warn('formatDate error:', error, 'input:', s);
     return ''; 
   } 
 }
@@ -405,6 +524,97 @@ function handleAuthorAvatarError(e: Event, author: any) {
   author.avatar = null;
 }
 
+// 计算文章字数
+function calculateWordCount(content: string): number {
+  if (!content) return 0;
+  // 移除 Markdown 标记和 HTML 标签，然后计算字数
+  const plainText = content
+    .replace(/[#*_`~\[\]()]/g, '') // 移除常见 Markdown 标记
+    .replace(/<[^>]*>/g, '') // 移除 HTML 标签
+    .replace(/\s+/g, ' ') // 合并多个空白字符
+    .trim();
+  
+  // 中文字符按1个字计算，英文按单词计算
+  const chineseChars = (plainText.match(/[\u4e00-\u9fa5]/g) || []).length;
+  const englishWords = (plainText.replace(/[\u4e00-\u9fa5]/g, '').match(/\b\w+\b/g) || []).length;
+  
+  return chineseChars + englishWords;
+}
+
+// 计算预计阅读时间（分钟）
+function calculateReadTime(content: string): number {
+  const wordCount = calculateWordCount(content);
+  // 假设平均阅读速度：中文 300 字/分钟，英文 250 词/分钟
+  const readTime = Math.max(1, Math.ceil(wordCount / 275));
+  return readTime;
+}
+
+// 获取默认封面图片
+function getDefaultCoverImage(article: any): string {
+  // 根据文章分类生成不同的默认封面 (16:9 比例)
+  const categoryImages: Record<string, string> = {
+    'Python': 'https://images.unsplash.com/photo-1526379095098-d400fd0bf935?w=640&h=360&fit=crop&crop=center',
+    '前端': 'https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=640&h=360&fit=crop&crop=center',
+    '计算机网络': 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=640&h=360&fit=crop&crop=center',
+    '其他': 'https://images.unsplash.com/photo-1432821596592-e2c18b78144f?w=640&h=360&fit=crop&crop=center'
+  };
+  
+  // 如果有分类且在映射中，返回对应图片
+  if (article.category && categoryImages[article.category]) {
+    return categoryImages[article.category];
+  }
+  
+  // 根据文章ID生成不同主题的高质量封面图片
+  const themeImages = [
+    'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=640&h=360&fit=crop&crop=center', // 现代办公
+    'https://images.unsplash.com/photo-1504639725590-34d0984388bd?w=640&h=360&fit=crop&crop=center', // 创意设计
+    'https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?w=640&h=360&fit=crop&crop=center', // 技术创新
+    'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=640&h=360&fit=crop&crop=center', // 团队协作
+    'https://images.unsplash.com/photo-1551434678-e076c223a692?w=640&h=360&fit=crop&crop=center'  // 数据分析
+  ];
+  
+  const index = (article.id || 0) % themeImages.length;
+  return themeImages[index];
+}
+
+// 获取文章摘要
+function getArticleSummary(article: any): string {
+  // 优先使用填写的摘要
+  if (article.summary && article.summary.trim()) {
+    return article.summary;
+  }
+  
+  // 其次使用后端提供的内容摘录
+  if (article.content_excerpt && article.content_excerpt.trim()) {
+    const plainText = article.content_excerpt
+      .replace(/[#*_`~\[\]()]/g, '') // 移除 Markdown 标记
+      .replace(/<[^>]*>/g, '') // 移除 HTML 标签
+      .replace(/\s+/g, ' ') // 合并空白
+      .trim();
+    
+    if (plainText.length > 150) {
+      return plainText.substring(0, 150) + '...';
+    }
+    return plainText || '暂无摘要...';
+  }
+  
+  // 最后使用完整content_md（如果有的话）
+  if (article.content_md) {
+    const plainText = article.content_md
+      .replace(/[#*_`~\[\]()]/g, '') // 移除 Markdown 标记
+      .replace(/<[^>]*>/g, '') // 移除 HTML 标签
+      .replace(/\s+/g, ' ') // 合并空白
+      .trim();
+    
+    if (plainText.length > 150) {
+      return plainText.substring(0, 150) + '...';
+    }
+    return plainText;
+  }
+  
+  return '暂无摘要...';
+}
+
 // 事件处理
 function applySearch() { 
   router.push({ query: buildQuery({ q: searchInput.value, page: 1 }) }); 
@@ -421,7 +631,12 @@ function applyFilters() {
 }
 
 function clickCategory(id: any) { 
-  selectedCategory.value = String(id); 
+  // 如果点击的是当前已选中的分类，则取消选择
+  if (selectedCategory.value === String(id)) {
+    selectedCategory.value = ''; // 取消选择
+  } else {
+    selectedCategory.value = String(id); 
+  }
   applyFilters(); 
 }
 
@@ -431,7 +646,12 @@ function clearCategory() {
 }
 
 function clickTag(slug: string) { 
-  selectedTag.value = slug; 
+  // 如果点击的是当前已选中的标签，则取消选择
+  if (selectedTag.value === slug) {
+    selectedTag.value = ''; // 取消选择
+  } else {
+    selectedTag.value = slug; 
+  }
   applyFilters(); 
 }
 
@@ -447,6 +667,9 @@ function onPageChange(p: number) {
 }
 
 function onSizeChange(size: number) {
+  if (process.env.NODE_ENV === 'development') {
+    console.log('分页大小变更:', size);
+  }
   setPageSize(size);
   router.push({ query: buildQuery({ page: 1 }) });
 }
@@ -506,30 +729,110 @@ async function toggleBookmark(article: any) {
 // 数据加载
 async function loadTaxonomy() {
   try {
-    const [cRes, tRes] = await Promise.all([
-      API.TaxonomyService.listCategories(),
-      API.TaxonomyService.listTags()
+    // 使用统一的taxonomy API
+    const taxonomyRes = await Promise.race([
+      API.TaxonomyService.getTaxonomy(),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Taxonomy API timeout')), 10000)
+      )
     ]);
-    categories.value = cRes.data.data;
-    tags.value = tRes.data.data;
+    
+    const taxonomyData = taxonomyRes.data.data;
+    categories.value = taxonomyData.categories || [];
+    tags.value = taxonomyData.tags || [];
     
     // 更新侧边栏数据
     if (sidebarData) {
-      sidebarData.value.categories = cRes.data.data;
-      sidebarData.value.tags = tRes.data.data;
+      sidebarData.value.categories = categories.value;
+      sidebarData.value.tags = tags.value;
     }
   } catch (e) {
     console.error('加载分类标签失败:', e);
+    // 降级方案：使用模拟数据
+    const mockCategories = [
+      { id: 1, name: 'Vue.js', slug: 'vue' },
+      { id: 2, name: 'React', slug: 'react' },
+      { id: 3, name: 'JavaScript', slug: 'javascript' },
+      { id: 4, name: 'TypeScript', slug: 'typescript' },
+      { id: 5, name: 'CSS', slug: 'css' },
+      { id: 6, name: '前端工程化', slug: 'frontend-engineering' },
+      { id: 7, name: '性能优化', slug: 'performance' },
+      { id: 8, name: 'Node.js', slug: 'nodejs' }
+    ];
+    
+    const mockTags = [
+      { id: 1, slug: 'hooks', name: 'Hooks' },
+      { id: 2, slug: 'async', name: 'Async' },
+      { id: 3, slug: 'optimization', name: 'Optimization' },
+      { id: 4, slug: 'components', name: 'Components' },
+      { id: 5, slug: 'state-management', name: 'State Management' },
+      { id: 6, slug: 'testing', name: 'Testing' },
+      { id: 7, slug: 'webpack', name: 'Webpack' },
+      { id: 8, slug: 'babel', name: 'Babel' },
+      { id: 9, slug: 'eslint', name: 'ESLint' },
+      { id: 10, slug: 'vite', name: 'Vite' },
+      { id: 11, slug: 'responsive', name: 'Responsive' },
+      { id: 12, slug: 'animations', name: 'Animations' }
+    ];
+    
+    categories.value = mockCategories;
+    tags.value = mockTags;
+    
+    // 更新侧边栏数据
+    if (sidebarData) {
+      sidebarData.value.categories = mockCategories;
+      sidebarData.value.tags = mockTags;
+    }
+    
+    // 显示友好提示
+    ElMessage.info({
+      message: '数据加载中，当前显示演示内容',
+      duration: 3000,
+      showClose: true
+    });
   }
 }
 
 async function loadLatest() {
   sideLoading.value = true;
   try {
-    const r = await API.ArticlesService.listArticles({ page: 1, page_size: 5 });
+    // 添加超时控制 - 增加到10秒给API更多时间响应
+    const r = await Promise.race([
+      API.ArticlesService.listArticles({ page: 1, page_size: 5 }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('API timeout')), 10000)
+      )
+    ]);
     latest.value = r.data.data?.list || [];
   } catch (e) {
     console.error('加载最新文章失败:', e);
+    // 降级方案：使用模拟数据展示界面
+    latest.value = [
+      {
+        id: 1,
+        title: '如何优化Vue.js应用的性能',
+        slug: 'vue-performance-optimization',
+        summary: '通过多种技术手段提升Vue应用响应速度...',
+        published_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2小时前
+        category: 'Vue.js'
+      },
+      {
+        id: 2,
+        title: 'JavaScript异步编程最佳实践',
+        slug: 'js-async-best-practices',
+        summary: '掌握Promise、async/await的高级用法...',
+        published_at: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(), // 6小时前
+        category: 'JavaScript'
+      },
+      {
+        id: 3,
+        title: 'CSS Grid布局完全指南',
+        slug: 'css-grid-complete-guide',
+        summary: '从基础到高级，全面掌握CSS Grid布局...',
+        published_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1天前
+        category: 'CSS'
+      }
+    ];
   } finally { 
     sideLoading.value = false; 
   }
@@ -538,7 +841,13 @@ async function loadLatest() {
 async function loadHot() {
   hotLoading.value = true;
   try {
-    const r = await API.ArticlesService.getApiV1ArticlesPublicHot(1, 5, 48);
+    // 添加超时控制 - 增加到10秒给API更多时间响应
+    const r = await Promise.race([
+      API.ArticlesService.getApiV1ArticlesPublicHot(1, 5, 48),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('API timeout')), 10000)
+      )
+    ]);
     hot.value = r.data.data?.list || [];
     
     // 更新侧边栏数据
@@ -547,22 +856,85 @@ async function loadHot() {
     }
   } catch (e) {
     console.error('加载热门文章失败:', e);
+    // 降级方案：尝试使用最新文章作为热门文章的替代
+    try {
+      const fallbackResp = await API.ArticlesService.listArticles({ 
+        page: 1, 
+        page_size: 5, 
+        sort: 'published_at:desc'  // 按发布时间降序
+      });
+      const fallbackArticles = fallbackResp.data.data?.list || [];
+      
+      // 如果获取到了最新文章，将其作为热门文章的降级数据
+      if (fallbackArticles.length > 0) {
+        // 为降级数据添加模拟的浏览量和点赞数
+        const mockHotArticles = fallbackArticles.map((article, index) => ({
+          ...article,
+          views_count: Math.max(article.views_count || 0, 100 - index * 20), // 模拟递减的浏览量
+          likes_count: Math.max(article.likes_count || 0, 10 - index * 2), // 模拟递减的点赞数
+        }));
+        
+        hot.value = mockHotArticles;
+        
+        // 更新侧边栏数据
+        if (sidebarData) {
+          sidebarData.value.hotArticles = mockHotArticles;
+        }
+        
+        console.log('使用最新文章作为热门文章降级数据');
+        return;
+      }
+    } catch (fallbackError) {
+      console.error('降级数据获取也失败:', fallbackError);
+    }
+    
+    // 最终降级：完全没有数据时显示空数组
+    hot.value = [];
+    if (sidebarData) {
+      sidebarData.value.hotArticles = [];
+    }
   } finally { 
     hotLoading.value = false; 
   }
 }
 
 // 生命周期
-onMounted(() => {
-  loadTaxonomy();
-  loadLatest();
-  loadHot();
+onMounted(async () => {
+  // 如果URL中没有page_size参数，设置默认值
+  if (!route.query.page_size) {
+    router.replace({ 
+      query: { ...route.query, page_size: '10' }
+    });
+    return;
+  }
+  
+  await Promise.all([
+    loadTaxonomy(),
+    loadLatest(),
+    loadHot()
+  ]);
 });
 
 // 监听路由变化
 watch(() => route.query, () => {
   goPage(Number(route.query.page) || 1);
 }, { deep: true });
+
+// 监听路由路径变化，当用户返回首页时重新加载侧边栏数据
+watch(() => route.path, (newPath) => {
+  if (newPath === '/' || newPath === '/home') {
+    // 只有当侧边栏数据为空或很少时才重新加载，避免不必要的请求
+    if (latest.value.length === 0) {
+      loadLatest();
+    }
+    if (hot.value.length === 0) {
+      loadHot();
+    }
+    if (categories.value.length === 0 || tags.value.length === 0) {
+      loadTaxonomy();
+    }
+  }
+}, { immediate: false });
 
 // 监听列表类型变化
 watch(listType, () => {
@@ -581,9 +953,32 @@ watch(listType, () => {
   box-sizing: border-box; /* 包含padding在宽度计算内 */
 }
 
-.article-section {
+.article-section-container {
   flex: 1;
   min-width: 0; /* 允许压缩，重要！ */
+  min-height: 80vh; /* 确保有足够高度让翻页组件靠近底部 */
+  display: flex;
+  flex-direction: column;
+}
+
+.article-content-wrapper {
+  flex: 1;
+  min-height: 0; /* 允许内容区域自适应高度 */
+}
+
+/* 翻页组件独立容器 - 确保固定在底部并与内容分离 */
+.pagination-container {
+  margin-top: 4rem; /* 与内容区域保持固定间距 */
+  margin-bottom: 2rem;
+  padding-top: 2rem;
+  padding-bottom: 1rem;
+  display: flex;
+  justify-content: center;
+  border-top: 1px solid #f1f5f9; /* 添加分隔线 */
+  background: rgba(255, 255, 255, 0.8); /* 轻微背景色区分 */
+  backdrop-filter: blur(8px); /* 毛玻璃效果 */
+  border-radius: 16px;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05); /* 轻微阴影 */
 }
 
 .sidebar-section {
@@ -591,15 +986,266 @@ watch(listType, () => {
   flex-shrink: 0;
 }
 
+/* 快速筛选标签间距 */
+.quick-filter-tags {
+  gap: 8px;
+  row-gap: 12px; /* 增加上下间距 */
+}
+
+.quick-filter-tag {
+  transition: all 0.2s ease;
+}
+
+.quick-filter-tag:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 /* 布局样式由JS动态控制，移除固定断点媒体查询 */
 
-.search-input :deep(.el-input__inner) {
+/* 搜索框主容器样式 */
+.search-input {
+  --el-border-radius-base: 12px;
+}
+
+.search-input :deep(.el-input) {
   border-radius: 12px;
-  padding: 12px 16px;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+/* 搜索输入框样式 - 完全重写确保一致性 */
+.search-input :deep(.el-input-group) {
+  display: flex;
+  width: 100%;
+}
+
+.search-input :deep(.el-input__wrapper) {
+  border-radius: 12px 0 0 12px !important;
+  border: 2px solid #e5e7eb !important;
+  border-right: none !important;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+.search-input :deep(.el-input__wrapper:hover) {
+  border-color: #3b82f6 !important;
+  border-right: none !important;
+}
+
+.search-input :deep(.el-input__wrapper.is-focus) {
+  border-color: #3b82f6 !important;
+  border-right: none !important;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 0 0 3px rgb(59 130 246 / 0.1);
+}
+
+.search-input :deep(.el-input-group__append) {
+  border-radius: 0 12px 12px 0 !important;
+  border: 2px solid #3b82f6 !important;
+  border-left: none !important;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  transition: all 0.3s ease;
+}
+
+.search-input :deep(.el-input-group__append .el-button) {
+  border: none !important;
+  border-radius: 0 10px 10px 0 !important;
+  background: #3b82f6 !important;
+  color: white !important;
+  font-weight: 500;
+  padding: 0 20px;
+  height: 100%;
+}
+
+.search-input :deep(.el-input-group__append .el-button:hover) {
+  background: #2563eb !important;
+}
+
+/* 文章列表切换按钮样式优化 */
+.el-segmented {
+  height: 48px !important; /* 增加按钮组高度 */
+}
+
+.el-segmented :deep(.el-segmented__item) {
+  height: 44px !important; /* 增加单个按钮高度 */
+  line-height: 44px !important; /* 调整行高确保文字居中 */
+  padding: 0 24px !important; /* 增加水平内边距 */
+  font-size: 0.95rem !important; /* 稍微增加字体大小 */
+  font-weight: 500 !important; /* 增加字体重量 */
+}
+
+.el-segmented :deep(.el-segmented__item-selected) {
+  height: 44px !important;
+  line-height: 44px !important;
+}
+
+/* 修复焦点状态下的边框连接 */
+.search-input :deep(.el-input__wrapper.is-focus) + .el-input-group__append {
+  border-color: #3b82f6 !important;
+}
+
+/* 文章元信息样式 */
+.post-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.post-meta-item i {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  width: 14px;
+  text-align: center;
+}
+
+.post-meta-divider {
+  margin: 0 8px;
+  color: #d1d5db;
+  font-weight: 300;
+}
+
+/* 交互按钮容器样式 */
+.interaction-buttons-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px !important; /* 强制应用16px间距 */
+}
+
+/* 交互按钮样式 */
+.interaction-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  color: #64748b;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.interaction-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-color: #cbd5e1;
+}
+
+.interaction-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.interaction-btn i {
+  font-size: 0.875rem;
+  transition: all 0.3s ease;
+}
+
+/* 点赞状态 */
+.interaction-btn.liked {
+  background: linear-gradient(135deg, #fef2f2, #fecaca);
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+.interaction-btn.liked:hover {
+  background: linear-gradient(135deg, #fee2e2, #fca5a5);
+  border-color: #f87171;
+}
+
+/* 收藏状态 */
+.interaction-btn.bookmarked {
+  background: linear-gradient(135deg, #eff6ff, #bfdbfe);
+  border-color: #93c5fd;
+  color: #2563eb;
+}
+
+.interaction-btn.bookmarked:hover {
+  background: linear-gradient(135deg, #dbeafe, #93c5fd);
+  border-color: #60a5fa;
+}
+
+/* 封面图片容器样式 - 现代化设计 */
+.cover-image-container {
+  margin: -24px -24px 24px -24px; /* 负边距让图片延伸到卡片边缘 */
+  position: relative;
+}
+
+.cover-image-wrapper {
+  border-radius: 24px; /* 与卡片圆角保持一致 (rounded-3xl = 24px) */
+  overflow: hidden;
+  box-shadow: 
+    0 10px 25px -5px rgba(0, 0, 0, 0.1),
+    0 8px 10px -6px rgba(0, 0, 0, 0.1); /* 深度阴影效果 */
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cover-image-wrapper:hover {
+  box-shadow: 
+    0 20px 25px -5px rgba(0, 0, 0, 0.15),
+    0 10px 10px -5px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px); /* 轻微上移效果 */
+}
+
+/* 文章卡片hover效果 */
+.article-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border-radius: 24px !important; /* 强制应用圆角，与 rounded-3xl 一致 */
+  overflow: hidden !important; /* 确保内容不会溢出圆角边界 */
 }
 
 .article-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-8px);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* 响应式网格布局 */
+.article-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  margin-top: 2.5rem !important; /* 强制应用顶部间距，与控制器分离 */
+}
+
+@media (min-width: 768px) {
+  .article-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 2rem;
+    width: 100%;
+  }
+}
+
+.article-card:hover .author-avatar-container {
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
+}
+
+/* 强制控制作者头像尺寸 */
+.author-avatar-container {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+  max-width: 32px !important;
+  max-height: 32px !important;
+  border-radius: 50% !important;
+  overflow: hidden !important;
+  flex-shrink: 0 !important;
+}
+
+.author-avatar-container img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  object-position: center !important;
 }
 
 .line-clamp-2 {

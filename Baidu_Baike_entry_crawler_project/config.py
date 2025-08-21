@@ -138,7 +138,7 @@ ENABLE_DYNAMIC_PROXY = True  # 启用动态代理
 # 动态代理API配置 - 快代理KDL配置
 DYNAMIC_PROXY_CONFIG = {
     # 快代理API - 获取代理列表
-    'url': 'https://xxxx',
+    'url': 'http://v2.api.juliangip.com/company/dynamic/getips?auto_white=1&num=1&pt=1&result_type=json&trade_no=2016978334949568&sign=181afe2636ac6f3316e139448384cce4',
     'method': 'GET',
     'timeout': 15,
     

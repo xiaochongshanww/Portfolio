@@ -4,6 +4,7 @@ import AutoImport from 'unplugin-auto-import/vite';
 import Components from 'unplugin-vue-components/vite';
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers';
 import tailwindcss from '@tailwindcss/vite';
+import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
   plugins: [
@@ -18,6 +19,11 @@ export default defineConfig({
       dts: 'src/components.d.ts'
     })
   ],
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url))
+    }
+  },
   build: {
     rollupOptions: {
       output: {
@@ -38,9 +44,12 @@ export default defineConfig({
       '/api': {
         target: 'http://127.0.0.1:5000',
         changeOrigin: true
-      }
-      ,
+      },
       '/public': {
+        target: 'http://127.0.0.1:5000',
+        changeOrigin: true
+      },
+      '/uploads': {
         target: 'http://127.0.0.1:5000',
         changeOrigin: true
       }

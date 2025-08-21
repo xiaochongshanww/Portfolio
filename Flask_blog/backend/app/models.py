@@ -1,4 +1,7 @@
 from datetime import datetime, timezone
+from sqlalchemy.dialects.mysql import LONGTEXT
+from sqlalchemy import Text
+from sqlalchemy.dialects import mysql
 from . import db
 
 class User(db.Model):
@@ -41,8 +44,8 @@ class Article(db.Model):
     author_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     title = db.Column(db.String(255), nullable=False)
     slug = db.Column(db.String(255), unique=True, index=True)
-    content_md = db.Column(db.Text)
-    content_html = db.Column(db.Text)
+    content_md = db.Column(Text().with_variant(mysql.LONGTEXT(), 'mysql'))
+    content_html = db.Column(Text().with_variant(mysql.LONGTEXT(), 'mysql'))
     status = db.Column(db.String(32), index=True, default='draft')
     seo_title = db.Column(db.String(255))
     seo_desc = db.Column(db.String(255))
@@ -67,8 +70,9 @@ class ArticleVersion(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     article_id = db.Column(db.Integer, db.ForeignKey('articles.id'), nullable=False, index=True)
     version_no = db.Column(db.Integer, nullable=False)
-    content_md = db.Column(db.Text)
-    content_html = db.Column(db.Text)
+    # 使用通用 Text，并为 MySQL 指定 LONGTEXT 变体
+    content_md = db.Column(Text().with_variant(mysql.LONGTEXT(), 'mysql'))
+    content_html = db.Column(Text().with_variant(mysql.LONGTEXT(), 'mysql'))
     editor_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 

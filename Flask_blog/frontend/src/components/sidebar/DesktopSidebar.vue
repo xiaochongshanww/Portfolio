@@ -69,6 +69,20 @@ const props = defineProps({
   }
 })
 
+// 移除了测试数据，使用真实的API数据或降级数据
+
+// 调试信息（可在生产环境移除）
+if (process.env.NODE_ENV === 'development') {
+  console.log('DesktopSidebar - Props received:', {
+    hotArticles: props.hotArticles,
+    hotArticlesLength: props.hotArticles?.length,
+    latestArticles: props.latestArticles,
+    latestArticlesLength: props.latestArticles?.length,
+    hotLoading: props.hotLoading,
+    latestLoading: props.latestLoading
+  });
+}
+
 // Events
 defineEmits(['category-click', 'tag-click'])
 </script>

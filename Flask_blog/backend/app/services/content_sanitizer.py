@@ -168,7 +168,14 @@ def sanitize_html(raw_html: str | None) -> str:
                 existing.add(t)
             attrs['rel'] = ' '.join(sorted(existing))
             return attrs
-    cleaned = bleach.linkify(cleaned, callbacks=[rel_cb])
+    # 修复bleach.linkify的版本兼容性问题
+    try:
+        cleaned = bleach.linkify(cleaned, callbacks=[rel_cb])
+    except (ValueError, TypeError) as e:
+        # 如果linkify失败，跳过自动链接化功能，但继续清洗HTML
+        print(f"警告: bleach.linkify失败，跳过自动链接化: {e}")
+        pass
+    
     # Second pass to ensure linkify additions are safe
     cleaned = bleach.clean(
         cleaned,
@@ -197,9 +204,36 @@ def sanitize_html(raw_html: str | None) -> str:
     cleaned = _filter_iframes(cleaned)
     return cleaned
 
+def render_and_sanitize_simple(md_text: str | None) -> str:
+    """简化版本：仅渲染Markdown，跳过problematic linkify步骤"""
+    if not md_text:
+        return ''
+    
+    try:
+        # 只进行基本的Markdown渲染
+        html = render_markdown(md_text)
+        
+        # 简单的HTML清洗，跳过linkify
+        cleaned = bleach.clean(
+            html,
+            tags=ALLOWED_TAGS,
+            attributes=ALLOWED_ATTRS,
+            protocols=ALLOWED_PROTOCOLS,
+            strip=True
+        )
+        return cleaned
+    except Exception as e:
+        print(f"Markdown渲染失败，返回纯文本: {e}")
+        # 如果所有处理都失败，返回纯文本
+        return bleach.clean(md_text or '', tags=[], attributes={}, strip=True)
+
 def render_and_sanitize(md_text: str | None) -> str:
     """Convenience: render markdown then sanitize."""
-    return sanitize_html(render_markdown(md_text))
+    try:
+        return sanitize_html(render_markdown(md_text))
+    except Exception as e:
+        print(f"完整HTML处理失败，使用简化版本: {e}")
+        return render_and_sanitize_simple(md_text)
 
 __all__ = [
     'render_markdown',

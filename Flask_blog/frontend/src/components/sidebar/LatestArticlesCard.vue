@@ -64,7 +64,7 @@
 import { Clock, DocumentAdd, ArrowRight } from '@element-plus/icons-vue'
 
 // Props
-defineProps({
+const props = defineProps({
   articles: {
     type: Array,
     default: () => []
@@ -74,6 +74,15 @@ defineProps({
     default: false
   }
 })
+
+// 调试信息（可在生产环境移除）
+if (process.env.NODE_ENV === 'development') {
+  console.log('LatestArticlesCard - Props received:', {
+    articles: props.articles,
+    loading: props.loading,
+    articlesLength: props.articles?.length
+  });
+}
 
 // 工具函数
 function formatDate(dateString) {

@@ -7,22 +7,36 @@ import json
 users_bp = Blueprint('users', __name__)
 
 class ProfileUpdateModel:
-    nickname: str | None = None
-    bio: str | None = None
-    avatar: str | None = None
-    social_links: dict | None = None  # 存 JSON
+    def __init__(self, **kwargs):
+        self.nickname = kwargs.get('nickname')
+        self.bio = kwargs.get('bio')
+        self.avatar = kwargs.get('avatar')
+        self.social_links = kwargs.get('social_links')
+        
+        # 验证数据
+        if self.nickname is not None:
+            self.nickname = self.nick_ok(self.nickname)
+        if self.bio is not None:
+            self.bio = self.bio_ok(self.bio)
+    
     @classmethod
     def nick_ok(cls, v):
         if v and len(v) > 80:
             raise ValueError('nickname too long')
         return v
+    
     @classmethod
     def bio_ok(cls, v):
         if v and len(v) > 2000:
             raise ValueError('bio too long')
         return v
 class RoleUpdateModel:
-    role: str
+    def __init__(self, **kwargs):
+        self.role = kwargs.get('role')
+        if self.role is None:
+            raise ValueError('role is required')
+        self.role = self.role_ok(self.role)
+    
     @classmethod
     def role_ok(cls, v):
         if v not in ('author','editor','admin'):
@@ -59,18 +73,34 @@ def update_me():
     data = request.get_json() or {}
     try:
         parsed = ProfileUpdateModel(**data)
-    except Exception as ve:
-        return jsonify({'code':4001,'message':'validation error','data':ve.errors()}), 400
+    except ValueError as ve:
+        return jsonify({'code':4001,'message':'validation error','data':str(ve)}), 400
+    except Exception as e:
+        return jsonify({'code':4001,'message':'invalid request data','data':str(e)}), 400
+    
     u = User.query.get_or_404(request.user_id)
+    
+    # 更新基本字段
     for f in ['nickname','bio','avatar']:
         if hasattr(parsed, f) and getattr(parsed, f) is not None:
-            setattr(u, f, getattr(parsed,f))
+            setattr(u, f, getattr(parsed, f))
+    
+    # 处理社交链接
     if hasattr(parsed,'social_links') and parsed.social_links is not None:
         try:
+            # 验证是否为有效的字典
+            if not isinstance(parsed.social_links, dict):
+                return jsonify({'code':4001,'message':'social_links must be a dictionary'}), 400
             u.social_links = json.dumps(parsed.social_links, ensure_ascii=False)
-        except Exception:
-            return jsonify({'code':4001,'message':'invalid social_links'}), 400
-    db.session.commit()
+        except Exception as e:
+            return jsonify({'code':4001,'message':'invalid social_links format','data':str(e)}), 400
+    
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'code':5001,'message':'database error','data':str(e)}), 500
+    
     return jsonify({'code':0,'message':'ok','data':serialize_user(u, include_email=True)})
 
 @users_bp.route('/', methods=['GET'])
@@ -127,12 +157,21 @@ def change_role(user_id):
     data = request.get_json() or {}
     try:
         parsed = RoleUpdateModel(**data)
-    except Exception as ve:
-        return jsonify({'code':4001,'message':'validation error','data':ve.errors()}), 400
+    except ValueError as ve:
+        return jsonify({'code':4001,'message':'validation error','data':str(ve)}), 400
+    except Exception as e:
+        return jsonify({'code':4001,'message':'invalid request data','data':str(e)}), 400
+    
     u = User.query.get_or_404(user_id)
     old = u.role
     u.role = parsed.role
-    db.session.commit()
+    
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'code':5001,'message':'database error','data':str(e)}), 500
+    
     return jsonify({'code':0,'message':'ok','data':{'id':u.id,'old_role':old,'new_role':u.role}})
 
 @users_bp.route('/public/<int:user_id>', methods=['GET'])

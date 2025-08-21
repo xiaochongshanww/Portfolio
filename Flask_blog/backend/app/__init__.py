@@ -437,9 +437,15 @@ def require_auth(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
         auth = request.headers.get('Authorization','')
+        print(f"🔐 [AUTH] 收到认证请求，Authorization头: {auth[:20]}..." if auth else "🔐 [AUTH] 无Authorization头")
+        
         if not auth.startswith('Bearer '):
+            print("🔐 [AUTH] 失败: 缺少Bearer token")
             return jsonify({'code':4010,'message':_('missing token')}), 401
+        
         token = auth.split(' ',1)[1]
+        print(f"🔐 [AUTH] 提取到token: {token[:20]}...")
+        
         try:
             payload = jwt.decode(token, current_app.config['JWT_SECRET_KEY'], algorithms=['HS256'])
             sub_val = payload.get('sub')
@@ -449,7 +455,9 @@ def require_auth(fn):
                 pass
             request.user_id = sub_val
             request.user_role = payload.get('role')
-        except Exception:
+            print(f"🔐 [AUTH] 成功: 用户ID={sub_val}, 角色={payload.get('role')}")
+        except Exception as e:
+            print(f"🔐 [AUTH] 失败: JWT解码错误 {e}")
             return jsonify({'code':4010,'message':_('invalid token')}), 401
         return fn(*args, **kwargs)
     return wrapper

@@ -40,6 +40,7 @@ def run_migrations_online():
     app = create_app()
     with app.app_context():
         try:
+            logger.info(f"正在连接数据库: {db.engine.url}")  # 打印数据库连接信息
             connectable = db.engine.connect()
             context.configure(
                 connection=connectable,
