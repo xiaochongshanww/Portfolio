@@ -1,62 +1,59 @@
-
 import os
 import json
 import logging
 import httpx
-from fastapi import FastAPI, HTTPException
+import time
+from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
-
+from typing import List, Dict, Optional, Union
 import chromadb
 from zhipuai import ZhipuAI
+from dotenv import load_dotenv
 
-# --- 日志配置 ---
+# ---
+# 0. 加载环境变量和配置
+# ---
+load_dotenv()
+
+# 日志配置
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# --- FastAPI 应用实例 ---
+# FastAPI 应用实例
 app = FastAPI(
     title="结构设计规范知识库 RAG API",
-    description="一个使用RAG模型与本地知识库交互的API，兼容OpenAI标准。",
-    version="1.0.0"
+    description="一个基于本地知识库的问答API，兼容OpenAI的请求格式。",
+    version="1.0.0",
 )
 
-# --- 全局配置与客户端初始化 ---
+# ---
+# 1. 初始化客户端
+# ---
 
-# 路径配置
-CWD = os.getcwd()
-DB_DIR = os.path.join(CWD, 'db')
-COLLECTION_NAME = "design_specs"
+# 将客户端初始化放在一个依赖项函数中，FastAPI会自动处理
+def get_clients():
+    """获取ZhipuAI和ChromaDB的客户端实例。"""
+    try:
+        zhipuai_api_key = os.environ.get("ZHIPUAI_API_KEY")
+        if not zhipuai_api_key:
+            raise ValueError("未找到环境变量 ZHIPUAI_API_KEY")
+        zhipu_client = ZhipuAI(api_key=zhipuai_api_key)
+        
+        db_dir = os.path.join(os.getcwd(), 'db')
+        collection_name = "design_specs"
+        db_client = chromadb.PersistentClient(path=db_dir)
+        collection = db_client.get_collection(name=collection_name)
+        
+        logging.info("所有客户端初始化成功。")
+        return {"zhipu": zhipu_client, "chroma": collection}
+    except Exception as e:
+        logging.error(f"客户端初始化失败: {e}", exc_info=True)
+        return None
 
-# Ollama 配置
-OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
-OLLAMA_API_URL = f"{OLLAMA_HOST}/api/chat"
+# ---
+# 2. 定义API数据模型 (兼容OpenAI)
+# ---
 
-# 初始化HTTP客户端
-http_client = httpx.AsyncClient(timeout=30.0)
-
-# 初始化ZhipuAI客户端
-try:
-    ZHIPUAI_API_KEY = os.environ.get("ZHIPUAI_API_KEY")
-    if not ZHIPUAI_API_KEY:
-        raise ValueError("未找到环境变量 ZHIPUAI_API_KEY")
-    zhipu_client = ZhipuAI(api_key=ZHIPUAI_API_KEY)
-    logging.info("智谱AI客户端初始化成功。")
-except Exception as e:
-    logging.error(f"初始化智谱AI客户端失败: {e}")
-    zhipu_client = None
-
-# 初始化ChromaDB客户端
-try:
-    db_client = chromadb.PersistentClient(path=DB_DIR)
-    collection = db_client.get_collection(name=COLLECTION_NAME)
-    logging.info(f"ChromaDB客户端初始化成功，已连接到集合 '{COLLECTION_NAME}'。")
-except Exception as e:
-    logging.error(f"初始化ChromaDB失败或无法连接到集合: {e}")
-    db_client = None
-    collection = None
-
-# --- Pydantic 数据模型 (兼容OpenAI) ---
 class ChatMessage(BaseModel):
     role: str
     content: str
@@ -65,111 +62,147 @@ class ChatCompletionRequest(BaseModel):
     model: str
     messages: List[ChatMessage]
     stream: Optional[bool] = False
+    # 其他OpenAI兼容参数可以按需添加
+    temperature: Optional[float] = 0.7
+    max_tokens: Optional[int] = None
+    top_p: Optional[float] = 1.0
 
-# --- RAG 核心逻辑 ---
+# ---
+# 3. RAG核心逻辑
+# ---
 
-async def retrieve_context(query: str, n_results: int = 5) -> str:
-    """根据用户查询，从ChromaDB检索相关上下文。"""
-    if not collection or not zhipu_client:
-        return "知识库未初始化，无法检索。"
+async def rag_stream(request: ChatCompletionRequest):
+    """RAG的核心流程，以流式响应的方式实现。
+    此版本使用 /api/generate 接口以兼容旧版Ollama。
+    """
+    clients = get_clients()
+    if not clients:
+        error_message = {"error": "服务器客户端初始化失败，请检查日志。"}
+        yield f"data: {json.dumps(error_message)}\n\n"
+        return
+
+    zhipu_client = clients["zhipu"]
+    chroma_collection = clients["chroma"]
+
+    # 1. 提取用户最新的问题
+    user_query = request.messages[-1].content
+    logging.info(f"收到用户问题: {user_query}")
+
+    # 2. 向量化用户问题
     try:
-        response = zhipu_client.embeddings.create(model="embedding-2", input=[query])
-        query_embedding = response.data[0].embedding
-        
-        results = collection.query(
-            query_embeddings=[query_embedding],
-            n_results=n_results
-        )
-        
-        context = "\n---\n".join([doc for doc in results['documents'][0]])
-        logging.info(f"检索到上下文: \n{context}")
-        return context
+        query_embedding = zhipu_client.embeddings.create(
+            model="embedding-2",
+            input=[user_query]
+        ).data[0].embedding
+        logging.info("用户问题向量化成功。")
     except Exception as e:
-        logging.error(f"检索上下文时出错: {e}")
-        return "检索上下文时出错。"
+        logging.error(f"向量化用户问题失败: {e}", exc_info=True)
+        error_message = {"error": "向量化用户问题失败。"}
+        yield f"data: {json.dumps(error_message)}\n\n"
+        return
 
-PROMPT_TEMPLATE = """
-你是一个专业的、严谨的结构设计规范知识问答助手。
-请严格根据下面提供的【上下文信息】，并结合你的专业知识，来回答用户的问题。
-如果【上下文信息】与问题无关或者没有提供足够的信息，请明确告知用户“根据现有知识库信息无法回答”，不要编造答案。
+    # 3. 在ChromaDB中检索相关知识
+    try:
+        retrieved_docs = chroma_collection.query(
+            query_embeddings=[query_embedding],
+            n_results=10  # 返回最相关的5个文本块
+        )
+        logging.info(f"从数据库中检索到 {len(retrieved_docs['documents'][0])} 个相关文档。")
+    except Exception as e:
+        logging.error(f"从数据库检索失败: {e}", exc_info=True)
+        error_message = {"error": "从数据库检索失败。"}
+        yield f"data: {json.dumps(error_message)}\n\n"
+        return
 
-【上下文信息】:
+    # 4. 构建Prompt
+    context = "\n\n---\n\n".join(retrieved_docs['documents'][0])
+    prompt_template = f"""请基于以下已知信息，详细、全面且专业地回答用户的问题。如果无法从中得到答案，请说 \"根据已知信息无法回答该问题\"。
+
+已知信息:
+---
 {context}
+---
 
-【用户问题】:
-{question}
+用户的问题:
+{user_query}
 """
+    logging.info(f"构建的Prompt:\n{prompt_template}")
 
-# --- API Endpoint ---
+    # 5. 调用本地Ollama大模型 (/api/generate 接口)
+    ollama_host = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+    # ollama_model = request.model # 从请求中获取模型名称
+    ollama_model = 'deepseek-r1:8b'
+    ollama_api_url = f"{ollama_host}/api/generate" # 使用 /api/generate 接口
 
-@app.on_event("startup")
-async def startup_event():
-    # 可以在这里添加更多的启动检查
-    if not zhipu_client or not collection:
-        logging.warning("一个或多个核心服务未初始化，API可能无法正常工作。")
+    # 使用 /api/generate 的 payload 格式
+    ollama_payload = {
+        "model": ollama_model,
+        "prompt": prompt_template,
+        "stream": True
+    }
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    await http_client.aclose()
+    try:
+        async with httpx.AsyncClient(timeout=180) as client:
+            async with client.stream("POST", ollama_api_url, json=ollama_payload) as response:
+                logging.info(f"成功连接Ollama服务({ollama_api_url})，状态码: {response.status_code}")
+                response.raise_for_status() # 如果状态码不是2xx，则抛出异常
+                
+                # 流式处理返回的数据
+                async for line in response.aiter_lines():
+                    if line.strip():
+                        # Ollama /api/generate 的流式输出是JSON字符串，每行一个
+                        chunk = json.loads(line)
+                        token = chunk.get("response", "")
+                        
+                        # 兼容OpenAI的流式响应格式
+                        openai_chunk = {
+                            "id": f"chatcmpl-ollama-{ollama_model}",
+                            "object": "chat.completion.chunk",
+                            "created": int(time.time()),
+                            "model": chunk['model'],
+                            "choices": [
+                                {
+                                    "index": 0,
+                                    "delta": {
+                                        "content": token
+                                    },
+                                    "finish_reason": "stop" if chunk.get('done') else None
+                                }
+                            ]
+                        }
+                        yield f"data: {json.dumps(openai_chunk)}\n\n"
+                        if chunk.get('done'):
+                            break
+        logging.info("Ollama流式响应结束。")
+    except httpx.RequestError as e:
+        logging.error(f"连接Ollama失败: {e}", exc_info=True)
+        error_message = {"error": f"无法连接到Ollama服务于 {ollama_host}。请确保Ollama正在运行。"}
+        yield f"data: {json.dumps(error_message)}\n\n"
+    except Exception as e:
+        logging.error(f"调用Ollama大模型时发生未知错误: {e}", exc_info=True)
+        error_message = {"error": "调用Ollama大模型时发生未知错误。"}
+        yield f"data: {json.dumps(error_message)}\n\n"
+    
+    # 发送流结束标志
+    yield "data: [DONE]\n\n"
+
+# ---
+# 4. API端点
+# ---
 
 @app.post("/v1/chat/completions")
 async def chat_completions(request: ChatCompletionRequest):
-    """兼容OpenAI的聊天完成接口。"""
-    if not request.messages:
-        raise HTTPException(status_code=400, detail="messages 列表不能为空")
+    """
+    处理聊天补全请求，兼容OpenAI API。
+    """
+    return StreamingResponse(rag_stream(request), media_type="text/event-stream")
 
-    user_query = request.messages[-1].content
-    
-    # 1. 检索上下文
-    context = await retrieve_context(user_query)
-    
-    # 2. 构建Prompt
-    final_prompt = PROMPT_TEMPLATE.format(context=context, question=user_query)
-    
-    # 3. 构建发送到Ollama的请求体
-    ollama_messages = [
-        {"role": "system", "content": final_prompt},
-    ]
-    ollama_payload = {
-        "model": request.model,
-        "messages": ollama_messages,
-        "stream": request.stream
-    }
+# ---
+# 5. 应用启动
+# ---
 
-    # 4. 流式或非流式请求Ollama
-    try:
-        if request.stream:
-            async def stream_generator():
-                async with http_client.stream("POST", OLLAMA_API_URL, json=ollama_payload) as response:
-                    if response.status_code != 200:
-                        error_text = await response.aread()
-                        logging.error(f"请求Ollama失败: {error_text.decode()}")
-                        yield f"data: {json.dumps({'error': 'Failed to connect to Ollama'})}\n\n"
-                        return
-                    
-                    async for chunk in response.aiter_bytes():
-                        # Ollama的流式输出是JSON行，我们需要转发
-                        # 这里我们直接转发原始chunk，因为Chatbox等客户端可以解析它
-                        # 如果需要转为OpenAI格式，则需要解析每一行JSON并重构成OpenAI的SSE格式
-                        yield chunk
-            return StreamingResponse(stream_generator(), media_type="application/x-ndjson")
-        else:
-            response = await http_client.post(OLLAMA_API_URL, json=ollama_payload)
-            response.raise_for_status()
-            return response.json()
-
-    except httpx.RequestError as e:
-        logging.error(f"请求Ollama时发生网络错误: {e}")
-        raise HTTPException(status_code=503, detail=f"无法连接到Ollama服务: {e}")
-    except Exception as e:
-        logging.error(f"处理聊天请求时发生未知错误: {e}")
-        raise HTTPException(status_code=500, detail="内部服务器错误")
-
-@app.get("/")
-def read_root():
-    return {"message": "欢迎使用结构设计规范知识库API。请访问 /docs 查看API文档。"}
-
-# --- Uvicorn 启动入口 ---
 if __name__ == "__main__":
+    # 使用uvicorn运行FastAPI应用
+    # 您可以在命令行中运行: uvicorn src.main:app --reload
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

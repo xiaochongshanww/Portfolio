@@ -84,9 +84,7 @@ ollama pull qwen:14b-chat
 2.  **执行流水线脚本**: 在项目根目录，依次运行以下脚本。
 
     ```bash
-    python src/pipeline/step_01_extract.py
-    python src/pipeline/step_02_clean.py
-    python src/pipeline/step_03_split.py
+    python src/pipeline/process_documents.py
     python src/pipeline/step_04_load_to_db.py
     ```
 
