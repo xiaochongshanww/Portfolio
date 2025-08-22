@@ -11,14 +11,14 @@
     <!-- 非加载状态的内容 -->
     <template v-else>
       <!-- 文章列表 -->
-      <div v-if="articles.length" class="space-y-4">
+      <div v-if="articles.length" class="space-y-1">
       <article 
         v-for="(article, index) in articles" 
         :key="article.id" 
         class="hot-article-item group cursor-pointer"
       >
         <router-link :to="'/article/' + article.slug" class="block">
-          <div class="flex gap-3">
+          <div class="flex gap-3 items-baseline">
             <!-- 排名徽章 -->
             <div class="ranking-badge">
               {{ index + 1 }}
@@ -115,8 +115,8 @@ function formatDate(dateString) {
 <style scoped>
 
 .hot-article-item {
-  padding: 12px;
-  border-radius: 8px;
+  padding: 6px 8px; /* 进一步减少内边距，与最新卡片统一 */
+  border-radius: 6px; /* 统一圆角大小 */
   transition: all 0.2s ease;
 }
 
@@ -125,18 +125,27 @@ function formatDate(dateString) {
   transform: translateX(2px);
 }
 
+.hot-article-item a {
+  text-decoration: none; /* 去掉链接下划线 */
+}
+
+.hot-article-item a:hover {
+  text-decoration: none; /* 悬停时也不显示下划线 */
+}
+
 .ranking-badge {
   flex-shrink: 0;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 0.5rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 0.3125rem;
   background: linear-gradient(to bottom right, rgb(251 146 60), rgb(239 68 68));
-  display: flex;
+  display: inline-flex; /* 关键：使用inline-flex参与baseline对齐 */
   align-items: center;
   justify-content: center;
   color: white;
   font-weight: bold;
-  font-size: 0.75rem;
+  font-size: 0.625rem;
+  /* 移除所有手动计算，使用CSS原生baseline对齐 */
 }
 
 .article-title {
@@ -144,7 +153,8 @@ function formatDate(dateString) {
   font-weight: 500;
   color: rgb(17 24 39);
   transition: color 0.2s ease;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem; /* 减少标题与元信息的间距 */
+  line-height: 1.4; /* 统一行高 */
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;

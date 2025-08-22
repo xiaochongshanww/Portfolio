@@ -1,0 +1,804 @@
+client:495 [vite] connecting...
+client:618 [vite] connected.
+user.js:95 🔐 初始化认证状态...
+user.js:96 🔐 当前token: 已存在
+user.js:97 🔐 localStorage中的token: 已存在
+user.js:100 🔐 开始获取用户信息...
+apiClient.js:7 🌐 API请求拦截器 - token存在: true
+apiClient.js:10 🌐 已设置Authorization头
+user.js:95 🔐 初始化认证状态...
+user.js:96 🔐 当前token: 已存在
+user.js:97 🔐 localStorage中的token: 已存在
+user.js:100 🔐 开始获取用户信息...
+apiClient.js:7 🌐 API请求拦截器 - token存在: true
+apiClient.js:10 🌐 已设置Authorization头
+user.js:103 🔐 用户信息获取完成，认证状态: true
+user.js:104 🔐 用户信息: Proxy(Object) {avatar: '/uploads/2025/08/6c56a14f8e2845be89f75de206f3c9b0.jpg', bio: null, email: 'test123@aaa.com', id: 1, nickname: '小重山', …}
+user.js:103 🔐 用户信息获取完成，认证状态: true
+user.js:104 🔐 用户信息: Proxy(Object) {avatar: '/uploads/2025/08/6c56a14f8e2845be89f75de206f3c9b0.jpg', bio: null, email: 'test123@aaa.com', id: 1, nickname: '小重山', …}
+Home.vue:424 调用最新文章API
+Home.vue:448 当前文章列表长度: 0
+DesktopSidebar.vue:76 DesktopSidebar - Props received: {hotArticles: Proxy(Array), hotArticlesLength: 0, latestArticles: Proxy(Array), latestArticlesLength: 0, hotLoading: true, …}
+HotArticlesCard.vue:77 HotArticlesCard - Props received: {articles: Proxy(Array), loading: true, articlesLength: 0}
+LatestArticlesCard.vue:80 LatestArticlesCard - Props received: {articles: Proxy(Array), loading: true, articlesLength: 0}
+apiClient.js:7 🌐 API请求拦截器 - token存在: true
+apiClient.js:10 🌐 已设置Authorization头
+apiClient.js:7 🌐 API请求拦截器 - token存在: true
+apiClient.js:10 🌐 已设置Authorization头
+apiClient.js:7 🌐 API请求拦截器 - token存在: true
+apiClient.js:10 🌐 已设置Authorization头
+apiClient.js:7 🌐 API请求拦截器 - token存在: true
+apiClient.js:10 🌐 已设置Authorization头
+Home.vue:448 当前文章列表长度: 10
+ArticleDetail.vue:400 🚀 页面挂载 - Token存在: true
+ArticleDetail.vue:401 🚀 页面挂载 - userStore.token存在: true
+ArticleDetail.vue:405 ⏳ 等待用户认证状态初始化...
+user.js:95 🔐 初始化认证状态...
+user.js:96 🔐 当前token: 已存在
+user.js:97 🔐 localStorage中的token: 已存在
+user.js:100 🔐 开始获取用户信息...
+apiClient.js:7 🌐 API请求拦截器 - token存在: true
+apiClient.js:10 🌐 已设置Authorization头
+user.js:103 🔐 用户信息获取完成，认证状态: true
+user.js:104 🔐 用户信息: Proxy(Object) {avatar: '/uploads/2025/08/6c56a14f8e2845be89f75de206f3c9b0.jpg', bio: null, email: 'test123@aaa.com', id: 1, nickname: '小重山', …}
+ArticleDetail.vue:407 ✅ 用户认证状态初始化完成
+ArticleDetail.vue:364 🔍 页面加载 - 用户认证状态: true 用户ID: 1
+apiClient.js:7 🌐 API请求拦截器 - token存在: true
+apiClient.js:10 🌐 已设置Authorization头
+ArticleDetail.vue:377 📡 API返回数据 - 点赞数: 1 收藏数: 1 已点赞: false 已收藏: false
+apiClient.js:7 🌐 API请求拦截器 - token存在: true
+apiClient.js:10 🌐 已设置Authorization头
+ArticleDetail.vue:612 🎨 ArticleDetail: 开始应用代码高亮
+ArticleDetail.vue:663 ✅ 语法高亮完成
+ArticleDetail.vue:612 🎨 ArticleDetail: 开始应用代码高亮
+ArticleDetail.vue:663 ✅ 语法高亮完成
+ArticleContentRenderer.vue:320 ContentRenderer mounted: {contentLength: 54, contentType: 'markdown', confidence: 0.75, features: {…}}
+ArticleDetail.vue:415 🏁 页面加载完成 - Token存在: true
+ArticleDetail.vue:612 🎨 ArticleDetail: 开始应用代码高亮
+ArticleDetail.vue:663 ✅ 语法高亮完成
+AppHeader.vue:487 🧭 AppHeader: 导航到 /，检查是否需要原生导航
+Home.vue:424 调用最新文章API
+Home.vue:448 当前文章列表长度: 0
+DesktopSidebar.vue:76 DesktopSidebar - Props received: {hotArticles: Proxy(Array), hotArticlesLength: 0, latestArticles: Proxy(Array), latestArticlesLength: 0, hotLoading: false, …}
+HotArticlesCard.vue:77 HotArticlesCard - Props received: {articles: Proxy(Array), loading: false, articlesLength: 0}
+LatestArticlesCard.vue:80 LatestArticlesCard - Props received: {articles: Proxy(Array), loading: false, articlesLength: 0}
+apiClient.js:7 🌐 API请求拦截器 - token存在: true
+apiClient.js:10 🌐 已设置Authorization头
+Home.vue:424 调用最新文章API
+apiClient.js:7 🌐 API请求拦截器 - token存在: true
+apiClient.js:10 🌐 已设置Authorization头
+Home.vue:424 调用最新文章API
+apiClient.js:7 🌐 API请求拦截器 - token存在: true
+apiClient.js:10 🌐 已设置Authorization头
+Home.vue:448 当前文章列表长度: 10
+Home.vue:448 当前文章列表长度: 10
+Home.vue:448 当前文章列表长度: 10
+CategorySelector.vue:249 ⚠️ CategorySelector: categories 为空数组
+（匿名） @ CategorySelector.vue:249
+refreshComputed @ chunk-DBOTBDL2.js?v=d4f7a3a4:659
+get value @ chunk-DBOTBDL2.js?v=d4f7a3a4:1854
+（匿名） @ CategorySelector.vue:296
+refreshComputed @ chunk-DBOTBDL2.js?v=d4f7a3a4:659
+get value @ chunk-DBOTBDL2.js?v=d4f7a3a4:1854
+（匿名） @ CategorySelector.vue:301
+refreshComputed @ chunk-DBOTBDL2.js?v=d4f7a3a4:659
+get value @ chunk-DBOTBDL2.js?v=d4f7a3a4:1854
+unref @ chunk-DBOTBDL2.js?v=d4f7a3a4:1727
+get @ chunk-DBOTBDL2.js?v=d4f7a3a4:1733
+（匿名） @ CategorySelector.vue:37
+renderFnWithContext @ chunk-DBOTBDL2.js?v=d4f7a3a4:2789
+（匿名） @ chunk-LFCZAS6W.js?v=d4f7a3a4:37197
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2289
+callWithAsyncErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2296
+baseWatchOptions.call @ chunk-DBOTBDL2.js?v=d4f7a3a4:8365
+getter @ chunk-DBOTBDL2.js?v=d4f7a3a4:1955
+run @ chunk-DBOTBDL2.js?v=d4f7a3a4:505
+job @ chunk-DBOTBDL2.js?v=d4f7a3a4:2004
+watch @ chunk-DBOTBDL2.js?v=d4f7a3a4:2054
+doWatch @ chunk-DBOTBDL2.js?v=d4f7a3a4:8393
+watch2 @ chunk-DBOTBDL2.js?v=d4f7a3a4:8326
+setup @ chunk-LFCZAS6W.js?v=d4f7a3a4:37195
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2289
+setupStatefulComponent @ chunk-DBOTBDL2.js?v=d4f7a3a4:10074
+setupComponent @ chunk-DBOTBDL2.js?v=d4f7a3a4:10035
+mountComponent @ chunk-DBOTBDL2.js?v=d4f7a3a4:7358
+processComponent @ chunk-DBOTBDL2.js?v=d4f7a3a4:7324
+patch @ chunk-DBOTBDL2.js?v=d4f7a3a4:6838
+mountChildren @ chunk-DBOTBDL2.js?v=d4f7a3a4:7072
+mountElement @ chunk-DBOTBDL2.js?v=d4f7a3a4:6995
+processElement @ chunk-DBOTBDL2.js?v=d4f7a3a4:6960
+patch @ chunk-DBOTBDL2.js?v=d4f7a3a4:6826
+mountChildren @ chunk-DBOTBDL2.js?v=d4f7a3a4:7072
+mountElement @ chunk-DBOTBDL2.js?v=d4f7a3a4:6995
+processElement @ chunk-DBOTBDL2.js?v=d4f7a3a4:6960
+patch @ chunk-DBOTBDL2.js?v=d4f7a3a4:6826
+componentUpdateFn @ chunk-DBOTBDL2.js?v=d4f7a3a4:7470
+run @ chunk-DBOTBDL2.js?v=d4f7a3a4:505
+setupRenderEffect @ chunk-DBOTBDL2.js?v=d4f7a3a4:7598
+mountComponent @ chunk-DBOTBDL2.js?v=d4f7a3a4:7372
+processComponent @ chunk-DBOTBDL2.js?v=d4f7a3a4:7324
+patch @ chunk-DBOTBDL2.js?v=d4f7a3a4:6838
+mountChildren @ chunk-DBOTBDL2.js?v=d4f7a3a4:7072
+processFragment @ chunk-DBOTBDL2.js?v=d4f7a3a4:7254
+patch @ chunk-DBOTBDL2.js?v=d4f7a3a4:6812
+mountChildren @ chunk-DBOTBDL2.js?v=d4f7a3a4:7072
+mountElement @ chunk-DBOTBDL2.js?v=d4f7a3a4:6995
+processElement @ chunk-DBOTBDL2.js?v=d4f7a3a4:6960
+patch @ chunk-DBOTBDL2.js?v=d4f7a3a4:6826
+mountChildren @ chunk-DBOTBDL2.js?v=d4f7a3a4:7072
+mountElement @ chunk-DBOTBDL2.js?v=d4f7a3a4:6995
+processElement @ chunk-DBOTBDL2.js?v=d4f7a3a4:6960
+patch @ chunk-DBOTBDL2.js?v=d4f7a3a4:6826
+componentUpdateFn @ chunk-DBOTBDL2.js?v=d4f7a3a4:7470
+run @ chunk-DBOTBDL2.js?v=d4f7a3a4:505
+setupRenderEffect @ chunk-DBOTBDL2.js?v=d4f7a3a4:7598
+mountComponent @ chunk-DBOTBDL2.js?v=d4f7a3a4:7372
+processComponent @ chunk-DBOTBDL2.js?v=d4f7a3a4:7324
+patch @ chunk-DBOTBDL2.js?v=d4f7a3a4:6838
+mountChildren @ chunk-DBOTBDL2.js?v=d4f7a3a4:7072
+processFragment @ chunk-DBOTBDL2.js?v=d4f7a3a4:7254
+patch @ chunk-DBOTBDL2.js?v=d4f7a3a4:6812
+mountChildren @ chunk-DBOTBDL2.js?v=d4f7a3a4:7072
+mountElement @ chunk-DBOTBDL2.js?v=d4f7a3a4:6995
+processElement @ chunk-DBOTBDL2.js?v=d4f7a3a4:6960
+patch @ chunk-DBOTBDL2.js?v=d4f7a3a4:6826
+componentUpdateFn @ chunk-DBOTBDL2.js?v=d4f7a3a4:7470
+run @ chunk-DBOTBDL2.js?v=d4f7a3a4:505
+setupRenderEffect @ chunk-DBOTBDL2.js?v=d4f7a3a4:7598
+mountComponent @ chunk-DBOTBDL2.js?v=d4f7a3a4:7372
+processComponent @ chunk-DBOTBDL2.js?v=d4f7a3a4:7324
+patch @ chunk-DBOTBDL2.js?v=d4f7a3a4:6838
+mountChildren @ chunk-DBOTBDL2.js?v=d4f7a3a4:7072
+processFragment @ chunk-DBOTBDL2.js?v=d4f7a3a4:7254
+patch @ chunk-DBOTBDL2.js?v=d4f7a3a4:6812
+mountChildren @ chunk-DBOTBDL2.js?v=d4f7a3a4:7072
+mountElement @ chunk-DBOTBDL2.js?v=d4f7a3a4:6995
+processElement @ chunk-DBOTBDL2.js?v=d4f7a3a4:6960
+patch @ chunk-DBOTBDL2.js?v=d4f7a3a4:6826
+componentUpdateFn @ chunk-DBOTBDL2.js?v=d4f7a3a4:7470
+run @ chunk-DBOTBDL2.js?v=d4f7a3a4:505
+setupRenderEffect @ chunk-DBOTBDL2.js?v=d4f7a3a4:7598
+mountComponent @ chunk-DBOTBDL2.js?v=d4f7a3a4:7372
+processComponent @ chunk-DBOTBDL2.js?v=d4f7a3a4:7324
+patch @ chunk-DBOTBDL2.js?v=d4f7a3a4:6838
+mountChildren @ chunk-DBOTBDL2.js?v=d4f7a3a4:7072
+processFragment @ chunk-DBOTBDL2.js?v=d4f7a3a4:7254
+patch @ chunk-DBOTBDL2.js?v=d4f7a3a4:6812
+mountChildren @ chunk-DBOTBDL2.js?v=d4f7a3a4:7072
+mountElement @ chunk-DBOTBDL2.js?v=d4f7a3a4:6995
+processElement @ chunk-DBOTBDL2.js?v=d4f7a3a4:6960
+patch @ chunk-DBOTBDL2.js?v=d4f7a3a4:6826
+componentUpdateFn @ chunk-DBOTBDL2.js?v=d4f7a3a4:7470
+run @ chunk-DBOTBDL2.js?v=d4f7a3a4:505
+setupRenderEffect @ chunk-DBOTBDL2.js?v=d4f7a3a4:7598
+mountComponent @ chunk-DBOTBDL2.js?v=d4f7a3a4:7372
+processComponent @ chunk-DBOTBDL2.js?v=d4f7a3a4:7324
+patch @ chunk-DBOTBDL2.js?v=d4f7a3a4:6838
+mountChildren @ chunk-DBOTBDL2.js?v=d4f7a3a4:7072
+processFragment @ chunk-DBOTBDL2.js?v=d4f7a3a4:7254
+patch @ chunk-DBOTBDL2.js?v=d4f7a3a4:6812
+mountChildren @ chunk-DBOTBDL2.js?v=d4f7a3a4:7072
+mountElement @ chunk-DBOTBDL2.js?v=d4f7a3a4:6995
+processElement @ chunk-DBOTBDL2.js?v=d4f7a3a4:6960
+patch @ chunk-DBOTBDL2.js?v=d4f7a3a4:6826
+mountChildren @ chunk-DBOTBDL2.js?v=d4f7a3a4:7072
+mountElement @ chunk-DBOTBDL2.js?v=d4f7a3a4:6995
+processElement @ chunk-DBOTBDL2.js?v=d4f7a3a4:6960
+patch @ chunk-DBOTBDL2.js?v=d4f7a3a4:6826
+componentUpdateFn @ chunk-DBOTBDL2.js?v=d4f7a3a4:7470
+run @ chunk-DBOTBDL2.js?v=d4f7a3a4:505
+setupRenderEffect @ chunk-DBOTBDL2.js?v=d4f7a3a4:7598
+mountComponent @ chunk-DBOTBDL2.js?v=d4f7a3a4:7372
+processComponent @ chunk-DBOTBDL2.js?v=d4f7a3a4:7324
+patch @ chunk-DBOTBDL2.js?v=d4f7a3a4:6838
+mountChildren @ chunk-DBOTBDL2.js?v=d4f7a3a4:7072
+mountElement @ chunk-DBOTBDL2.js?v=d4f7a3a4:6995
+processElement @ chunk-DBOTBDL2.js?v=d4f7a3a4:6960
+patch @ chunk-DBOTBDL2.js?v=d4f7a3a4:6826
+mountChildren @ chunk-DBOTBDL2.js?v=d4f7a3a4:7072
+mountElement @ chunk-DBOTBDL2.js?v=d4f7a3a4:6995
+processElement @ chunk-DBOTBDL2.js?v=d4f7a3a4:6960
+patch @ chunk-DBOTBDL2.js?v=d4f7a3a4:6826
+componentUpdateFn @ chunk-DBOTBDL2.js?v=d4f7a3a4:7470
+run @ chunk-DBOTBDL2.js?v=d4f7a3a4:505
+setupRenderEffect @ chunk-DBOTBDL2.js?v=d4f7a3a4:7598
+mountComponent @ chunk-DBOTBDL2.js?v=d4f7a3a4:7372
+processComponent @ chunk-DBOTBDL2.js?v=d4f7a3a4:7324
+patch @ chunk-DBOTBDL2.js?v=d4f7a3a4:6838
+componentUpdateFn @ chunk-DBOTBDL2.js?v=d4f7a3a4:7550
+run @ chunk-DBOTBDL2.js?v=d4f7a3a4:505
+runIfDirty @ chunk-DBOTBDL2.js?v=d4f7a3a4:543
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2289
+flushJobs @ chunk-DBOTBDL2.js?v=d4f7a3a4:2497
+Promise.then
+queueFlush @ chunk-DBOTBDL2.js?v=d4f7a3a4:2411
+queueJob @ chunk-DBOTBDL2.js?v=d4f7a3a4:2406
+effect2.scheduler @ chunk-DBOTBDL2.js?v=d4f7a3a4:7592
+trigger @ chunk-DBOTBDL2.js?v=d4f7a3a4:533
+endBatch @ chunk-DBOTBDL2.js?v=d4f7a3a4:591
+notify @ chunk-DBOTBDL2.js?v=d4f7a3a4:853
+trigger @ chunk-DBOTBDL2.js?v=d4f7a3a4:827
+set value @ chunk-DBOTBDL2.js?v=d4f7a3a4:1699
+finalizeNavigation @ vue-router.js?v=d4f7a3a4:2522
+（匿名） @ vue-router.js?v=d4f7a3a4:2432
+Promise.then
+pushWithRedirect @ vue-router.js?v=d4f7a3a4:2400
+push @ vue-router.js?v=d4f7a3a4:2326
+navigate @ vue-router.js?v=d4f7a3a4:1554
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2289
+callWithAsyncErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2296
+invoker @ chunk-DBOTBDL2.js?v=d4f7a3a4:11296
+VditorEditor.vue:364 🔀 VditorEditor: 组件onMounted触发
+NewArticle.vue:1036 🔍 开始加载分类列表...
+NewArticle.vue:1037 🔒 当前认证状态: true
+NewArticle.vue:1038 👤 当前用户: Proxy(Object) {avatar: '/uploads/2025/08/6c56a14f8e2845be89f75de206f3c9b0.jpg', bio: null, email: 'test123@aaa.com', id: 1, nickname: '小重山', …}
+VditorEditor.vue:375 🔀 VditorEditor: nextTick后准备初始化
+VditorEditor.vue:190 🔄 VditorEditor: 开始初始化Vditor编辑器...
+NewArticle.vue:1044 📡 API响应: {data: {…}, status: 200, statusText: 'OK', headers: AxiosHeaders, config: {…}, …}
+NewArticle.vue:1045 📡 响应数据: {code: 0, data: {…}, message: 'ok'}
+NewArticle.vue:1052 ✅ 公开接口调用成功，返回分类数据
+NewArticle.vue:1068 📁 分类列表加载成功: 17 个分类
+NewArticle.vue:1069 📁 分类数据: Proxy(Array) {0: {…}, 1: {…}, 2: {…}, 3: {…}, 4: {…}, 5: {…}, 6: {…}, 7: {…}, 8: {…}, 9: {…}, 10: {…}, 11: {…}, 12: {…}, 13: {…}, 14: {…}, 15: {…}, 16: {…}}
+NewArticle.vue:1070 📁 数据类型检查: {isArray: true, type: 'object'}
+NewArticle.vue:1614 📝 NewArticle组件挂载，检查认证状态
+NewArticle.vue:1615 📝 当前认证状态: true
+NewArticle.vue:1616 📝 当前用户: Proxy(Object) {avatar: '/uploads/2025/08/6c56a14f8e2845be89f75de206f3c9b0.jpg', bio: null, email: 'test123@aaa.com', id: 1, nickname: '小重山', …}
+NewArticle.vue:1617 📝 当前token: 已存在
+NewArticle.vue:1618 📝 localStorage token: 已存在
+NewArticle.vue:1647 📝 NewArticle组件初始化完成
+VditorEditor.vue:270 ✅ Vditor初始化完成
+VditorEditor.vue:278 Unhandled error during execution of component update Proxy(Object) {_pStores: {…}, …} at <VditorEditor>
+at <ElCard>
+at <NewArticle>
+at <RouterView>
+at <App> (5) [{…}, {…}, {…}, {…}, {…}]
+instance.appContext.config.warnHandler @ chunk-LFCZAS6W.js?v=d4f7a3a4:37149
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2289
+warn$1 @ chunk-DBOTBDL2.js?v=d4f7a3a4:2118
+logError @ chunk-DBOTBDL2.js?v=d4f7a3a4:2353
+handleError @ chunk-DBOTBDL2.js?v=d4f7a3a4:2345
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2291
+flushJobs @ chunk-DBOTBDL2.js?v=d4f7a3a4:2497
+Promise.then
+queueFlush @ chunk-DBOTBDL2.js?v=d4f7a3a4:2411
+queueJob @ chunk-DBOTBDL2.js?v=d4f7a3a4:2406
+effect2.scheduler @ chunk-DBOTBDL2.js?v=d4f7a3a4:7592
+trigger @ chunk-DBOTBDL2.js?v=d4f7a3a4:533
+endBatch @ chunk-DBOTBDL2.js?v=d4f7a3a4:591
+notify @ chunk-DBOTBDL2.js?v=d4f7a3a4:853
+trigger @ chunk-DBOTBDL2.js?v=d4f7a3a4:827
+set value @ chunk-DBOTBDL2.js?v=d4f7a3a4:1699
+after @ VditorEditor.vue:278
+（匿名） @ vditor.js?v=d4f7a3a4:14539
+Promise.then
+Vditor2.init @ vditor.js?v=d4f7a3a4:14516
+（匿名） @ vditor.js?v=d4f7a3a4:14184
+Promise.then
+Vditor2 @ vditor.js?v=d4f7a3a4:14183
+initVditor @ VditorEditor.vue:197
+（匿名） @ VditorEditor.vue:383
+Promise.then
+nextTick @ chunk-DBOTBDL2.js?v=d4f7a3a4:2378
+（匿名） @ VditorEditor.vue:374
+（匿名） @ chunk-DBOTBDL2.js?v=d4f7a3a4:4948
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2289
+callWithAsyncErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2296
+hook.__weh.hook.__weh @ chunk-DBOTBDL2.js?v=d4f7a3a4:4928
+flushPostFlushCbs @ chunk-DBOTBDL2.js?v=d4f7a3a4:2474
+flushJobs @ chunk-DBOTBDL2.js?v=d4f7a3a4:2516
+Promise.then
+queueFlush @ chunk-DBOTBDL2.js?v=d4f7a3a4:2411
+queueJob @ chunk-DBOTBDL2.js?v=d4f7a3a4:2406
+effect2.scheduler @ chunk-DBOTBDL2.js?v=d4f7a3a4:7592
+trigger @ chunk-DBOTBDL2.js?v=d4f7a3a4:533
+endBatch @ chunk-DBOTBDL2.js?v=d4f7a3a4:591
+notify @ chunk-DBOTBDL2.js?v=d4f7a3a4:853
+trigger @ chunk-DBOTBDL2.js?v=d4f7a3a4:827
+set value @ chunk-DBOTBDL2.js?v=d4f7a3a4:1699
+finalizeNavigation @ vue-router.js?v=d4f7a3a4:2522
+（匿名） @ vue-router.js?v=d4f7a3a4:2432
+Promise.then
+pushWithRedirect @ vue-router.js?v=d4f7a3a4:2400
+push @ vue-router.js?v=d4f7a3a4:2326
+navigate @ vue-router.js?v=d4f7a3a4:1554
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2289
+callWithAsyncErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2296
+invoker @ chunk-DBOTBDL2.js?v=d4f7a3a4:11296
+chunk-DBOTBDL2.js?v=d4f7a3a4:10602 Uncaught (in promise) TypeError: Cannot read properties of null (reading 'insertBefore')
+    at insert (chunk-DBOTBDL2.js?v=d4f7a3a4:10602:12)
+    at processCommentNode (chunk-DBOTBDL2.js?v=d4f7a3a4:6901:7)
+    at patch (chunk-DBOTBDL2.js?v=d4f7a3a4:6802:9)
+    at patchBlockChildren (chunk-DBOTBDL2.js?v=d4f7a3a4:7194:7)
+    at patchElement (chunk-DBOTBDL2.js?v=d4f7a3a4:7112:7)
+    at processElement (chunk-DBOTBDL2.js?v=d4f7a3a4:6971:7)
+    at patch (chunk-DBOTBDL2.js?v=d4f7a3a4:6826:11)
+    at ReactiveEffect.componentUpdateFn [as fn] (chunk-DBOTBDL2.js?v=d4f7a3a4:7550:9)
+    at ReactiveEffect.run (chunk-DBOTBDL2.js?v=d4f7a3a4:505:19)
+    at ReactiveEffect.runIfDirty (chunk-DBOTBDL2.js?v=d4f7a3a4:543:12)
+    at callWithErrorHandling (chunk-DBOTBDL2.js?v=d4f7a3a4:2289:33)
+    at flushJobs (chunk-DBOTBDL2.js?v=d4f7a3a4:2497:9)
+insert @ chunk-DBOTBDL2.js?v=d4f7a3a4:10602
+processCommentNode @ chunk-DBOTBDL2.js?v=d4f7a3a4:6901
+patch @ chunk-DBOTBDL2.js?v=d4f7a3a4:6802
+patchBlockChildren @ chunk-DBOTBDL2.js?v=d4f7a3a4:7194
+patchElement @ chunk-DBOTBDL2.js?v=d4f7a3a4:7112
+processElement @ chunk-DBOTBDL2.js?v=d4f7a3a4:6971
+patch @ chunk-DBOTBDL2.js?v=d4f7a3a4:6826
+componentUpdateFn @ chunk-DBOTBDL2.js?v=d4f7a3a4:7550
+run @ chunk-DBOTBDL2.js?v=d4f7a3a4:505
+runIfDirty @ chunk-DBOTBDL2.js?v=d4f7a3a4:543
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2289
+flushJobs @ chunk-DBOTBDL2.js?v=d4f7a3a4:2497
+Promise.then
+queueFlush @ chunk-DBOTBDL2.js?v=d4f7a3a4:2411
+queueJob @ chunk-DBOTBDL2.js?v=d4f7a3a4:2406
+effect2.scheduler @ chunk-DBOTBDL2.js?v=d4f7a3a4:7592
+trigger @ chunk-DBOTBDL2.js?v=d4f7a3a4:533
+endBatch @ chunk-DBOTBDL2.js?v=d4f7a3a4:591
+notify @ chunk-DBOTBDL2.js?v=d4f7a3a4:853
+trigger @ chunk-DBOTBDL2.js?v=d4f7a3a4:827
+set value @ chunk-DBOTBDL2.js?v=d4f7a3a4:1699
+after @ VditorEditor.vue:278
+（匿名） @ vditor.js?v=d4f7a3a4:14539
+Promise.then
+Vditor2.init @ vditor.js?v=d4f7a3a4:14516
+（匿名） @ vditor.js?v=d4f7a3a4:14184
+Promise.then
+Vditor2 @ vditor.js?v=d4f7a3a4:14183
+initVditor @ VditorEditor.vue:197
+（匿名） @ VditorEditor.vue:383
+Promise.then
+nextTick @ chunk-DBOTBDL2.js?v=d4f7a3a4:2378
+（匿名） @ VditorEditor.vue:374
+（匿名） @ chunk-DBOTBDL2.js?v=d4f7a3a4:4948
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2289
+callWithAsyncErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2296
+hook.__weh.hook.__weh @ chunk-DBOTBDL2.js?v=d4f7a3a4:4928
+flushPostFlushCbs @ chunk-DBOTBDL2.js?v=d4f7a3a4:2474
+flushJobs @ chunk-DBOTBDL2.js?v=d4f7a3a4:2516
+Promise.then
+queueFlush @ chunk-DBOTBDL2.js?v=d4f7a3a4:2411
+queueJob @ chunk-DBOTBDL2.js?v=d4f7a3a4:2406
+effect2.scheduler @ chunk-DBOTBDL2.js?v=d4f7a3a4:7592
+trigger @ chunk-DBOTBDL2.js?v=d4f7a3a4:533
+endBatch @ chunk-DBOTBDL2.js?v=d4f7a3a4:591
+notify @ chunk-DBOTBDL2.js?v=d4f7a3a4:853
+trigger @ chunk-DBOTBDL2.js?v=d4f7a3a4:827
+set value @ chunk-DBOTBDL2.js?v=d4f7a3a4:1699
+finalizeNavigation @ vue-router.js?v=d4f7a3a4:2522
+（匿名） @ vue-router.js?v=d4f7a3a4:2432
+Promise.then
+pushWithRedirect @ vue-router.js?v=d4f7a3a4:2400
+push @ vue-router.js?v=d4f7a3a4:2326
+navigate @ vue-router.js?v=d4f7a3a4:1554
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2289
+callWithAsyncErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2296
+invoker @ chunk-DBOTBDL2.js?v=d4f7a3a4:11296
+NewArticle.vue:1395 用户选择恢复草稿
+NewArticle.vue:1258 正在恢复草稿，跳过自动保存触发
+NewArticle.vue:1258 正在恢复草稿，跳过自动保存触发
+NewArticle.vue:1420 Unhandled error during execution of component update Proxy(Object) {…} at <ElCard>
+at <NewArticle>
+at <RouterView>
+at <App> (4) [{…}, {…}, {…}, {…}]
+instance.appContext.config.warnHandler @ chunk-LFCZAS6W.js?v=d4f7a3a4:37149
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2289
+warn$1 @ chunk-DBOTBDL2.js?v=d4f7a3a4:2118
+logError @ chunk-DBOTBDL2.js?v=d4f7a3a4:2353
+handleError @ chunk-DBOTBDL2.js?v=d4f7a3a4:2345
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2291
+flushJobs @ chunk-DBOTBDL2.js?v=d4f7a3a4:2497
+Promise.then
+queueFlush @ chunk-DBOTBDL2.js?v=d4f7a3a4:2411
+queueJob @ chunk-DBOTBDL2.js?v=d4f7a3a4:2406
+baseWatchOptions.scheduler @ chunk-DBOTBDL2.js?v=d4f7a3a4:8377
+effect2.scheduler @ chunk-DBOTBDL2.js?v=d4f7a3a4:2035
+trigger @ chunk-DBOTBDL2.js?v=d4f7a3a4:533
+endBatch @ chunk-DBOTBDL2.js?v=d4f7a3a4:591
+trigger @ chunk-DBOTBDL2.js?v=d4f7a3a4:980
+set @ chunk-DBOTBDL2.js?v=d4f7a3a4:1261
+loadLatestDraft @ NewArticle.vue:1420
+await in loadLatestDraft
+（匿名） @ NewArticle.vue:1637
+Promise.then
+nextTick @ chunk-DBOTBDL2.js?v=d4f7a3a4:2378
+（匿名） @ NewArticle.vue:1636
+await in （匿名）
+（匿名） @ chunk-DBOTBDL2.js?v=d4f7a3a4:4948
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2289
+callWithAsyncErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2296
+hook.__weh.hook.__weh @ chunk-DBOTBDL2.js?v=d4f7a3a4:4928
+flushPostFlushCbs @ chunk-DBOTBDL2.js?v=d4f7a3a4:2474
+flushJobs @ chunk-DBOTBDL2.js?v=d4f7a3a4:2516
+Promise.then
+queueFlush @ chunk-DBOTBDL2.js?v=d4f7a3a4:2411
+queueJob @ chunk-DBOTBDL2.js?v=d4f7a3a4:2406
+effect2.scheduler @ chunk-DBOTBDL2.js?v=d4f7a3a4:7592
+trigger @ chunk-DBOTBDL2.js?v=d4f7a3a4:533
+endBatch @ chunk-DBOTBDL2.js?v=d4f7a3a4:591
+notify @ chunk-DBOTBDL2.js?v=d4f7a3a4:853
+trigger @ chunk-DBOTBDL2.js?v=d4f7a3a4:827
+set value @ chunk-DBOTBDL2.js?v=d4f7a3a4:1699
+finalizeNavigation @ vue-router.js?v=d4f7a3a4:2522
+（匿名） @ vue-router.js?v=d4f7a3a4:2432
+Promise.then
+pushWithRedirect @ vue-router.js?v=d4f7a3a4:2400
+push @ vue-router.js?v=d4f7a3a4:2326
+navigate @ vue-router.js?v=d4f7a3a4:1554
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2289
+callWithAsyncErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2296
+invoker @ chunk-DBOTBDL2.js?v=d4f7a3a4:11296
+NewArticle.vue:1457 草稿恢复过程中出现错误: TypeError: Cannot set properties of null (setting '__vnode')
+    at patchElement (chunk-DBOTBDL2.js?v=d4f7a3a4:7088:18)
+    at processElement (chunk-DBOTBDL2.js?v=d4f7a3a4:6971:7)
+    at patch (chunk-DBOTBDL2.js?v=d4f7a3a4:6826:11)
+    at patchBlockChildren (chunk-DBOTBDL2.js?v=d4f7a3a4:7194:7)
+    at patchElement (chunk-DBOTBDL2.js?v=d4f7a3a4:7112:7)
+    at processElement (chunk-DBOTBDL2.js?v=d4f7a3a4:6971:7)
+    at patch (chunk-DBOTBDL2.js?v=d4f7a3a4:6826:11)
+    at ReactiveEffect.componentUpdateFn [as fn] (chunk-DBOTBDL2.js?v=d4f7a3a4:7550:9)
+    at ReactiveEffect.run (chunk-DBOTBDL2.js?v=d4f7a3a4:505:19)
+    at updateComponent (chunk-DBOTBDL2.js?v=d4f7a3a4:7401:18)
+    at processComponent (chunk-DBOTBDL2.js?v=d4f7a3a4:7335:7)
+    at patch (chunk-DBOTBDL2.js?v=d4f7a3a4:6838:11)
+    at patchBlockChildren (chunk-DBOTBDL2.js?v=d4f7a3a4:7194:7)
+    at processFragment (chunk-DBOTBDL2.js?v=d4f7a3a4:7272:9)
+    at patch (chunk-DBOTBDL2.js?v=d4f7a3a4:6812:9)
+    at patchBlockChildren (chunk-DBOTBDL2.js?v=d4f7a3a4:7194:7)
+    at patchElement (chunk-DBOTBDL2.js?v=d4f7a3a4:7112:7)
+    at processElement (chunk-DBOTBDL2.js?v=d4f7a3a4:6971:7)
+    at patch (chunk-DBOTBDL2.js?v=d4f7a3a4:6826:11)
+    at ReactiveEffect.componentUpdateFn [as fn] (chunk-DBOTBDL2.js?v=d4f7a3a4:7550:9)
+    at ReactiveEffect.run (chunk-DBOTBDL2.js?v=d4f7a3a4:505:19)
+    at ReactiveEffect.runIfDirty (chunk-DBOTBDL2.js?v=d4f7a3a4:543:12)
+    at callWithErrorHandling (chunk-DBOTBDL2.js?v=d4f7a3a4:2289:33)
+    at flushJobs (chunk-DBOTBDL2.js?v=d4f7a3a4:2497:9)
+    at async loadLatestDraft (NewArticle.vue:1423:11)
+loadLatestDraft @ NewArticle.vue:1457
+await in loadLatestDraft
+（匿名） @ NewArticle.vue:1637
+Promise.then
+nextTick @ chunk-DBOTBDL2.js?v=d4f7a3a4:2378
+（匿名） @ NewArticle.vue:1636
+await in （匿名）
+（匿名） @ chunk-DBOTBDL2.js?v=d4f7a3a4:4948
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2289
+callWithAsyncErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2296
+hook.__weh.hook.__weh @ chunk-DBOTBDL2.js?v=d4f7a3a4:4928
+flushPostFlushCbs @ chunk-DBOTBDL2.js?v=d4f7a3a4:2474
+flushJobs @ chunk-DBOTBDL2.js?v=d4f7a3a4:2516
+Promise.then
+queueFlush @ chunk-DBOTBDL2.js?v=d4f7a3a4:2411
+queueJob @ chunk-DBOTBDL2.js?v=d4f7a3a4:2406
+effect2.scheduler @ chunk-DBOTBDL2.js?v=d4f7a3a4:7592
+trigger @ chunk-DBOTBDL2.js?v=d4f7a3a4:533
+endBatch @ chunk-DBOTBDL2.js?v=d4f7a3a4:591
+notify @ chunk-DBOTBDL2.js?v=d4f7a3a4:853
+trigger @ chunk-DBOTBDL2.js?v=d4f7a3a4:827
+set value @ chunk-DBOTBDL2.js?v=d4f7a3a4:1699
+finalizeNavigation @ vue-router.js?v=d4f7a3a4:2522
+（匿名） @ vue-router.js?v=d4f7a3a4:2432
+Promise.then
+pushWithRedirect @ vue-router.js?v=d4f7a3a4:2400
+push @ vue-router.js?v=d4f7a3a4:2326
+navigate @ vue-router.js?v=d4f7a3a4:1554
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2289
+callWithAsyncErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2296
+invoker @ chunk-DBOTBDL2.js?v=d4f7a3a4:11296
+CategorySelector.vue:388 🤖 开始AI分类推荐...
+CategorySelector.vue:389 📊 可用分类数量: 17
+CategorySelector.vue:390 📝 文章数据: {title: '点赞测试文章8', content: '', summary: '', tags: Array(0)}
+CategorySelector.vue:399 🔍 检查分类数据: {categories: Proxy(Array), categoriesLength: 17, categoriesType: 'object', isArray: true}
+CategorySelector.vue:433 🔍 调用推荐算法...
+categoryRecommender.js:197 📊 内容推荐分析 - 输入数据: {title: '点赞测试文章9', content: '支持 JPG、PNG、WebP 格式，建议尺寸 1200x630 像素，文件大小不超过 5MB\n...', summary: '', contentLength: 48}
+categoryRecommender.js:203 📊 可用分类数量: 17
+categoryRecommender.js:204 📊 分类数据类型: object true
+categoryRecommender.js:211 📊 可用分类: (17) ['技术开发(ID:18)', '前端开发(ID:19)', '后端开发(ID:20)', '人工智能(ID:21)', '移动开发(ID:22)', '设计(ID:23)', '产品管理(ID:24)', '创业(ID:25)', '生活方式(ID:26)', 'Vue.js(ID:35)', 'React(ID:36)', 'JavaScript(ID:37)', 'Python(ID:38)', 'Flask(ID:39)', 'Django(ID:40)', '机器学习(ID:41)', '深度学习(ID:42)']
+categoryRecommender.js:220 📝 组合文本内容: 点赞测试文章9点赞测试文章9点赞测试文章9  支持 JPG、PNG、WebP 格式，建议尺寸 1200x630 像素，文件大小不超过 5MB
+...
+categoryRecommender.js:225 🔍 分析分类 "Vue.js": 得分=0
+categoryRecommender.js:225 🔍 分析分类 "React": 得分=0
+categoryRecommender.js:225 🔍 分析分类 "JavaScript": 得分=0
+categoryRecommender.js:225 🔍 分析分类 "Python": 得分=0
+categoryRecommender.js:225 🔍 分析分类 "Flask": 得分=0
+categoryRecommender.js:225 🔍 分析分类 "Django": 得分=0
+categoryRecommender.js:225 🔍 分析分类 "机器学习": 得分=0
+categoryRecommender.js:225 🔍 分析分类 "深度学习": 得分=0
+categoryRecommender.js:225 🔍 分析分类 "前端开发": 得分=0.5
+categoryRecommender.js:230 ⭐ 应用权重加成 1.3: 新得分=0.65
+categoryRecommender.js:256 ✅ 找到匹配分类: "前端开发" 匹配 "前端开发"
+categoryRecommender.js:268 ➕ 添加推荐: 前端开发 (得分: 0.65)
+categoryRecommender.js:225 🔍 分析分类 "后端开发": 得分=0
+categoryRecommender.js:230 ⭐ 应用权重加成 1.2: 新得分=0
+categoryRecommender.js:225 🔍 分析分类 "数据库": 得分=0
+categoryRecommender.js:225 🔍 分析分类 "移动开发": 得分=0
+categoryRecommender.js:230 ⭐ 应用权重加成 1.1: 新得分=0
+categoryRecommender.js:225 🔍 分析分类 "人工智能": 得分=0
+categoryRecommender.js:230 ⭐ 应用权重加成 1.5: 新得分=0
+categoryRecommender.js:225 🔍 分析分类 "云计算": 得分=0
+categoryRecommender.js:230 ⭐ 应用权重加成 1.1: 新得分=0
+categoryRecommender.js:225 🔍 分析分类 "设计": 得分=0
+categoryRecommender.js:225 🔍 分析分类 "产品管理": 得分=0
+categoryRecommender.js:225 🔍 分析分类 "创业": 得分=0
+categoryRecommender.js:225 🔍 分析分类 "生活方式": 得分=0
+categoryRecommender.js:275 📊 内容推荐结果: 1 个推荐
+CategorySelector.vue:440 ✨ 推荐结果: Proxy(Array) {}
+CategorySelector.vue:443 💡 未找到匹配的分类推荐
+NewArticle.vue:1142 🏷️ 已选择分类: 后端开发
+CategorySelector.vue:356 Unhandled error during execution of component event handler Proxy(Object) {…} at <CategorySelector>
+at <ElFormItem>
+at <ElCol>
+at <ElRow>
+at <ElForm>
+at <ElCard>
+at <NewArticle>
+at <RouterView>
+at <App> (9) [{…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}]
+instance.appContext.config.warnHandler @ chunk-LFCZAS6W.js?v=d4f7a3a4:37149
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2289
+warn$1 @ chunk-DBOTBDL2.js?v=d4f7a3a4:2118
+logError @ chunk-DBOTBDL2.js?v=d4f7a3a4:2353
+handleError @ chunk-DBOTBDL2.js?v=d4f7a3a4:2345
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2291
+callWithAsyncErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2296
+emit @ chunk-DBOTBDL2.js?v=d4f7a3a4:8556
+（匿名） @ chunk-DBOTBDL2.js?v=d4f7a3a4:10266
+handleSelectionChange @ CategorySelector.vue:356
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2289
+callWithAsyncErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2296
+emit @ chunk-DBOTBDL2.js?v=d4f7a3a4:8556
+（匿名） @ chunk-DBOTBDL2.js?v=d4f7a3a4:10266
+emitChange @ chunk-LFCZAS6W.js?v=d4f7a3a4:36612
+handleOptionSelect @ chunk-LFCZAS6W.js?v=d4f7a3a4:36684
+selectOptionClick @ chunk-LFCZAS6W.js?v=d4f7a3a4:36218
+cache.<computed>.cache.<computed> @ chunk-DBOTBDL2.js?v=d4f7a3a4:12262
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2289
+callWithAsyncErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2296
+invoker @ chunk-DBOTBDL2.js?v=d4f7a3a4:11296
+chunk-LFCZAS6W.js?v=d4f7a3a4:37149 Unhandled error during execution of component event handler Proxy(Object) {…} at <ElSelect>
+at <CategorySelector>
+at <ElFormItem>
+at <ElCol>
+at <ElRow>
+at <ElForm>
+at <ElCard>
+at <NewArticle>
+at <RouterView>
+at <App> (10) [{…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}]
+instance.appContext.config.warnHandler @ chunk-LFCZAS6W.js?v=d4f7a3a4:37149
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2289
+warn$1 @ chunk-DBOTBDL2.js?v=d4f7a3a4:2118
+logError @ chunk-DBOTBDL2.js?v=d4f7a3a4:2353
+handleError @ chunk-DBOTBDL2.js?v=d4f7a3a4:2345
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2291
+callWithAsyncErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2296
+emit @ chunk-DBOTBDL2.js?v=d4f7a3a4:8556
+（匿名） @ chunk-DBOTBDL2.js?v=d4f7a3a4:10266
+emitChange @ chunk-LFCZAS6W.js?v=d4f7a3a4:36612
+handleOptionSelect @ chunk-LFCZAS6W.js?v=d4f7a3a4:36684
+selectOptionClick @ chunk-LFCZAS6W.js?v=d4f7a3a4:36218
+cache.<computed>.cache.<computed> @ chunk-DBOTBDL2.js?v=d4f7a3a4:12262
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2289
+callWithAsyncErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2296
+invoker @ chunk-DBOTBDL2.js?v=d4f7a3a4:11296
+chunk-LFCZAS6W.js?v=d4f7a3a4:37149 Unhandled error during execution of native event handler Proxy(Object) {…} at <ElOption>
+at <ElOptionGroup>
+at <ElOptions>
+at <ElScrollbar>
+at <ElSelectDropdown>
+at <ElFocusTrap>
+at <ElPopperContent>
+at <BaseTransition>
+at <Transition>
+at <Teleport>
+at <ElTooltipContent>
+at <ElPopper>
+at <ElTooltip>
+at <ElSelect>
+at <CategorySelector>
+at <ElFormItem>
+at <ElCol>
+at <ElRow>
+at <ElForm>
+at <ElCard>
+at <NewArticle>
+at <RouterView>
+at <App> (23) [{…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}]
+instance.appContext.config.warnHandler @ chunk-LFCZAS6W.js?v=d4f7a3a4:37149
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2289
+warn$1 @ chunk-DBOTBDL2.js?v=d4f7a3a4:2118
+logError @ chunk-DBOTBDL2.js?v=d4f7a3a4:2353
+handleError @ chunk-DBOTBDL2.js?v=d4f7a3a4:2345
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2291
+callWithAsyncErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2296
+invoker @ chunk-DBOTBDL2.js?v=d4f7a3a4:11296
+chunk-DBOTBDL2.js?v=d4f7a3a4:2358 Uncaught ReferenceError: markAsChanged is not defined
+    at handleCategoryChange (NewArticle.vue:1146:9)
+    at callWithErrorHandling (chunk-DBOTBDL2.js?v=d4f7a3a4:2289:19)
+    at callWithAsyncErrorHandling (chunk-DBOTBDL2.js?v=d4f7a3a4:2296:17)
+    at emit (chunk-DBOTBDL2.js?v=d4f7a3a4:8556:5)
+    at chunk-DBOTBDL2.js?v=d4f7a3a4:10266:45
+    at handleSelectionChange (CategorySelector.vue:356:3)
+    at callWithErrorHandling (chunk-DBOTBDL2.js?v=d4f7a3a4:2289:19)
+    at callWithAsyncErrorHandling (chunk-DBOTBDL2.js?v=d4f7a3a4:2296:17)
+    at emit (chunk-DBOTBDL2.js?v=d4f7a3a4:8556:5)
+    at chunk-DBOTBDL2.js?v=d4f7a3a4:10266:45
+    at emitChange (chunk-LFCZAS6W.js?v=d4f7a3a4:36612:7)
+    at Proxy.handleOptionSelect (chunk-LFCZAS6W.js?v=d4f7a3a4:36684:7)
+    at selectOptionClick (chunk-LFCZAS6W.js?v=d4f7a3a4:36218:16)
+    at cache.<computed>.cache.<computed> (chunk-DBOTBDL2.js?v=d4f7a3a4:12262:12)
+    at callWithErrorHandling (chunk-DBOTBDL2.js?v=d4f7a3a4:2289:19)
+    at callWithAsyncErrorHandling (chunk-DBOTBDL2.js?v=d4f7a3a4:2296:17)
+    at HTMLLIElement.invoker (chunk-DBOTBDL2.js?v=d4f7a3a4:11296:5)
+handleCategoryChange @ NewArticle.vue:1146
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2289
+callWithAsyncErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2296
+emit @ chunk-DBOTBDL2.js?v=d4f7a3a4:8556
+（匿名） @ chunk-DBOTBDL2.js?v=d4f7a3a4:10266
+handleSelectionChange @ CategorySelector.vue:356
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2289
+callWithAsyncErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2296
+emit @ chunk-DBOTBDL2.js?v=d4f7a3a4:8556
+（匿名） @ chunk-DBOTBDL2.js?v=d4f7a3a4:10266
+emitChange @ chunk-LFCZAS6W.js?v=d4f7a3a4:36612
+handleOptionSelect @ chunk-LFCZAS6W.js?v=d4f7a3a4:36684
+selectOptionClick @ chunk-LFCZAS6W.js?v=d4f7a3a4:36218
+cache.<computed>.cache.<computed> @ chunk-DBOTBDL2.js?v=d4f7a3a4:12262
+callWithErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2289
+callWithAsyncErrorHandling @ chunk-DBOTBDL2.js?v=d4f7a3a4:2296
+invoker @ chunk-DBOTBDL2.js?v=d4f7a3a4:11296
+categoryRecommender.js:197 📊 内容推荐分析 - 输入数据: {title: '点赞测试文章9', content: '支持 JPG、PNG、WebP 格式，建议尺寸 1200x630 像素，文件大小不超过 5MB\n...', summary: '', contentLength: 48}
+categoryRecommender.js:203 📊 可用分类数量: 17
+categoryRecommender.js:204 📊 分类数据类型: object true
+categoryRecommender.js:211 📊 可用分类: (17) ['技术开发(ID:18)', '前端开发(ID:19)', '后端开发(ID:20)', '人工智能(ID:21)', '移动开发(ID:22)', '设计(ID:23)', '产品管理(ID:24)', '创业(ID:25)', '生活方式(ID:26)', 'Vue.js(ID:35)', 'React(ID:36)', 'JavaScript(ID:37)', 'Python(ID:38)', 'Flask(ID:39)', 'Django(ID:40)', '机器学习(ID:41)', '深度学习(ID:42)']
+categoryRecommender.js:220 📝 组合文本内容: 点赞测试文章9点赞测试文章9点赞测试文章9  支持 JPG、PNG、WebP 格式，建议尺寸 1200x630 像素，文件大小不超过 5MB
+...
+categoryRecommender.js:225 🔍 分析分类 "Vue.js": 得分=0
+categoryRecommender.js:225 🔍 分析分类 "React": 得分=0
+categoryRecommender.js:225 🔍 分析分类 "JavaScript": 得分=0
+categoryRecommender.js:225 🔍 分析分类 "Python": 得分=0
+categoryRecommender.js:225 🔍 分析分类 "Flask": 得分=0
+categoryRecommender.js:225 🔍 分析分类 "Django": 得分=0
+categoryRecommender.js:225 🔍 分析分类 "机器学习": 得分=0
+categoryRecommender.js:225 🔍 分析分类 "深度学习": 得分=0
+categoryRecommender.js:225 🔍 分析分类 "前端开发": 得分=0.5
+categoryRecommender.js:230 ⭐ 应用权重加成 1.3: 新得分=0.65
+categoryRecommender.js:256 ✅ 找到匹配分类: "前端开发" 匹配 "前端开发"
+categoryRecommender.js:268 ➕ 添加推荐: 前端开发 (得分: 0.65)
+categoryRecommender.js:225 🔍 分析分类 "后端开发": 得分=0
+categoryRecommender.js:230 ⭐ 应用权重加成 1.2: 新得分=0
+categoryRecommender.js:225 🔍 分析分类 "数据库": 得分=0
+categoryRecommender.js:225 🔍 分析分类 "移动开发": 得分=0
+categoryRecommender.js:230 ⭐ 应用权重加成 1.1: 新得分=0
+categoryRecommender.js:225 🔍 分析分类 "人工智能": 得分=0
+categoryRecommender.js:230 ⭐ 应用权重加成 1.5: 新得分=0
+categoryRecommender.js:225 🔍 分析分类 "云计算": 得分=0
+categoryRecommender.js:230 ⭐ 应用权重加成 1.1: 新得分=0
+categoryRecommender.js:225 🔍 分析分类 "设计": 得分=0
+categoryRecommender.js:225 🔍 分析分类 "产品管理": 得分=0
+categoryRecommender.js:225 🔍 分析分类 "创业": 得分=0
+categoryRecommender.js:225 🔍 分析分类 "生活方式": 得分=0
+categoryRecommender.js:275 📊 内容推荐结果: 1 个推荐
+NewArticle.vue:717 发布前同步编辑器内容...
+VditorEditor.vue:420 VditorEditor syncContent called, content length: 48
+NewArticle.vue:725 成功同步编辑器内容，长度: 48
+NewArticle.vue:749 🔍 开始内容安全检查...
+NewArticle.vue:780 ✅ 内容安全检查通过
+NewArticle.vue:789 发布前验证通过，内容长度: 48
+NewArticle.vue:808 表单验证通过，开始发布文章...
+apiClient.js:7 🌐 API请求拦截器 - token存在: true
+apiClient.js:10 🌐 已设置Authorization头
+NewArticle.vue:848 文章已提交审核
+NewArticle.vue:863 文章发布成功，准备跳转...
+NewArticle.vue:864 文章ID: 65
+NewArticle.vue:865 文章slug: dian-zan-ce-shi-wen-zhang-9
+NewArticle.vue:866 跳转路径: /article/dian-zan-ce-shi-wen-zhang-9
+client:495 [vite] connecting...
+client:618 [vite] connected.
+user.js:95 🔐 初始化认证状态...
+user.js:96 🔐 当前token: 已存在
+user.js:97 🔐 localStorage中的token: 已存在
+user.js:100 🔐 开始获取用户信息...
+apiClient.js:7 🌐 API请求拦截器 - token存在: true
+apiClient.js:10 🌐 已设置Authorization头
+user.js:95 🔐 初始化认证状态...
+user.js:96 🔐 当前token: 已存在
+user.js:97 🔐 localStorage中的token: 已存在
+user.js:100 🔐 开始获取用户信息...
+apiClient.js:7 🌐 API请求拦截器 - token存在: true
+apiClient.js:10 🌐 已设置Authorization头
+user.js:103 🔐 用户信息获取完成，认证状态: true
+user.js:104 🔐 用户信息: Proxy(Object) {avatar: '/uploads/2025/08/6c56a14f8e2845be89f75de206f3c9b0.jpg', bio: null, email: 'test123@aaa.com', id: 1, nickname: '小重山', …}
+user.js:103 🔐 用户信息获取完成，认证状态: true
+user.js:104 🔐 用户信息: Proxy(Object) {avatar: '/uploads/2025/08/6c56a14f8e2845be89f75de206f3c9b0.jpg', bio: null, email: 'test123@aaa.com', id: 1, nickname: '小重山', …}
+ArticleDetail.vue:400 🚀 页面挂载 - Token存在: true
+ArticleDetail.vue:401 🚀 页面挂载 - userStore.token存在: true
+ArticleDetail.vue:405 ⏳ 等待用户认证状态初始化...
+user.js:95 🔐 初始化认证状态...
+user.js:96 🔐 当前token: 已存在
+user.js:97 🔐 localStorage中的token: 已存在
+user.js:100 🔐 开始获取用户信息...
+apiClient.js:7 🌐 API请求拦截器 - token存在: true
+apiClient.js:10 🌐 已设置Authorization头
+user.js:103 🔐 用户信息获取完成，认证状态: true
+user.js:104 🔐 用户信息: Proxy(Object) {avatar: '/uploads/2025/08/6c56a14f8e2845be89f75de206f3c9b0.jpg', bio: null, email: 'test123@aaa.com', id: 1, nickname: '小重山', …}
+ArticleDetail.vue:407 ✅ 用户认证状态初始化完成
+ArticleDetail.vue:364 🔍 页面加载 - 用户认证状态: true 用户ID: 1
+apiClient.js:7 🌐 API请求拦截器 - token存在: true
+apiClient.js:10 🌐 已设置Authorization头
+ArticleDetail.vue:377 📡 API返回数据 - 点赞数: 0 收藏数: 0 已点赞: false 已收藏: false
+apiClient.js:7 🌐 API请求拦截器 - token存在: true
+apiClient.js:10 🌐 已设置Authorization头
+ArticleDetail.vue:612 🎨 ArticleDetail: 开始应用代码高亮
+ArticleDetail.vue:663 ✅ 语法高亮完成
+ArticleDetail.vue:612 🎨 ArticleDetail: 开始应用代码高亮
+ArticleDetail.vue:663 ✅ 语法高亮完成
+ArticleContentRenderer.vue:320 ContentRenderer mounted: {contentLength: 54, contentType: 'markdown', confidence: 0.75, features: {…}}
+ArticleDetail.vue:415 🏁 页面加载完成 - Token存在: true
+ArticleDetail.vue:612 🎨 ArticleDetail: 开始应用代码高亮
+ArticleDetail.vue:663 ✅ 语法高亮完成
+ArticleDetail.vue:331 🔧 管理操作approve前 - Token存在: true
+apiClient.js:7 🌐 API请求拦截器 - token存在: true
+apiClient.js:10 🌐 已设置Authorization头
+ArticleDetail.vue:341 🔧 管理操作approve后 - Token存在: true
+ArticleDetail.vue:342 🔧 Token状态变化: 无变化
+ArticleDetail.vue:364 🔍 页面加载 - 用户认证状态: true 用户ID: 1
+apiClient.js:7 🌐 API请求拦截器 - token存在: true
+apiClient.js:10 🌐 已设置Authorization头
+ArticleDetail.vue:377 📡 API返回数据 - 点赞数: 0 收藏数: 0 已点赞: false 已收藏: false
+ArticleDetail.vue:612 🎨 ArticleDetail: 开始应用代码高亮
+ArticleDetail.vue:663 ✅ 语法高亮完成
+ArticleDetail.vue:612 🎨 ArticleDetail: 开始应用代码高亮
+ArticleDetail.vue:663 ✅ 语法高亮完成
+ArticleContentRenderer.vue:320 ContentRenderer mounted: {contentLength: 54, contentType: 'markdown', confidence: 0.75, features: {…}}
+ArticleDetail.vue:612 🎨 ArticleDetail: 开始应用代码高亮
+ArticleDetail.vue:663 ✅ 语法高亮完成
+apiClient.js:7 🌐 API请求拦截器 - token存在: true
+apiClient.js:10 🌐 已设置Authorization头
+ArticleDetail.vue:553 收藏数据： Proxy(Object) {author: {…}, bookmarked: false, bookmarks_count: 0, category: '后端开发', content_excerpt: '支持 JPG、PNG、WebP 格式，建议尺寸 1200x630 像素，文件大小不超过 5MB\n', …}
+apiClient.js:7 🌐 API请求拦截器 - token存在: true
+apiClient.js:10 🌐 已设置Authorization头
+client:495 [vite] connecting...
+client:618 [vite] connected.
+user.js:95 🔐 初始化认证状态...
+user.js:96 🔐 当前token: 已存在
+user.js:97 🔐 localStorage中的token: 已存在
+user.js:100 🔐 开始获取用户信息...
+apiClient.js:7 🌐 API请求拦截器 - token存在: true
+apiClient.js:10 🌐 已设置Authorization头
+user.js:95 🔐 初始化认证状态...
+user.js:96 🔐 当前token: 已存在
+user.js:97 🔐 localStorage中的token: 已存在
+user.js:100 🔐 开始获取用户信息...
+apiClient.js:7 🌐 API请求拦截器 - token存在: true
+apiClient.js:10 🌐 已设置Authorization头
+user.js:103 🔐 用户信息获取完成，认证状态: true
+user.js:104 🔐 用户信息: Proxy(Object) {avatar: '/uploads/2025/08/6c56a14f8e2845be89f75de206f3c9b0.jpg', bio: null, email: 'test123@aaa.com', id: 1, nickname: '小重山', …}
+user.js:103 🔐 用户信息获取完成，认证状态: true
+user.js:104 🔐 用户信息: Proxy(Object) {avatar: '/uploads/2025/08/6c56a14f8e2845be89f75de206f3c9b0.jpg', bio: null, email: 'test123@aaa.com', id: 1, nickname: '小重山', …}
+ArticleDetail.vue:400 🚀 页面挂载 - Token存在: true
+ArticleDetail.vue:401 🚀 页面挂载 - userStore.token存在: true
+ArticleDetail.vue:405 ⏳ 等待用户认证状态初始化...
+user.js:95 🔐 初始化认证状态...
+user.js:96 🔐 当前token: 已存在
+user.js:97 🔐 localStorage中的token: 已存在
+user.js:100 🔐 开始获取用户信息...
+apiClient.js:7 🌐 API请求拦截器 - token存在: true
+apiClient.js:10 🌐 已设置Authorization头
+user.js:103 🔐 用户信息获取完成，认证状态: true
+user.js:104 🔐 用户信息: Proxy(Object) {avatar: '/uploads/2025/08/6c56a14f8e2845be89f75de206f3c9b0.jpg', bio: null, email: 'test123@aaa.com', id: 1, nickname: '小重山', …}
+ArticleDetail.vue:407 ✅ 用户认证状态初始化完成
+ArticleDetail.vue:364 🔍 页面加载 - 用户认证状态: true 用户ID: 1
+apiClient.js:7 🌐 API请求拦截器 - token存在: true
+apiClient.js:10 🌐 已设置Authorization头
+ArticleDetail.vue:377 📡 API返回数据 - 点赞数: 1 收藏数: 1 已点赞: false 已收藏: false
+apiClient.js:7 🌐 API请求拦截器 - token存在: true
+apiClient.js:10 🌐 已设置Authorization头
+ArticleDetail.vue:612 🎨 ArticleDetail: 开始应用代码高亮
+ArticleDetail.vue:663 ✅ 语法高亮完成
+ArticleDetail.vue:612 🎨 ArticleDetail: 开始应用代码高亮
+ArticleDetail.vue:663 ✅ 语法高亮完成
+ArticleContentRenderer.vue:320 ContentRenderer mounted: {contentLength: 54, contentType: 'markdown', confidence: 0.75, features: {…}}
+ArticleDetail.vue:415 🏁 页面加载完成 - Token存在: true
+ArticleDetail.vue:612 🎨 ArticleDetail: 开始应用代码高亮
+ArticleDetail.vue:663 ✅ 语法高亮完成

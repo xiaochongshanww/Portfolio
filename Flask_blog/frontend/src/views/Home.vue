@@ -312,8 +312,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, onMounted, inject, Ref } from 'vue';
+import { ref, reactive, computed, watch, onMounted, onActivated, inject, Ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useUserStore } from '../stores/user';
 import { 
   Star, StarFilled, FolderAdd, FolderChecked, Search, Picture, User, View,
   Bookmark, BookmarkFilled, Clock, ChatLineRound, Edit, Document, Timer, TrendCharts
@@ -347,6 +348,7 @@ const API = {
 
 const route = useRoute();
 const router = useRouter();
+const userStore = useUserStore();
 const sidebarData = inject<Ref<Record<string, any>> | undefined>('sidebarData');
 
 // 容器元素引用
@@ -728,6 +730,7 @@ async function toggleBookmark(article: any) {
 
 // 数据加载
 async function loadTaxonomy() {
+  console.log('🏷️  开始加载分类和标签...');
   try {
     // 使用统一的taxonomy API
     const taxonomyRes = await Promise.race([
@@ -740,6 +743,7 @@ async function loadTaxonomy() {
     const taxonomyData = taxonomyRes.data.data;
     categories.value = taxonomyData.categories || [];
     tags.value = taxonomyData.tags || [];
+    console.log('✅ 分类和标签加载成功，分类:', categories.value.length, '标签:', tags.value.length);
     
     // 更新侧边栏数据
     if (sidebarData) {
@@ -777,6 +781,7 @@ async function loadTaxonomy() {
     
     categories.value = mockCategories;
     tags.value = mockTags;
+    console.log('📝 设置分类标签降级数据，分类:', mockCategories.length, '标签:', mockTags.length);
     
     // 更新侧边栏数据
     if (sidebarData) {
@@ -794,6 +799,7 @@ async function loadTaxonomy() {
 }
 
 async function loadLatest() {
+  console.log('📰 开始加载最新文章...');
   sideLoading.value = true;
   try {
     // 添加超时控制 - 增加到10秒给API更多时间响应
@@ -804,9 +810,11 @@ async function loadLatest() {
       )
     ]);
     latest.value = r.data.data?.list || [];
+    console.log('✅ 最新文章加载成功，数量:', latest.value.length);
   } catch (e) {
-    console.error('加载最新文章失败:', e);
+    console.error('❌ 加载最新文章失败:', e);
     // 降级方案：使用模拟数据展示界面
+    console.log('⚠️ 最新文章API调用失败，使用降级数据');
     latest.value = [
       {
         id: 1,
@@ -833,12 +841,14 @@ async function loadLatest() {
         category: 'CSS'
       }
     ];
+    console.log('📝 设置最新文章降级数据，数量:', latest.value.length);
   } finally { 
     sideLoading.value = false; 
   }
 }
 
 async function loadHot() {
+  console.log('🔥 开始加载热门文章...');
   hotLoading.value = true;
   try {
     // 添加超时控制 - 增加到10秒给API更多时间响应
@@ -849,6 +859,7 @@ async function loadHot() {
       )
     ]);
     hot.value = r.data.data?.list || [];
+    console.log('✅ 热门文章加载成功，数量:', hot.value.length);
     
     // 更新侧边栏数据
     if (sidebarData) {
@@ -889,6 +900,7 @@ async function loadHot() {
     }
     
     // 最终降级：完全没有数据时显示空数组
+    console.log('⚠️ 热门文章和降级数据都获取失败，设置为空数组');
     hot.value = [];
     if (sidebarData) {
       sidebarData.value.hotArticles = [];
@@ -900,8 +912,24 @@ async function loadHot() {
 
 // 生命周期
 onMounted(async () => {
+  console.log('🔄 Home组件mounted，开始加载数据...');
+  console.log('📍 当前查询参数:', route.query);
+  
+  // 检查是否有刷新标记
+  if (route.query._refresh) {
+    console.log('🔄 Mount时检测到刷新标记，强制重新加载');
+    
+    // 清空现有数据，强制重新加载
+    latest.value = [];
+    hot.value = [];
+    categories.value = [];
+    tags.value = [];
+    
+    console.log('🧹 已清空侧边栏数据，准备重新加载');
+  }
+  
   // 如果URL中没有page_size参数，设置默认值
-  if (!route.query.page_size) {
+  if (!route.query.page_size && !route.query._refresh) {
     router.replace({ 
       query: { ...route.query, page_size: '10' }
     });
@@ -913,25 +941,107 @@ onMounted(async () => {
     loadLatest(),
     loadHot()
   ]);
+  
+  console.log('✅ Home组件数据加载完成');
+  
+  // 如果有刷新标记，清除它
+  if (route.query._refresh) {
+    console.log('🧹 清除刷新标记');
+    setTimeout(() => {
+      router.replace({ 
+        query: { ...route.query, _refresh: undefined }
+      });
+    }, 100);
+  }
+});
+
+// 组件激活时的处理（用于缓存组件）
+onActivated(() => {
+  console.log('🔄 Home组件被激活 (onActivated)');
+  
+  // 检查是否需要重新加载侧边栏数据
+  const currentPath = route.path;
+  console.log('📍 当前路径:', currentPath);
+  
+  if (currentPath === '/' || currentPath === '/home') {
+    // 强制刷新侧边栏数据
+    console.log('🔄 组件激活时强制刷新侧边栏数据...');
+    
+    // 清空并重新加载
+    latest.value = [];
+    hot.value = [];
+    categories.value = [];
+    tags.value = [];
+    
+    Promise.all([
+      loadLatest(),
+      loadHot(),
+      loadTaxonomy()
+    ]).then(() => {
+      console.log('✅ 组件激活时侧边栏数据重新加载完成');
+    });
+  }
 });
 
 // 监听路由变化
-watch(() => route.query, () => {
-  goPage(Number(route.query.page) || 1);
+watch(() => route.query, (newQuery, oldQuery) => {
+  // 检查是否有刷新标记
+  if (newQuery._refresh && !oldQuery._refresh) {
+    console.log('🔄 检测到刷新标记，强制重新加载侧边栏数据');
+    
+    // 清空并重新加载侧边栏数据
+    latest.value = [];
+    hot.value = [];
+    categories.value = [];
+    tags.value = [];
+    
+    Promise.all([
+      loadLatest(),
+      loadHot(),
+      loadTaxonomy()
+    ]).then(() => {
+      console.log('✅ 刷新标记触发的数据重新加载完成');
+    });
+  }
+  
+  goPage(Number(newQuery.page) || 1);
 }, { deep: true });
 
 // 监听路由路径变化，当用户返回首页时重新加载侧边栏数据
-watch(() => route.path, (newPath) => {
+watch(() => route.path, (newPath, oldPath) => {
+  console.log('🔄 路由路径变化检测', { from: oldPath, to: newPath, isHome: newPath === '/' || newPath === '/home' });
+  
   if (newPath === '/' || newPath === '/home') {
-    // 只有当侧边栏数据为空或很少时才重新加载，避免不必要的请求
-    if (latest.value.length === 0) {
-      loadLatest();
-    }
-    if (hot.value.length === 0) {
-      loadHot();
-    }
-    if (categories.value.length === 0 || tags.value.length === 0) {
-      loadTaxonomy();
+    console.log('🏠 返回主页，重新加载侧边栏数据', { from: oldPath, to: newPath });
+    
+    // 如果是从其他页面返回主页，强制重新加载侧边栏数据
+    if (oldPath && oldPath !== newPath) {
+      console.log('🔄 强制刷新侧边栏数据...');
+      // 清空现有数据，强制重新加载
+      latest.value = [];
+      hot.value = [];
+      categories.value = [];
+      tags.value = [];
+      
+      // 重新加载所有侧边栏数据
+      Promise.all([
+        loadLatest(),
+        loadHot(),
+        loadTaxonomy()
+      ]).then(() => {
+        console.log('✅ 侧边栏数据重新加载完成');
+      });
+    } else {
+      // 初次进入主页，只加载缺失的数据
+      if (latest.value.length === 0) {
+        loadLatest();
+      }
+      if (hot.value.length === 0) {
+        loadHot();
+      }
+      if (categories.value.length === 0 || tags.value.length === 0) {
+        loadTaxonomy();
+      }
     }
   }
 }, { immediate: false });
@@ -940,6 +1050,29 @@ watch(() => route.path, (newPath) => {
 watch(listType, () => {
   goPage(1);
 });
+
+// 监听用户认证状态变化，当登录/退出时刷新侧边栏数据
+watch(() => userStore.isAuthenticated, (newAuth, oldAuth) => {
+  // 只有当认证状态真正发生变化时才刷新
+  if (newAuth !== oldAuth && oldAuth !== undefined) {
+    console.log('🔐 用户认证状态变化:', { from: oldAuth, to: newAuth });
+    
+    // 清空并重新加载侧边栏数据
+    console.log('🔄 认证状态变化，强制刷新侧边栏数据');
+    latest.value = [];
+    hot.value = [];
+    categories.value = [];
+    tags.value = [];
+    
+    Promise.all([
+      loadLatest(),
+      loadHot(),
+      loadTaxonomy()
+    ]).then(() => {
+      console.log('✅ 认证状态变化触发的数据重新加载完成');
+    });
+  }
+}, { immediate: false });
 </script>
 
 <style scoped>

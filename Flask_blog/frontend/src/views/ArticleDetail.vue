@@ -140,11 +140,21 @@
                 <button 
                   @click="toggleLike" 
                   :disabled="liking"
-                  :class="['interaction-btn', 'like-btn', { 'liked': liked }]"
+                  :class="['interaction-btn', 'like-btn', { 
+                    'liked': liked, 
+                    'liking': liking 
+                  }]"
                 >
-                  <i :class="liked ? 'fa fa-heart' : 'fa fa-heart-o'" aria-hidden="true"></i>
-                  <span>{{ liked ? '已点赞' : '点赞' }}</span>
-                  <span class="count">({{ formatNumber(likeCount) }})</span>
+                  <div class="like-btn-content">
+                    <div class="like-icon-wrapper">
+                      <i v-if="!liking" :class="liked ? 'fa fa-heart' : 'fa fa-heart-o'" aria-hidden="true"></i>
+                      <div v-else class="like-loading-spinner">
+                        <i class="fa fa-heart beating-heart" aria-hidden="true"></i>
+                      </div>
+                    </div>
+                    <span class="like-text">{{ liking ? '处理中...' : (liked ? '已点赞' : '点赞') }}</span>
+                    <span class="count">({{ formatNumber(likeCount) }})</span>
+                  </div>
                 </button>
                 
                 <button 
@@ -154,6 +164,7 @@
                 >
                   <i :class="bookmarked ? 'fa fa-bookmark' : 'fa fa-bookmark-o'" aria-hidden="true"></i>
                   <span>{{ bookmarked ? '已收藏' : '收藏' }}</span>
+                  <span class="count">{{ formatNumber(bookmarkCount) }}</span>
                 </button>
                 
                 <button class="interaction-btn share-btn" @click="shareArticle">
@@ -282,6 +293,7 @@ const article = ref(null);
 const liked = ref(false);
 const bookmarked = ref(false);
 const likeCount = ref(0);
+const bookmarkCount = ref(0);
 const liking = ref(false);
 const bookmarking = ref(false);
 const loading = ref(false);
@@ -313,14 +325,28 @@ const canUnpublish = computed(()=> article.value && article.value.status === 'pu
 async function doTransition(target){
   if(!article.value) return;
   acting.value=true; error.value='';
+  
+  // 调试信息：检查管理操作前的认证状态
+  const tokenBefore = localStorage.getItem('access_token');
+  console.log(`🔧 管理操作${target}前 - Token存在:`, !!tokenBefore);
+  
   try {
     const id = article.value.id;
     if(target==='submit') await API.ArticlesService.submitArticle(id);
     else if(target==='approve') await API.ArticlesService.approveArticle(id);
     else if(target==='reject') await API.ArticlesService.rejectArticle(id, 'Rejected from UI');
+    
+    // 调试信息：检查管理操作后的认证状态
+    const tokenAfter = localStorage.getItem('access_token');
+    console.log(`🔧 管理操作${target}后 - Token存在:`, !!tokenAfter);
+    console.log(`🔧 Token状态变化:`, tokenBefore === tokenAfter ? '无变化' : '已变化');
+    
     ElMessage.success('操作成功');
     await load();
-  } catch(e){ ElMessage.error('操作失败'); } 
+  } catch(e){ 
+    console.error(`🔧 管理操作${target}失败:`, e);
+    ElMessage.error('操作失败'); 
+  } 
   finally { acting.value=false; }
 }
 
@@ -334,6 +360,9 @@ async function load(){
       throw new Error('文章slug参数缺失');
     }
     
+    // 调试信息：检查用户认证状态
+    console.log('🔍 页面加载 - 用户认证状态:', !!userStore.token, '用户ID:', userStore.user?.id);
+    
     const resp = await API.ArticlesService.getArticleBySlug(slug);
     if (!resp || !resp.data) {
       throw new Error('API响应格式错误');
@@ -344,8 +373,12 @@ async function load(){
       throw new Error('文章数据为空');
     }
     
+    // 调试信息：检查API返回的数据
+    console.log('📡 API返回数据 - 点赞数:', data.likes_count, '收藏数:', data.bookmarks_count, '已点赞:', data.liked, '已收藏:', data.bookmarked);
+    
     article.value = data;
     likeCount.value = data.likes_count || 0;
+    bookmarkCount.value = data.bookmarks_count || 0;
     liked.value = !!data.liked;
     bookmarked.value = !!data.bookmarked;
     
@@ -361,7 +394,26 @@ async function load(){
     loading.value = false; 
   }
 }
-onMounted(load);
+onMounted(async () => {
+  // 调试信息：页面挂载时的认证状态
+  const tokenOnMount = localStorage.getItem('access_token');
+  console.log('🚀 页面挂载 - Token存在:', !!tokenOnMount);
+  console.log('🚀 页面挂载 - userStore.token存在:', !!userStore.token);
+  
+  // 等待用户认证状态初始化完成
+  if (userStore.token) {
+    console.log('⏳ 等待用户认证状态初始化...');
+    await userStore.initAuth();
+    console.log('✅ 用户认证状态初始化完成');
+  }
+  
+  // 开始加载文章数据
+  await load();
+  
+  // 调试信息：页面加载完成后的认证状态
+  const tokenAfterLoad = localStorage.getItem('access_token');
+  console.log('🏁 页面加载完成 - Token存在:', !!tokenAfterLoad);
+});
 
 async function schedule(){
   if(!article.value) return; 
@@ -380,28 +432,178 @@ async function unschedule(){
 // 版本控制相关函数已移除，专注于基本文章显示功能
 
 async function toggleLike(){
-  if (!article.value) return;
-  liking.value=true;
+  if (!article.value || liking.value) return;
+  
+  // 记录原始状态用于错误回滚
+  const originalLiked = liked.value;
+  const originalCount = likeCount.value;
+  
+  // 立即更新UI，提供即时反馈
+  liked.value = !originalLiked;
+  likeCount.value = originalLiked ? originalCount - 1 : originalCount + 1;
+  
+  // 立即触发动画和反馈
+  if (liked.value) {
+    triggerLikeAnimation();
+    ElMessage({
+      message: '点赞成功！感谢您的支持 ❤️',
+      type: 'success',
+      duration: 2000,
+      showClose: false,
+      customClass: 'like-success-message'
+    });
+  } else {
+    ElMessage({
+      message: '已取消点赞',
+      type: 'info', 
+      duration: 1500,
+      showClose: false,
+      customClass: 'like-cancel-message'
+    });
+  }
+  
+  // 设置延迟加载状态 - 只有在API调用超过500ms时才显示加载状态
+  const loadingTimer = setTimeout(() => {
+    liking.value = true;
+  }, 500);
+  
   try {
-    await API.ArticlesService.likeArticle(article.value.id);
-    const r = await API.ArticlesService.getArticleBySlug(route.params.slug);
-    likeCount.value = r.data.data.likes_count;
-    liked.value = r.data.data.liked;
+    // 后台发送API请求，不阻塞UI
+    const response = await API.ArticlesService.likeArticle(article.value.id);
+    
+    // 清除加载定时器
+    clearTimeout(loadingTimer);
+    
+    // 如果API返回了新的点赞数据，使用服务器数据更正
+    if (response?.data?.data) {
+      const serverData = response.data.data;
+      if (typeof serverData.likes_count === 'number') {
+        likeCount.value = serverData.likes_count;
+      }
+      if (typeof serverData.liked === 'boolean') {
+        liked.value = serverData.liked;
+      }
+    }
+    
   } catch (error) {
     console.error('点赞操作失败:', error);
+    
+    // 清除加载定时器
+    clearTimeout(loadingTimer);
+    
+    // 回滚到原始状态
+    liked.value = originalLiked;
+    likeCount.value = originalCount;
+    
+    // 显示错误反馈
+    ElMessage({
+      message: '操作失败，请稍后重试',
+      type: 'error',
+      duration: 3000,
+      showClose: true,
+      customClass: 'like-error-message'
+    });
+  } finally {
+    liking.value = false;
   }
-  liking.value=false;
 }
+
+// 点赞动画效果
+function triggerLikeAnimation() {
+  const likeButton = document.querySelector('.like-btn');
+  if (!likeButton) return;
+  
+  // 添加动画类
+  likeButton.classList.add('like-animation');
+  
+  // 创建飞出的爱心效果
+  createFloatingHearts(likeButton);
+  
+  // 移除动画类
+  setTimeout(() => {
+    likeButton.classList.remove('like-animation');
+  }, 600);
+}
+
+// 创建浮动爱心效果
+function createFloatingHearts(button) {
+  const rect = button.getBoundingClientRect();
+  const heartCount = 3;
+  
+  for (let i = 0; i < heartCount; i++) {
+    const heart = document.createElement('div');
+    heart.innerHTML = '❤️';
+    heart.className = 'floating-heart';
+    heart.style.left = `${rect.left + rect.width/2 - 10 + (Math.random() - 0.5) * 40}px`;
+    heart.style.top = `${rect.top + rect.height/2 - 10}px`;
+    heart.style.animationDelay = `${i * 0.1}s`;
+    
+    document.body.appendChild(heart);
+    
+    // 3秒后移除元素
+    setTimeout(() => {
+      if (heart.parentNode) {
+        heart.parentNode.removeChild(heart);
+      }
+    }, 3000);
+  }
+}
+
 async function toggleBookmark(){
+  console.log("收藏数据：", article.value);
   if (!article.value) return;
-  bookmarking.value=true;
+  
+  // 先预测性更新UI，提升用户体验
+  const wasBookmarked = bookmarked.value;
+  bookmarked.value = !bookmarked.value;
+  bookmarkCount.value += wasBookmarked ? -1 : 1;
+  
+  // 设置加载状态
+  bookmarking.value = true;
+  
+  // 设置加载定时器，防止网络慢时用户看不到反馈
+  const loadingTimer = setTimeout(() => {
+    bookmarking.value = false;
+  }, 3000);
+  
   try {
-    await API.ArticlesService.bookmarkArticle(article.value.id);
-    bookmarked.value = !bookmarked.value;
+    // 后台发送API请求，不阻塞UI
+    const response = await API.ArticlesService.bookmarkArticle(article.value.id);
+    
+    // 清除加载定时器
+    clearTimeout(loadingTimer);
+    
+    // 如果API返回了新的收藏数据，使用服务器数据更正
+    if (response?.data?.data) {
+      const serverData = response.data.data;
+      if (typeof serverData.bookmarks_count === 'number') {
+        bookmarkCount.value = serverData.bookmarks_count;
+      }
+      // 根据服务器返回的action确定收藏状态
+      if (serverData.action === 'bookmarked') {
+        bookmarked.value = true;
+      } else if (serverData.action === 'removed') {
+        bookmarked.value = false;
+      }
+    }
+    
   } catch (error) {
     console.error('收藏操作失败:', error);
+    
+    // 清除加载定时器
+    clearTimeout(loadingTimer);
+    
+    // 发生错误时回滚UI状态
+    bookmarked.value = wasBookmarked;
+    bookmarkCount.value += wasBookmarked ? 1 : -1;
+    
+    // 显示错误提示
+    setTimeout(() => {
+      console.log('收藏操作失败，请重试');
+    }, 100);
   }
-  bookmarking.value=false;
+  
+  bookmarking.value = false;
 }
 
 async function highlightLater(){
@@ -542,18 +744,6 @@ function formatPublishDate(dateString) {
     
     const date = new Date(processedDateString);
     const now = new Date();
-    
-    // 调试日志 - 在开发模式下显示
-    if (process.env.NODE_ENV === 'development') {
-      console.log('formatPublishDate debug:', {
-        originalInput: dateString,
-        processedInput: processedDateString,
-        parsedDate: date.toISOString(),
-        now: now.toISOString(),
-        dateLocal: date.toLocaleString('zh-CN'),
-        nowLocal: now.toLocaleString('zh-CN')
-      });
-    }
     
     const diffMs = now.getTime() - date.getTime();
     const diffMinutes = Math.floor(diffMs / (1000 * 60));
@@ -1587,15 +1777,15 @@ const handleContentClick = (clickInfo) => {
 /* ===== 评论区样式 ===== */
 
 .comments-section {
-  margin-top: 3rem;
-  padding: 2rem 1rem;
+  margin-top: 0rem;
+  padding: 1rem 1rem;
   background: white;
 }
 
 .comments-container {
   background: white;
   border-radius: 24px;
-  padding: 3rem;
+  padding: 1rem;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
@@ -1699,6 +1889,148 @@ const handleContentClick = (clickInfo) => {
   .article-container {
     box-shadow: none;
     border: 1px solid #e5e7eb;
+  }
+}
+
+/* ========== 现代化点赞反馈系统 ========== */
+
+/* 点赞按钮增强样式 */
+.like-btn {
+  position: relative;
+  overflow: visible;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.like-btn-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  position: relative;
+  z-index: 1;
+}
+
+.like-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+/* 加载状态动画 */
+.like-btn.liking {
+  pointer-events: none;
+  background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+  color: #6b7280;
+  border-color: #d1d5db;
+}
+
+.beating-heart {
+  animation: heartBeat 0.8s infinite ease-in-out;
+  color: #ef4444 !important;
+}
+
+@keyframes heartBeat {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+}
+
+/* 点赞成功动画 */
+.like-btn.like-animation {
+  animation: likeSuccess 0.6s ease-out;
+}
+
+@keyframes likeSuccess {
+  0% { transform: scale(1); }
+  25% { transform: scale(1.15) rotate(-5deg); }
+  50% { transform: scale(1.1) rotate(5deg); }
+  75% { transform: scale(1.05) rotate(-2deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+/* 已点赞状态增强 */
+.like-btn.liked {
+  background: linear-gradient(135deg, #fef2f2, #fecaca) !important;
+  border-color: #f87171 !important;
+  color: #dc2626 !important;
+  box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.2), 0 4px 12px rgba(220, 38, 38, 0.15);
+}
+
+.like-btn.liked .fa-heart {
+  color: #dc2626;
+  text-shadow: 0 0 8px rgba(220, 38, 38, 0.4);
+}
+
+.like-btn:not(.liked):hover {
+  background: linear-gradient(135deg, #f9fafb, #f3f4f6);
+  border-color: #f87171;
+  color: #ef4444;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 浮动爱心效果 */
+.floating-heart {
+  position: fixed;
+  font-size: 1.5rem;
+  pointer-events: none;
+  z-index: 9999;
+  animation: floatUp 3s ease-out forwards;
+  user-select: none;
+}
+
+@keyframes floatUp {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(0.8) rotate(0deg);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-20px) scale(1.2) rotate(15deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-100px) scale(0.5) rotate(360deg);
+  }
+}
+
+/* Element Plus 消息框自定义样式 */
+:global(.like-success-message) {
+  background: linear-gradient(135deg, #dcfce7, #bbf7d0) !important;
+  border: 1px solid #86efac !important;
+  color: #15803d !important;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.15) !important;
+}
+
+:global(.like-cancel-message) {
+  background: linear-gradient(135deg, #f1f5f9, #e2e8f0) !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #475569 !important;
+  font-weight: 500;
+}
+
+:global(.like-error-message) {
+  background: linear-gradient(135deg, #fef2f2, #fecaca) !important;
+  border: 1px solid #fca5a5 !important;
+  color: #dc2626 !important;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.15) !important;
+}
+
+/* 响应式优化 */
+@media (max-width: 768px) {
+  .floating-heart {
+    font-size: 1.2rem;
+  }
+  
+  .like-btn-content {
+    gap: 0.375rem;
+  }
+  
+  .like-text {
+    font-size: 0.875rem;
   }
 }
 </style>

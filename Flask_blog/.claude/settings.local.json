@@ -12,7 +12,15 @@
       "Bash(python:*)",
       "Bash(docker exec:*)",
       "Bash(find:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "WebFetch(domain:iamvdo.me)",
+      "WebFetch(domain:blog.hubspot.com)",
+      "WebFetch(domain:webflow.com)",
+      "WebFetch(domain:colorlib.com)",
+      "WebFetch(domain:element-plus.org)",
+      "WebFetch(domain:prismic.io)",
+      "WebFetch(domain:freefrontend.com)",
+      "Bash(flask db migrate:*)"
     ],
     "deny": [],
     "ask": []

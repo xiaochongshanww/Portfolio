@@ -95,7 +95,10 @@ async function submit() {
     // 使用新的 login 方法，会自动获取用户信息
     await userStore.login(resp.data.data.access_token, resp.data.data.role);
     ElMessage.success('登录成功');
-    router.push('/');
+    
+    // 登录成功后强制刷新主页数据
+    console.log('✅ 用户登录成功，强制刷新主页数据');
+    router.push({ path: '/', query: { _refresh: Date.now() } });
   } catch (e) {
     error.value = e.response?.data?.message || '登录失败，请检查您的凭据';
   } finally {

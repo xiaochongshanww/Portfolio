@@ -9,14 +9,14 @@
     <el-skeleton v-if="loading" :rows="3" animated />
     
     <!-- 文章列表 -->
-    <div v-else-if="articles.length" class="space-y-3">
+    <div v-else-if="articles.length" class="space-y-1">
       <article 
         v-for="article in articles" 
         :key="article.id" 
         class="latest-article-item group"
       >
         <router-link :to="'/article/' + article.slug" class="block">
-          <div class="flex items-start gap-3">
+          <div class="flex items-baseline gap-3">
             <!-- 时间指示器 -->
             <div class="time-indicator">
               <div class="time-dot"></div>
@@ -114,22 +114,24 @@ function formatDate(dateString) {
 <style scoped>
 
 .latest-article-item {
-  padding: 8px 0;
+  padding: 6px 8px; /* 统一内边距，略小于热门卡片 */
+  border-radius: 6px; /* 添加圆角保持一致性 */
   transition: all 0.2s ease;
 }
 
 .latest-article-item:hover {
+  background-color: rgb(249 250 251); /* 与热门卡片统一的悬停背景 */
   transform: translateX(2px);
 }
 
 .time-indicator {
   flex-shrink: 0;
-  display: flex;
+  display: inline-flex; /* 关键：使用inline-flex参与baseline对齐 */
   align-items: center;
   justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  margin-top: 0.25rem;
+  width: 1.25rem; /* 与热门卡片统一 */
+  height: 1.25rem;
+  /* 移除所有手动计算，使用CSS原生baseline对齐 */
 }
 
 .time-dot {
@@ -146,6 +148,7 @@ function formatDate(dateString) {
   color: rgb(17 24 39);
   transition: color 0.2s ease;
   margin-bottom: 0.25rem;
+  line-height: 1.4; /* 统一行高 */
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;

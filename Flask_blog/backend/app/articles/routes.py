@@ -117,6 +117,7 @@ def serialize_article(a: Article, detail=False, include_user_flags=False, user_i
         'updated_at': a.updated_at.isoformat() + 'Z' if a.updated_at else None,
         'tags': [t.slug for t in a.tags],
         'likes_count': ArticleLike.query.filter_by(article_id=a.id).count(),
+        'bookmarks_count': ArticleBookmark.query.filter_by(article_id=a.id).count(),
         'views_count': getattr(a, 'views_count', None),
         # 为摘要生成添加内容摘录（前200字符）
         'content_excerpt': (a.content_md or '')[:200] if a.content_md else ''
@@ -140,13 +141,30 @@ def serialize_article(a: Article, detail=False, include_user_flags=False, user_i
     if detail:
         data['content_html'] = a.content_html
         data['content_md'] = a.content_md
-    if include_user_flags and user_id:
-        try:
-            data['liked'] = ArticleLike.query.filter_by(article_id=a.id, user_id=user_id).first() is not None
-            data['bookmarked'] = ArticleBookmark.query.filter_by(article_id=a.id, user_id=user_id).first() is not None
-        except Exception:
+    if include_user_flags:
+        if user_id:
+            try:
+                # 调试信息：检查用户状态查询
+                like_record = ArticleLike.query.filter_by(article_id=a.id, user_id=user_id).first()
+                bookmark_record = ArticleBookmark.query.filter_by(article_id=a.id, user_id=user_id).first()
+                
+                data['liked'] = like_record is not None
+                data['bookmarked'] = bookmark_record is not None
+                
+                # 输出调试信息
+                import sys
+                print(f"🔍 用户状态查询 - 文章ID: {a.id}, 用户ID: {user_id}", flush=True)
+                print(f"   点赞记录: {'存在' if like_record else '不存在'}", flush=True)
+                print(f"   收藏记录: {'存在' if bookmark_record else '不存在'}", flush=True)
+            except Exception as e:
+                print(f"❌ 用户状态查询异常: {e}")
+                data['liked'] = False
+                data['bookmarked'] = False
+        else:
+            # 未认证用户：总是返回false，但确保字段存在
             data['liked'] = False
             data['bookmarked'] = False
+            print(f"🔍 用户状态查询 - 未认证用户")
     return data
 
 def parse_dt(value:str):
@@ -162,8 +180,17 @@ def invalidate_article_cache(article_id=None, author_id=None):
     try:
         if article_id:
             redis_client.delete(f"article:{article_id}")
+            # 删除按文章ID的缓存
             for k in redis_client.scan_iter(match=f"public:article:*:{article_id}"):
                 redis_client.delete(k)
+            # 删除按slug的缓存 - 需要查询文章的slug
+            try:
+                article = Article.query.get(article_id)
+                if article and article.slug:
+                    redis_client.delete(f"public:article:slug:{article.slug}")
+                    print(f"🗑️ 清理文章缓存: public:article:slug:{article.slug}")
+            except Exception:
+                pass
         for k in redis_client.scan_iter(match="articles:list:*"):
             redis_client.delete(k)
         for k in redis_client.scan_iter(match="public:articles:list:*"):
@@ -645,8 +672,9 @@ def bookmark_toggle(article_id):
         db.session.add(ArticleBookmark(article_id=article_id, user_id=request.user_id))
         action = 'bookmarked'
     db.session.commit()
+    count = ArticleBookmark.query.filter_by(article_id=article_id).count()
     invalidate_article_cache(article.id)
-    return jsonify({'code':0,'data':{'action':action},'message':'ok'})
+    return jsonify({'code':0,'data':{'action':action,'bookmarks_count':count},'message':'ok'})
 
 @articles_bp.route('/bookmarks', methods=['GET'])
 @require_auth
@@ -995,7 +1023,24 @@ def public_list_articles():
 @articles_bp.route('/public/slug/<slug>', methods=['GET'])
 def public_article_by_slug(slug):
     cache_key = f"public:article:slug:{slug}"
-    if redis_client:
+    # 可选认证：尝试从JWT获取用户信息，但不强制要求认证
+    user_id = None
+    try:
+        auth = request.headers.get('Authorization','')
+        if auth.startswith('Bearer '):
+            token = auth.split(' ',1)[1]
+            import jwt
+            payload = jwt.decode(token, current_app.config['JWT_SECRET_KEY'], algorithms=['HS256'])
+            user_id = int(payload.get('sub', 0)) or None
+            print(f"🔐 可选认证成功: 用户ID={user_id}", flush=True)
+        else:
+            print(f"🔐 无认证头或格式不正确", flush=True)
+    except Exception as e:
+        print(f"🔐 可选认证失败（正常）: {e}", flush=True)
+        user_id = None
+    
+    # 只为未认证用户使用缓存，确保用户特定状态的实时性
+    if redis_client and not user_id:
         cached = redis_client.get(cache_key)
         if cached:
             try:
@@ -1032,10 +1077,15 @@ def public_article_by_slug(slug):
         db.session.rollback()
     if incremented:
         new_views = (article.views_count or 0) + 1
-    data = serialize_article(article, detail=True, include_user_flags=True, user_id=getattr(request,'user_id',None))
+    # 序列化文章数据，包含用户特定状态
+    data = serialize_article(article, detail=True, include_user_flags=True, user_id=user_id)
     if new_views is not None:
         data['views_count'] = new_views
-    if redis_client:
+    
+    # 不缓存包含用户特定状态的数据，确保实时性
+    # 如果需要缓存，应该分离基础数据和用户状态
+    if redis_client and not user_id:
+        # 只为未认证用户缓存数据（不包含用户特定状态）
         try:
             import json as _json
             redis_client.setex(cache_key, 120, _json.dumps(data))

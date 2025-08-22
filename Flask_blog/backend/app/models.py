@@ -1,8 +1,11 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy import Text
 from sqlalchemy.dialects import mysql
 from . import db
+
+# 定义上海时区 (UTC+8)
+SHANGHAI_TZ = timezone(timedelta(hours=8))
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -90,13 +93,13 @@ class ArticleLike(db.Model):
     __tablename__ = 'article_likes'
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True)
     article_id = db.Column(db.Integer, db.ForeignKey('articles.id'), primary_key=True)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(SHANGHAI_TZ))
 
 class ArticleBookmark(db.Model):
     __tablename__ = 'article_bookmarks'
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True)
     article_id = db.Column(db.Integer, db.ForeignKey('articles.id'), primary_key=True)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(SHANGHAI_TZ))
 
 class AuditLog(db.Model):
     __tablename__ = 'audit_logs'

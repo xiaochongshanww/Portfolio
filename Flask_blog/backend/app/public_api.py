@@ -8,8 +8,13 @@ public_bp = Blueprint('public_api', __name__)
 
 # 只读列表：已发布 + 未删除
 
-def _serialize_article_brief(a: Article):
-    return {
+def _serialize_article_brief(a: Article, user_id=None):
+    from .models import ArticleLike, ArticleBookmark  # 导入模型
+    
+    # 正确计算点赞数
+    likes_count = ArticleLike.query.filter_by(article_id=a.id).count()
+    
+    data = {
         'id': a.id,
         'title': a.title,
         'slug': a.slug,
@@ -19,11 +24,25 @@ def _serialize_article_brief(a: Article):
         'category_id': a.category_id,
         'tags': [t.slug for t in a.tags],
         'views_count': a.views_count,
-        'likes_count': 0  # 可选: 延迟查询或单独计数
+        'likes_count': likes_count
     }
+    
+    # 如果用户已登录，添加用户特定的状态
+    if user_id:
+        try:
+            data['liked'] = ArticleLike.query.filter_by(article_id=a.id, user_id=user_id).first() is not None
+            data['bookmarked'] = ArticleBookmark.query.filter_by(article_id=a.id, user_id=user_id).first() is not None
+        except Exception:
+            data['liked'] = False
+            data['bookmarked'] = False
+    else:
+        data['liked'] = False
+        data['bookmarked'] = False
+    
+    return data
 
-def _serialize_article_detail(a: Article):
-    data = _serialize_article_brief(a)
+def _serialize_article_detail(a: Article, user_id=None):
+    data = _serialize_article_brief(a, user_id)
     data['content_html'] = a.content_html
     data['seo_title'] = a.seo_title
     data['seo_desc'] = a.seo_desc
@@ -57,7 +76,15 @@ def public_articles():
         q = q.join(Article.tags).filter(Tag.slug==tag)
     total = q.count()
     items = q.order_by(Article.published_at.desc()).offset((page-1)*size).limit(size).all()
-    data_list = [_serialize_article_brief(a) for a in items]
+    
+    # 获取可选的用户认证信息
+    user_id = None
+    try:
+        user_id = getattr(request, 'user_id', None)
+    except Exception:
+        user_id = None
+    
+    data_list = [_serialize_article_brief(a, user_id) for a in items]
     payload = {'total': total,'page':page,'page_size':size,'has_next':page*size<total,'list':data_list}
     if redis_client:
         try:
@@ -97,8 +124,26 @@ def public_article_detail(slug_or_id):
         a = Article.query.filter_by(slug=slug_or_id, status='published', deleted=False).first()
     if not a:
         return jsonify({'code':4040,'message':'not found'}), 404
-    data = _serialize_article_detail(a)
-    if redis_client:
+    
+    # 尝试获取用户认证信息（支持可选认证）
+    user_id = None
+    try:
+        user_id = getattr(request, 'user_id', None)
+        if user_id is None:
+            # 如果没有用户ID，尝试进行认证（不强制）
+            from . import require_auth as _rq
+            auth_resp = _rq()
+            if auth_resp is None:  # 认证成功
+                user_id = getattr(request, 'user_id', None)
+    except Exception:
+        # 认证失败不影响公共API访问
+        user_id = None
+    
+    data = _serialize_article_detail(a, user_id)
+    
+    # 不缓存包含用户特定信息的响应
+    cache_data = user_id is None
+    if cache_data and redis_client:
         try:
             import json
             redis_client.setex(cache_key, 300, json.dumps(data, ensure_ascii=False))

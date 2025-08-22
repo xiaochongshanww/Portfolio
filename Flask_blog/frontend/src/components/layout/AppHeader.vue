@@ -50,15 +50,6 @@
             分类浏览
           </a>
           <a 
-            href="/hot" 
-            @click="handleNavClick('/hot', $event)"
-            class="nav-link"
-            :class="{ 'nav-link-active': $route.path === '/hot' }"
-          >
-            <el-icon class="mr-1"><TrendCharts /></el-icon>
-            热门
-          </a>
-          <a 
             href="/about" 
             @click="handleNavClick('/about', $event)"
             class="nav-link"
@@ -211,15 +202,15 @@
         <!-- 移动端导航 -->
         <div class="flex-1 py-4">
           <nav class="space-y-1">
-            <router-link 
-              to="/" 
-              @click="drawer = false" 
+            <a 
+              href="/" 
+              @click="handleMobileHomeClick"
               class="mobile-nav-link"
               :class="{ 'mobile-nav-link-active': $route.path === '/' }"
             >
               <el-icon class="mr-3"><HomeFilled /></el-icon>
               主页
-            </router-link>
+            </a>
             
             <router-link 
               to="/categories" 
@@ -230,14 +221,6 @@
               分类浏览
             </router-link>
             
-            <router-link 
-              to="/hot" 
-              @click="drawer = false" 
-              class="mobile-nav-link"
-            >
-              <el-icon class="mr-3"><TrendCharts /></el-icon>
-              热门
-            </router-link>
             
             <router-link 
               to="/about" 
@@ -432,7 +415,10 @@ async function handleLogout() {
     await userStore.logout();
     ElMessage.success('已退出登录');
     drawer.value = false;
-    router.push('/');
+    
+    // 退出登录后强制刷新主页数据
+    console.log('🚪 用户退出登录，强制刷新主页数据');
+    router.push({ path: '/', query: { _refresh: Date.now() } });
   } catch (error) {
     ElMessage.error('退出登录失败');
   }
@@ -479,7 +465,19 @@ function handleLogoClick(e) {
   
   // 其他页面使用正常的Vue Router导航
   e.preventDefault();
-  router.push('/');
+  console.log('🏠 AppHeader: 从其他页面导航到主页，添加刷新标记');
+  
+  // 添加一个特殊的查询参数来触发数据刷新
+  const shouldRefresh = currentPath !== '/' && currentPath !== '/home';
+  console.log('🔍 导航判断:', { currentPath, shouldRefresh });
+  
+  if (shouldRefresh) {
+    console.log('🏷️ 添加刷新标记进行导航');
+    router.push({ path: '/', query: { _refresh: Date.now() } });
+  } else {
+    console.log('📍 直接导航到主页');
+    router.push('/');
+  }
 }
 
 // 处理导航链接点击 - 智能选择导航方式
@@ -501,7 +499,36 @@ function handleNavClick(path, e) {
   
   // 其他页面使用正常的Vue Router导航
   e.preventDefault();
-  router.push(path);
+  
+  // 如果是导航到主页，应用与Logo点击相同的刷新逻辑
+  if (path === '/' || path === '/home') {
+    console.log('🏠 AppHeader: 主页导航，检查是否需要刷新标记');
+    
+    const shouldRefresh = currentPath !== '/' && currentPath !== '/home';
+    console.log('🔍 导航判断:', { currentPath, shouldRefresh, targetPath: path });
+    
+    if (shouldRefresh) {
+      console.log('🏷️ 添加刷新标记进行主页导航');
+      router.push({ path: '/', query: { _refresh: Date.now() } });
+    } else {
+      console.log('📍 直接导航到主页');
+      router.push(path);
+    }
+  } else {
+    // 其他路径的正常导航
+    router.push(path);
+  }
+}
+
+// 处理移动端主页点击
+function handleMobileHomeClick(e) {
+  console.log('📱 AppHeader: 移动端主页点击');
+  
+  // 关闭移动端抽屉
+  drawer.value = false;
+  
+  // 使用与Logo点击相同的逻辑
+  handleLogoClick(e);
 }
 </script>
 
