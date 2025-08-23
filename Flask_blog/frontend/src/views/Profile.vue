@@ -887,14 +887,30 @@ onMounted(() => {
   word-break: break-all;
 }
 
-/* ====== 操作按钮区域 ====== */
+/* ====== 现代化操作按钮区域 ====== */
 .action-section {
   display: flex;
-  gap: 1rem;
+  gap: 1.5rem;
   justify-content: center;
-  padding: 2rem 0;
-  border-top: 1px solid rgb(229 231 235);
-  margin-top: 2rem;
+  padding: 3rem 0;
+  margin-top: 3rem;
+  position: relative;
+}
+
+.action-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg, 
+    transparent 0%, 
+    rgba(59, 130, 246, 0.3) 25%, 
+    rgba(139, 92, 246, 0.3) 75%, 
+    transparent 100%
+  );
 }
 
 .save-button {

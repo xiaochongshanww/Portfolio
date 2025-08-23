@@ -20,7 +20,8 @@
       "WebFetch(domain:element-plus.org)",
       "WebFetch(domain:prismic.io)",
       "WebFetch(domain:freefrontend.com)",
-      "Bash(flask db migrate:*)"
+      "Bash(flask db migrate:*)",
+      "Bash(/dev/null)"
     ],
     "deny": [],
     "ask": []

@@ -39,7 +39,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { InfoFilled, Loading } from '@element-plus/icons-vue';
-import { ElMessage } from 'element-plus';
+import message from '../utils/message';
 import Vditor from 'vditor';
 import 'vditor/dist/index.css';
 import { useUserStore } from '../stores/user';
@@ -133,7 +133,7 @@ function getUploadConfig() {
                 console.log('✅ 使用备用方案插入图片');
               } catch (fallbackError) {
                 console.error('❌ 备用方案也失败:', fallbackError);
-                ElMessage.error('图片插入失败，请手动粘贴图片链接');
+                message.critical('图片插入失败，请手动粘贴图片链接');
               }
             }
           } else {
@@ -143,10 +143,10 @@ function getUploadConfig() {
               isReady: isEditorReady.value,
               vditorValue: vditor ? 'exists' : 'null'
             });
-            ElMessage.error('编辑器未就绪，请稍后再试');
+            message.warning('编辑器未就绪，请稍后再试');
           }
           
-          ElMessage.success({
+          message.success({
             message: '图片上传成功',
             duration: 2000,
             showClose: false
@@ -165,16 +165,16 @@ function getUploadConfig() {
           });
         } else {
           console.error('上传响应格式错误:', response);
-          ElMessage.error('图片上传失败: ' + (response.message || '响应格式错误'));
+          message.critical('图片上传失败: ' + (response.message || '响应格式错误'));
         }
       } catch (error) {
         console.error('解析上传响应失败:', error, msg);
-        ElMessage.error('图片上传失败: 响应解析错误');
+        message.critical('图片上传失败: 响应解析错误');
       }
     },
     error: (msg: string) => {
       console.error('❌ 图片上传失败:', msg);
-      ElMessage.error('图片上传失败: ' + msg);
+      message.critical('图片上传失败: ' + msg);
     }
   };
 }
@@ -269,31 +269,41 @@ async function initVditor() {
       after: () => {
         console.log('✅ Vditor初始化完成');
         
-        // 安全检查：如果组件已被卸载，不要设置状态
-        if (!vditorRef.value) {
-          console.log('Vditor初始化完成但组件已卸载，跳过状态设置');
-          return;
-        }
-        
-        isEditorReady.value = true; // 标记编辑器已准备完成
-        
-        // 设置初始内容
-        if (props.modelValue) {
-          console.log('设置初始内容:', props.modelValue.substring(0, 100));
-          try {
-            vditor?.setValue(props.modelValue);
-          } catch (e) {
-            console.warn('设置初始内容失败，可能组件正在卸载:', e);
+        // 将状态更新延迟到下一个宏任务，避免与Vditor的DOM操作冲突
+        setTimeout(() => {
+          // 安全检查：如果组件已被卸载，不要设置状态
+          if (!vditorRef.value) {
+            console.log('Vditor初始化完成但组件已卸载，跳过状态设置');
+            return;
           }
-        }
+          
+          // 使用nextTick确保在Vue更新周期外更新状态
+          nextTick(() => {
+            try {
+              isEditorReady.value = true; // 标记编辑器已准备完成
+              
+              // 设置初始内容
+              if (props.modelValue) {
+                console.log('设置初始内容:', props.modelValue.substring(0, 100));
+                try {
+                  vditor?.setValue(props.modelValue);
+                } catch (e) {
+                  console.warn('设置初始内容失败，可能组件正在卸载:', e);
+                }
+              }
+            } catch (error) {
+              console.warn('Vditor初始化后状态更新失败:', error);
+            }
+          });
+        }, 50);
         
         // 验证编辑器是否正确创建
         try {
           if (vditor && vditorRef.value?.querySelector('.vditor-content')) {
-            ElMessage.success('Markdown编辑器加载完成！');
+            message.success('Markdown编辑器加载完成！');
           } else {
             console.error('编辑器初始化异常');
-            ElMessage.error('编辑器加载异常，请刷新重试');
+            message.critical('编辑器加载异常，请刷新重试');
           }
         } catch (e) {
           console.warn('编辑器验证过程中出错，可能组件正在卸载:', e);
@@ -305,7 +315,7 @@ async function initVditor() {
     console.error('❌ 初始化Vditor失败:', error);
     console.error('错误详情:', error.message);
     console.error('错误堆栈:', error.stack);
-    ElMessage.error('编辑器初始化失败: ' + error.message);
+    message.critical('编辑器初始化失败: ' + error.message);
     
     // 将编辑器标记为未准备状态
     isEditorReady.value = false;
@@ -363,11 +373,32 @@ watch(() => props.modelValue, (newValue) => {
 onMounted(() => {
   console.log('🔀 VditorEditor: 组件onMounted触发');
   
+  // 添加Vditor相关的错误处理
+  const handleVditorError = (event) => {
+    if (event.reason && event.reason.message && 
+        (event.reason.message.includes('insertBefore') || 
+         event.reason.message.includes('removeChild') ||
+         event.reason.message.includes('Vditor'))) {
+      console.warn('检测到Vditor相关错误，已静默处理:', event.reason.message);
+      // 不调用preventDefault()，避免干扰其他系统功能
+    }
+  };
+  
+  window.addEventListener('unhandledrejection', handleVditorError);
+  
+  // 清理函数
+  const cleanup = () => {
+    window.removeEventListener('unhandledrejection', handleVditorError);
+  };
+  
+  // 保存清理函数到组件实例
+  window.vditorErrorCleanup = cleanup;
+  
   // 设置初始化超时
   const initTimeout = setTimeout(() => {
     if (!isEditorReady.value) {
       console.error('⏰ Vditor初始化超时');
-      ElMessage.error('编辑器初始化超时，请刷新页面重试');
+      message.critical('编辑器初始化超时，请刷新页面重试');
     }
   }, 10000); // 10秒超时
   
@@ -407,6 +438,12 @@ onBeforeUnmount(() => {
   
   // 清空实例引用
   vditor = null;
+  
+  // 清理Vditor错误处理
+  if (window.vditorErrorCleanup) {
+    window.vditorErrorCleanup();
+    delete window.vditorErrorCleanup;
+  }
   
   console.log('🔄 VditorEditor: 组件卸载完成');
 });

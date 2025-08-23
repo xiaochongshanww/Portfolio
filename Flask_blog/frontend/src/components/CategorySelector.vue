@@ -178,7 +178,7 @@ import {
   Collection, FolderOpened, MagicStick, Close, ArrowRight, 
   Check, DocumentRemove 
 } from '@element-plus/icons-vue';
-import { ElMessage } from 'element-plus';
+import message from '../utils/message';
 import { useUserStore } from '../stores/user';
 import QuickCategoryCreator from './QuickCategoryCreator.vue';
 import { 
@@ -409,12 +409,12 @@ const showRecommendations = async () => {
     if (categoriesArray.length === 0) {
       console.warn('⚠️ 没有可用的分类数据或数据格式不正确');
       if (!props.categories) {
-        ElMessage.warning('分类数据未加载，请稍后重试');
+        message.warning('分类数据未加载，请稍后重试');
       } else if (!Array.isArray(props.categories)) {
-        ElMessage.warning('分类数据格式错误，请刷新页面重试');
+        message.warning('分类数据格式错误，请刷新页面重试');
         console.error('❌ 分类数据不是数组格式:', props.categories);
       } else {
-        ElMessage.warning('没有可用的分类，请先在管理后台创建分类');
+        message.warning('没有可用的分类，请先在管理后台创建分类');
       }
       recommendations.value = [];
       return;
@@ -422,7 +422,7 @@ const showRecommendations = async () => {
     
     if (!props.articleData || (!props.articleData.title && !props.articleData.content && !props.articleData.summary)) {
       console.warn('⚠️ 文章数据不足，无法进行智能推荐');
-      ElMessage.info('请先填写文章标题或内容，以便AI进行智能推荐');
+      message.info('请先填写文章标题或内容，以便AI进行智能推荐');
       recommendations.value = [];
       return;
     }
@@ -441,14 +441,14 @@ const showRecommendations = async () => {
     
     if (recommendations.value.length === 0) {
       console.log('💡 未找到匹配的分类推荐');
-      ElMessage.info('未找到匹配的分类，请手动选择或创建新分类');
+      message.info('未找到匹配的分类，请手动选择或创建新分类');
     } else {
       console.log(`🎯 成功推荐 ${recommendations.value.length} 个分类`);
-      ElMessage.success(`AI推荐了 ${recommendations.value.length} 个相关分类`);
+      message.success(`AI推荐了 ${recommendations.value.length} 个相关分类`);
     }
   } catch (error) {
     console.error('❌ 获取分类推荐失败:', error);
-    ElMessage.error('分类推荐功能暂时不可用');
+    message.warning('分类推荐功能暂时不可用');
   } finally {
     recommendationLoading.value = false;
   }
@@ -460,7 +460,7 @@ const selectRecommendation = (recommendation) => {
   handleSelectionChange(recommendation.category.id);
   emit('recommendation-selected', recommendation);
   
-  ElMessage.success(`已选择推荐分类：${recommendation.category.name}`);
+  message.success(`已选择推荐分类：${recommendation.category.name}`);
 };
 
 // 获取置信度类型
@@ -506,7 +506,7 @@ const getSelectedCategoryPath = () => {
 // 处理分类创建成功
 const handleCategoryCreated = (newCategory) => {
   showQuickCreator.value = false;
-  ElMessage.success('分类创建成功');
+  message.success('分类创建成功');
   
   // 自动选择新创建的分类
   selectedCategoryId.value = newCategory.id;

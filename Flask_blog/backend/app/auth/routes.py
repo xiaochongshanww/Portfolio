@@ -163,8 +163,56 @@ def login():
                 new_fails = rc.incr(bf_key)
                 if new_fails == 1:
                     rc.expire(bf_key, 900)  # 15 分钟窗口
+                
+                # 记录安全事件
+                try:
+                    from ..security import log_security_event
+                    
+                    # 单次登录失败
+                    log_security_event(
+                        event_type='login_failure',
+                        description=f'登录失败: {getattr(parsed, "email", "unknown")}',
+                        source_ip=ip,
+                        user_id=user.id if user else None,
+                        severity='low',
+                        additional_data={'email': getattr(parsed, 'email', '')}
+                    )
+                    
+                    # 检测暴力破解
+                    if new_fails >= 3:
+                        log_security_event(
+                            event_type='brute_force_attack',
+                            description=f'检测到暴力破解攻击: {getattr(parsed, "email", "unknown")}, 失败次数: {new_fails}',
+                            source_ip=ip,
+                            user_id=user.id if user else None,
+                            severity='high' if new_fails >= 5 else 'medium',
+                            additional_data={
+                                'email': getattr(parsed, 'email', ''),
+                                'failed_attempts': new_fails,
+                                'window_seconds': 900
+                            }
+                        )
+                except Exception as e:
+                    # 不让安全日志错误影响登录流程
+                    pass
+                    
             except Exception:
                 pass
+        else:
+            # 即使没有Redis也要记录安全事件
+            try:
+                from ..security import log_security_event
+                log_security_event(
+                    event_type='login_failure',
+                    description=f'登录失败: {getattr(parsed, "email", "unknown")}',
+                    source_ip=ip,
+                    user_id=user.id if user else None,
+                    severity='low',
+                    additional_data={'email': getattr(parsed, 'email', '')}
+                )
+            except Exception:
+                pass
+                
         return jsonify({'code':4010,'message':'Invalid credentials'}), 401
     access, refresh = generate_tokens(user.id, user.role)
     resp = make_response(jsonify({'code':0,'data':{'access_token':access,'role':user.role},'message':'ok'}))
@@ -173,6 +221,25 @@ def login():
     if rc:
         try: rc.delete(bf_key)
         except Exception: pass
+    
+    # 记录成功登录事件
+    try:
+        from ..security import log_security_event
+        log_security_event(
+            event_type='login_success',
+            description=f'用户登录成功: {user.email}',
+            source_ip=ip,
+            user_id=user.id,
+            severity='info',
+            additional_data={
+                'email': user.email,
+                'role': user.role,
+                'user_agent': request.headers.get('User-Agent', '')[:100] if request.headers.get('User-Agent') else ''
+            }
+        )
+    except Exception:
+        pass
+    
     return resp
 
 @auth_bp.route('/refresh', methods=['POST'])

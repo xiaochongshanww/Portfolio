@@ -7,46 +7,59 @@
     
     <!-- 分类区域 -->
     <div class="mb-6">
-      <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-        <el-icon size="14" class="text-gray-500"><Collection /></el-icon>
-        热门分类
-      </h4>
+      <div class="flex items-center justify-between mb-3">
+        <h4 class="text-sm font-medium text-gray-700 flex items-center gap-2">
+          <el-icon size="14" class="text-gray-500"><Collection /></el-icon>
+          热门分类
+        </h4>
+        <router-link 
+          to="/categories" 
+          class="text-xs text-blue-600 hover:text-blue-700 hover:underline transition-colors"
+        >
+          查看全部
+        </router-link>
+      </div>
       <div class="flex flex-wrap gap-2 category-buttons-container">
-        <el-button 
+        <button
           v-for="category in displayCategories" 
           :key="category.id" 
-          size="small" 
-          :type="selectedCategory === String(category.id) ? 'primary' : ''" 
-          plain
           @click="handleCategoryClick(category.id)"
-          class="category-btn"
-          :class="{ 'selected-category': selectedCategory === String(category.id) }"
+          :class="[
+            'sidebar-category-btn',
+            selectedCategory === String(category.id) ? 'sidebar-category-btn-active' : 'sidebar-category-btn-default'
+          ]"
         >
-          {{ category.name }}
-          <el-icon v-if="selectedCategory === String(category.id)" size="12" class="ml-1">
+          <span class="category-text">{{ category.name }}</span>
+          <el-icon v-if="selectedCategory === String(category.id)" size="12" class="close-icon">
             <Close />
           </el-icon>
-        </el-button>
+        </button>
         
         <!-- 显示更多分类按钮 -->
-        <el-button 
+        <button 
           v-if="categories.length > showCategoryLimit"
-          size="small" 
-          text
           @click="toggleShowAllCategories"
-          class="show-more-btn"
+          class="sidebar-show-more-btn"
         >
           {{ showAllCategories ? '收起' : `+${categories.length - showCategoryLimit}` }}
-        </el-button>
+        </button>
       </div>
     </div>
 
     <!-- 标签云区域 -->
     <div>
-      <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-        <el-icon size="14" class="text-gray-500"><PriceTag /></el-icon>
-        标签云
-      </h4>
+      <div class="flex items-center justify-between mb-3">
+        <h4 class="text-sm font-medium text-gray-700 flex items-center gap-2">
+          <el-icon size="14" class="text-gray-500"><PriceTag /></el-icon>
+          标签云
+        </h4>
+        <router-link 
+          to="/tags" 
+          class="text-xs text-purple-600 hover:text-purple-700 hover:underline transition-colors"
+        >
+          查看全部
+        </router-link>
+      </div>
       <div class="flex flex-wrap gap-2">
         <el-tag 
           v-for="tag in displayTags" 
@@ -151,31 +164,77 @@ function handleTagClick(tagSlug) {
 </script>
 
 <style scoped>
-
+/* ===== 现代化侧边栏分类按钮样式 ===== */
 .category-buttons-container {
   gap: 8px;
-  row-gap: 12px; /* 增加上下间距 */
+  row-gap: 10px;
 }
 
-.category-btn {
+.sidebar-category-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 16px;
   font-size: 0.75rem;
-  height: 28px;
-  padding: 0 8px;
-  border-radius: 6px;
-  transition: all 0.2s ease;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
 }
 
-.category-btn:hover {
+.sidebar-category-btn-default {
+  background: rgba(248, 250, 252, 0.8);
+  color: #64748b;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.sidebar-category-btn-default:hover {
+  background: rgba(59, 130, 246, 0.08);
+  color: #3b82f6;
+  border-color: rgba(59, 130, 246, 0.2);
   transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.12);
 }
 
-.selected-category {
-  position: relative;
+.sidebar-category-btn-active {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  border: 1px solid transparent;
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.25);
 }
 
-.selected-category:hover {
-  background-color: rgb(239 68 68) !important;
-  border-color: rgb(239 68 68) !important;
+.sidebar-category-btn-active:hover {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(239, 68, 68, 0.3);
+}
+
+.close-icon {
+  opacity: 0.9;
+  margin-left: 2px;
+}
+
+.sidebar-show-more-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px dashed rgba(148, 163, 184, 0.6);
+  background: transparent;
+  color: #64748b;
+  transition: all 0.25s ease;
+}
+
+.sidebar-show-more-btn:hover {
+  border-color: rgba(59, 130, 246, 0.4);
+  border-style: solid;
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.05);
 }
 
 .tag-item {

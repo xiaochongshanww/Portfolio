@@ -41,18 +41,30 @@
         </div>
 
         <!-- 快速筛选标签 -->
-        <div class="flex flex-wrap justify-center gap-2 mb-4 quick-filter-tags">
-          <el-tag 
+        <div class="flex flex-wrap justify-center gap-3 mb-6 quick-filter-container">
+          <button
             v-for="c in categories.slice(0, 6)" 
             :key="c.id" 
-            :type="selectedCategory === String(c.id) ? 'primary' : 'info'" 
-            class="cursor-pointer hover:scale-105 transition-transform quick-filter-tag"
             @click="clickCategory(c.id)"
-            size="large"
-            :closable="selectedCategory === String(c.id)"
+            :class="[
+              'modern-category-btn',
+              selectedCategory === String(c.id) ? 'modern-category-btn-active' : 'modern-category-btn-default'
+            ]"
           >
-            {{ c.name }}
-          </el-tag>
+            <span class="category-name">{{ c.name }}</span>
+            <el-icon v-if="selectedCategory === String(c.id)" size="14" class="close-icon">
+              <Close />
+            </el-icon>
+          </button>
+          
+          <!-- 查看全部分类按钮 -->
+          <router-link 
+            to="/categories" 
+            class="modern-view-all-btn"
+          >
+            <el-icon size="16" class="view-all-icon"><More /></el-icon>
+            <span>浏览全部</span>
+          </router-link>
         </div>
       </div>
     </section>
@@ -317,7 +329,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useUserStore } from '../stores/user';
 import { 
   Star, StarFilled, FolderAdd, FolderChecked, Search, Picture, User, View,
-  Bookmark, BookmarkFilled, Clock, ChatLineRound, Edit, Document, Timer, TrendCharts
+  Bookmark, BookmarkFilled, Clock, ChatLineRound, Edit, Document, Timer, TrendCharts, More, Close
 } from '@element-plus/icons-vue';
 import { usePagedQuery } from '../composables/usePagedQuery';
 import { useResponsiveLayout } from '../composables/useResponsiveLayout';
@@ -914,10 +926,18 @@ async function loadHot() {
 onMounted(async () => {
   console.log('🔄 Home组件mounted，开始加载数据...');
   console.log('📍 当前查询参数:', route.query);
+  console.log('📍 当前URL:', window.location.href);
   
-  // 检查是否有刷新标记
-  if (route.query._refresh) {
-    console.log('🔄 Mount时检测到刷新标记，强制重新加载');
+  // 检查是否有刷新标记（支持URL参数和路由参数）
+  const urlParams = new URLSearchParams(window.location.search);
+  const hasRefreshInUrl = urlParams.has('_refresh');
+  const hasRefreshInRoute = !!route.query._refresh;
+  
+  if (hasRefreshInUrl || hasRefreshInRoute) {
+    console.log('🔄 Mount时检测到刷新标记，强制重新加载', { 
+      urlParam: hasRefreshInUrl, 
+      routeParam: hasRefreshInRoute 
+    });
     
     // 清空现有数据，强制重新加载
     latest.value = [];
@@ -944,13 +964,25 @@ onMounted(async () => {
   
   console.log('✅ Home组件数据加载完成');
   
-  // 如果有刷新标记，清除它
-  if (route.query._refresh) {
+  // 如果有刷新标记，清除它（重用上面声明的urlParams变量）
+  if (route.query._refresh || urlParams.has('_refresh')) {
     console.log('🧹 清除刷新标记');
     setTimeout(() => {
-      router.replace({ 
-        query: { ...route.query, _refresh: undefined }
-      });
+      // 清理URL参数
+      if (urlParams.has('_refresh')) {
+        urlParams.delete('_refresh');
+        const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+        window.history.replaceState({}, '', newUrl);
+        console.log('🧹 已清理URL中的刷新参数');
+      }
+      
+      // 清理路由参数
+      if (route.query._refresh) {
+        router.replace({ 
+          query: { ...route.query, _refresh: undefined }
+        });
+        console.log('🧹 已清理路由中的刷新参数');
+      }
     }, 100);
   }
 });
@@ -1076,6 +1108,109 @@ watch(() => userStore.isAuthenticated, (newAuth, oldAuth) => {
 </script>
 
 <style scoped>
+/* ===== 现代化分类按钮样式 ===== */
+.quick-filter-container {
+  align-items: center;
+  row-gap: 12px;
+}
+
+.modern-category-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: 25px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.modern-category-btn-default {
+  background: rgba(255, 255, 255, 0.8);
+  color: #6b7280;
+  border: 1px solid rgba(209, 213, 219, 0.6);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.modern-category-btn-default:hover {
+  background: rgba(59, 130, 246, 0.08);
+  color: #3b82f6;
+  border-color: rgba(59, 130, 246, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(59, 130, 246, 0.15);
+}
+
+.modern-category-btn-active {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+  border: 1px solid transparent;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.modern-category-btn-active:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+}
+
+.close-icon {
+  margin-left: 4px;
+  opacity: 0.8;
+}
+
+.modern-view-all-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: 25px;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.9);
+  color: #6366f1;
+  border: 1px dashed rgba(99, 102, 241, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(10px);
+}
+
+.modern-view-all-btn:hover {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.6);
+  border-style: solid;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.2);
+  color: #4f46e5;
+}
+
+.view-all-icon {
+  transition: transform 0.2s ease;
+}
+
+.modern-view-all-btn:hover .view-all-icon {
+  transform: rotate(90deg);
+}
+
+/* 响应式优化 */
+@media (max-width: 640px) {
+  .quick-filter-container {
+    gap: 8px;
+  }
+  
+  .modern-category-btn,
+  .modern-view-all-btn {
+    padding: 8px 14px;
+    font-size: 13px;
+    border-radius: 20px;
+  }
+}
+
 /* 新的 Flexbox 布局样式 */
 .main-content-wrapper {
   display: flex;

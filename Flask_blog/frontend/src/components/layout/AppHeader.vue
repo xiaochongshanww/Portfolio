@@ -41,13 +41,13 @@
             主页
           </a>
           <a 
-            href="/categories" 
-            @click="handleNavClick('/categories', $event)"
+            href="/archive" 
+            @click="handleNavClick('/archive', $event)"
             class="nav-link"
-            :class="{ 'nav-link-active': $route.path.startsWith('/category') }"
+            :class="{ 'nav-link-active': $route.path === '/archive' }"
           >
-            <el-icon class="mr-1"><Collection /></el-icon>
-            分类浏览
+            <el-icon class="mr-1"><Calendar /></el-icon>
+            归档
           </a>
           <a 
             href="/about" 
@@ -213,14 +213,14 @@
             </a>
             
             <router-link 
-              to="/categories" 
+              to="/archive" 
               @click="drawer = false" 
               class="mobile-nav-link"
+              :class="{ 'mobile-nav-link-active': $route.path === '/archive' }"
             >
-              <el-icon class="mr-3"><Collection /></el-icon>
-              分类浏览
+              <el-icon class="mr-3"><Calendar /></el-icon>
+              归档
             </router-link>
-            
             
             <router-link 
               to="/about" 
@@ -350,7 +350,7 @@ import { ElMessage } from 'element-plus';
 import { getUserDisplayName, getUserShortName, shouldPromptNickname, getNicknameSuggestion, getUserDisplayHint } from '../../utils/userDisplay';
 import {
   User, EditPen, ArrowDown, Setting, Collection, UserFilled, DataAnalysis,
-  SwitchButton, Menu, HomeFilled, TrendCharts, InfoFilled, DataBoard
+  SwitchButton, Menu, HomeFilled, TrendCharts, InfoFilled, DataBoard, Calendar
 } from '@element-plus/icons-vue';
 import MobileSidebar from '../sidebar/MobileSidebar.vue';
 
@@ -413,12 +413,56 @@ function handleCommand(command) {
 async function handleLogout() {
   try {
     await userStore.logout();
-    ElMessage.success('已退出登录');
     drawer.value = false;
     
-    // 退出登录后强制刷新主页数据
-    console.log('🚪 用户退出登录，强制刷新主页数据');
-    router.push({ path: '/', query: { _refresh: Date.now() } });
+    // 创建一个标记来控制MessageBox的关闭
+    let shouldAllowClose = false;
+    
+    // 使用 MessageBox 显示退出成功确认
+    const messageBoxPromise = ElMessageBox({
+      title: '👋 退出成功',
+      message: `
+        <div style="text-align: center; padding: 20px 0;">
+          <div style="font-size: 48px; margin-bottom: 16px;">🌙</div>
+          <div style="font-size: 18px; font-weight: 600; color: #6366f1; margin-bottom: 8px;">
+            再见！
+          </div>
+          <div style="font-size: 14px; color: #6b7280; margin-bottom: 16px;">
+            您已安全退出，正在返回主页...
+          </div>
+          <div style="width: 200px; height: 4px; background: #f3f4f6; border-radius: 2px; margin: 0 auto; overflow: hidden;">
+            <div style="width: 100%; height: 100%; background: linear-gradient(90deg, #6366f1, #8b5cf6); border-radius: 2px; animation: progressBar 2s ease-in-out;"></div>
+          </div>
+        </div>
+      `,
+      dangerouslyUseHTMLString: true,
+      showCancelButton: false,
+      showConfirmButton: false,
+      showClose: false,
+      center: true,
+      customClass: 'logout-success-dialog',
+      beforeClose: (action, instance, done) => {
+        if (shouldAllowClose) {
+          done();
+        } else {
+          return false;
+        }
+      }
+    }).catch(() => {
+      console.log('退出确认对话框已关闭');
+    });
+    
+    // 2秒后自动关闭对话框并跳转
+    setTimeout(() => {
+      console.log('🚪 用户退出登录，强制刷新主页数据');
+      
+      shouldAllowClose = true;
+      ElMessageBox.close();
+      
+      // 退出登录后强制刷新主页数据
+      router.push({ path: '/', query: { _refresh: Date.now() } });
+    }, 2000);
+    
   } catch (error) {
     ElMessage.error('退出登录失败');
   }
@@ -458,8 +502,9 @@ function handleLogoClick(e) {
     console.log('🏠 AppHeader: 当前在文章编辑页面，使用原生导航避免VNode冲突');
     e.preventDefault();
     
-    // 使用原生浏览器导航，完全绕过Vue Router
-    window.location.href = '/';
+    // 使用原生导航，但手动添加刷新参数
+    console.log('🏠 从编辑页通过Logo原生导航到主页，添加刷新标记');
+    window.location.href = `/?_refresh=${Date.now()}`;
     return;
   }
   
@@ -492,8 +537,15 @@ function handleNavClick(path, e) {
     console.log('🧭 AppHeader: 当前在文章编辑页面，使用原生导航避免VNode冲突');
     e.preventDefault();
     
-    // 使用原生浏览器导航，完全绕过Vue Router
-    window.location.href = path;
+    // 虽然我们修复了一些VNode问题，但组件卸载时仍有冲突
+    // 使用原生导航，但手动添加刷新参数
+    if (path === '/' || path === '/home') {
+      console.log('🏠 从编辑页原生导航到主页，添加刷新标记');
+      window.location.href = `/?_refresh=${Date.now()}`;
+    } else {
+      console.log('🔗 从编辑页原生导航到其他页面');
+      window.location.href = path;
+    }
     return;
   }
   

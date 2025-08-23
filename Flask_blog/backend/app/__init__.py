@@ -175,6 +175,8 @@ def create_app(config_name=None):
     from .taxonomy.routes import taxonomy_bp
     from .uploads.routes import uploads_bp
     from .metrics.routes import metrics_bp
+    from .security.routes import security_bp
+    from .settings.routes import settings_bp
     from .public_api import public_bp
 
     # OpenAPI 只注册一次 (根路径 /spec)
@@ -188,6 +190,8 @@ def create_app(config_name=None):
     app.register_blueprint(taxonomy_bp, url_prefix='/api/v1')
     app.register_blueprint(uploads_bp, url_prefix='/api/v1/uploads')
     app.register_blueprint(metrics_bp, url_prefix='/api/v1/metrics')
+    app.register_blueprint(security_bp, url_prefix='/api/v1/security')
+    app.register_blueprint(settings_bp, url_prefix='/api/v1/settings')
     # Public read-only namespace (versioned separately for stability)
     app.register_blueprint(public_bp, url_prefix='/public/v1')
 

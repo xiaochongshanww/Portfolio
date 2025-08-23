@@ -184,7 +184,7 @@ import { ref, computed, watch, nextTick } from 'vue';
 import { 
   Collection, Link, View, MagicStick, Check 
 } from '@element-plus/icons-vue';
-import { ElMessage } from 'element-plus';
+import message from '../utils/message';
 import apiClient from '../apiClient';
 
 // Props
@@ -424,7 +424,7 @@ const getPreviewPath = () => {
 // 应用建议
 const applySuggestion = (suggestion) => {
   suggestion.action();
-  ElMessage.success(`已应用建议：${suggestion.title}`);
+  message.success(`已应用建议：${suggestion.title}`);
 };
 
 // 创建分类
@@ -448,7 +448,7 @@ const handleCreate = async () => {
     
     if (response.data && response.data.code === 0) {
       const newCategory = response.data.data;
-      ElMessage.success('分类创建成功');
+      message.success('分类创建成功');
       emit('category-created', newCategory);
       handleClose();
     } else {
@@ -466,7 +466,7 @@ const handleCreate = async () => {
       errorMessage = error.message;
     }
     
-    ElMessage.error(errorMessage);
+    message.critical(errorMessage);
     emit('category-creation-failed', error);
   } finally {
     creating.value = false;

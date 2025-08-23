@@ -415,6 +415,7 @@ import apiClient from '../apiClient';
 import axios from 'axios';
 import { setMeta } from '../composables/useMeta';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import message, { MESSAGE_PRIORITY } from '../utils/message';
 import VditorEditor from '../components/VditorEditor.vue';
 import ImageUploader from '../components/ImageUploader.vue';
 import ImageFocalCropper from '../components/ImageFocalCropper.vue';
@@ -578,14 +579,14 @@ async function handleCoverSelect(file) {
   // 验证文件类型
   const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
   if (!allowedTypes.includes(file.raw.type)) {
-    ElMessage.error('不支持的文件格式，请选择 JPG、PNG 或 WebP 格式的图片');
+    message.warning('不支持的文件格式，请选择 JPG、PNG 或 WebP 格式的图片');
     return;
   }
   
   // 验证文件大小 (5MB)
   const maxSize = 5 * 1024 * 1024;
   if (file.raw.size > maxSize) {
-    ElMessage.error('文件过大，请选择小于 5MB 的图片');
+    message.warning('文件过大，请选择小于 5MB 的图片');
     return;
   }
   
@@ -610,7 +611,10 @@ async function handleCoverSelect(file) {
     
     if (response.data?.url) {
       form.value.featured_image = response.data.url;
-      ElMessage.success('封面图片上传成功！');
+      message.success({
+        message: '🖼️ 封面图片上传成功！',
+        duration: 3000
+      });
     } else {
       error.value = '上传成功但未获取到图片地址';
     }
@@ -727,7 +731,7 @@ async function submit() {
       } catch (editorError) {
         console.error('编辑器内容同步失败:', editorError);
         // 如果同步失败，给用户明确提示
-        ElMessage.error('编辑器内容同步失败，请稍后重试');
+        message.critical('编辑器内容同步失败，请稍后重试');
         loading.value = false;
         return;
       }
@@ -739,7 +743,7 @@ async function submit() {
     
     // 验证内容是否足够
     if (!form.value.content_md || form.value.content_md.trim().length < 10) {
-      ElMessage.error('文章内容不能为空，请至少输入10个字符');
+      message.warning('文章内容不能为空，请至少输入10个字符');
       loading.value = false;
       return;
     }
@@ -750,7 +754,7 @@ async function submit() {
       
       // 检查内容长度
       if (form.value.content_md.length > 500000) { // 500KB限制
-        ElMessage.error('文章内容过长，请适当缩减内容长度');
+        message.critical('文章内容过长，请适当缩减内容长度');
         loading.value = false;
         return;
       }
@@ -759,7 +763,7 @@ async function submit() {
       const htmlTagCount = (form.value.content_md.match(/<[^>]*>/g) || []).length;
       if (htmlTagCount > 1000) {
         console.warn('⚠️ 检测到大量HTML标签:', htmlTagCount);
-        ElMessage.warning('检测到大量HTML标签，可能影响发布。建议使用Markdown格式编写。');
+        message.warning('检测到大量HTML标签，可能影响发布。建议使用Markdown格式编写。');
       }
       
       // 检查是否包含潜在的恶意脚本
@@ -771,7 +775,7 @@ async function submit() {
       
       for (const pattern of dangerousPatterns) {
         if (pattern.test(form.value.content_md)) {
-          ElMessage.error('内容包含不安全的脚本代码，请移除后重试');
+          message.critical('内容包含不安全的脚本代码，请移除后重试');
           loading.value = false;
           return;
         }
@@ -781,7 +785,7 @@ async function submit() {
       
     } catch (validationError) {
       console.error('内容验证失败:', validationError);
-      ElMessage.error('内容格式验证失败，请检查内容格式');
+      message.critical('内容格式验证失败，请检查内容格式');
       loading.value = false;
       return;
     }
@@ -796,9 +800,9 @@ async function submit() {
       console.log('表单验证失败:', formErrors.value);
       
       // 显示清晰的错误信息
-      ElMessage.error({
+      message.error({
         message: firstErrorMessage,
-        duration: 4000
+        duration: 6000
       });
       
       loading.value = false;
@@ -972,7 +976,7 @@ async function submit() {
       // 用户选择稍后查看或关闭对话框
       if (action === 'cancel') {
         console.log('用户选择稍后查看文章');
-        ElMessage.info('您可以在文章管理页面找到您的文章');
+        message.info('您可以在文章管理页面找到您的文章');
         
         // 跳转到首页
         setTimeout(() => {
@@ -982,7 +986,7 @@ async function submit() {
       } else {
         console.log('用户关闭了对话框');
         // 用户直接关闭对话框，重置编辑器状态或跳转到安全页面
-        ElMessage.info('文章已发布成功，您可以在首页查看');
+        message.info('文章已发布成功，您可以在首页查看');
         
         // 为避免组件状态混乱，跳转到首页
         setTimeout(() => {
@@ -1022,7 +1026,7 @@ async function submit() {
       error.value = mappedError;
     }
     
-    ElMessage.error(error.value);
+    message.error(error.value);
     loading.value = false;
   }
 }
@@ -1075,7 +1079,7 @@ async function loadCategories() {
     
     if (categories.value.length === 0) {
       console.warn('⚠️ 分类列表为空，可能需要先在管理后台创建分类');
-      ElMessage.warning('当前没有可用的分类，请联系管理员创建分类');
+      message.warning('当前没有可用的分类，请联系管理员创建分类');
     }
     
   } catch (error) {
@@ -1107,7 +1111,7 @@ async function loadCategories() {
       console.error('❌ 认证接口也失败了:', authError);
     }
     
-    ElMessage.error(`加载分类列表失败: ${error.response?.data?.message || error.message || '网络错误'}`);
+    message.critical(`加载分类列表失败: ${error.response?.data?.message || error.message || '网络错误'}`);
     categories.value = [];
     
     // 最后的降级方案
@@ -1173,7 +1177,7 @@ function handleRecommendationSelected(recommendation) {
   // 这里可以发送统计数据到后端用于模型优化
   console.log('📊 AI推荐统计数据:', analyticsData);
   
-  ElMessage.success(`已选择AI推荐的分类：${recommendation.category.name}`);
+  message.success(`已选择AI推荐的分类：${recommendation.category.name}`);
 }
 
 // 保存草稿
@@ -1183,7 +1187,7 @@ async function saveDraft() {
     
     // 检查必要字段
     if (!form.value.title?.trim() && !form.value.content_md?.trim()) {
-      ElMessage.warning('请至少填写标题或内容后再保存草稿');
+      message.warning('请至少填写标题或内容后再保存草稿');
       return;
     }
     
@@ -1220,11 +1224,11 @@ async function saveDraft() {
     lastSaveTime.value = new Date();
     hasUnsavedChanges.value = false;
     
-    ElMessage.success('草稿已保存到本地');
+    message.success('💾 草稿已保存到本地');
     
   } catch (e) {
     console.error('Draft save error:', e);
-    ElMessage.error('草稿保存失败');
+    message.critical('草稿保存失败');
   } finally {
     autoSaving.value = false;
   }
@@ -1413,26 +1417,39 @@ async function loadLatestDraft() {
             }
           });
           
-          // 单独处理content_md，避免循环更新
+          // 单独处理content_md，使用更安全的方式
           await nextTick();
           
-          // 先更新表单数据
-          form.value.content_md = draftData.content_md || '';
+          // 使用Vue的批量更新机制，避免响应式冲突
+          await nextTick(() => {
+            // 在下一个微任务中安全地更新content_md
+            form.value.content_md = draftData.content_md || '';
+          });
           
-          // 等待一个渲染周期后再更新编辑器
+          // 等待两个渲染周期确保状态完全稳定
+          await nextTick();
           await nextTick();
           
-          if (blockEditorRef.value && typeof blockEditorRef.value.setContent === 'function') {
+          // 将编辑器内容设置延迟到宏任务队列，完全避开Vue的更新周期
+          setTimeout(async () => {
             try {
-              blockEditorRef.value.setContent(draftData.content_md || '');
-              console.log('编辑器内容同步成功');
-              
-              // 草稿内容恢复完成
-              
+              // 再次确认编辑器引用存在且有效
+              if (blockEditorRef.value && 
+                  typeof blockEditorRef.value.setContent === 'function') {
+                
+                // 在设置内容前再等待一个tick，确保DOM完全稳定
+                await nextTick();
+                
+                blockEditorRef.value.setContent(draftData.content_md || '');
+                console.log('编辑器内容同步成功');
+              } else {
+                console.warn('编辑器引用无效或组件已卸载，跳过内容设置');
+              }
             } catch (e) {
               console.warn('设置编辑器内容失败:', e);
+              // 不影响整个恢复流程
             }
-          }
+          }, 100);
           
           // 最终状态重置 - 使用更长延迟确保编辑器稳定
           setTimeout(() => {
@@ -1445,20 +1462,45 @@ async function loadLatestDraft() {
             // 草稿恢复完成，编辑器状态稳定
             
             // 显示成功消息，并提示用户现在可以安全导航
-            ElMessage({
-              message: '草稿已恢复！现在可以安全导航到其他页面。',
-              type: 'success',
-              duration: 4000,
-              showClose: true
-            });
+            console.log("📝 草稿恢复完成，用户可以安全导航");
+            message.success('📝 草稿已恢复！现在可以安全导航到其他页面。');
           }, 1000);
           
         } catch (error) {
           console.error('草稿恢复过程中出现错误:', error);
-          // 出错时重置状态
-          isRestoringDraft.value = false;
-          hasUnsavedChanges.value = false;
-          ElMessage.error('草稿恢复失败，请重试');
+          
+          // 检查是否是Vue响应式系统的错误（这种情况下数据可能已经恢复成功）
+          const isVueRenderError = error.message && error.message.includes('__vnode');
+          
+          if (isVueRenderError) {
+            console.warn('检测到Vue渲染错误，但数据可能已成功恢复');
+            // 延迟检查恢复状态，避免立即显示错误
+            setTimeout(() => {
+              // 检查草稿数据是否已实际恢复
+              const hasContent = form.value.title || form.value.content_md;
+              if (hasContent) {
+                console.log('数据已成功恢复，忽略Vue渲染错误');
+                // 正常完成恢复流程
+                isRestoringDraft.value = false;
+                hasUnsavedChanges.value = false;
+                message.success({
+                  message: '📝 草稿已恢复！',
+                  duration: 3000
+                });
+              } else {
+                // 真正的恢复失败
+                isRestoringDraft.value = false;
+                hasUnsavedChanges.value = false;
+                message.critical('草稿恢复失败，请重试');
+              }
+            }, 500);
+          } else {
+            // 其他类型的错误
+            isRestoringDraft.value = false;
+            hasUnsavedChanges.value = false;
+            console.log("草稿恢复失败，请重试");
+            message.critical('草稿恢复失败，请重试');
+          }
         }
         
       } catch (action) {
@@ -1473,6 +1515,12 @@ async function loadLatestDraft() {
     }
   } catch (e) {
     console.error('Load draft error:', e);
+    // 确保状态重置，避免用户界面卡住
+    if (isRestoringDraft.value) {
+      isRestoringDraft.value = false;
+      hasUnsavedChanges.value = false;
+      console.log('全局错误处理：重置草稿恢复状态');
+    }
   }
 }
 
@@ -1538,7 +1586,7 @@ function handleKeyDown(e) {
           const editorElement = document.querySelector('.editor-content');
           if (editorElement) {
             editorElement.focus();
-            ElMessage.info('已聚焦到编辑器，请使用编辑器工具栏插入链接');
+            message.info('已聚焦到编辑器，请使用编辑器工具栏插入链接');
           }
         }
         break;
@@ -1546,7 +1594,7 @@ function handleKeyDown(e) {
       case '/':
         // Ctrl+/: 切换预览模式
         e.preventDefault();
-        ElMessage.info('预览功能将在后续版本中实现');
+        message.info('预览功能将在后续版本中实现');
         break;
     }
   }
@@ -1607,6 +1655,19 @@ watch(() => form.value.content_md, (newValue) => {
 onMounted(async () => {
   setMeta({ title: '撰写新文章', description: '创作中心 - 新建文章' });
   
+  // 添加Promise错误处理，专门处理__vnode相关错误
+  const handleUnhandledRejection = (event) => {
+    if (event.reason && event.reason.message && event.reason.message.includes('__vnode')) {
+      console.warn('检测到Vue虚拟节点Promise错误，已静默处理:', event.reason.message);
+      // 注意：不调用preventDefault()，避免干扰其他Promise链和路由导航
+      // 只记录日志，让Vue内部处理这些错误
+    }
+  };
+  
+  // 保存到window对象以便清理时使用
+  window.vueErrorHandler = handleUnhandledRejection;
+  window.addEventListener('unhandledrejection', handleUnhandledRejection);
+  
   // 加载分类列表
   await loadCategories();
   
@@ -1626,16 +1687,25 @@ onMounted(async () => {
     // 如果仍未认证，重定向到登录页
     if (!userStore.isAuthenticated) {
       console.log('📝 用户仍未认证，重定向到登录页');
-      ElMessage.warning('请先登录后再创建文章');
+      message.warning('请先登录后再创建文章');
       router.push('/login');
       return;
     }
   }
   
-  // 页面加载后检查是否有草稿
-  nextTick(() => {
-    loadLatestDraft();
-  });
+  // 页面加载后检查是否有草稿 - 延迟到组件完全稳定后
+  setTimeout(() => {
+    nextTick(() => {
+      loadLatestDraft().catch(error => {
+        console.error('草稿恢复异步错误:', error);
+        // 确保状态重置
+        if (isRestoringDraft.value) {
+          isRestoringDraft.value = false;
+          hasUnsavedChanges.value = false;
+        }
+      });
+    });
+  }, 300);
   
   // 监听页面离开事件
   window.addEventListener('beforeunload', handleBeforeUnload);
@@ -1657,6 +1727,12 @@ onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload);
   document.removeEventListener('keydown', handleKeyDown);
   
+  // 移除Promise错误处理（如果存在）
+  if (window.vueErrorHandler) {
+    window.removeEventListener('unhandledrejection', window.vueErrorHandler);
+    delete window.vueErrorHandler;
+  }
+  
   // 如果有未保存的更改，自动保存一次
   if (hasUnsavedChanges.value) {
     saveDraft();
@@ -1667,10 +1743,23 @@ onBeforeUnmount(() => {
 onBeforeRouteLeave((to, from, next) => {
   console.log('🚦 路由守卫检查 - hasUnsavedChanges:', hasUnsavedChanges.value);
   console.log('🚦 路由守卫检查 - isRestoringDraft:', isRestoringDraft.value);
+  console.log('🚦 路由守卫检查 - 目标路径:', to.path);
+  console.log('🚦 路由守卫检查 - 表单内容:', {
+    title: form.value.title?.length || 0,
+    content: form.value.content_md?.length || 0
+  });
   
   // 如果正在恢复草稿或已完成恢复，直接允许导航
   if (isRestoringDraft.value) {
     console.log('🚦 正在恢复草稿，允许导航');
+    next();
+    return;
+  }
+  
+  // 特殊处理：如果导航到主页且表单基本为空，直接允许
+  if (to.path === '/' && (!form.value.title?.trim() && (!form.value.content_md?.trim() || form.value.content_md.length < 10))) {
+    console.log('🚦 导航到主页且内容基本为空，强制允许导航');
+    hasUnsavedChanges.value = false;
     next();
     return;
   }
@@ -1690,6 +1779,27 @@ onBeforeRouteLeave((to, from, next) => {
     next();
   }
 });
+
+// 测试多消息场景处理效果的方法
+function testBatchMessageHandling() {
+  console.log('🧪 开始测试批量消息处理');
+  
+  // 模拟编辑器初始化时的多个消息
+  message.info('编辑器初始化中...');
+  message.success('草稿数据加载完成');  
+  message.warning('未找到匹配的分类');
+  message.critical('网络连接失败');
+  message.info('自动保存已开启');
+  message.warning('检测到大量HTML标签');
+  message.success('分类加载成功');
+  
+  console.log('🧪 已触发7条不同优先级的消息，查看效果');
+}
+
+// 在开发模式下暴露测试方法到全局
+if (process.env.NODE_ENV === 'development') {
+  window.testBatchMessages = testBatchMessageHandling;
+}
 </script>
 <style scoped>
 /* 文章编辑器容器 */

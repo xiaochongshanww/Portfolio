@@ -86,6 +86,16 @@
             <span>用户管理</span>
           </el-menu-item>
 
+          <!-- 安全监控 -->
+          <el-menu-item 
+            v-if="hasRole(['admin', 'editor'])" 
+            index="/admin/security" 
+            route="/admin/security"
+          >
+            <el-icon><Lock /></el-icon>
+            <span>安全监控</span>
+          </el-menu-item>
+
           <!-- 系统设置 -->
           <el-sub-menu v-if="hasRole(['admin'])" index="settings">
             <template #title>
@@ -143,7 +153,7 @@ import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { 
   DataBoard, Document, Edit, View, ChatLineRound, Collection, 
-  FolderOpened, PriceTag, User, Setting, Tools, SwitchButton, 
+  FolderOpened, PriceTag, User, Lock, Setting, Tools, SwitchButton, 
   HomeFilled 
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -178,6 +188,8 @@ const breadcrumbs = computed(() => {
     crumbs.push({ text: '标签管理' });
   } else if (path.includes('/users')) {
     crumbs.push({ text: '用户管理' });
+  } else if (path.includes('/security')) {
+    crumbs.push({ text: '安全监控' });
   } else if (path.includes('/settings')) {
     crumbs.push({ text: '系统设置' });
     if (path.includes('/general')) {

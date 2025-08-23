@@ -313,7 +313,7 @@ const isDevelopmentMode = computed(() => process.env.NODE_ENV === 'development' 
 
 const WORKFLOW_TRANSITIONS = {
     draft: ['submit'],
-    pending: ['approve', 'reject'],
+    pending: ['通过', '拒绝'],
 }
 
 const nextList = computed(()=> article.value ? (WORKFLOW_TRANSITIONS[article.value.status] || []) : []);
@@ -333,8 +333,8 @@ async function doTransition(target){
   try {
     const id = article.value.id;
     if(target==='submit') await API.ArticlesService.submitArticle(id);
-    else if(target==='approve') await API.ArticlesService.approveArticle(id);
-    else if(target==='reject') await API.ArticlesService.rejectArticle(id, 'Rejected from UI');
+    else if(target==='通过') await API.ArticlesService.approveArticle(id);
+    else if(target==='拒绝') await API.ArticlesService.rejectArticle(id, 'Rejected from UI');
     
     // 调试信息：检查管理操作后的认证状态
     const tokenAfter = localStorage.getItem('access_token');

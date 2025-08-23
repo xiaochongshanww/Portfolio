@@ -133,6 +133,92 @@ def list_pending():
     data = [{ 'id':c.id,'article_id':c.article_id,'parent_id':c.parent_id,'content':c.content,'user_id':c.user_id,'created_at':c.created_at.isoformat()} for c in items]
     return jsonify({'code':0,'data':{'total':total,'page':page,'page_size':size,'has_next': page*size < total,'list':data},'message':'ok'})
 
+@comments_bp.route('/admin/list', methods=['GET'])
+@require_roles('editor','admin')
+def admin_list_comments():
+    """管理员评论列表，支持状态筛选、内容搜索等"""
+    try:
+        page = int(request.args.get('page', 1))
+        size = int(request.args.get('page_size', 20))
+    except Exception:
+        page, size = 1, 20
+    size = max(1, min(size, 100))
+    
+    # 构建查询
+    q = Comment.query
+    
+    # 状态筛选
+    status = request.args.get('status')
+    if status and status in ('pending', 'approved', 'rejected'):
+        q = q.filter_by(status=status)
+    
+    # 文章ID筛选
+    article_id = request.args.get('article_id')
+    if article_id and article_id.isdigit():
+        q = q.filter_by(article_id=int(article_id))
+    
+    # 内容搜索
+    content = request.args.get('content')
+    if content:
+        q = q.filter(Comment.content.contains(content))
+    
+    # 排序：最新的在前
+    q = q.order_by(Comment.created_at.desc())
+    
+    # 分页
+    total = q.count()
+    items = q.offset((page-1)*size).limit(size).all()
+    
+    # 序列化
+    data = [{
+        'id': c.id,
+        'article_id': c.article_id,
+        'parent_id': c.parent_id,
+        'content': c.content,
+        'user_id': c.user_id,
+        'status': c.status,
+        'created_at': c.created_at.isoformat()
+    } for c in items]
+    
+    return jsonify({
+        'code': 0,
+        'data': {
+            'total': total,
+            'page': page,
+            'page_size': size,
+            'has_next': page * size < total,
+            'list': data
+        },
+        'message': 'ok'
+    })
+
+@comments_bp.route('/admin/stats', methods=['GET'])
+@require_roles('editor','admin')
+def admin_stats():
+    """管理员统计数据"""
+    from datetime import datetime, timezone, timedelta
+    
+    # 待审核数量
+    pending_count = Comment.query.filter_by(status='pending').count()
+    
+    # 今日评论数量
+    today = datetime.now(timezone.utc).date()
+    today_start = datetime.combine(today, datetime.min.time()).replace(tzinfo=timezone.utc)
+    today_count = Comment.query.filter(Comment.created_at >= today_start).count()
+    
+    # 总评论数量
+    total_count = Comment.query.count()
+    
+    return jsonify({
+        'code': 0,
+        'data': {
+            'pending': pending_count,
+            'today': today_count,
+            'total': total_count
+        },
+        'message': 'ok'
+    })
+
 @comments_bp.route('/moderate/<int:comment_id>', methods=['POST'])
 @require_roles('editor','admin')
 @limiter.limit('60/minute')  # 审核操作限速
@@ -155,3 +241,43 @@ def moderate(comment_id):
         return jsonify({'code':4001,'message':'invalid action'}), 400
     db.session.commit()
     return jsonify({'code':0,'data':{'id':c.id,'status':c.status},'message':'ok'})
+
+@comments_bp.route('/moderate/batch', methods=['POST'])
+@require_roles('editor','admin')
+@limiter.limit('30/minute')  # 批量操作限速
+def moderate_batch():
+    """批量审核评论"""
+    data = request.get_json() or {}
+    ids = data.get('ids', [])
+    action = data.get('action')
+    
+    if not ids or not isinstance(ids, list):
+        return jsonify({'code': 4001, 'message': 'ids required as array'}), 400
+    
+    if action not in ('approve', 'reject'):
+        return jsonify({'code': 4001, 'message': 'invalid action'}), 400
+    
+    if len(ids) > 50:  # 限制批量操作数量
+        return jsonify({'code': 4001, 'message': 'too many items, max 50'}), 400
+    
+    # 查找所有评论
+    comments = Comment.query.filter(Comment.id.in_(ids)).all()
+    
+    if len(comments) != len(ids):
+        return jsonify({'code': 4001, 'message': 'some comments not found'}), 400
+    
+    # 批量更新状态
+    new_status = 'approved' if action == 'approve' else 'rejected'
+    for comment in comments:
+        comment.status = new_status
+    
+    db.session.commit()
+    
+    return jsonify({
+        'code': 0,
+        'data': {
+            'updated_count': len(comments),
+            'status': new_status
+        },
+        'message': 'ok'
+    })

@@ -94,18 +94,116 @@ async function submit() {
     const resp = await API.AuthService.login({ requestBody: { email: email.value, password: password.value } });
     // 使用新的 login 方法，会自动获取用户信息
     await userStore.login(resp.data.data.access_token, resp.data.data.role);
-    ElMessage.success('登录成功');
     
-    // 登录成功后强制刷新主页数据
-    console.log('✅ 用户登录成功，强制刷新主页数据');
-    router.push({ path: '/', query: { _refresh: Date.now() } });
+    // 停止加载状态，显示成功状态
+    loading.value = false;
+    
+    // 创建一个标记来控制MessageBox的关闭
+    let shouldAllowClose = false;
+    
+    // 使用 MessageBox 显示登录成功确认，但不等待它
+    const messageBoxPromise = ElMessageBox({
+      title: '🎉 登录成功',
+      message: `
+        <div style="text-align: center; padding: 20px 0;">
+          <div style="font-size: 48px; margin-bottom: 16px;">✨</div>
+          <div style="font-size: 18px; font-weight: 600; color: #059669; margin-bottom: 8px;">
+            欢迎回来！
+          </div>
+          <div style="font-size: 14px; color: #6b7280; margin-bottom: 16px;">
+            正在为您跳转到主页...
+          </div>
+          <div style="width: 200px; height: 4px; background: #f3f4f6; border-radius: 2px; margin: 0 auto; overflow: hidden;">
+            <div style="width: 100%; height: 100%; background: linear-gradient(90deg, #059669, #10b981); border-radius: 2px; animation: progressBar 2s ease-in-out;"></div>
+          </div>
+        </div>
+      `,
+      dangerouslyUseHTMLString: true,
+      showCancelButton: false,
+      showConfirmButton: false,
+      showClose: false,
+      center: true,
+      customClass: 'login-success-dialog',
+      beforeClose: (action, instance, done) => {
+        // 只有当允许关闭时才关闭
+        if (shouldAllowClose) {
+          done();
+        } else {
+          // 阻止用户手动关闭
+          return false;
+        }
+      }
+    }).catch(() => {
+      // 捕获关闭时的rejected promise
+      console.log('MessageBox已关闭');
+    });
+    
+    // 2秒后自动关闭对话框并跳转
+    setTimeout(() => {
+      console.log('✅ 用户登录成功，开始跳转到主页');
+      
+      // 允许关闭MessageBox
+      shouldAllowClose = true;
+      
+      // 关闭所有MessageBox实例
+      ElMessageBox.close();
+      
+      // 跳转到主页
+      router.push({ path: '/', query: { _refresh: Date.now() } });
+    }, 2000);
   } catch (e) {
     error.value = e.response?.data?.message || '登录失败，请检查您的凭据';
-  } finally {
-    loading.value = false;
+    loading.value = false; // 只有出错时立即停止loading
   }
 }
 </script>
+
+<style>
+/* 登录成功对话框自定义样式 */
+.login-success-dialog {
+  border-radius: 20px !important;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15) !important;
+  border: none !important;
+  overflow: hidden !important;
+}
+
+.login-success-dialog .el-message-box__header {
+  padding: 24px 24px 0 !important;
+  border-bottom: none !important;
+}
+
+.login-success-dialog .el-message-box__title {
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  color: #059669 !important;
+  text-align: center !important;
+}
+
+.login-success-dialog .el-message-box__content {
+  padding: 0 24px 24px !important;
+}
+
+.login-success-dialog .el-message-box__message {
+  margin: 0 !important;
+  color: inherit !important;
+}
+
+/* 进度条动画 */
+@keyframes progressBar {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* 成功对话框的背景遮罩 */
+.login-success-dialog + .el-overlay {
+  background-color: rgba(0, 0, 0, 0.6) !important;
+  backdrop-filter: blur(8px) !important;
+}
+</style>
 
 <style scoped>
 /* 认证页面容器 - 渐进式响应设计 */

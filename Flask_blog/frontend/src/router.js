@@ -28,6 +28,8 @@ const CommentManagement = () => import(/* webpackChunkName: 'admin' */ './views/
 const CategoryManagement = () => import(/* webpackChunkName: 'admin' */ './views/admin/CategoryManagement.vue');
 const TagManagement = () => import(/* webpackChunkName: 'admin' */ './views/admin/TagManagement.vue');
 const UserManagement = () => import(/* webpackChunkName: 'admin' */ './views/admin/UserManagement.vue');
+const SecurityMonitoring = () => import(/* webpackChunkName: 'admin' */ './views/admin/SecurityMonitoring.vue');
+const SystemSettings = () => import(/* webpackChunkName: 'admin' */ './views/admin/SystemSettings.vue');
 
 const routes = [
   { path: '/', component: Home },
@@ -42,6 +44,8 @@ const routes = [
   { path: '/tag/:slug', component: TagPage, props: true },
   { path: '/search', component: SearchPage },
   { path: '/categories', component: () => import('./views/CategoriesPage.vue') },
+  { path: '/tags', component: () => import('./views/TagsPage.vue') },
+  { path: '/archive', component: () => import('./views/ArchivePage.vue') },
   { path: '/hot', component: () => import('./views/HotArticles.vue') },
   { path: '/about', component: () => import('./views/About.vue') },
   
@@ -58,6 +62,8 @@ const routes = [
       { path: 'categories', component: CategoryManagement, meta: { requiresRole: ['editor', 'admin'] } },
       { path: 'tags', component: TagManagement, meta: { requiresRole: ['editor', 'admin'] } },
       { path: 'users', component: UserManagement, meta: { requiresRole: ['admin'] } },
+      { path: 'security', component: SecurityMonitoring, meta: { requiresRole: ['editor', 'admin'] } },
+      { path: 'settings/general', component: SystemSettings, meta: { requiresRole: ['admin'] } },
     ]
   },
   

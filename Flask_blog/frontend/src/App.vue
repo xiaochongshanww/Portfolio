@@ -66,7 +66,38 @@ onMounted(async () => {
   } catch (error) {
     console.log('初始化用户状态失败:', error);
   }
+  
+  // 添加全局消息点击关闭功能
+  setupMessageClickHandlers();
 });
+
+// 设置消息点击处理器
+function setupMessageClickHandlers() {
+  // 使用事件委托监听消息点击
+  document.addEventListener('click', (event) => {
+    const messageElement = event.target.closest('.enhanced-message');
+    if (messageElement) {
+      // 检查是否点击的是关闭按钮，如果是则让默认行为处理
+      const closeBtn = event.target.closest('.el-message__closeBtn');
+      if (closeBtn) {
+        return; // 让默认关闭按钮处理
+      }
+      
+      // 点击消息卡片其他区域时关闭消息
+      const closeButton = messageElement.querySelector('.el-message__closeBtn');
+      if (closeButton) {
+        closeButton.click();
+      } else {
+        // 如果没有关闭按钮，尝试直接关闭
+        messageElement.style.opacity = '0';
+        messageElement.style.transform = 'translateY(-20px) scale(0.9)';
+        setTimeout(() => {
+          messageElement.remove();
+        }, 300);
+      }
+    }
+  });
+}
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll);
@@ -205,5 +236,288 @@ main {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+/* 增强的消息样式 - 高对比度设计 + 点击体验 */
+.enhanced-message {
+  border-radius: 16px !important;
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.15), 
+    0 8px 16px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset !important;
+  font-weight: 600 !important;
+  font-size: 15px !important;
+  line-height: 1.6 !important;
+  padding: 20px 24px !important;
+  margin-bottom: 16px !important;
+  position: relative !important;
+  z-index: 3000 !important;
+  backdrop-filter: blur(12px) saturate(180%) !important;
+  border: 2px solid !important;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  min-height: 60px !important;
+  display: flex !important;
+  align-items: center !important;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8) !important;
+  cursor: pointer !important;
+  user-select: none !important;
+}
+
+.enhanced-message:hover {
+  transform: translateY(-4px) scale(1.02) !important;
+  box-shadow: 
+    0 25px 50px rgba(0, 0, 0, 0.2), 
+    0 12px 24px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.2) inset !important;
+}
+
+/* 点击效果 */
+.enhanced-message:active {
+  transform: translateY(-2px) scale(1.01) !important;
+  box-shadow: 
+    0 15px 35px rgba(0, 0, 0, 0.15), 
+    0 6px 12px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(255, 255, 255, 0.15) inset !important;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* 不同类型消息的特定样式 - 高对比度背景 */
+.enhanced-message.el-message--success {
+  background: linear-gradient(135deg, 
+    rgba(16, 185, 129, 0.95) 0%, 
+    rgba(5, 150, 105, 0.9) 50%,
+    rgba(4, 120, 87, 0.95) 100%) !important;
+  border-color: rgba(16, 185, 129, 0.8) !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+.enhanced-message.el-message--error {
+  background: linear-gradient(135deg, 
+    rgba(239, 68, 68, 0.95) 0%, 
+    rgba(220, 38, 38, 0.9) 50%,
+    rgba(185, 28, 28, 0.95) 100%) !important;
+  border-color: rgba(239, 68, 68, 0.8) !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+.enhanced-message.el-message--warning {
+  background: linear-gradient(135deg, 
+    rgba(245, 158, 11, 0.95) 0%, 
+    rgba(217, 119, 6, 0.9) 50%,
+    rgba(180, 83, 9, 0.95) 100%) !important;
+  border-color: rgba(245, 158, 11, 0.8) !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+.enhanced-message.el-message--info {
+  background: linear-gradient(135deg, 
+    rgba(59, 130, 246, 0.95) 0%, 
+    rgba(37, 99, 235, 0.9) 50%,
+    rgba(29, 78, 216, 0.95) 100%) !important;
+  border-color: rgba(59, 130, 246, 0.8) !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* 消息图标样式 */
+.enhanced-message .el-message__icon {
+  font-size: 22px !important;
+  margin-right: 16px !important;
+  color: rgba(255, 255, 255, 0.95) !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.5)) !important;
+}
+
+/* 关闭按钮样式 */
+.enhanced-message .el-message__closeBtn {
+  font-size: 18px !important;
+  color: rgba(255, 255, 255, 0.8) !important;
+  background: rgba(0, 0, 0, 0.2) !important;
+  border-radius: 50% !important;
+  width: 28px !important;
+  height: 28px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.3s ease !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+.enhanced-message .el-message__closeBtn:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
+  transform: scale(1.15) rotate(90deg) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* 确保消息容器在正确的层级 */
+.el-message {
+  position: fixed !important;
+  top: 90px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  z-index: 3000 !important;
+  min-width: 380px !important;
+  max-width: 600px !important;
+  animation: slideInDown 0.5s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* 消息入场动画 */
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+/* 消息文本内容样式 */
+.enhanced-message .el-message__content {
+  font-weight: 600 !important;
+  letter-spacing: 0.02em !important;
+  word-break: break-word !important;
+}
+
+/* 添加消息背景遮罩层（可选） */
+.enhanced-message::before {
+  content: '' !important;
+  position: absolute !important;
+  top: -10px !important;
+  left: -10px !important;
+  right: -10px !important;
+  bottom: -10px !important;
+  background: radial-gradient(ellipse at center, 
+    rgba(0, 0, 0, 0.1) 0%, 
+    transparent 70%) !important;
+  border-radius: 24px !important;
+  z-index: -1 !important;
+  opacity: 0.6 !important;
+}
+
+/* 点击提示文本 */
+.enhanced-message::after {
+  content: '点击关闭' !important;
+  position: absolute !important;
+  bottom: 8px !important;
+  right: 16px !important;
+  font-size: 11px !important;
+  opacity: 0.7 !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.5px !important;
+  pointer-events: none !important;
+  transition: opacity 0.3s ease !important;
+}
+
+.enhanced-message:hover::after {
+  opacity: 0.9 !important;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .enhanced-message {
+    margin: 0 16px !important;
+    padding: 18px 20px !important;
+    font-size: 14px !important;
+    min-width: auto !important;
+    max-width: calc(100vw - 32px) !important;
+    min-height: 56px !important;
+  }
+  
+  .enhanced-message .el-message__icon {
+    font-size: 20px !important;
+    margin-right: 14px !important;
+  }
+  
+  .enhanced-message .el-message__closeBtn {
+    width: 26px !important;
+    height: 26px !important;
+    font-size: 16px !important;
+  }
+  
+  .el-message {
+    top: 80px !important;
+    left: 16px !important;
+    right: 16px !important;
+    transform: none !important;
+    width: auto !important;
+    min-width: auto !important;
+    max-width: none !important;
+  }
+  
+  /* 移动端点击提示调整 */
+  .enhanced-message::after {
+    font-size: 10px !important;
+    bottom: 6px !important;
+    right: 12px !important;
+  }
+}
+
+/* 高对比度和辅助功能支持 */
+@media (prefers-contrast: high) {
+  .enhanced-message {
+    border-width: 3px !important;
+    box-shadow: 0 0 0 2px #000000 !important;
+  }
+  
+  /* 高对比度模式下的点击提示 */
+  .enhanced-message::after {
+    opacity: 1 !important;
+    font-weight: 600 !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8) !important;
+  }
+}
+
+/* 减少动画（如果用户偏好） */
+@media (prefers-reduced-motion: reduce) {
+  .enhanced-message,
+  .enhanced-message .el-message__closeBtn {
+    transition: none !important;
+    animation: none !important;
+  }
+  
+  .enhanced-message:hover {
+    transform: none !important;
+  }
+}
+
+/* 退出成功对话框样式 */
+.logout-success-dialog {
+  border-radius: 20px !important;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15) !important;
+  border: none !important;
+  overflow: hidden !important;
+}
+
+.logout-success-dialog .el-message-box__header {
+  padding: 24px 24px 0 !important;
+  border-bottom: none !important;
+}
+
+.logout-success-dialog .el-message-box__title {
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  color: #6366f1 !important;
+  text-align: center !important;
+}
+
+.logout-success-dialog .el-message-box__content {
+  padding: 0 24px 24px !important;
+}
+
+.logout-success-dialog .el-message-box__message {
+  margin: 0 !important;
+  color: inherit !important;
+}
+
+/* 退出成功对话框的背景遮罩 */
+.logout-success-dialog + .el-overlay {
+  background-color: rgba(0, 0, 0, 0.6) !important;
+  backdrop-filter: blur(8px) !important;
 }
 </style>

@@ -206,3 +206,65 @@ def delete_tag(tid):
     db.session.delete(t)
     db.session.commit()
     return jsonify({'code':0,'message':'ok'})
+
+# Statistics
+@taxonomy_bp.route('/stats', methods=['GET'])
+@require_roles('editor','admin')
+def get_stats():
+    """获取分类和标签的统计信息"""
+    from ..models import Article, ArticleTag
+    
+    # 分类统计
+    categories_with_count = db.session.query(
+        Category.id, Category.name, Category.slug, Category.parent_id,
+        func.count(Article.id).label('article_count')
+    ).outerjoin(Article, Category.id == Article.category_id)\
+     .filter(Article.deleted != True)\
+     .group_by(Category.id, Category.name, Category.slug, Category.parent_id)\
+     .order_by(Category.id.desc()).all()
+    
+    categories_data = [{
+        'id': c.id,
+        'name': c.name,
+        'slug': c.slug,
+        'parent_id': c.parent_id,
+        'article_count': c.article_count
+    } for c in categories_with_count]
+    
+    # 标签统计  
+    tags_with_count = db.session.query(
+        Tag.id, Tag.name, Tag.slug,
+        func.count(ArticleTag.article_id).label('article_count')
+    ).outerjoin(ArticleTag, Tag.id == ArticleTag.tag_id)\
+     .group_by(Tag.id, Tag.name, Tag.slug)\
+     .order_by(func.count(ArticleTag.article_id).desc()).all()
+    
+    tags_data = [{
+        'id': t.id,
+        'name': t.name,
+        'slug': t.slug,
+        'article_count': t.article_count
+    } for t in tags_with_count]
+    
+    # 总计统计
+    total_categories = Category.query.count()
+    total_tags = Tag.query.count()
+    categories_with_articles = Category.query.join(Article).filter(Article.deleted != True).distinct().count()
+    tags_with_articles = Tag.query.join(ArticleTag).distinct().count()
+    
+    return jsonify({
+        'code': 0,
+        'message': 'ok',
+        'data': {
+            'categories': categories_data,
+            'tags': tags_data,
+            'summary': {
+                'total_categories': total_categories,
+                'total_tags': total_tags,
+                'categories_with_articles': categories_with_articles,
+                'tags_with_articles': tags_with_articles,
+                'unused_categories': total_categories - categories_with_articles,
+                'unused_tags': total_tags - tags_with_articles
+            }
+        }
+    })
