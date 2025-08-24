@@ -248,13 +248,49 @@
             </el-col>
             <el-col :span="12">
               <el-form-item label="文章标签">
-                <el-input 
-                  v-model="form.tags_raw" 
-                  placeholder="用逗号分隔标签，如：Vue, Flask, Python"
-                  clearable
-                />
+                <div class="tags-selector">
+                  <!-- 现有标签选择 -->
+                  <el-select
+                    v-model="selectedTags"
+                    multiple
+                    filterable
+                    allow-create
+                    default-first-option
+                    reserve-keyword
+                    placeholder="选择或创建标签"
+                    class="tags-select"
+                    @change="updateTagsRaw"
+                    :loading="tagsLoading"
+                  >
+                    <el-option
+                      v-for="tag in availableTags"
+                      :key="tag.id"
+                      :label="tag.name"
+                      :value="tag.name"
+                    >
+                      <span class="tag-option">
+                        <span class="tag-name">#{{ tag.name }}</span>
+                        <span class="tag-count">({{ tag.article_count || 0 }})</span>
+                      </span>
+                    </el-option>
+                  </el-select>
+                  
+                  <!-- 已选标签预览 -->
+                  <div class="selected-tags" v-if="selectedTags.length > 0">
+                    <el-tag
+                      v-for="tag in selectedTags"
+                      :key="tag"
+                      closable
+                      @close="removeTag(tag)"
+                      class="selected-tag"
+                    >
+                      #{{ tag }}
+                    </el-tag>
+                  </div>
+                </div>
                 <div class="input-hint">
-                  标签有助于读者发现相关内容，建议3-5个标签
+                  <el-icon class="hint-icon"><InfoFilled /></el-icon>
+                  从现有标签中选择或创建新标签，建议3-5个标签
                 </div>
               </el-form-item>
             </el-col>
@@ -453,6 +489,11 @@ const error = ref('');
 const success = ref(false);
 const categories = ref([]);
 const categoryLoading = ref(false);
+
+// 标签相关状态
+const availableTags = ref([]);
+const selectedTags = ref([]);
+const tagsLoading = ref(false);
 
 // 导航修复函数 - 简化版本
 const handleDraftRestored = () => {
@@ -1153,6 +1194,57 @@ function handleCategoryChange(categoryId) {
   }
 }
 
+// 加载可用标签
+async function loadAvailableTags() {
+  try {
+    tagsLoading.value = true;
+    const response = await apiClient.get('/taxonomy/stats');
+    
+    if (response.data.code === 0) {
+      availableTags.value = response.data.data.tags || [];
+      console.log('✅ 标签加载成功，共', availableTags.value.length, '个标签');
+    } else {
+      console.error('❌ 标签加载失败:', response.data.message);
+      message.warning('标签加载失败，但不影响文章创建');
+    }
+  } catch (error) {
+    console.error('❌ 标签加载出错:', error);
+    message.warning('标签加载失败，但不影响文章创建');
+  } finally {
+    tagsLoading.value = false;
+  }
+}
+
+// 更新tags_raw字段
+function updateTagsRaw() {
+  form.value.tags_raw = selectedTags.value.join(', ');
+  console.log('🏷️ 标签已更新:', selectedTags.value);
+  
+  // 触发自动保存
+  if (form.value.title || form.value.content_md) {
+    markAsChanged();
+  }
+}
+
+// 移除标签
+function removeTag(tag) {
+  const index = selectedTags.value.indexOf(tag);
+  if (index > -1) {
+    selectedTags.value.splice(index, 1);
+    updateTagsRaw();
+  }
+}
+
+// 初始化已选标签（从tags_raw恢复）
+function initSelectedTags() {
+  if (form.value.tags_raw) {
+    selectedTags.value = form.value.tags_raw
+      .split(',')
+      .map(tag => tag.trim())
+      .filter(Boolean);
+  }
+}
+
 // 处理AI推荐选择
 function handleRecommendationSelected(recommendation) {
   console.log('🤖 AI推荐分类被选择:', recommendation);
@@ -1640,9 +1732,16 @@ function showKeyboardShortcuts() {
 }
 
 // 监听表单变化以触发自动保存
-watch(() => [form.value.title, form.value.content_md, form.value.summary], () => {
+watch(() => [form.value.title, form.value.content_md, form.value.summary, form.value.tags_raw], () => {
   triggerAutoSave();
 }, { deep: true });
+
+// 监听tags_raw变化，同步到selectedTags
+watch(() => form.value.tags_raw, (newValue) => {
+  if (newValue !== selectedTags.value.join(', ')) {
+    initSelectedTags();
+  }
+}, { immediate: true });
 
 // 监听内容编辑器变化以验证
 watch(() => form.value.content_md, (newValue) => {
@@ -1670,6 +1769,9 @@ onMounted(async () => {
   
   // 加载分类列表
   await loadCategories();
+  
+  // 加载可用标签
+  await loadAvailableTags();
   
   // 认证状态检查
   console.log('📝 NewArticle组件挂载，检查认证状态');
@@ -2622,6 +2724,113 @@ if (process.env.NODE_ENV === 'development') {
     height: 28px !important;
     line-height: 28px !important;
     font-size: 14px !important;
+  }
+}
+
+/* ===== 标签选择器样式 ===== */
+.tags-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tags-select {
+  width: 100%;
+}
+
+.tag-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.tag-name {
+  font-weight: 500;
+  color: #374151;
+}
+
+.tag-count {
+  font-size: 0.75rem;
+  color: #6b7280;
+  background: rgba(59, 130, 246, 0.1);
+  padding: 2px 6px;
+  border-radius: 12px;
+  margin-left: 8px;
+}
+
+.selected-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(59, 130, 246, 0.05);
+  border: 1px solid rgba(59, 130, 246, 0.1);
+  border-radius: 8px;
+  min-height: 45px;
+  transition: all 0.3s ease;
+}
+
+.selected-tags:empty::after {
+  content: '暂无选择标签';
+  color: #9ca3af;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.selected-tag {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  border-color: #3b82f6;
+  color: white;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.selected-tag:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.selected-tag .el-tag__close {
+  color: rgba(255, 255, 255, 0.8);
+  transition: all 0.3s ease;
+}
+
+.selected-tag .el-tag__close:hover {
+  color: white;
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* 选择器下拉样式优化 */
+:deep(.el-select-dropdown__item.hover) {
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+:deep(.el-select-dropdown__item.selected) {
+  background-color: rgba(59, 130, 246, 0.15);
+  font-weight: 600;
+}
+
+:deep(.el-select__tags) {
+  max-height: 80px;
+  overflow-y: auto;
+}
+
+/* 响应式优化 */
+@media (max-width: 768px) {
+  .selected-tags {
+    padding: 0.5rem;
+    min-height: 40px;
+  }
+  
+  .selected-tag {
+    font-size: 0.8rem;
+  }
+  
+  .tag-option {
+    font-size: 0.875rem;
   }
 }
 </style>

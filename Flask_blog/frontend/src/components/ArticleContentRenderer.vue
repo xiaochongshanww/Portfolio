@@ -39,7 +39,7 @@
     >
       <div 
         class="article-body markdown-content"
-        v-html="sanitizedContent"
+        v-html="processedContent"
         @click="handleContentClick"
       ></div>
     </div>
@@ -53,7 +53,7 @@
       <div 
         class="html-content-isolated"
         :class="getHTMLContentClasses()"
-        v-html="sanitizedContent"
+        v-html="processedContent"
         @click="handleContentClick"
       ></div>
     </div>
@@ -87,12 +87,16 @@
 </template>
 
 <script setup>
-import { computed, ref, watch, nextTick, onMounted } from 'vue';
+import { computed, ref, watch, nextTick, onMounted, onBeforeMount } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Loading } from '@element-plus/icons-vue';
 import DOMPurify from 'dompurify';
+import 'katex/dist/katex.min.css';
 
 import { ContentTypeDetector } from '@/utils/contentTypeDetector.js';
+import { renderMarkdown, preload } from '@/utils/markdownProcessor.simple.js';
+import { testKaTeX } from '@/utils/testMarkdown.js';
+import { debugKaTeX } from '@/utils/debugKaTeX.js';
 
 // Props定义
 const props = defineProps({
@@ -160,6 +164,99 @@ const isDevelopment = computed(() => {
   return process.env.NODE_ENV === 'development' || import.meta.env.DEV;
 });
 
+// 新的内容渲染处理逻辑 - 优先处理数学公式
+const processContent = async (content, type) => {
+  if (!content) return '';
+  
+  try {
+    // 优先策略：检查是否包含数学公式标记
+    const hasMathFormulas = content.includes('$') || content.includes('\\(') || content.includes('\\[');
+    
+    console.log('🔍 Content processing pipeline started:', {
+      contentLength: content.length,
+      contentType: type,
+      hasMathFormulas: hasMathFormulas,
+      firstChars: content.substring(0, 100),
+      mathIndicators: {
+        dollars: content.includes('$'),
+        parentheses: content.includes('\\('),
+        brackets: content.includes('\\[')
+      }
+    });
+    
+    if (type === 'markdown' || hasMathFormulas) {
+      // 使用Markdown处理器，自动处理数学公式和代码高亮
+      console.log('🧮 Processing with Markdown renderer (math formulas detected)');
+      const markdownResult = await renderMarkdown(content);
+      
+      console.log('🧮 Markdown processing completed:', {
+        inputLength: content.length,
+        outputLength: markdownResult.length,
+        containsKaTeX: markdownResult.includes('katex'),
+        containsMathML: markdownResult.includes('<math>'),
+        containsMathClass: markdownResult.includes('math-'),
+        containsSpanKatex: markdownResult.includes('<span class="katex">'),
+        firstOutputChars: markdownResult.substring(0, 200)
+      });
+      
+      // 检查输出是否包含数学公式相关的HTML
+      if (hasMathFormulas && !markdownResult.includes('katex')) {
+        console.warn('⚠️ Math formulas detected in input but no KaTeX output found!');
+        console.log('Input sample:', content.substring(0, 200));
+        console.log('Output sample:', markdownResult.substring(0, 200));
+      }
+      
+      return markdownResult;
+    } else {
+      // 纯HTML内容，只进行安全清理
+      console.log('🧹 Processing with DOMPurify only (no math formulas)');
+      const purifiedResult = DOMPurify.sanitize(content, {
+        ALLOWED_TAGS: [
+          'div', 'p', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
+          'strong', 'em', 'u', 's', 'mark', 'small', 'del', 'ins',
+          'code', 'pre', 'blockquote', 'cite', 'q',
+          'ul', 'ol', 'li', 'dl', 'dt', 'dd',
+          'a', 'img', 'figure', 'figcaption',
+          'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'caption',
+          'br', 'hr', 'wbr',
+          'details', 'summary',
+          'section', 'article', 'aside', 'nav', 'header', 'footer', 'main',
+          // Add KaTeX-related tags to prevent stripping
+          'annotation', 'semantics', 'math', 'mrow', 'mo', 'mi', 'mn', 'msup', 'msub', 'mfrac', 'munder', 'mover', 'munderover', 'msqrt', 'mroot', 'mspace', 'mstyle', 'mtext', 'menclose', 'mpadded', 'mphantom', 'mtable', 'mtr', 'mtd'
+        ],
+        ALLOWED_ATTR: [
+          'style', 'class', 'id', 'title', 'alt', 'src', 'href', 'target', 'rel',
+          'width', 'height', 'border', 'cellpadding', 'cellspacing',
+          'colspan', 'rowspan', 'scope', 'headers',
+          'data-*', 'aria-*', 'role',
+          // KaTeX-specific attributes
+          'xmlns', 'display', 'mathvariant', 'mathsize', 'mathcolor', 'mathbackground',
+          'scriptlevel', 'displaystyle', 'scriptsizemultiplier', 'scriptminsize',
+          'color', 'background-color', 'font-family', 'font-size', 'font-style', 'font-weight'
+        ],
+        ALLOW_DATA_ATTR: true,
+        ALLOW_ARIA_ATTR: true,
+        KEEP_CONTENT: true
+      });
+      
+      console.log('🧹 DOMPurify processing completed:', {
+        inputLength: content.length,
+        outputLength: purifiedResult.length,
+        containsKaTeX: purifiedResult.includes('katex'),
+        stripped: content.length - purifiedResult.length
+      });
+      
+      return purifiedResult;
+    }
+  } catch (error) {
+    console.error('Content processing error:', error);
+    return `<div class="content-processing-error">
+      <p>⚠️ 内容处理失败: ${error.message}</p>
+      <pre>${content}</pre>
+    </div>`;
+  }
+};
+
 // 内容分析
 const contentAnalysis = computed(() => {
   if (!props.content) {
@@ -185,47 +282,51 @@ const contentAnalysis = computed(() => {
   }
 });
 
-// 内容安全处理
-const sanitizedContent = computed(() => {
-  if (!props.content) return '';
+// 响应式的处理后内容
+const processedContent = ref('');
+
+// 异步处理内容的函数
+const renderContent = async () => {
+  if (!props.content) {
+    processedContent.value = '';
+    return;
+  }
+  
+  isProcessing.value = true;
+  hasError.value = false;
+  errorMessage.value = '';
   
   try {
+    let result;
+    
     if (!props.enableSanitization) {
-      return props.content;
+      // 如果不启用安全处理，直接使用原内容
+      result = props.content;
+    } else {
+      // 使用新的统一处理器
+      result = await processContent(props.content, contentAnalysis.value.type);
     }
     
-    // 配置DOMPurify选项
-    const purifyOptions = {
-      ...props.sanitizationOptions,
-      // 为HTML源码内容添加额外配置
-      ...(contentAnalysis.value.type === 'html_source' ? {
-        // 保持更多HTML特性用于样式保护
-        ADD_TAGS: ['mark', 'details', 'summary'],
-        ADD_ATTR: ['open']
-      } : {})
-    };
+    processedContent.value = result;
     
-    // 使用DOMPurify清理内容
-    const cleaned = DOMPurify.sanitize(props.content, purifyOptions);
-    
-    // 验证清理结果
-    if (cleaned !== props.content) {
-      console.log('ContentRenderer: 内容已被清理', {
-        original: props.content.length,
-        cleaned: cleaned.length,
-        type: contentAnalysis.value.type
-      });
-    }
-    
-    return cleaned;
+    // 通知父组件渲染完成
+    emit('content-rendered', {
+      contentType: contentAnalysis.value.type,
+      contentLength: result.length,
+      success: true
+    });
     
   } catch (error) {
-    console.error('ContentRenderer: 内容清理失败', error);
+    console.error('ContentRenderer: 内容渲染失败', error);
     hasError.value = true;
-    errorMessage.value = '内容安全处理失败: ' + error.message;
-    return '';
+    errorMessage.value = '内容渲染失败: ' + error.message;
+    processedContent.value = '';
+    
+    emit('content-error', error);
+  } finally {
+    isProcessing.value = false;
   }
-});
+};
 
 // HTML内容的CSS类计算
 const getHTMLContentClasses = () => {
@@ -270,49 +371,46 @@ const handleContentClick = (event) => {
 
 // 重试渲染
 const retryRender = async () => {
-  hasError.value = false;
-  errorMessage.value = '';
-  isProcessing.value = true;
-  
-  try {
-    await nextTick();
-    // 触发重新计算
-    emit('content-rendered', {
-      contentType: contentAnalysis.value.type,
-      success: true
-    });
-  } catch (error) {
-    hasError.value = true;
-    errorMessage.value = error.message;
-    emit('content-error', error);
-  } finally {
-    isProcessing.value = false;
-  }
+  await renderContent();
 };
 
-// 监听内容变化
-watch(() => props.content, (newContent, oldContent) => {
-  if (newContent !== oldContent) {
-    hasError.value = false;
-    errorMessage.value = '';
-    rawContent.value = newContent;
+// 预加载highlighter
+onBeforeMount(async () => {
+  try {
+    await preload();
     
-    if (newContent) {
-      isProcessing.value = true;
-      nextTick(() => {
-        isProcessing.value = false;
-        emit('content-rendered', {
-          contentType: contentAnalysis.value.type,
-          contentLength: newContent.length,
-          success: true
-        });
-      });
-    }
+    // 测试KaTeX插件
+    console.log('🧪 测试KaTeX插件...');
+    testKaTeX();
+    
+    // 运行详细的KaTeX调试
+    console.log('🔬 运行详细KaTeX调试...');
+    setTimeout(async () => {
+      await debugKaTeX.runTests();
+      debugKaTeX.checkStyles();
+    }, 1000); // 延迟1秒确保CSS加载完成
+  } catch (error) {
+    console.warn('Failed to preload processor:', error);
+  }
+});
+
+// 监听内容变化
+watch(() => props.content, async (newContent, oldContent) => {
+  if (newContent !== oldContent) {
+    rawContent.value = newContent;
+    await renderContent();
   }
 }, { immediate: true });
 
+// 监听内容类型变化
+watch(() => contentAnalysis.value.type, async () => {
+  if (props.content) {
+    await renderContent();
+  }
+});
+
 // 组件挂载
-onMounted(() => {
+onMounted(async () => {
   rawContent.value = props.content;
   
   // 性能监控
@@ -324,13 +422,19 @@ onMounted(() => {
       features: contentAnalysis.value.features
     });
   }
+  
+  // 确保内容被渲染
+  if (props.content && !processedContent.value) {
+    await renderContent();
+  }
 });
 
 // 暴露方法给父组件
 defineExpose({
   getContentAnalysis: () => contentAnalysis.value,
-  getSanitizedContent: () => sanitizedContent.value,
+  getProcessedContent: () => processedContent.value,
   retryRender,
+  renderContent,
   toggleDebugInfo: () => {
     // 可以被父组件调用来切换调试信息显示
     emit('debug-info-toggle');
@@ -555,6 +659,191 @@ defineExpose({
   }
 }
 
+/* KaTeX数学公式样式 */
+.math-display {
+  margin: 1.2em 0;
+  text-align: center;
+  overflow-x: auto;
+  padding: 0.5em 0;
+}
+
+.math-error {
+  color: #cc0000;
+  background-color: rgba(255, 204, 204, 0.2);
+  border: 1px solid #cc0000;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9em;
+  cursor: help;
+  display: inline-block;
+}
+
+/* KaTeX响应式样式优化 */
+.katex-display {
+  margin: 1.2em 0;
+  text-align: center;
+  overflow-x: auto;
+}
+
+.katex {
+  font-size: 1.1em;
+  line-height: 1.4;
+}
+
+/* Shiki代码高亮样式 */
+.shiki {
+  background-color: #f6f8fa !important;
+  border-radius: 6px;
+  padding: 0.8em 1em;
+  margin: 1em 0;
+  overflow-x: auto;
+  border: 1px solid #e1e4e8;
+  font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9em;
+  line-height: 1.45;
+}
+
+/* 确保pre标签有正确的背景色 */
+pre.shiki {
+  background-color: #f6f8fa !important;
+}
+
+/* 代码块内的代码文本样式 */
+.shiki code {
+  background: transparent !important;
+  color: inherit !important;
+}
+
+
+.shiki-line-numbers {
+  counter-reset: line-number;
+}
+
+.shiki-line-numbers .line::before {
+  counter-increment: line-number;
+  content: counter(line-number);
+  display: inline-block;
+  width: 2em;
+  text-align: right;
+  margin-right: 1em;
+  color: #999;
+  user-select: none;
+}
+
+/* Markdown表格响应式包装 */
+.markdown-table-wrapper {
+  overflow-x: auto;
+  margin: 1em 0;
+  border-radius: 6px;
+  border: 1px solid #e1e4e8;
+}
+
+.markdown-table-wrapper table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+  background: white;
+}
+
+.markdown-table-wrapper th,
+.markdown-table-wrapper td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid #e1e4e8;
+}
+
+.markdown-table-wrapper th {
+  background-color: #f6f8fa;
+  font-weight: 600;
+}
+
+/* Markdown图片优化 */
+.markdown-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin: 1em 0;
+}
+
+/* 内容处理错误样式 */
+.content-processing-error {
+  background-color: #fff5f5;
+  border: 1px solid #fed7d7;
+  border-radius: 6px;
+  padding: 1em;
+  margin: 1em 0;
+  color: #c53030;
+}
+
+.content-processing-error p {
+  margin: 0 0 0.5em 0;
+  font-weight: 600;
+}
+
+.content-processing-error pre {
+  background-color: #f7fafc;
+  padding: 0.5em;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-size: 0.85em;
+  margin: 0;
+}
+
+/* 锚点链接样式 */
+.header-anchor {
+  color: #1e90ff;
+  text-decoration: none;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.header-anchor:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+  .math-display {
+    margin: 0.8em 0;
+    padding: 0.3em 0;
+    font-size: 0.9em;
+  }
+  
+  .katex {
+    font-size: 1em;
+  }
+  
+  .katex-display {
+    margin: 0.8em 0;
+  }
+  
+  /* 长公式水平滚动 */
+  .math-display,
+  .katex-display {
+    overflow-x: auto;
+    overflow-y: hidden;
+    max-width: 100%;
+  }
+  
+  .shiki {
+    padding: 0.6em 0.8em;
+    font-size: 0.85em;
+    margin: 0.8em 0;
+  }
+  
+  .markdown-table-wrapper {
+    font-size: 0.9em;
+  }
+  
+  .markdown-table-wrapper th,
+  .markdown-table-wrapper td {
+    padding: 6px 8px;
+  }
+}
+
 /* 暗色模式支持 */
 @media (prefers-color-scheme: dark) {
   .content-type-indicator {
@@ -573,6 +862,13 @@ defineExpose({
     background: rgba(0, 0, 0, 0.2);
     border-color: rgba(255, 255, 255, 0.2);
     color: #cbd5e0;
+  }
+  
+  /* 暗色模式下的数学公式错误样式 */
+  .math-error {
+    color: #ff6b6b;
+    background-color: rgba(255, 107, 107, 0.1);
+    border-color: #ff6b6b;
   }
 }
 </style>

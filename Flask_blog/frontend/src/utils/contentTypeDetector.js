@@ -108,7 +108,10 @@ export class ContentTypeDetector {
       blockquotes: (content.match(/^[\s]*>\s+/gm) || []).length,
       
       // 内联代码 (`code`)
-      inlineCode: (content.match(/`[^`\n]+`/g) || []).length
+      inlineCode: (content.match(/`[^`\n]+`/g) || []).length,
+      
+      // 数学公式 ($...$ 和 $$...$$)
+      mathFormulas: ((content.match(/\$[^$\n]+?\$/g) || []).length + (content.match(/\$\$[^$]+?\$\$/g) || []).length)
     };
     
     return Object.values(patterns).reduce((sum, count) => sum + count, 0);

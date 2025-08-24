@@ -67,6 +67,7 @@ declare module 'vue' {
     ElTabPane: typeof import('element-plus/es')['ElTabPane']
     ElTabs: typeof import('element-plus/es')['ElTabs']
     ElTag: typeof import('element-plus/es')['ElTag']
+    ElTooltip: typeof import('element-plus/es')['ElTooltip']
     ElUpload: typeof import('element-plus/es')['ElUpload']
     GlobalNotify: typeof import('./components/GlobalNotify.vue')['default']
     HotArticlesCard: typeof import('./components/sidebar/HotArticlesCard.vue')['default']

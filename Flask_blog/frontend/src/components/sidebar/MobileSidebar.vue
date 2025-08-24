@@ -53,7 +53,7 @@
             class="mobile-tag cursor-pointer"
             @click="handleTagClick(tag.slug)"
           >
-            #{{ tag.slug }}
+            #{{ tag.name }}
           </el-tag>
           
           <!-- 展开/收起按钮 -->

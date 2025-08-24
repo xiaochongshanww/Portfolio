@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox='0 0 120 120' xmlns='http://www.w3.org/2000/svg'>
+  <path d='M12 60 L32 44 L32 52 L18 60 L32 68 L32 76 Z' fill='#2563EB' opacity='0.32'/>
+  <path d='M108 60 L88 44 L88 52 L102 60 L88 68 L88 76 Z' fill='#2563EB' opacity='0.32'/>
+  <g stroke='#2563EB' stroke-width='3.25' fill='none' stroke-linecap='round'>
+    <path d='M20.5 92.5 L60.5 24.5 L100.5 92.5 Z'/>
+    <path d='M40.5 92.5 L60.5 24.5 L80.5 92.5 Z'/>
+    <path d='M20.5 92.5 L60.5 60.5 L100.5 92.5 Z'/>
+    <path d='M30.5 76.5 L60.5 60.5 L90.5 76.5'/>
+  </g>
+  <g fill='#2563EB'>
+    <circle cx='60.5' cy='24.5' r='2.9'/>
+    <circle cx='20.5' cy='92.5' r='2.9'/>
+    <circle cx='100.5' cy='92.5' r='2.9'/>
+    <circle cx='40.5' cy='92.5' r='2.9'/>
+    <circle cx='80.5' cy='92.5' r='2.9'/>
+    <circle cx='60.5' cy='60.5' r='2.9'/>
+    <circle cx='30.5' cy='76.5' r='2.9'/>
+    <circle cx='90.5' cy='76.5' r='2.9'/>
+  </g>
+</svg>

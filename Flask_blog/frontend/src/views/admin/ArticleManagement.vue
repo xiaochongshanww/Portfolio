@@ -2,114 +2,141 @@
   <div class="article-management">
     <!-- 页面头部 -->
     <div class="page-header">
+      <div class="header-decoration"></div>
+      <div class="header-pattern"></div>
       <div class="header-content">
-        <h1 class="page-title">文章管理</h1>
-        <p class="page-description">管理所有文章，包括草稿、待审核和已发布的内容</p>
+        <div class="title-container">
+          <div class="title-icon">
+            <el-icon size="32"><Document /></el-icon>
+          </div>
+          <div class="title-text">
+            <h1 class="page-title">文章管理</h1>
+            <p class="page-description">管理所有文章，包括草稿、待审核和已发布的内容</p>
+          </div>
+        </div>
       </div>
       <div class="header-actions">
-        <RouterLink to="/articles/new" class="action-button primary">
-          <el-icon><EditPen /></el-icon>
-          创建文章
+        <RouterLink to="/articles/new" class="modern-action-btn primary">
+          <el-icon size="18"><EditPen /></el-icon>
+          <span>创建文章</span>
         </RouterLink>
       </div>
     </div>
 
     <!-- 筛选控制栏 -->
-    <div class="filter-bar">
-      <div class="filter-left">
-        <el-select v-model="filters.status" placeholder="状态筛选" clearable @change="handleFilterChange">
-          <el-option label="全部状态" value="" />
-          <el-option label="草稿" value="draft" />
-          <el-option label="待审核" value="pending" />
-          <el-option label="已发布" value="published" />
-          <el-option label="已拒绝" value="rejected" />
-        </el-select>
+    <div class="modern-filter-bar">
+      <div class="filter-container">
+        <div class="filter-left">
+          <div class="filter-group">
+            <div class="filter-item">
+              <el-select v-model="filters.status" placeholder="状态筛选" clearable @change="handleFilterChange" class="modern-select">
+                <el-option label="全部状态" value="" />
+                <el-option label="草稿" value="draft" />
+                <el-option label="待审核" value="pending" />
+                <el-option label="已发布" value="published" />
+                <el-option label="已拒绝" value="rejected" />
+              </el-select>
+            </div>
 
-        <el-select v-model="filters.category_id" placeholder="分类筛选" clearable @change="handleFilterChange">
-          <el-option label="全部分类" value="" />
-          <el-option 
-            v-for="cat in categories" 
-            :key="cat.id" 
-            :label="cat.name" 
-            :value="cat.id" 
-          />
-        </el-select>
+            <div class="filter-item">
+              <el-select v-model="filters.category_id" placeholder="分类筛选" clearable @change="handleFilterChange" class="modern-select">
+                <el-option label="全部分类" value="" />
+                <el-option 
+                  v-for="cat in categories" 
+                  :key="cat.id" 
+                  :label="cat.name" 
+                  :value="cat.id" 
+                />
+              </el-select>
+            </div>
 
-        <el-select 
-          v-if="userStore.isAdmin" 
-          v-model="filters.author_id" 
-          placeholder="作者筛选" 
-          clearable 
-          @change="handleFilterChange"
-        >
-          <el-option label="全部作者" value="" />
-          <el-option 
-            v-for="author in authors" 
-            :key="author.id" 
-            :label="author.nickname || author.email" 
-            :value="author.id" 
-          />
-        </el-select>
+            <div class="filter-item" v-if="userStore.isAdmin">
+              <el-select 
+                v-model="filters.author_id" 
+                placeholder="作者筛选" 
+                clearable 
+                @change="handleFilterChange"
+                class="modern-select"
+              >
+                <el-option label="全部作者" value="" />
+                <el-option 
+                  v-for="author in authors" 
+                  :key="author.id" 
+                  :label="author.nickname || author.email" 
+                  :value="author.id" 
+                />
+              </el-select>
+            </div>
 
-        <el-input
-          v-model="filters.search"
-          placeholder="搜索文章标题..."
-          clearable
-          @clear="handleFilterChange"
-          @keyup.enter="handleFilterChange"
-          class="search-input"
-        >
-          <template #prefix>
-            <el-icon><Search /></el-icon>
-          </template>
-        </el-input>
-      </div>
+            <div class="filter-item search-item">
+              <el-input
+                v-model="filters.search"
+                placeholder="搜索文章标题..."
+                clearable
+                @clear="handleFilterChange"
+                @keyup.enter="handleFilterChange"
+                class="modern-search-input"
+              >
+                <template #prefix>
+                  <el-icon><Search /></el-icon>
+                </template>
+              </el-input>
+            </div>
+          </div>
+        </div>
 
-      <div class="filter-right">
-        <el-button @click="handleRefresh" :loading="loading">
-          <el-icon><Refresh /></el-icon>
-          刷新
-        </el-button>
+        <div class="filter-right">
+          <button @click="handleRefresh" :disabled="loading" class="refresh-btn">
+            <el-icon size="16" :class="{ 'is-loading': loading }"><Refresh /></el-icon>
+            <span>刷新</span>
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- 批量操作栏 -->
-    <div v-if="selectedArticles.length > 0" class="bulk-actions">
-      <div class="selected-info">
-        已选择 {{ selectedArticles.length }} 篇文章
-      </div>
-      <div class="bulk-buttons">
-        <el-button 
-          v-if="userStore.canModerateContent" 
-          @click="handleBulkApprove" 
-          type="success" 
-          size="small"
-          :disabled="!canBulkApprove"
-        >
-          批量审核通过
-        </el-button>
-        <el-button 
-          v-if="userStore.canModerateContent" 
-          @click="handleBulkReject" 
-          type="warning" 
-          size="small"
-          :disabled="!canBulkReject"
-        >
-          批量拒绝
-        </el-button>
-        <el-button @click="selectedArticles = []" size="small">
-          取消选择
-        </el-button>
+    <div v-if="selectedArticles.length > 0" class="modern-bulk-actions">
+      <div class="bulk-decoration"></div>
+      <div class="bulk-content">
+        <div class="selected-info">
+          <el-icon size="18"><Select /></el-icon>
+          <span>已选择 <strong>{{ selectedArticles.length }}</strong> 篇文章</span>
+        </div>
+        <div class="bulk-buttons">
+          <button 
+            v-if="userStore.canModerateContent" 
+            @click="handleBulkApprove" 
+            class="bulk-btn success"
+            :disabled="!canBulkApprove"
+          >
+            <el-icon size="16"><Check /></el-icon>
+            <span>批量审核通过</span>
+          </button>
+          <button 
+            v-if="userStore.canModerateContent" 
+            @click="handleBulkReject" 
+            class="bulk-btn warning"
+            :disabled="!canBulkReject"
+          >
+            <el-icon size="16"><Close /></el-icon>
+            <span>批量拒绝</span>
+          </button>
+          <button @click="selectedArticles = []" class="bulk-btn cancel">
+            <el-icon size="16"><RefreshLeft /></el-icon>
+            <span>取消选择</span>
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- 文章列表 -->
-    <div class="article-list-container">
+    <div class="modern-article-list">
       <el-table
         :data="articles"
         v-loading="loading"
         @selection-change="handleSelectionChange"
         row-key="id"
+        class="modern-table"
       >
         <el-table-column type="selection" width="55" />
         
@@ -252,7 +279,7 @@
       </el-table>
 
       <!-- 分页 -->
-      <div class="pagination-container">
+      <div class="modern-pagination">
         <el-pagination
           background
           layout="total, sizes, prev, pager, next, jumper"
@@ -262,6 +289,7 @@
           :page-sizes="[10, 20, 50, 100]"
           @current-change="handlePageChange"
           @size-change="handleSizeChange"
+          class="modern-pagination-component"
         />
       </div>
     </div>
@@ -271,6 +299,7 @@
       v-model="rejectDialog.visible" 
       title="拒绝发布" 
       width="500px"
+      class="modern-dialog"
     >
       <el-form :model="rejectDialog.form" label-width="80px">
         <el-form-item label="拒绝原因" required>
@@ -303,7 +332,8 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { 
   EditPen, Search, Refresh, User, Calendar, Collection, View, Star, 
-  Clock, Edit, ArrowDown, Upload, Check, Close, Hide, Delete 
+  Clock, Edit, ArrowDown, Upload, Check, Close, Hide, Delete, Document,
+  Select, RefreshLeft 
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useUserStore } from '../../stores/user';
@@ -761,240 +791,784 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* ===== 现代化文章管理样式 ===== */
 .article-management {
   max-width: 1400px;
   margin: 0 auto;
+  position: relative;
 }
 
+/* 页面头部 */
 .page-header {
+  position: relative;
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 24px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid #e5e7eb;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding: 2rem;
+  background: 
+    linear-gradient(135deg, 
+      rgba(59, 130, 246, 0.05) 0%, 
+      rgba(139, 92, 246, 0.03) 100%
+    );
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+  box-shadow: 
+    0 4px 20px rgba(59, 130, 246, 0.1),
+    0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.header-decoration {
+  position: absolute;
+  top: -50px;
+  left: -50px;
+  width: 100px;
+  height: 100px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.05));
+  border-radius: 50%;
+  filter: blur(30px);
+  animation: float-decoration 8s ease-in-out infinite;
+}
+
+.header-pattern {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    radial-gradient(circle at 2px 2px, rgba(59, 130, 246, 0.1) 1px, transparent 0);
+  background-size: 30px 30px;
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+@keyframes float-decoration {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(180deg); }
 }
 
 .header-content {
   flex: 1;
+  position: relative;
+  z-index: 2;
+}
+
+.title-container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.title-icon {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.title-icon::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(45deg, transparent 40%, rgba(255, 255, 255, 0.2) 50%, transparent 60%);
+  transform: rotate(45deg) translateX(-100%);
+  transition: transform 0.6s ease;
+}
+
+.title-icon:hover::before {
+  transform: rotate(45deg) translateX(100%);
+}
+
+.title-text {
+  flex: 1;
 }
 
 .page-title {
-  margin: 0 0 8px 0;
-  font-size: 28px;
-  font-weight: 600;
-  color: #1f2937;
+  margin: 0 0 0.5rem 0;
+  font-size: 2rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #1e293b 0%, #3b82f6 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.025em;
 }
 
 .page-description {
   margin: 0;
-  color: #6b7280;
-  font-size: 16px;
+  color: #64748b;
+  font-size: 1rem;
+  line-height: 1.6;
 }
 
 .header-actions {
-  display: flex;
-  gap: 12px;
+  position: relative;
+  z-index: 2;
 }
 
-.action-button {
+.modern-action-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  border-radius: 8px;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 12px;
   text-decoration: none;
-  font-weight: 500;
-  transition: all 0.2s;
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  border: none;
+  cursor: pointer;
 }
 
-.action-button.primary {
-  background: #3b82f6;
+.modern-action-btn.primary {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: white;
-  border: 1px solid #3b82f6;
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.25);
 }
 
-.action-button.primary:hover {
-  background: #2563eb;
-  transform: translateY(-1px);
+.modern-action-btn.primary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
-.filter-bar {
+.modern-action-btn.primary:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 8px 30px rgba(59, 130, 246, 0.3);
+}
+
+.modern-action-btn.primary:hover::before {
+  opacity: 1;
+}
+
+.modern-action-btn.primary:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* 筛选栏样式 */
+.modern-filter-bar {
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.filter-container {
+  background: 
+    linear-gradient(135deg, 
+      rgba(255, 255, 255, 0.9) 0%, 
+      rgba(248, 250, 252, 0.8) 100%
+    );
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 1.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding: 16px;
-  background: white;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
+  box-shadow: 
+    0 4px 20px rgba(0, 0, 0, 0.05),
+    0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .filter-left {
+  flex: 1;
+}
+
+.filter-group {
   display: flex;
-  gap: 12px;
+  gap: 1rem;
   flex-wrap: wrap;
+  align-items: center;
 }
 
-.filter-left .el-select {
-  width: 140px;
+.filter-item {
+  position: relative;
 }
 
-.search-input {
-  width: 200px;
+.modern-select {
+  width: 160px;
+}
+
+.search-item {
+  min-width: 240px;
+  flex: 1;
+}
+
+.modern-search-input {
+  width: 100%;
 }
 
 .filter-right {
-  display: flex;
-  gap: 8px;
+  margin-left: 1rem;
 }
 
-.bulk-actions {
+.refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(59, 130, 246, 0.05));
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 12px;
+  color: #8b5cf6;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.refresh-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(59, 130, 246, 0.05));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(59, 130, 246, 0.1));
+  border-color: rgba(139, 92, 246, 0.3);
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 8px 25px rgba(139, 92, 246, 0.2);
+}
+
+.refresh-btn:hover:not(:disabled)::before {
+  opacity: 1;
+}
+
+.refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.refresh-btn .is-loading {
+  animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 批量操作栏 */
+.modern-bulk-actions {
+  position: relative;
+  margin-bottom: 1.5rem;
+  background: 
+    linear-gradient(135deg, 
+      rgba(59, 130, 246, 0.08) 0%, 
+      rgba(139, 92, 246, 0.05) 100%
+    );
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  overflow: hidden;
+  animation: slideInDown 0.3s ease-out;
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.bulk-decoration {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6, #06b6d4);
+}
+
+.bulk-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  padding: 12px 16px;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 8px;
+  padding: 1rem 1.5rem;
+  position: relative;
+  z-index: 2;
 }
 
 .selected-info {
-  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
   color: #1e40af;
+  font-size: 0.95rem;
 }
 
 .bulk-buttons {
   display: flex;
-  gap: 8px;
+  gap: 0.75rem;
 }
 
-.article-list-container {
-  background: white;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
+.bulk-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  border-radius: 10px;
+  border: none;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
   overflow: hidden;
 }
 
+.bulk-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.bulk-btn.success {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(22, 163, 74, 0.05));
+  color: #16a34a;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.bulk-btn.success::before {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(22, 163, 74, 0.05));
+}
+
+.bulk-btn.warning {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.05));
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.bulk-btn.warning::before {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.05));
+}
+
+.bulk-btn.cancel {
+  background: linear-gradient(135deg, rgba(107, 114, 128, 0.1), rgba(75, 85, 99, 0.05));
+  color: #6b7280;
+  border: 1px solid rgba(107, 114, 128, 0.2);
+}
+
+.bulk-btn.cancel::before {
+  background: linear-gradient(135deg, rgba(107, 114, 128, 0.1), rgba(75, 85, 99, 0.05));
+}
+
+.bulk-btn:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.bulk-btn:hover:not(:disabled)::before {
+  opacity: 1;
+}
+
+.bulk-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.bulk-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+/* 文章列表容器 */
+.modern-article-list {
+  background: 
+    linear-gradient(135deg, 
+      rgba(255, 255, 255, 0.95) 0%, 
+      rgba(248, 250, 252, 0.9) 100%
+    );
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  overflow: hidden;
+  box-shadow: 
+    0 4px 20px rgba(0, 0, 0, 0.05),
+    0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.modern-table {
+  background: transparent;
+}
+
+.modern-table :deep(.el-table__header-wrapper) {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(139, 92, 246, 0.03));
+}
+
+.modern-table :deep(.el-table__header) {
+  background: transparent;
+}
+
+.modern-table :deep(.el-table__header th) {
+  background: transparent;
+  border-bottom: 2px solid rgba(59, 130, 246, 0.1);
+  color: #1e293b;
+  font-weight: 600;
+  padding: 1rem 0.75rem;
+}
+
+.modern-table :deep(.el-table__body-wrapper) {
+  background: transparent;
+}
+
+.modern-table :deep(.el-table__row) {
+  background: rgba(255, 255, 255, 0.6);
+  transition: all 0.3s ease;
+}
+
+.modern-table :deep(.el-table__row:hover) {
+  background: rgba(59, 130, 246, 0.05) !important;
+  transform: scale(1.01);
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.1);
+}
+
+.modern-table :deep(.el-table td) {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 1rem 0.75rem;
+}
+
+.modern-table :deep(.el-table--striped .el-table__row--striped) {
+  background: rgba(248, 250, 252, 0.5);
+}
+
+.modern-table :deep(.el-table--striped .el-table__row--striped:hover) {
+  background: rgba(59, 130, 246, 0.05) !important;
+}
+
+/* 文章信息样式 */
 .article-info {
-  padding: 8px 0;
+  padding: 0.75rem 0;
 }
 
 .article-title {
-  margin-bottom: 8px;
+  margin-bottom: 0.75rem;
 }
 
 .title-link {
-  color: #1f2937;
+  color: #1e293b;
   text-decoration: none;
-  font-weight: 500;
-  font-size: 16px;
+  font-weight: 600;
+  font-size: 1rem;
+  line-height: 1.4;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.title-link::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  transition: width 0.3s ease;
 }
 
 .title-link:hover {
   color: #3b82f6;
 }
 
+.title-link:hover::after {
+  width: 100%;
+}
+
 .article-meta {
   display: flex;
-  gap: 16px;
-  margin-bottom: 8px;
-  font-size: 14px;
-  color: #6b7280;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+  color: #64748b;
+  flex-wrap: wrap;
 }
 
 .meta-item {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  background: rgba(59, 130, 246, 0.05);
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.meta-item:hover {
+  background: rgba(59, 130, 246, 0.1);
+  transform: scale(1.05);
 }
 
 .article-summary {
-  font-size: 14px;
+  font-size: 0.875rem;
   color: #9ca3af;
-  line-height: 1.4;
+  line-height: 1.5;
   max-width: 400px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  word-wrap: break-word;
 }
 
 .article-stats {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0.5rem;
   align-items: center;
 }
 
 .stat-item {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 14px;
-  color: #6b7280;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  color: #64748b;
+  padding: 0.25rem 0.5rem;
+  background: rgba(139, 92, 246, 0.05);
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.stat-item:hover {
+  background: rgba(139, 92, 246, 0.1);
+  transform: scale(1.1);
 }
 
 .publish-time, .schedule-time, .no-time {
-  font-size: 14px;
-  color: #6b7280;
+  font-size: 0.875rem;
+  color: #64748b;
+  padding: 0.25rem 0.5rem;
+  background: rgba(6, 182, 212, 0.05);
+  border-radius: 6px;
+  text-align: center;
 }
 
 .schedule-time {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 0.25rem;
   color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
 }
 
 .action-buttons {
   display: flex;
-  gap: 8px;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
-.pagination-container {
-  padding: 20px;
+/* 分页样式 */
+.modern-pagination {
+  padding: 1.5rem;
   display: flex;
   justify-content: center;
-  background: #f9fafb;
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.8), rgba(241, 245, 249, 0.6));
+  border-top: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.modern-pagination-component :deep(.el-pagination) {
+  gap: 0.5rem;
+}
+
+.modern-pagination-component :deep(.el-pagination .el-pager li) {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+  transition: all 0.3s ease;
+}
+
+.modern-pagination-component :deep(.el-pagination .el-pager li:hover) {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
+  transform: translateY(-2px);
+}
+
+.modern-pagination-component :deep(.el-pagination .el-pager li.is-active) {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border-color: #3b82f6;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+}
+
+.modern-pagination-component :deep(.el-pagination .btn-prev),
+.modern-pagination-component :deep(.el-pagination .btn-next) {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+  transition: all 0.3s ease;
+}
+
+.modern-pagination-component :deep(.el-pagination .btn-prev:hover),
+.modern-pagination-component :deep(.el-pagination .btn-next:hover) {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
+  transform: translateY(-2px);
 }
 
 /* 响应式设计 */
 @media (max-width: 1024px) {
   .page-header {
     flex-direction: column;
-    gap: 16px;
+    gap: 1rem;
+    align-items: flex-start;
   }
   
-  .filter-bar {
-    flex-direction: column;
-    gap: 12px;
-  }
-  
-  .filter-left {
+  .title-container {
     width: 100%;
   }
   
-  .filter-left .el-select,
-  .search-input {
+  .header-actions {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+  }
+  
+  .filter-container {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .filter-group {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  
+  .filter-item {
     flex: 1;
-    min-width: 120px;
+    min-width: 140px;
+  }
+  
+  .search-item {
+    min-width: 200px;
+  }
+  
+  .filter-right {
+    margin-left: 0;
+    align-self: flex-end;
   }
 }
 
 @media (max-width: 768px) {
+  .page-header {
+    padding: 1.5rem;
+  }
+  
+  .title-container {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+  
+  .title-icon {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .page-title {
+    font-size: 1.75rem;
+  }
+  
+  .filter-container {
+    padding: 1rem;
+  }
+  
+  .filter-group {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .filter-item {
+    width: 100%;
+  }
+  
+  .modern-select,
+  .modern-search-input {
+    width: 100%;
+  }
+  
+  .filter-right {
+    align-self: stretch;
+  }
+  
+  .refresh-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .bulk-content {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+  
+  .bulk-buttons {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  
   .article-meta {
     flex-direction: column;
-    gap: 4px;
+    gap: 0.25rem;
   }
   
   .action-buttons {
     flex-direction: column;
+    gap: 0.5rem;
   }
   
-  .bulk-actions {
+  .modern-table :deep(.el-table__row:hover) {
+    transform: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .bulk-buttons {
     flex-direction: column;
-    gap: 12px;
+    width: 100%;
+  }
+  
+  .bulk-btn {
+    width: 100%;
+    justify-content: center;
   }
 }
 </style>

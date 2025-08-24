@@ -69,7 +69,7 @@
                 <div class="article-stats">
                   <span class="stat-item">
                     <i class="fa fa-clock-o" aria-hidden="true"></i>
-                    {{ calculateReadTime(article.content_html || '') }} 分钟阅读
+                    {{ calculateReadTime(article.content_md || article.content_html || '') }} 分钟阅读
                   </span>
                   <span class="stat-item">
                     <i class="fa fa-eye" aria-hidden="true"></i>
@@ -123,7 +123,7 @@
           <!-- 文章正文 -->
           <div class="article-content">
             <ArticleContentRenderer 
-              :content="article.content_html"
+              :content="article.content_md || article.content_html"
               :show-debug-info="false"
               @content-type-detected="handleContentTypeDetected"
               @content-rendered="handleContentRendered"
@@ -372,6 +372,19 @@ async function load(){
     if (!data) {
       throw new Error('文章数据为空');
     }
+    
+    // 调试：检查API返回的内容格式
+    console.log('📊 API返回的文章数据:', {
+      title: data.title,
+      hasContentHtml: !!data.content_html,
+      hasContentMd: !!data.content_md,
+      contentHtmlLength: data.content_html?.length || 0,
+      contentMdLength: data.content_md?.length || 0,
+      contentHtmlSample: data.content_html?.substring(0, 100) + '...',
+      contentMdSample: data.content_md?.substring(0, 100) + '...',
+      actualContentUsed: data.content_md || data.content_html,
+      actualContentLength: (data.content_md || data.content_html)?.length || 0
+    });
     
     // 调试信息：检查API返回的数据
     console.log('📡 API返回数据 - 点赞数:', data.likes_count, '收藏数:', data.bookmarks_count, '已点赞:', data.liked, '已收藏:', data.bookmarked);

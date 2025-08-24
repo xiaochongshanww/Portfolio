@@ -1,35 +1,69 @@
 <template>
   <div class="category-management">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <div class="header-content">
-        <h1 class="page-title">分类管理</h1>
-        <p class="page-description">管理文章分类，构建清晰的内容结构</p>
+    <!-- 现代化页面头部 -->
+    <div class="modern-page-header">
+      <div class="page-header">
+        <div class="title-container">
+          <div class="title-icon">
+            <el-icon size="28"><DataBoard /></el-icon>
+          </div>
+          <div class="header-content">
+            <h1 class="page-title">分类管理</h1>
+            <p class="page-description">管理文章分类，构建清晰的内容结构</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button @click="loadData" :disabled="loading" class="action-btn secondary">
+            <el-icon size="16" :class="{ 'is-loading': loading }"><Refresh /></el-icon>
+            <span>刷新</span>
+          </button>
+          <button @click="showCreateDialog" class="action-btn primary">
+            <el-icon size="16"><Plus /></el-icon>
+            <span>新建分类</span>
+          </button>
+        </div>
       </div>
-      <div class="header-stats">
-        <div class="stat-item">
-          <span class="stat-label">总分类</span>
-          <span class="stat-value">{{ stats.total_categories }}</span>
+      
+      <!-- 统计面板 -->
+      <div class="modern-stats">
+        <div class="stat-card">
+          <div class="stat-header">
+            <div class="stat-icon">
+              <el-icon size="20"><DataBoard /></el-icon>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">总分类</span>
+              <span class="stat-value">{{ stats.total_categories }}</span>
+            </div>
+          </div>
         </div>
-        <div class="stat-item">
-          <span class="stat-label">已使用</span>
-          <span class="stat-value active">{{ stats.categories_with_articles }}</span>
+        <div class="stat-card">
+          <div class="stat-header">
+            <div class="stat-icon">
+              <el-icon size="20"><Folder /></el-icon>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">已使用</span>
+              <span class="stat-value active">{{ stats.categories_with_articles }}</span>
+            </div>
+          </div>
         </div>
-        <div class="stat-item">
-          <span class="stat-label">未使用</span>
-          <span class="stat-value unused">{{ stats.unused_categories }}</span>
+        <div class="stat-card">
+          <div class="stat-header">
+            <div class="stat-icon">
+              <el-icon size="20"><Folder /></el-icon>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">未使用</span>
+              <span class="stat-value unused">{{ stats.unused_categories }}</span>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="header-actions">
-        <el-button @click="loadData" :loading="loading" icon="Refresh">刷新</el-button>
-        <el-button type="primary" @click="showCreateDialog" icon="Plus">
-          新建分类
-        </el-button>
       </div>
     </div>
 
-    <!-- 分类表格 -->
-    <div class="categories-table">
+    <!-- 现代化分类表格 -->
+    <div class="modern-categories-table">
       <el-table
         v-loading="loading"
         :data="treeData"
@@ -37,6 +71,7 @@
         :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
         default-expand-all
         size="default"
+        class="modern-table"
       >
         <el-table-column prop="name" label="分类名称" min-width="200">
           <template #default="{ row }">
@@ -74,7 +109,7 @@
               <el-button
                 size="small"
                 @click="showEditDialog(row)"
-                icon="Edit"
+                :icon="Edit"
               >
                 编辑
               </el-button>
@@ -82,7 +117,7 @@
               <el-button
                 size="small"
                 @click="showCreateDialog(row)"
-                icon="Plus"
+                :icon="Plus"
               >
                 添加子分类
               </el-button>
@@ -92,7 +127,7 @@
                 type="danger"
                 @click="handleDelete(row)"
                 :disabled="row.article_count > 0"
-                icon="Delete"
+                :icon="Delete"
               >
                 删除
               </el-button>
@@ -174,7 +209,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Plus, Folder, Edit, Delete } from '@element-plus/icons-vue';
+import { Plus, Folder, Edit, Delete, Refresh, DataBoard } from '@element-plus/icons-vue';
 import api from '../../apiClient';
 
 // 响应式数据
@@ -390,18 +425,99 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* ===== 现代化分类管理页面样式 ===== */
 .category-management {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
+  padding: 2rem;
+  min-height: 100vh;
+  background: 
+    radial-gradient(circle at 20% 80%, rgba(34, 197, 94, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(16, 185, 129, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, rgba(6, 182, 212, 0.05) 0%, transparent 50%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.9) 100%);
+}
+
+/* 现代化页面头部 */
+.modern-page-header {
+  position: relative;
+  background: 
+    linear-gradient(135deg, rgba(34, 197, 94, 0.08), rgba(16, 185, 129, 0.05)),
+    rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  padding: 2.5rem;
+  margin-bottom: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.modern-page-header::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200px;
+  height: 200px;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(16, 185, 129, 0.05));
+  border-radius: 50%;
+  filter: blur(40px);
+  animation: float-decoration 8s ease-in-out infinite;
+}
+
+@keyframes float-decoration {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-30px) rotate(180deg); }
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 24px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid #e5e7eb;
+  position: relative;
+  z-index: 2;
+  margin-bottom: 1.5rem;
+}
+
+.title-container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.title-icon {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #10b981 0%, #22c55e 100%);
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow: 0 8px 30px rgba(34, 197, 94, 0.3);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.title-icon::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(45deg, transparent 40%, rgba(255, 255, 255, 0.3) 50%, transparent 60%);
+  transform: rotate(45deg) translateX(-100%);
+  transition: transform 0.6s ease;
+}
+
+.title-icon:hover::before {
+  transform: rotate(45deg) translateX(100%);
 }
 
 .header-content {
@@ -409,57 +525,432 @@ onMounted(() => {
 }
 
 .page-title {
-  margin: 0 0 8px 0;
-  font-size: 28px;
-  font-weight: 600;
-  color: #1f2937;
+  margin: 0 0 0.5rem 0;
+  font-size: 2.25rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #1e293b 0%, #10b981 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
 }
 
 .page-description {
   margin: 0;
-  color: #6b7280;
-  font-size: 16px;
+  color: #64748b;
+  font-size: 1.125rem;
+  font-weight: 400;
+  line-height: 1.6;
 }
 
+/* 统计面板 */
+.modern-stats {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.stat-card {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+  padding: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #10b981, #22c55e);
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+.stat-card:hover::before {
+  height: 4px;
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+}
+
+.stat-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(16, 185, 129, 0.05));
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #10b981;
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover .stat-icon {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(16, 185, 129, 0.1));
+  transform: scale(1.1) rotate(5deg);
+}
+
+.stat-info {
+  flex: 1;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stat-value {
+  display: block;
+  font-size: 2rem;
+  font-weight: 800;
+  color: #1e293b;
+  line-height: 1;
+  transition: all 0.3s ease;
+}
+
+.stat-value.active {
+  color: #10b981;
+}
+
+.stat-value.unused {
+  color: #f59e0b;
+}
+
+.stat-card:hover .stat-value {
+  transform: scale(1.05);
+}
+
+/* 操作按钮组 */
 .header-actions {
   display: flex;
-  gap: 12px;
+  gap: 0.75rem;
+  flex-shrink: 0;
 }
 
-.development-notice {
-  background: white;
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 12px;
+  border: none;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(8px);
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.action-btn.primary {
+  background: linear-gradient(135deg, #10b981, #22c55e);
+  color: white;
+  box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3);
+}
+
+.action-btn.primary:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 8px 25px rgba(34, 197, 94, 0.4);
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+}
+
+.action-btn.secondary {
+  background: rgba(255, 255, 255, 0.8);
+  color: #64748b;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.action-btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.95);
+  color: #1e293b;
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+.action-btn .is-loading {
+  animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 分类表格 */
+.modern-categories-table {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  overflow: hidden;
+  box-shadow: 
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  margin-bottom: 2rem;
+}
+
+.modern-table :deep(.el-table__header-wrapper) {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.05), rgba(16, 185, 129, 0.02));
+  border-radius: 20px 20px 0 0;
+}
+
+.modern-table :deep(.el-table__header) {
+  background: transparent;
+}
+
+.modern-table :deep(.el-table__header th) {
+  background: transparent !important;
+  border: none;
+  color: #1e293b;
+  font-weight: 700;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 1.5rem 1rem;
+}
+
+.modern-table :deep(.el-table__body tr) {
+  transition: all 0.3s ease;
+  border: none;
+}
+
+.modern-table :deep(.el-table__body tr:hover) {
+  background: rgba(34, 197, 94, 0.02);
+  transform: scale(1.005);
+}
+
+.modern-table :deep(.el-table__body td) {
+  border: none;
+  padding: 1.25rem 1rem;
+  vertical-align: middle;
+}
+
+.modern-table :deep(.el-table::before) {
+  display: none;
+}
+
+.modern-table :deep(.el-table__inner-wrapper::before) {
+  display: none;
+}
+
+/* 分类名称样式 */
+.category-name {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.category-icon {
+  color: #10b981;
+  transition: all 0.3s ease;
+}
+
+.category-name:hover .category-icon {
+  transform: scale(1.2) rotate(10deg);
+  color: #22c55e;
+}
+
+.count-tag {
+  background: linear-gradient(135deg, #10b981, #22c55e);
+  color: white;
+  border: none;
+  font-weight: 600;
+}
+
+/* Slug 代码样式 */
+.slug-code {
+  background: rgba(34, 197, 94, 0.05);
+  color: #10b981;
+  padding: 0.375rem 0.75rem;
   border-radius: 8px;
-  border: 1px solid #e5e7eb;
-  padding: 24px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: 1px solid rgba(34, 197, 94, 0.1);
+  transition: all 0.3s ease;
 }
 
-.feature-preview {
-  margin-top: 20px;
+.slug-code:hover {
+  background: rgba(34, 197, 94, 0.1);
+  transform: scale(1.05);
+  border-color: rgba(34, 197, 94, 0.2);
 }
 
-.feature-preview h3 {
-  margin: 0 0 16px 0;
-  color: #1f2937;
-  font-size: 18px;
+/* 操作按钮 */
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
-.feature-preview ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+.action-buttons .el-button {
+  min-width: auto;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.3s ease;
 }
 
-.feature-preview li {
-  padding: 8px 0;
-  color: #4b5563;
-  font-size: 16px;
+.action-buttons .el-button:hover {
+  transform: translateY(-2px) scale(1.05);
+}
+
+/* 空状态样式 */
+.empty-state {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 3rem;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+}
+
+/* 对话框样式 */
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-top: 1rem;
 }
 
 /* 响应式设计 */
-@media (max-width: 768px) {
-  .page-header {
+@media (max-width: 1024px) {
+  .modern-page-header {
     flex-direction: column;
-    gap: 16px;
+    gap: 1.5rem;
+    align-items: flex-start;
+  }
+  
+  .title-container {
+    width: 100%;
+  }
+  
+  .modern-stats {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .category-management {
+    padding: 1rem;
+  }
+  
+  .modern-page-header {
+    padding: 1.5rem;
+  }
+  
+  .title-container {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+  
+  .title-icon {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .page-title {
+    font-size: 1.875rem;
+  }
+  
+  .modern-stats {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .stat-card {
+    width: 100%;
+  }
+  
+  .header-actions {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .action-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .modern-categories-table {
+    border-radius: 16px;
+  }
+  
+  .modern-table :deep(.el-table__body-wrapper) {
+    overflow-x: auto;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  
+  .action-buttons .el-button {
+    width: 100%;
+    font-size: 0.75rem;
+    padding: 0.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .modern-stats {
+    gap: 0.75rem;
+  }
+  
+  .stat-card {
+    padding: 1rem;
+  }
+  
+  .stat-icon {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .stat-value {
+    font-size: 1.5rem;
+  }
+  
+  .modern-categories-table {
+    border-radius: 12px;
   }
 }
 </style>

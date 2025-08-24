@@ -136,6 +136,7 @@ const avatarSources = [
   '/assets/author-avatar.jpg',
   '/assets/author-avatar.png', 
   '/uploads/author-avatar.jpg',
+  '/assets/standard-blue.svg',
   '/assets/default-avatar.svg',
   'https://api.dicebear.com/7.x/avataaars/svg?seed=blog-author&backgroundColor=random',
   null // 最后使用默认图标

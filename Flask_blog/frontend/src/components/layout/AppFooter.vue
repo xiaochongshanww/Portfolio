@@ -28,16 +28,6 @@
                 <li><router-link to="/tags" class="footer-link">标签云</router-link></li>
               </ul>
             </div>
-            
-            <div class="links-section">
-              <h4 class="links-title">关于</h4>
-              <ul class="links-list">
-                <li><router-link to="/about" class="footer-link">关于我们</router-link></li>
-                <li><a href="#" class="footer-link">联系方式</a></li>
-                <li><a href="#" class="footer-link">隐私政策</a></li>
-                <li><a href="#" class="footer-link">使用条款</a></li>
-              </ul>
-            </div>
           </div>
           
           <!-- 社交媒体链接 -->
@@ -117,14 +107,14 @@ onMounted(() => {
     linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.9) 100%);
   border-top: 1px solid rgba(255, 255, 255, 0.3);
   backdrop-filter: blur(20px);
-  margin-top: 4rem;
+  margin-top: 0rem;
   overflow: hidden;
 }
 
 .footer-container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 3rem 2rem 1.5rem;
+  padding: 2rem 2rem 1rem;
   position: relative;
   z-index: 2;
 }
@@ -167,9 +157,9 @@ onMounted(() => {
 
 .footer-main {
   display: grid;
-  grid-template-columns: 1fr 2fr 1fr;
-  gap: 3rem;
-  margin-bottom: 2.5rem;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 /* 品牌区域 */
@@ -236,9 +226,8 @@ onMounted(() => {
 
 /* 链接区域 */
 .footer-links {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
+  display: flex;
+  justify-content: center;
 }
 
 .links-section {
@@ -250,7 +239,7 @@ onMounted(() => {
   font-size: 1rem;
   font-weight: 700;
   color: #1e293b;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   position: relative;
 }
 
@@ -272,7 +261,7 @@ onMounted(() => {
 }
 
 .links-list li {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.375rem;
 }
 
 .footer-link {
@@ -374,7 +363,7 @@ onMounted(() => {
 
 /* 底部版权区域 */
 .footer-bottom {
-  margin-top: 2rem;
+  margin-top: 1.5rem;
 }
 
 .footer-divider {
@@ -386,7 +375,7 @@ onMounted(() => {
     rgba(139, 92, 246, 0.2) 75%, 
     transparent 100%
   );
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .footer-copyright {
@@ -453,12 +442,12 @@ onMounted(() => {
 /* 响应式设计 */
 @media (max-width: 768px) {
   .footer-container {
-    padding: 2rem 1rem 1rem;
+    padding: 1.5rem 1rem 0.75rem;
   }
   
   .footer-main {
     grid-template-columns: 1fr;
-    gap: 2rem;
+    gap: 1.5rem;
     text-align: center;
   }
   
@@ -471,7 +460,7 @@ onMounted(() => {
   }
   
   .footer-links {
-    grid-template-columns: 1fr 1fr;
+    justify-content: center;
   }
   
   .footer-copyright {
@@ -487,8 +476,7 @@ onMounted(() => {
 
 @media (max-width: 640px) {
   .footer-links {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
+    justify-content: center;
   }
   
   .social-links {

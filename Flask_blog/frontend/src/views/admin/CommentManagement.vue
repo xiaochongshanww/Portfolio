@@ -50,12 +50,12 @@
         </div>
         
         <div class="action-group">
-          <el-button @click="loadComments" :loading="loading" icon="Refresh">刷新</el-button>
+          <el-button @click="loadComments" :loading="loading" :icon="Refresh">刷新</el-button>
           <el-button 
             type="danger" 
             :disabled="selectedComments.length === 0"
             @click="handleBatchAction('reject')"
-            icon="Delete"
+            :icon="Delete"
           >
             批量拒绝 ({{ selectedComments.length }})
           </el-button>
@@ -63,7 +63,7 @@
             type="success" 
             :disabled="selectedComments.length === 0"
             @click="handleBatchAction('approve')"
-            icon="Check"
+            :icon="Check"
           >
             批量通过 ({{ selectedComments.length }})
           </el-button>
@@ -84,14 +84,18 @@
         
         <el-table-column prop="id" label="ID" width="80" sortable />
         
-        <el-table-column label="状态" width="100">
+        <el-table-column label="状态" width="120">
           <template #default="{ row }">
-            <el-tag
-              :type="getStatusType(row.status)"
-              size="small"
-            >
-              {{ getStatusText(row.status) }}
-            </el-tag>
+            <div :class="['modern-status-badge', row.status]">
+              <div class="status-indicator">
+                <el-icon size="14">
+                  <Clock v-if="row.status === 'pending'" />
+                  <Check v-else-if="row.status === 'approved'" />
+                  <Close v-else-if="row.status === 'rejected'" />
+                </el-icon>
+                <span class="status-text">{{ getStatusText(row.status) }}</span>
+              </div>
+            </div>
           </template>
         </el-table-column>
         
@@ -100,71 +104,87 @@
             <div class="comment-content">
               <p>{{ row.content }}</p>
               <div class="comment-meta">
-                <span>文章ID: {{ row.article_id }}</span>
-                <span v-if="row.parent_id">• 回复ID: {{ row.parent_id }}</span>
+                <span>
+                  <el-icon size="12"><Document /></el-icon>
+                  文章ID: {{ row.article_id }}
+                </span>
+                <span v-if="row.parent_id">
+                  <el-icon size="12"><ChatLineRound /></el-icon>
+                  回复ID: {{ row.parent_id }}
+                </span>
               </div>
             </div>
           </template>
         </el-table-column>
         
-        <el-table-column prop="user_id" label="用户ID" width="100" />
+        <el-table-column prop="user_id" label="用户ID" width="100">
+          <template #default="{ row }">
+            <div class="user-id-display">
+              <el-icon size="14"><User /></el-icon>
+              <span>{{ row.user_id }}</span>
+            </div>
+          </template>
+        </el-table-column>
         
         <el-table-column prop="created_at" label="发表时间" width="180">
           <template #default="{ row }">
-            {{ formatDate(row.created_at) }}
+            <div class="time-display">
+              <el-icon size="14"><Clock /></el-icon>
+              <span>{{ formatDate(row.created_at) }}</span>
+            </div>
           </template>
         </el-table-column>
         
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <div class="action-buttons">
-              <el-button
+            <div class="modern-action-buttons">
+              <button
                 v-if="row.status === 'pending'"
-                type="success"
-                size="small"
                 @click="handleModerate(row, 'approve')"
-                :loading="moderatingIds.has(row.id)"
+                :disabled="moderatingIds.has(row.id)"
+                class="table-btn approve"
               >
-                通过
-              </el-button>
+                <el-icon size="14" :class="{ 'is-loading': moderatingIds.has(row.id) }"><Check /></el-icon>
+                <span>通过</span>
+              </button>
               
-              <el-button
+              <button
                 v-if="row.status === 'pending'"
-                type="danger"
-                size="small"
                 @click="handleModerate(row, 'reject')"
-                :loading="moderatingIds.has(row.id)"
+                :disabled="moderatingIds.has(row.id)"
+                class="table-btn reject"
               >
-                拒绝
-              </el-button>
+                <el-icon size="14" :class="{ 'is-loading': moderatingIds.has(row.id) }"><Close /></el-icon>
+                <span>拒绝</span>
+              </button>
               
-              <el-button
+              <button
                 v-if="row.status === 'approved'"
-                type="warning"
-                size="small"
                 @click="handleModerate(row, 'reject')"
-                :loading="moderatingIds.has(row.id)"
+                :disabled="moderatingIds.has(row.id)"
+                class="table-btn revoke"
               >
-                撤销
-              </el-button>
+                <el-icon size="14" :class="{ 'is-loading': moderatingIds.has(row.id) }"><Hide /></el-icon>
+                <span>撤销</span>
+              </button>
               
-              <el-button
+              <button
                 v-if="row.status === 'rejected'"
-                type="success"
-                size="small"
                 @click="handleModerate(row, 'approve')"
-                :loading="moderatingIds.has(row.id)"
+                :disabled="moderatingIds.has(row.id)"
+                class="table-btn restore"
               >
-                恢复
-              </el-button>
+                <el-icon size="14" :class="{ 'is-loading': moderatingIds.has(row.id) }"><Refresh /></el-icon>
+                <span>恢复</span>
+              </button>
               
-              <el-button
-                size="small"
+              <button
                 @click="viewArticle(row.article_id)"
-                icon="View"
+                class="table-btn view"
               >
-                查看文章
-              </el-button>
+                <el-icon size="14"><View /></el-icon>
+                <span>查看文章</span>
+              </button>
             </div>
           </template>
         </el-table-column>
@@ -198,6 +218,10 @@ import { ref, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRouter } from 'vue-router';
 import api from '../../apiClient';
+import { 
+  ChatLineRound, Clock, Calendar, DataBoard, Document, Search, 
+  Refresh, Delete, Check, Close, Hide, View, User 
+} from '@element-plus/icons-vue';
 
 const router = useRouter();
 
@@ -508,134 +532,467 @@ onMounted(() => {
   overflow: hidden;
 }
 
+/* 评论内容样式 */
 .comment-content {
   max-width: 100%;
+  position: relative;
 }
 
 .comment-content p {
-  margin: 0 0 8px 0;
-  line-height: 1.5;
+  margin: 0 0 0.75rem 0;
+  line-height: 1.6;
   word-break: break-word;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  color: #1e293b;
+  font-size: 0.875rem;
+  background: rgba(59, 130, 246, 0.02);
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(59, 130, 246, 0.1);
+  transition: all 0.3s ease;
+}
+
+.comment-content p:hover {
+  background: rgba(59, 130, 246, 0.05);
+  border-color: rgba(59, 130, 246, 0.2);
+  transform: scale(1.01);
 }
 
 .comment-meta {
-  font-size: 12px;
-  color: #6b7280;
+  font-size: 0.75rem;
+  color: #64748b;
   display: flex;
-  gap: 8px;
+  gap: 1rem;
   align-items: center;
+  margin-top: 0.5rem;
 }
 
-.action-buttons {
+.comment-meta span {
   display: flex;
-  gap: 4px;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  background: rgba(239, 68, 68, 0.05);
+  border-radius: 6px;
+  border: 1px solid rgba(239, 68, 68, 0.1);
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.comment-meta span:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.2);
+  transform: scale(1.05);
+}
+
+
+/* 现代化操作按钮样式 */
+.modern-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   flex-wrap: wrap;
 }
 
-.action-buttons .el-button {
-  min-width: auto;
+.table-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 8px;
+  border: 1px solid;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(8px);
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+  min-width: fit-content;
 }
 
-.pagination-wrapper {
-  display: flex;
-  justify-content: center;
-  padding: 20px;
-  background: white;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-  margin-top: 20px;
+.table-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
 }
 
-.empty-state {
-  text-align: center;
-  padding: 40px;
-  background: white;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
+.table-btn:hover::before {
+  left: 100%;
+}
+
+.table-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.table-btn:disabled:hover {
+  transform: none !important;
+}
+
+/* 撤销按钮样式 */
+.table-btn.revoke {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.05));
+  color: #dc2626;
+  border-color: rgba(239, 68, 68, 0.3);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.15);
+}
+
+.table-btn.revoke:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.1));
+  border-color: rgba(239, 68, 68, 0.4);
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.25);
+  transform: translateY(-2px) scale(1.02);
+  color: #b91c1c;
+}
+
+.table-btn.revoke:active:not(:disabled) {
+  transform: translateY(0) scale(1);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.15);
+}
+
+/* 查看文章按钮样式 */
+.table-btn.view {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.05));
+  color: #2563eb;
+  border-color: rgba(59, 130, 246, 0.3);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+}
+
+.table-btn.view:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.1));
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.25);
+  transform: translateY(-2px) scale(1.02);
+  color: #1d4ed8;
+}
+
+.table-btn.view:active:not(:disabled) {
+  transform: translateY(0) scale(1);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+}
+
+/* 其他按钮样式 */
+.table-btn.approve {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(22, 163, 74, 0.05));
+  color: #16a34a;
+  border-color: rgba(34, 197, 94, 0.3);
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.15);
+}
+
+.table-btn.approve:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(22, 163, 74, 0.1));
+  border-color: rgba(34, 197, 94, 0.4);
+  box-shadow: 0 4px 15px rgba(34, 197, 94, 0.25);
+  transform: translateY(-2px) scale(1.02);
+  color: #15803d;
+}
+
+.table-btn.reject {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.05));
+  color: #dc2626;
+  border-color: rgba(239, 68, 68, 0.3);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.15);
+}
+
+.table-btn.reject:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.1));
+  border-color: rgba(239, 68, 68, 0.4);
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.25);
+  transform: translateY(-2px) scale(1.02);
+  color: #b91c1c;
+}
+
+.table-btn.restore {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(8, 145, 178, 0.05));
+  color: #0891b2;
+  border-color: rgba(6, 182, 212, 0.3);
+  box-shadow: 0 2px 8px rgba(6, 182, 212, 0.15);
+}
+
+.table-btn.restore:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(8, 145, 178, 0.1));
+  border-color: rgba(6, 182, 212, 0.4);
+  box-shadow: 0 4px 15px rgba(6, 182, 212, 0.25);
+  transform: translateY(-2px) scale(1.02);
+  color: #0e7490;
+}
+
+/* 按钮图标样式 */
+.table-btn .el-icon {
+  transition: all 0.3s ease;
+}
+
+.table-btn:hover:not(:disabled) .el-icon {
+  transform: scale(1.1);
 }
 
 /* 响应式设计 */
-@media (max-width: 768px) {
-  .page-header {
+@media (max-width: 1024px) {
+  .modern-page-header {
     flex-direction: column;
-    gap: 16px;
+    gap: 1rem;
+    align-items: flex-start;
   }
   
-  .header-stats {
-    align-self: stretch;
-    justify-content: space-around;
+  .title-container {
+    width: 100%;
+  }
+  
+  .modern-stats {
+    width: 100%;
+    justify-content: space-between;
   }
   
   .filter-row {
     flex-direction: column;
-    gap: 12px;
+    gap: 1rem;
+  }
+  
+  .filter-group {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  
+  .filter-item {
+    flex: 1;
+    min-width: 140px;
+  }
+  
+  .search-item {
+    min-width: 200px;
+  }
+  
+  .action-group {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .modern-page-header {
+    padding: 1.5rem;
+  }
+  
+  .title-container {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+  
+  .title-icon {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .page-title {
+    font-size: 1.75rem;
+  }
+  
+  .modern-stats {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .stat-card {
+    width: 100%;
+  }
+  
+  .filter-container {
+    padding: 1rem;
   }
   
   .filter-group {
     flex-direction: column;
+    gap: 0.75rem;
   }
   
-  .filter-group .el-select,
-  .filter-group .el-input {
-    min-width: auto;
+  .filter-item {
+    width: 100%;
+  }
+  
+  .modern-select,
+  .modern-input,
+  .modern-search-input {
+    width: 100%;
   }
   
   .action-group {
-    justify-content: stretch;
+    flex-direction: column;
+    gap: 0.75rem;
   }
   
-  .action-group .el-button {
-    flex: 1;
-    text-align: center;
+  .action-btn {
+    width: 100%;
+    justify-content: center;
   }
   
-  .comments-table {
-    /* 移动端隐藏部分列 */
+  .modern-comments-table {
+    /* 移动端表格滚动 */
   }
   
-  .comments-table :deep(.el-table__body-wrapper) {
+  .modern-table :deep(.el-table__body-wrapper) {
     overflow-x: auto;
   }
   
-  .action-buttons {
-    flex-direction: column;
-    gap: 2px;
+  .modern-table :deep(.el-table__row:hover) {
+    transform: none;
   }
   
-  .action-buttons .el-button {
-    font-size: 12px;
-    padding: 4px 8px;
+  .modern-action-buttons {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .table-btn {
+    width: 100%;
+    justify-content: center;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
   }
 }
 
-@media (max-width: 480px) {
-  .comment-management {
-    padding: 0 8px;
+@media (max-width: 640px) {
+  .modern-stats {
+    gap: 0.5rem;
   }
   
-  .page-title {
-    font-size: 24px;
+  .stat-card {
+    padding: 0.75rem;
   }
   
-  .header-stats {
-    gap: 16px;
+  .stat-icon {
+    width: 35px;
+    height: 35px;
   }
   
-  .stat-item {
-    flex: 1;
+  .stat-value {
+    font-size: 1.125rem;
   }
   
-  .filter-section,
-  .comments-table,
-  .pagination-wrapper,
-  .empty-state {
-    border-radius: 6px;
-    border: none;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  .action-btn span {
+    display: none;
   }
+  
+  .table-btn span {
+    font-size: 0.7rem;
+  }
+  
+  .comment-content p {
+    padding: 0.5rem;
+    font-size: 0.8rem;
+  }
+  
+  .comment-meta {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+}
+
+/* 现代化状态徽章 */
+.modern-status-badge {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+  border: 1px solid;
+}
+
+.modern-status-badge.pending .status-indicator {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(217, 119, 6, 0.1));
+  color: #d97706;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.modern-status-badge.approved .status-indicator {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(22, 163, 74, 0.1));
+  color: #16a34a;
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.modern-status-badge.rejected .status-indicator {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.1));
+  color: #dc2626;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.status-indicator:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* 时间显示样式 */
+.time-display {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  background: rgba(6, 182, 212, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(6, 182, 212, 0.1);
+  font-size: 0.875rem;
+  color: #0891b2;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.time-display:hover {
+  background: rgba(6, 182, 212, 0.1);
+  border-color: rgba(6, 182, 212, 0.2);
+  transform: scale(1.02);
+}
+
+/* 用户ID显示样式 */
+.user-id-display {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  background: rgba(139, 92, 246, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(139, 92, 246, 0.1);
+  font-size: 0.875rem;
+  color: #8b5cf6;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  justify-content: center;
+}
+
+.user-id-display:hover {
+  background: rgba(139, 92, 246, 0.1);
+  border-color: rgba(139, 92, 246, 0.2);
+  transform: scale(1.02);
+}
+
+.action-btn .is-loading {
+  animation: rotate 1s linear infinite;
+}
+
+.table-btn .is-loading {
+  animation: rotate 1s linear infinite;
 }
 </style>

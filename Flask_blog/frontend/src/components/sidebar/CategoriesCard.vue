@@ -69,7 +69,7 @@
           class="tag-item"
           @click="handleTagClick(tag.slug)"
         >
-          #{{ tag.slug }}
+          #{{ tag.name }}
         </el-tag>
         
         <!-- 显示更多标签按钮 -->

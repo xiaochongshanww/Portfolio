@@ -8,42 +8,71 @@
         </p>
       </div>
 
-      <!-- 标签统计 -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div class="bg-white rounded-xl p-6 text-center shadow-sm border border-gray-100">
-          <div class="text-2xl font-bold text-blue-600 mb-1">{{ tags.length }}</div>
-          <div class="text-sm text-gray-600">总标签数</div>
+      <!-- 现代化统计面板 -->
+      <div class="modern-stats-grid">
+        <div class="stat-card stat-card-blue">
+          <div class="stat-icon-wrapper">
+            <el-icon size="24"><Document /></el-icon>
+          </div>
+          <div class="stat-content">
+            <div class="stat-number">{{ tags.length }}</div>
+            <div class="stat-label">总标签数</div>
+          </div>
+          <div class="stat-decoration"></div>
         </div>
-        <div class="bg-white rounded-xl p-6 text-center shadow-sm border border-gray-100">
-          <div class="text-2xl font-bold text-green-600 mb-1">{{ totalArticles }}</div>
-          <div class="text-sm text-gray-600">关联文章</div>
+        
+        <div class="stat-card stat-card-green">
+          <div class="stat-icon-wrapper">
+            <el-icon size="24"><Reading /></el-icon>
+          </div>
+          <div class="stat-content">
+            <div class="stat-number">{{ totalArticles }}</div>
+            <div class="stat-label">关联文章</div>
+          </div>
+          <div class="stat-decoration"></div>
         </div>
-        <div class="bg-white rounded-xl p-6 text-center shadow-sm border border-gray-100">
-          <div class="text-2xl font-bold text-purple-600 mb-1">{{ popularTags.length }}</div>
-          <div class="text-sm text-gray-600">热门标签</div>
+        
+        <div class="stat-card stat-card-purple">
+          <div class="stat-icon-wrapper">
+            <el-icon size="24"><Star /></el-icon>
+          </div>
+          <div class="stat-content">
+            <div class="stat-number">{{ popularTags.length }}</div>
+            <div class="stat-label">热门标签</div>
+          </div>
+          <div class="stat-decoration"></div>
         </div>
-        <div class="bg-white rounded-xl p-6 text-center shadow-sm border border-gray-100">
-          <div class="text-2xl font-bold text-orange-600 mb-1">{{ averagePerTag }}</div>
-          <div class="text-sm text-gray-600">平均文章数</div>
+        
+        <div class="stat-card stat-card-orange">
+          <div class="stat-icon-wrapper">
+            <el-icon size="24"><TrendCharts /></el-icon>
+          </div>
+          <div class="stat-content">
+            <div class="stat-number">{{ averagePerTag }}</div>
+            <div class="stat-label">平均文章数</div>
+          </div>
+          <div class="stat-decoration"></div>
         </div>
       </div>
 
-      <!-- 视图切换 -->
-      <div class="flex justify-center mb-8">
-        <div class="bg-white rounded-xl p-2 shadow-sm border border-gray-200">
+      <!-- 现代化视图切换器 -->
+      <div class="modern-view-switcher">
+        <div class="view-switcher-container">
+          <div class="switcher-background"></div>
           <button 
             v-for="view in viewModes" 
             :key="view.value"
             @click="currentView = view.value"
             :class="[
-              'px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
-              currentView === view.value 
-                ? 'bg-blue-500 text-white shadow-sm' 
-                : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+              'view-switcher-btn',
+              currentView === view.value ? 'active' : ''
             ]"
           >
-            <el-icon class="mr-1"><component :is="view.icon" /></el-icon>
-            {{ view.label }}
+            <div class="btn-icon-wrapper">
+              <el-icon size="18"><component :is="view.icon" /></el-icon>
+            </div>
+            <span class="btn-label">{{ view.label }}</span>
+            <div class="btn-glow"></div>
           </button>
         </div>
       </div>
@@ -58,7 +87,7 @@
             :class="getTagCloudClass(tag.article_count || 0)"
             class="tag-cloud-item"
           >
-            #{{ tag.slug }}
+            #{{ tag.name }}
             <span class="tag-count">({{ tag.article_count || 0 }})</span>
           </button>
         </div>
@@ -71,7 +100,7 @@
             <!-- 卡片头部 -->
             <div class="card-header">
               <div class="tag-icon">
-                <el-icon size="20"><PriceTag /></el-icon>
+                <el-icon size="20"><Document /></el-icon>
               </div>
               <div class="article-count">
                 {{ tag.article_count || 0 }}
@@ -80,8 +109,8 @@
             
             <!-- 卡片内容 -->
             <div class="card-content">
-              <h3 class="tag-title">#{{ tag.slug }}</h3>
-              <p class="tag-description">{{ tag.description || `探索与"${tag.slug}"相关的精彩内容` }}</p>
+              <h3 class="tag-title">#{{ tag.name }}</h3>
+              <p class="tag-description">{{ tag.description || `探索与"${tag.name}"相关的精彩内容` }}</p>
             </div>
             
             <!-- 卡片底部 -->
@@ -110,11 +139,11 @@
           >
             <div class="flex items-center gap-3">
               <div class="tag-list-icon">
-                <el-icon size="18"><PriceTag /></el-icon>
+                <el-icon size="18"><Document /></el-icon>
               </div>
               <div>
                 <div class="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
-                  #{{ tag.slug }}
+                  #{{ tag.name }}
                 </div>
                 <div class="text-sm text-gray-500">
                   {{ tag.description || '暂无描述' }}
@@ -139,7 +168,7 @@
 
       <!-- 空状态 -->
       <div v-if="!loading && tags.length === 0" class="text-center py-12">
-        <el-icon class="text-6xl text-gray-300 mb-4"><PriceTag /></el-icon>
+        <el-icon class="text-6xl text-gray-300 mb-4"><Document /></el-icon>
         <h3 class="text-xl font-medium text-gray-900 mb-2">暂无标签</h3>
         <p class="text-gray-600">还没有任何标签，快去创建第一篇文章吧！</p>
       </div>
@@ -150,7 +179,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { PriceTag, ArrowRight, Loading, Grid, List, Compass } from '@element-plus/icons-vue';
+import { Document, ArrowRight, Loading, Grid, List, Compass, Reading, Star, TrendCharts } from '@element-plus/icons-vue';
 import apiClient from '../apiClient';
 import { setMeta } from '../composables/useMeta';
 
@@ -247,6 +276,329 @@ onMounted(loadTags);
 @keyframes float {
   0%, 100% { transform: translateY(0px) rotate(0deg); }
   50% { transform: translateY(-20px) rotate(2deg); }
+}
+
+/* ===== 现代化统计面板样式 ===== */
+.modern-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+.stat-card {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 24px;
+  padding: 2rem;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(20px);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.04),
+    0 1px 0 rgba(255, 255, 255, 0.4) inset;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--stat-gradient));
+  transform: scaleX(0);
+  transition: transform 0.5s ease;
+  transform-origin: left;
+  border-radius: 24px 24px 0 0;
+}
+
+.stat-card:hover::before {
+  transform: scaleX(1);
+}
+
+.stat-card:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 
+    0 25px 50px rgba(0, 0, 0, 0.1),
+    0 2px 0 rgba(255, 255, 255, 0.6) inset;
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.stat-decoration {
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, var(--stat-decoration) 0%, transparent 70%);
+  transform: scale(0);
+  transition: transform 0.6s ease;
+  pointer-events: none;
+  opacity: 0.1;
+}
+
+.stat-card:hover .stat-decoration {
+  transform: scale(1);
+}
+
+.stat-icon-wrapper {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  background: var(--stat-gradient);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 8px 32px var(--stat-shadow);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.stat-icon-wrapper::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.2) 50%, transparent 70%);
+  transform: rotate(45deg) translateX(-100%);
+  transition: transform 0.6s ease;
+}
+
+.stat-card:hover .stat-icon-wrapper {
+  transform: rotate(-8deg) scale(1.15);
+  box-shadow: 0 12px 40px var(--stat-shadow);
+}
+
+.stat-card:hover .stat-icon-wrapper::before {
+  transform: rotate(45deg) translateX(100%);
+}
+
+.stat-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stat-number {
+  font-size: 2.5rem;
+  font-weight: 800;
+  background: var(--stat-gradient);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  line-height: 1;
+  letter-spacing: -0.025em;
+  transition: all 0.4s ease;
+}
+
+.stat-card:hover .stat-number {
+  transform: scale(1.1);
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: color 0.3s ease;
+}
+
+.stat-card:hover .stat-label {
+  color: #475569;
+}
+
+/* 不同主题色彩 */
+.stat-card-blue {
+  --stat-gradient: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  --stat-shadow: rgba(59, 130, 246, 0.25);
+  --stat-decoration: rgba(59, 130, 246, 0.1);
+}
+
+.stat-card-green {
+  --stat-gradient: linear-gradient(135deg, #10b981, #059669);
+  --stat-shadow: rgba(16, 185, 129, 0.25);
+  --stat-decoration: rgba(16, 185, 129, 0.1);
+}
+
+.stat-card-purple {
+  --stat-gradient: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  --stat-shadow: rgba(139, 92, 246, 0.25);
+  --stat-decoration: rgba(139, 92, 246, 0.1);
+}
+
+.stat-card-orange {
+  --stat-gradient: linear-gradient(135deg, #f59e0b, #d97706);
+  --stat-shadow: rgba(245, 158, 11, 0.25);
+  --stat-decoration: rgba(245, 158, 11, 0.1);
+}
+
+/* ===== 现代化视图切换器样式 ===== */
+.modern-view-switcher {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 3rem;
+}
+
+.view-switcher-container {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  padding: 8px;
+  backdrop-filter: blur(20px);
+  display: flex;
+  gap: 4px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.04),
+    0 1px 0 rgba(255, 255, 255, 0.4) inset;
+}
+
+.switcher-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    radial-gradient(circle at 25% 25%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(139, 92, 246, 0.05) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.view-switcher-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 16px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #64748b;
+  overflow: hidden;
+  z-index: 2;
+}
+
+.view-switcher-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0);
+  border-radius: 16px;
+  transition: all 0.3s ease;
+  z-index: -1;
+}
+
+.view-switcher-btn:hover::before {
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.view-switcher-btn:hover {
+  color: #475569;
+  transform: translateY(-1px);
+}
+
+.view-switcher-btn.active {
+  color: white;
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #06b6d4 100%);
+  box-shadow: 
+    0 4px 20px rgba(59, 130, 246, 0.25),
+    0 1px 0 rgba(255, 255, 255, 0.2) inset;
+  transform: translateY(-2px) scale(1.02);
+}
+
+.view-switcher-btn.active::before {
+  background: transparent;
+}
+
+.btn-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.view-switcher-btn:hover .btn-icon-wrapper {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.view-switcher-btn.active .btn-icon-wrapper {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.btn-icon-wrapper::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.2) 50%, transparent 70%);
+  transform: rotate(45deg) translateX(-100%);
+  transition: transform 0.6s ease;
+}
+
+.view-switcher-btn.active:hover .btn-icon-wrapper::before {
+  transform: rotate(45deg) translateX(100%);
+}
+
+.btn-label {
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.view-switcher-btn:hover .btn-label {
+  transform: translateX(1px);
+}
+
+.view-switcher-btn.active .btn-label {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.btn-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.2) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  border-radius: 16px;
+  pointer-events: none;
+}
+
+.view-switcher-btn.active .btn-glow {
+  opacity: 1;
 }
 
 /* ===== 现代化标签云样式 ===== */
@@ -737,6 +1089,26 @@ onMounted(loadTags);
 
 /* ===== 响应式设计 ===== */
 @media (max-width: 768px) {
+  .modern-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  
+  .stat-card {
+    padding: 1.5rem;
+    gap: 1rem;
+  }
+  
+  .stat-icon-wrapper {
+    width: 48px;
+    height: 48px;
+  }
+  
+  .stat-number {
+    font-size: 2rem;
+  }
+  
   .modern-tag-card {
     padding: 20px;
     border-radius: 16px;
@@ -764,6 +1136,47 @@ onMounted(loadTags);
 @media (max-width: 640px) {
   .tags-page {
     padding: 1rem;
+  }
+  
+  .modern-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+  
+  .stat-card {
+    padding: 1rem;
+    flex-direction: column;
+    text-align: center;
+    gap: 0.75rem;
+  }
+  
+  .stat-icon-wrapper {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .stat-number {
+    font-size: 1.75rem;
+  }
+  
+  .stat-label {
+    font-size: 0.75rem;
+  }
+  
+  .view-switcher-container {
+    padding: 6px;
+    border-radius: 16px;
+  }
+  
+  .view-switcher-btn {
+    padding: 8px 12px;
+    font-size: 0.75rem;
+    gap: 6px;
+  }
+  
+  .btn-icon-wrapper {
+    width: 20px;
+    height: 20px;
   }
   
   .modern-tag-card {
