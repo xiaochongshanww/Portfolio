@@ -360,17 +360,6 @@ const retryRender = async () => {
 onBeforeMount(async () => {
   try {
     await preload();
-    
-    // 测试KaTeX插件
-    console.log('🧪 测试KaTeX插件...');
-    testKaTeX();
-    
-    // 运行详细的KaTeX调试
-    console.log('🔬 运行详细KaTeX调试...');
-    setTimeout(async () => {
-      await debugKaTeX.runTests();
-      debugKaTeX.checkStyles();
-    }, 1000); // 延迟1秒确保CSS加载完成
   } catch (error) {
     console.warn('Failed to preload processor:', error);
   }

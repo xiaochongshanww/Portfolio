@@ -97,6 +97,7 @@ export const renderMarkdown = async (content) => {
   
   try {
     const md = await createProcessor()
+    console.log('✅ Markdown processor created successfully')
     return md.render(content)
   } catch (error) {
     console.error('Markdown processing failed:', error)
