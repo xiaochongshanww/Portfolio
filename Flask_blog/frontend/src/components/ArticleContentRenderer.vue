@@ -117,7 +117,7 @@ const props = defineProps({
     type: Object,
     default: () => ({
       ALLOWED_TAGS: [
-        'div', 'p', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
+        'div', 'p', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
         'strong', 'em', 'u', 's', 'mark', 'small', 'del', 'ins',
         'code', 'pre', 'blockquote', 'cite', 'q',
         'ul', 'ol', 'li', 'dl', 'dt', 'dd',
@@ -125,13 +125,22 @@ const props = defineProps({
         'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'caption',
         'br', 'hr', 'wbr',
         'details', 'summary',
-        'section', 'article', 'aside', 'nav', 'header', 'footer', 'main'
+        'section', 'article', 'aside', 'nav', 'header', 'footer', 'main',
+        // MathML tags
+        'math', 'mrow', 'mi', 'mo', 'mn', 'msup', 'msub', 'mfrac',
+        'munder', 'mover', 'munderover', 'msqrt', 'mroot', 'mspace',
+        'mstyle', 'mtext', 'menclose', 'mpadded', 'mphantom',
+        'annotation', 'semantics', 'mtable', 'mtr', 'mtd'
       ],
       ALLOWED_ATTR: [
         'style', 'class', 'id', 'title', 'alt', 'src', 'href', 'target', 'rel',
         'width', 'height', 'border', 'cellpadding', 'cellspacing',
         'colspan', 'rowspan', 'scope', 'headers',
-        'data-*', 'aria-*', 'role'
+        'data-*', 'aria-*', 'role',
+        // MathML and KaTeX specific attributes
+        'xmlns', 'display', 'mathvariant', 'mathsize', 'mathcolor', 'mathbackground',
+        'scriptlevel', 'displaystyle', 'scriptsizemultiplier', 'scriptminsize',
+        'color', 'background-color', 'font-family', 'font-size', 'font-style', 'font-weight'
       ],
       ALLOW_DATA_ATTR: true,
       ALLOW_ARIA_ATTR: true,
@@ -210,34 +219,7 @@ const processContent = async (content, type) => {
     } else {
       // 纯HTML内容，只进行安全清理
       console.log('🧹 Processing with DOMPurify only (no math formulas)');
-      const purifiedResult = DOMPurify.sanitize(content, {
-        ALLOWED_TAGS: [
-          'div', 'p', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
-          'strong', 'em', 'u', 's', 'mark', 'small', 'del', 'ins',
-          'code', 'pre', 'blockquote', 'cite', 'q',
-          'ul', 'ol', 'li', 'dl', 'dt', 'dd',
-          'a', 'img', 'figure', 'figcaption',
-          'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'caption',
-          'br', 'hr', 'wbr',
-          'details', 'summary',
-          'section', 'article', 'aside', 'nav', 'header', 'footer', 'main',
-          // Add KaTeX-related tags to prevent stripping
-          'annotation', 'semantics', 'math', 'mrow', 'mo', 'mi', 'mn', 'msup', 'msub', 'mfrac', 'munder', 'mover', 'munderover', 'msqrt', 'mroot', 'mspace', 'mstyle', 'mtext', 'menclose', 'mpadded', 'mphantom', 'mtable', 'mtr', 'mtd'
-        ],
-        ALLOWED_ATTR: [
-          'style', 'class', 'id', 'title', 'alt', 'src', 'href', 'target', 'rel',
-          'width', 'height', 'border', 'cellpadding', 'cellspacing',
-          'colspan', 'rowspan', 'scope', 'headers',
-          'data-*', 'aria-*', 'role',
-          // KaTeX-specific attributes
-          'xmlns', 'display', 'mathvariant', 'mathsize', 'mathcolor', 'mathbackground',
-          'scriptlevel', 'displaystyle', 'scriptsizemultiplier', 'scriptminsize',
-          'color', 'background-color', 'font-family', 'font-size', 'font-style', 'font-weight'
-        ],
-        ALLOW_DATA_ATTR: true,
-        ALLOW_ARIA_ATTR: true,
-        KEEP_CONTENT: true
-      });
+      const purifiedResult = DOMPurify.sanitize(content, props.sanitizationOptions);
       
       console.log('🧹 DOMPurify processing completed:', {
         inputLength: content.length,
