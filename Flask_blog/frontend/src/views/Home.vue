@@ -329,7 +329,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useUserStore } from '../stores/user';
 import { 
   Star, StarFilled, FolderAdd, FolderChecked, Search, Picture, User, View,
-  Bookmark, BookmarkFilled, Clock, ChatLineRound, Edit, Document, Timer, TrendCharts, More, Close
+  Clock, ChatLineRound, Edit, Document, Timer, TrendCharts, More, Close
 } from '@element-plus/icons-vue';
 import { usePagedQuery } from '../composables/usePagedQuery';
 import { useResponsiveLayout } from '../composables/useResponsiveLayout';
@@ -750,7 +750,7 @@ async function loadTaxonomy() {
       new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Taxonomy API timeout')), 10000)
       )
-    ]);
+    ]) as import('axios').AxiosResponse<any>;
     
     const taxonomyData = taxonomyRes.data.data;
     categories.value = taxonomyData.categories || [];
@@ -817,10 +817,10 @@ async function loadLatest() {
     // 添加超时控制 - 增加到10秒给API更多时间响应
     const r = await Promise.race([
       API.ArticlesService.listArticles({ page: 1, page_size: 5 }),
-      new Promise((_, reject) => 
+      new Promise<never>((_, reject) => 
         setTimeout(() => reject(new Error('API timeout')), 10000)
       )
-    ]);
+    ]) as import('axios').AxiosResponse<any>;
     latest.value = r.data.data?.list || [];
     console.log('✅ 最新文章加载成功，数量:', latest.value.length);
   } catch (e) {
@@ -869,7 +869,7 @@ async function loadHot() {
       new Promise((_, reject) => 
         setTimeout(() => reject(new Error('API timeout')), 10000)
       )
-    ]);
+    ]) as import('axios').AxiosResponse<any>;
     hot.value = r.data.data?.list || [];
     console.log('✅ 热门文章加载成功，数量:', hot.value.length);
     
@@ -891,7 +891,7 @@ async function loadHot() {
       // 如果获取到了最新文章，将其作为热门文章的降级数据
       if (fallbackArticles.length > 0) {
         // 为降级数据添加模拟的浏览量和点赞数
-        const mockHotArticles = fallbackArticles.map((article, index) => ({
+        const mockHotArticles = fallbackArticles.map((article: any, index: number) => ({
           ...article,
           views_count: Math.max(article.views_count || 0, 100 - index * 20), // 模拟递减的浏览量
           likes_count: Math.max(article.likes_count || 0, 10 - index * 2), // 模拟递减的点赞数

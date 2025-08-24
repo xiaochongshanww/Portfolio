@@ -268,10 +268,10 @@ export class SummaryExtractor {
       '&hellip;': '…',
       '&mdash;': '—',
       '&ndash;': '–',
-      '&ldquo;': '"',
-      '&rdquo;': '"',
-      '&lsquo;': ''',
-      '&rsquo;': '''
+      '&ldquo;': '“',
+      '&rdquo;': '”',
+      '&lsquo;': '‘',
+      '&rsquo;': '’'
     };
     
     let decoded = text;
