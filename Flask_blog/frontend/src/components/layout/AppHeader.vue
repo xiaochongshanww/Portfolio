@@ -10,22 +10,30 @@
           <a 
             href="/" 
             @click="handleLogoClick"
-            class="flex items-center text-xl font-bold text-blue-600 hover:text-blue-700 transition-colors logo-container"
+            class="flex items-center text-blue-600 hover:text-blue-700 transition-colors logo-container"
+            title="小重山的博客"
           >
-            <!-- Simple SVG Logo -->
-            <svg class="w-10 h-10 mr-3 logo-icon" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect width="40" height="40" rx="8" fill="url(#paint0_linear)"/>
-              <path d="M12 28V12h6c2.2 0 4 1.8 4 4 0 1.2-.6 2.2-1.4 2.8.8.6 1.4 1.6 1.4 2.8 0 2.2-1.8 4-4 4h-6z" fill="white"/>
-              <path d="M16 16h2c.6 0 1 .4 1 1s-.4 1-1 1h-2v-2z" fill="url(#paint0_linear)"/>
-              <path d="M16 22h2.5c.8 0 1.5.7 1.5 1.5s-.7 1.5-1.5 1.5H16v-3z" fill="url(#paint0_linear)"/>
-              <defs>
-                <linearGradient id="paint0_linear" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-                  <stop stop-color="#3B82F6"/>
-                  <stop offset="1" stop-color="#8B5CF6"/>
-                </linearGradient>
-              </defs>
+            <!-- Original SVG Logo - Larger size, no text -->
+            <svg class="w-14 h-14 logo-icon" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+              <path d="M12 60 L32 44 L32 52 L18 60 L32 68 L32 76 Z" fill="#2563EB" opacity="0.32"/>
+              <path d="M108 60 L88 44 L88 52 L102 60 L88 68 L88 76 Z" fill="#2563EB" opacity="0.32"/>
+              <g stroke="#2563EB" stroke-width="3.25" fill="none" stroke-linecap="round">
+                <path d="M20.5 92.5 L60.5 24.5 L100.5 92.5 Z"/>
+                <path d="M40.5 92.5 L60.5 24.5 L80.5 92.5 Z"/>
+                <path d="M20.5 92.5 L60.5 60.5 L100.5 92.5 Z"/>
+                <path d="M30.5 76.5 L60.5 60.5 L90.5 76.5"/>
+              </g>
+              <g fill="#2563EB">
+                <circle cx="60.5" cy="24.5" r="2.9"/>
+                <circle cx="20.5" cy="92.5" r="2.9"/>
+                <circle cx="100.5" cy="92.5" r="2.9"/>
+                <circle cx="40.5" cy="92.5" r="2.9"/>
+                <circle cx="80.5" cy="92.5" r="2.9"/>
+                <circle cx="60.5" cy="60.5" r="2.9"/>
+                <circle cx="30.5" cy="76.5" r="2.9"/>
+                <circle cx="90.5" cy="76.5" r="2.9"/>
+              </g>
             </svg>
-            小重山的博客
           </a>
         </div>
 
@@ -129,10 +137,6 @@
                   <el-dropdown-item :command="'/admin'" v-if="userStore.canAccessAdmin">
                     <el-icon><DataBoard /></el-icon>
                     管理控制台
-                  </el-dropdown-item>
-                  <el-dropdown-item :command="'/admin/taxonomy'" v-if="me.role === 'editor' || me.role === 'admin'">
-                    <el-icon><Collection /></el-icon>
-                    分类标签
                   </el-dropdown-item>
                   <el-dropdown-item :command="'/admin/users'" v-if="me.role === 'admin'">
                     <el-icon><UserFilled /></el-icon>
@@ -277,14 +281,6 @@
             <div v-if="me && (me.role === 'editor' || me.role === 'admin')" class="pt-4 border-t border-gray-200">
               <div class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">管理功能</div>
               
-              <router-link 
-                to="/admin/taxonomy" 
-                @click="drawer = false" 
-                class="mobile-nav-link"
-              >
-                <el-icon class="mr-3"><Collection /></el-icon>
-                分类标签
-              </router-link>
               
               <router-link 
                 to="/admin/users" 
@@ -349,7 +345,7 @@ import { useUserStore } from '../../stores/user';
 import { ElMessage } from 'element-plus';
 import { getUserDisplayName, getUserShortName, shouldPromptNickname, getNicknameSuggestion, getUserDisplayHint } from '../../utils/userDisplay';
 import {
-  User, EditPen, ArrowDown, Setting, Collection, UserFilled, DataAnalysis,
+  User, EditPen, ArrowDown, Setting, UserFilled, DataAnalysis,
   SwitchButton, Menu, HomeFilled, TrendCharts, InfoFilled, DataBoard, Calendar
 } from '@element-plus/icons-vue';
 import MobileSidebar from '../sidebar/MobileSidebar.vue';
@@ -680,11 +676,42 @@ function handleMobileHomeClick(e) {
   color: rgb(17 24 39);
 }
 
-/* Logo hover 效果 */
+/* Logo容器和图标样式 - 确保显示 */
+.logo-container {
+  padding: 8px;
+  border-radius: 12px;
+  transition: all 0.2s ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-container:hover {
+  background-color: rgba(59, 130, 246, 0.05);
+}
+
 .logo-container:hover .logo-icon {
-  transform: scale(1.1);
+  transform: scale(1.05);
   transition: transform 0.2s ease-in-out;
 }
+
+.logo-icon {
+  transition: transform 0.2s ease-in-out;
+  display: block;
+  width: 3.5rem; /* 确保尺寸 */
+  height: 3.5rem;
+  flex-shrink: 0;
+}
+
+/* 确保SVG内容可见 */
+.logo-icon path,
+.logo-icon circle,
+.logo-icon g {
+  display: block;
+  visibility: visible;
+}
+
+/* 调试边框已移除 */
 
 /* 用户下拉菜单 hover 效果 */
 .user-dropdown:hover {
@@ -870,8 +897,9 @@ a[href="/register"]:hover {
 /* line-clamp utilities */
 .line-clamp-2 {
   display: -webkit-box;
-  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
 }
 </style>

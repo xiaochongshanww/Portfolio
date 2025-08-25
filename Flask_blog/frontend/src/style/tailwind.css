@@ -24,7 +24,16 @@ body, html, #app {
 .article-body a { color: #2563eb; text-decoration: none; }
 .article-body a:hover { text-decoration: underline; }
 .article-body blockquote { border-left: 4px solid #d1d5db; padding-left: 1rem; font-style: italic; margin-top: 1rem; margin-bottom: 1rem; }
-.article-body pre { background-color: #1f2937; color: #fff; border-radius: 0.375rem; padding: 1rem; margin-top: 1rem; margin-bottom: 1rem; overflow-x: auto; }
+.article-body pre:not([data-theme]):not([class*="shiki"]) { background-color: #1f2937; color: #fff; border-radius: 0.375rem; padding: 1rem; margin-top: 1rem; margin-bottom: 1rem; overflow-x: auto; }
+/* Shiki代码块样式 - 优先级更高 */
+.article-body pre[data-theme], .article-body pre[class*="shiki"] { 
+  background-color: #f6f8fa !important; 
+  border-radius: 0.375rem; 
+  padding: 1rem; 
+  margin-top: 1rem; 
+  margin-bottom: 1rem; 
+  overflow-x: auto; 
+}
 .article-body code { background-color: #f3f4f6; color: #dc2626; border-radius: 0.25rem; padding: 0.125rem 0.25rem; }
 .article-body pre code { background: transparent; color: inherit; padding: 0; }
 .article-body img { max-width: 100%; height: auto; border-radius: 0.5rem; margin-top: 1rem; margin-bottom: 1rem; }

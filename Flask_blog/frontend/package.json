@@ -32,6 +32,7 @@
     "axios": "^1.7.2",
     "dompurify": "^3.2.6",
     "easymde": "^2.18.0",
+    "echarts": "^5.6.0",
     "element-plus": "^2.10.6",
     "highlight.js": "^11.11.1",
     "katex": "^0.16.22",
@@ -46,6 +47,7 @@
     "turndown": "^7.2.0",
     "vditor": "^3.11.1",
     "vue": "^3.4.31",
+    "vue-echarts": "^7.0.3",
     "vue-router": "^4.3.0",
     "web-vitals": "^4.2.4"
   },

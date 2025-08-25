@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from sqlalchemy import func
+from sqlalchemy import func, and_
 from .. import db, require_auth, require_roles
 from ..models import Category, Tag
 from pydantic import BaseModel, field_validator, ValidationError
@@ -145,13 +145,22 @@ def delete_category(cid):
     c = Category.query.get(cid)
     if not c:
         return jsonify({'code':4040,'message':'not found'}), 404
-    # optional: check if used by articles
+    
+    # 将使用此分类的文章设为无分类（category_id = NULL）
     from ..models import Article
-    if Article.query.filter(Article.category_id==cid).first():
-        return jsonify({'code':4002,'message':'category in use'}), 400
+    affected_articles = Article.query.filter(Article.category_id == cid).count()
+    Article.query.filter(Article.category_id == cid).update({'category_id': None})
+    
     db.session.delete(c)
     db.session.commit()
-    return jsonify({'code':0,'message':'ok'})
+    
+    return jsonify({
+        'code': 0, 
+        'message': 'ok',
+        'data': {
+            'affected_articles': affected_articles
+        }
+    })
 
 # Tags
 @taxonomy_bp.route('/tags/', methods=['POST'])
@@ -218,9 +227,10 @@ def get_stats():
     categories_with_count = db.session.query(
         Category.id, Category.name, Category.slug, Category.parent_id,
         func.count(Article.id).label('article_count')
-    ).outerjoin(Article, Category.id == Article.category_id)\
-     .filter(Article.deleted != True)\
-     .group_by(Category.id, Category.name, Category.slug, Category.parent_id)\
+    ).outerjoin(Article, and_(
+        Category.id == Article.category_id,
+        Article.deleted != True
+    )).group_by(Category.id, Category.name, Category.slug, Category.parent_id)\
      .order_by(Category.id.desc()).all()
     
     categories_data = [{

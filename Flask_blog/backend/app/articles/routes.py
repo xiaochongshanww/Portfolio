@@ -1032,11 +1032,11 @@ def public_article_by_slug(slug):
             import jwt
             payload = jwt.decode(token, current_app.config['JWT_SECRET_KEY'], algorithms=['HS256'])
             user_id = int(payload.get('sub', 0)) or None
-            print(f"🔐 可选认证成功: 用户ID={user_id}", flush=True)
+            print(f"[AUTH] 可选认证成功: 用户ID={user_id}", flush=True)
         else:
-            print(f"🔐 无认证头或格式不正确", flush=True)
+            print(f"[AUTH] 无认证头或格式不正确", flush=True)
     except Exception as e:
-        print(f"🔐 可选认证失败（正常）: {e}", flush=True)
+        print(f"[AUTH] 可选认证失败（正常）: {e}", flush=True)
         user_id = None
     
     # 只为未认证用户使用缓存，确保用户特定状态的实时性

@@ -109,3 +109,32 @@ class AuditLog(db.Model):
     action = db.Column(db.String(50), nullable=False)  # submit/approve/reject/unpublish/schedule/unschedule/delete/rollback
     note = db.Column(db.String(500))
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+
+# 访客统计相关模型
+class VisitorStats(db.Model):
+    """网站访客统计表"""
+    __tablename__ = 'visitor_stats'
+    id = db.Column(db.Integer, primary_key=True)
+    ip_address = db.Column(db.String(45), nullable=False, index=True)  # 支持IPv6
+    user_agent_hash = db.Column(db.String(64), nullable=False, index=True)  # User-Agent的哈希值
+    visited_date = db.Column(db.Date, nullable=False, index=True)  # 访问日期
+    first_visit_time = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(SHANGHAI_TZ))
+    last_visit_time = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(SHANGHAI_TZ), onupdate=lambda: datetime.now(SHANGHAI_TZ))
+    page_views = db.Column(db.Integer, default=1)  # 当天的页面浏览量
+    
+    # 唯一约束：同一IP+User-Agent哈希+日期只能有一条记录
+    __table_args__ = (
+        db.UniqueConstraint('ip_address', 'user_agent_hash', 'visited_date', name='unique_visitor_per_day'),
+        db.Index('idx_visitor_date', 'visited_date'),
+        db.Index('idx_visitor_ip', 'ip_address'),
+    )
+
+class DailyStats(db.Model):
+    """每日统计汇总表"""
+    __tablename__ = 'daily_stats'
+    id = db.Column(db.Integer, primary_key=True)
+    stat_date = db.Column(db.Date, nullable=False, unique=True, index=True)
+    unique_visitors = db.Column(db.Integer, default=0)  # 独立访客数
+    total_page_views = db.Column(db.Integer, default=0)  # 总页面浏览量
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(SHANGHAI_TZ))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(SHANGHAI_TZ), onupdate=lambda: datetime.now(SHANGHAI_TZ))

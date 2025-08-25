@@ -91,10 +91,11 @@ import { computed, ref, watch, nextTick, onMounted, onBeforeMount } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Loading } from '@element-plus/icons-vue';
 import DOMPurify from 'dompurify';
+import katex from 'katex';
 import 'katex/dist/katex.min.css';
 
 import { ContentTypeDetector } from '@/utils/contentTypeDetector.js';
-import { renderMarkdown, preload } from '@/utils/markdownProcessor.simple.js';
+import { renderMarkdown, preload, testProcessor, getProcessorStatus } from '@/utils/markdownProcessor.reliable.js';
 import { testKaTeX } from '@/utils/testMarkdown.js';
 import { debugKaTeX } from '@/utils/debugKaTeX.js';
 
@@ -208,13 +209,31 @@ const processContent = async (content, type) => {
         firstOutputChars: markdownResult.substring(0, 200)
       });
       
-      // 检查输出是否包含数学公式相关的HTML
+      // 检查是否需要额外处理
       if (hasMathFormulas && !markdownResult.includes('katex')) {
-        console.warn('⚠️ Math formulas detected in input but no KaTeX output found!');
+        console.warn('⚠️ Math formulas detected in input but no KaTeX output found! Attempting client-side KaTeX fallback.');
         console.log('Input sample:', content.substring(0, 200));
-        console.log('Output sample:', markdownResult.substring(0, 200));
+        console.log('Output sample (before fallback):', markdownResult.substring(0, 200));
+
+        try {
+          const fallback = renderMathWithKatex(markdownResult);
+          console.log('✅ Client-side KaTeX fallback applied');
+          return fallback;
+        } catch (e) {
+          console.error('Client-side KaTeX fallback failed:', e);
+          // 返回原始结果（保持最低破坏性）
+          return markdownResult;
+        }
       }
-      
+
+      // 检查Shiki代码高亮是否被意外清理
+      const hasOriginalColors = markdownResult.includes('<span style="color:');
+      console.log('🎨 Markdown渲染结果检查:', {
+        hasShikiClass: markdownResult.includes('shiki'),
+        hasColorSpans: hasOriginalColors,
+        originalLength: markdownResult.length
+      });
+
       return markdownResult;
     } else {
       // 纯HTML内容，只进行安全清理
@@ -291,6 +310,16 @@ const renderContent = async () => {
     
     processedContent.value = result;
     
+    // 调试：检查最终结果是否保留了颜色信息
+    const finalHasColors = result.includes('<span style="color:');
+    console.log('🔍 最终渲染结果检查:', {
+      finalLength: result.length,
+      hasShikiClass: result.includes('shiki'),
+      hasColorSpans: finalHasColors,
+      firstColorSpan: finalHasColors ? result.match(/<span style="color:[^"]+"/)?.[0] : 'none',
+      sampleOutput: result.substring(0, 300) + '...'
+    });
+    
     // 通知父组件渲染完成
     emit('content-rendered', {
       contentType: contentAnalysis.value.type,
@@ -359,9 +388,32 @@ const retryRender = async () => {
 // 预加载highlighter
 onBeforeMount(async () => {
   try {
+    console.log('🚀 开始预加载Markdown处理器...')
     await preload();
+    
+    // 获取处理器状态
+    const status = getProcessorStatus()
+    console.log('📊 处理器状态:', status)
+    
+    // 运行快速测试
+    console.log('🧪 运行处理器测试...')
+    const testResult = await testProcessor()
+    
+    if (testResult) {
+      // 检查测试结果中是否有代码高亮
+      const hasHighlighting = testResult.includes('shiki') || testResult.includes('<span style="color:')
+      console.log('🔍 测试结果分析:', {
+        hasResult: !!testResult,
+        length: testResult.length,
+        hasHighlighting,
+        hasCodeBlocks: testResult.includes('<pre'),
+        sample: testResult.substring(0, 200) + '...'
+      })
+    }
+    
+    console.log('✅ Markdown处理器预加载和测试完成')
   } catch (error) {
-    console.warn('Failed to preload processor:', error);
+    console.error('❌ 预加载失败:', error);
   }
 });
 
@@ -398,6 +450,65 @@ onMounted(async () => {
   if (props.content && !processedContent.value) {
     await renderContent();
   }
+
+  // 开发环境下自动运行样式检查
+  if (isDevelopment.value && typeof window !== 'undefined') {
+    try {
+      // 检查KaTeX样式
+      if (window.debugKaTeX) {
+        const check = window.debugKaTeX.checkStyles();
+        console.log('debugKaTeX.checkStyles():', check);
+      }
+      
+      // 检查页面上的代码块元素
+      setTimeout(() => {
+        const codeBlocks = document.querySelectorAll('.article-content pre');
+        console.log('🔍 页面上的代码块数量:', codeBlocks.length);
+        
+        codeBlocks.forEach((block, index) => {
+          const hasShikiClass = block.classList.contains('shiki');
+          const hasInlineStyles = block.style.length > 0;
+          const hasColorSpans = block.querySelectorAll('span[style*="color"]').length;
+          const allSpans = block.querySelectorAll('span').length;
+          
+          console.log(`📋 代码块 ${index + 1}:`, {
+            tagName: block.tagName,
+            classes: Array.from(block.classList),
+            hasShikiClass,
+            hasInlineStyles,
+            hasColorSpans,
+            totalSpans: allSpans,
+            innerHTML: block.innerHTML.substring(0, 200) + '...'
+          });
+          
+          // 如果有Shiki类但没有颜色，进行深入分析
+          if (hasShikiClass && hasColorSpans === 0 && allSpans > 0) {
+            console.warn('🚨 Shiki代码块没有颜色！分析HTML结构:');
+            console.log('完整innerHTML:', block.innerHTML);
+            
+            // 尝试手动添加一个测试span看是否被过滤
+            const testSpan = document.createElement('span');
+            testSpan.style.color = 'red';
+            testSpan.textContent = 'TEST';
+            block.appendChild(testSpan);
+            
+            setTimeout(() => {
+              const testExists = block.contains(testSpan);
+              const testHasColor = testSpan.style.color === 'red';
+              console.log('🧪 测试span结果:', {
+                exists: testExists,
+                hasColor: testHasColor,
+                actualColor: testSpan.style.color
+              });
+            }, 100);
+          }
+        });
+      }, 1000);
+      
+    } catch (e) {
+      console.warn('Style check failed:', e);
+    }
+  }
 });
 
 // 暴露方法给父组件
@@ -411,6 +522,39 @@ defineExpose({
     emit('debug-info-toggle');
   }
 });
+
+/**
+ * 将渲染后的 HTML 中的 $$...$$ 和 $...$ 用 KaTeX 在客户端渲染为 HTML
+ * 仅在 markdown-it-katex 未生成 KaTeX HTML 时作为回退策略
+ */
+function renderMathWithKatex(html) {
+  if (!html) return html;
+
+  // 先处理块级公式 $$...$$，使用非贪婪匹配
+  html = html.replace(/\$\$([\s\S]+?)\$\$/g, (match, tex) => {
+    try {
+      return katex.renderToString(tex, { displayMode: true, throwOnError: false });
+    } catch (e) {
+      console.warn('KaTeX render error for display math:', e);
+      return match;
+    }
+  });
+
+  // 再处理行内公式 $...$，但要避免替换已经在 HTML 标签内的美元符号
+  // 简单策略：对剩余文本进行替换（可能不是完美解决方案，但适合大多数用例）
+  html = html.replace(/\$(.+?)\$/g, (match, tex) => {
+    // 略过包含空格首尾过多的匹配，减少误替换
+    if (!tex || tex.trim().length === 0) return match;
+    try {
+      return katex.renderToString(tex, { displayMode: false, throwOnError: false });
+    } catch (e) {
+      console.warn('KaTeX render error for inline math:', e);
+      return match;
+    }
+  });
+
+  return html;
+}
 </script>
 
 <style scoped>
@@ -664,7 +808,6 @@ defineExpose({
 
 /* Shiki代码高亮样式 */
 .shiki {
-  background-color: #f6f8fa !important;
   border-radius: 6px;
   padding: 0.8em 1em;
   margin: 1em 0;
@@ -673,17 +816,75 @@ defineExpose({
   font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 0.9em;
   line-height: 1.45;
+  position: relative;
 }
 
-/* 确保pre标签有正确的背景色 */
-pre.shiki {
-  background-color: #f6f8fa !important;
+/* 确保Shiki生成的pre标签样式正确 */
+:deep(pre.shiki) {
+  background: #ffffff !important; /* 确保有背景色 */
+  margin: 1em 0 !important;
+  padding: 0.8em 1em !important;
+  border-radius: 6px !important;
+  overflow-x: auto !important;
+  border: 1px solid #e1e4e8 !important;
+  font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace !important;
+  font-size: 0.9em !important;
+  line-height: 1.45 !important;
+}
+
+/* 确保Shiki的内联样式不被覆盖 */
+:deep(pre.shiki span) {
+  font-family: inherit !important;
+}
+
+/* 确保所有带有color样式的span都显示颜色 */
+:deep(span[style*="color"]) {
+  /* 不覆盖内联样式，让颜色正常显示 */
 }
 
 /* 代码块内的代码文本样式 */
 .shiki code {
   background: transparent !important;
   color: inherit !important;
+  font-family: inherit !important;
+}
+
+/* 基础代码块样式（Shiki失败时的降级） */
+:deep(.basic-code-block) {
+  background-color: #f6f8fa !important;
+  border-radius: 6px !important;
+  padding: 0.8em 1em !important;
+  margin: 1em 0 !important;
+  overflow-x: auto !important;
+  border: 1px solid #e1e4e8 !important;
+  font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace !important;
+  font-size: 0.9em !important;
+  line-height: 1.45 !important;
+}
+
+:deep(.basic-code-block code) {
+  background: transparent !important;
+  color: #24292e !important;
+  font-family: inherit !important;
+}
+
+/* 降级代码块样式 */
+.fallback-code-block {
+  background-color: #fdf6e3;
+  border-radius: 6px;
+  padding: 0.8em 1em;
+  margin: 1em 0;
+  overflow-x: auto;
+  border: 1px solid #eee8d5;
+  font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9em;
+  line-height: 1.45;
+}
+
+.fallback-code-block code {
+  background: transparent;
+  color: #657b83;
+  font-family: inherit;
 }
 
 
@@ -702,14 +903,17 @@ pre.shiki {
   user-select: none;
 }
 
-/* Markdown表格响应式包装 */
+/* 表格样式（支持新的table-wrapper类） */
+.table-wrapper,
 .markdown-table-wrapper {
   overflow-x: auto;
   margin: 1em 0;
   border-radius: 6px;
   border: 1px solid #e1e4e8;
+  background: white;
 }
 
+.table-wrapper table,
 .markdown-table-wrapper table {
   width: 100%;
   border-collapse: collapse;
@@ -717,6 +921,8 @@ pre.shiki {
   background: white;
 }
 
+.table-wrapper th,
+.table-wrapper td,
 .markdown-table-wrapper th,
 .markdown-table-wrapper td {
   padding: 8px 12px;
@@ -724,9 +930,16 @@ pre.shiki {
   border-bottom: 1px solid #e1e4e8;
 }
 
+.table-wrapper th,
 .markdown-table-wrapper th {
   background-color: #f6f8fa;
   font-weight: 600;
+  border-bottom: 2px solid #e1e4e8;
+}
+
+.table-wrapper tr:last-child td,
+.markdown-table-wrapper tr:last-child td {
+  border-bottom: none;
 }
 
 /* Markdown图片优化 */

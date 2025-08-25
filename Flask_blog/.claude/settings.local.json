@@ -21,7 +21,10 @@
       "WebFetch(domain:prismic.io)",
       "WebFetch(domain:freefrontend.com)",
       "Bash(flask db migrate:*)",
-      "Bash(/dev/null)"
+      "Bash(/dev/null)",
+      "Bash(del test_system_health.py)",
+      "Bash(powershell:*)",
+      "Bash(del simple_system_health_test.py test_minimal_flask.py test_actual_security_function.py test_full_app_bypass_auth.py simple_test.py test_health_api.py)"
     ],
     "deny": [],
     "ask": []

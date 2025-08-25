@@ -259,6 +259,7 @@ import CommentsThread from '../components/CommentsThread.vue';
 import CoverImage from '../components/CoverImage.vue';
 import ArticleContentRenderer from '../components/ArticleContentRenderer.vue';
 import { common, createLowlight } from 'lowlight';
+import hljs from 'highlight.js';
 import { 
   initTheme,
   updateGlobalCodeTheme
@@ -627,45 +628,41 @@ async function highlightLater(){
   // 使用默认代码主题
   updateGlobalCodeTheme('default');
   
-  // 使用 lowlight 对代码块进行语法高亮和功能增强
+  // 检查代码块，但优先保留Shiki渲染
   const codeBlocks = document.querySelectorAll('.article-content pre code');
+  console.log(`🔍 发现 ${codeBlocks.length} 个代码块`);
+  
   codeBlocks.forEach((block, index) => {
     const pre = block.parentElement;
     if (!pre) return;
     
-    // 获取原始代码内容
-    const originalCode = block.textContent || '';
-    
-    // 尝试检测语言类型
-    let language = 'text';
-    const classNames = block.className.split(' ');
-    for (const className of classNames) {
-      if (className.startsWith('language-')) {
-        language = className.replace('language-', '');
-        break;
-      }
+    // 检查是否已经由 Shiki 或新的处理器渲染
+    if (pre.classList.contains('shiki') || 
+        pre.classList.contains('basic-code-block') || 
+        pre.classList.contains('fallback-code-block') ||
+        pre.querySelector('.shiki') ||
+        pre.style.backgroundColor) { // Shiki通常会添加背景色
+      console.log(`✅ 第 ${index + 1} 个代码块已由现代处理器渲染，跳过传统highlight.js处理`);
+      return;
     }
     
-    try {
-      // 使用 lowlight 进行语法高亮
-      const result = lowlight.highlight(language, originalCode);
-      
-      // 清空并重新添加高亮内容
-      block.innerHTML = '';
-      block.appendChild(result);
-      block.className = `hljs language-${language}`;
-      
-      console.log(`🎯 文章详情页语法高亮成功: ${language}`);
-      
-      // 添加语言标签
-      if (!pre.querySelector('.code-language-label')) {
-        addLanguageLabel(pre, language);
-      }
-    } catch (error) {
-      // 语言不支持或出错时，保持原样
-      console.warn(`语法高亮失败 (${language}):`, error);
-      block.className = `hljs language-${language}`;
+    console.log(`⚠️ 第 ${index + 1} 个代码块未被现代处理器渲染，可能需要降级处理`);
+    // 但是现在我们不做降级处理，让用户知道有问题
+    
+    // 暂时跳过传统highlight.js处理，让新的Shiki处理器处理所有代码块
+    // 如果有未处理的代码块，说明新处理器有问题，需要调试
+    console.warn(`🚨 代码块 ${index + 1} 未被Shiki处理器渲染，这可能表示配置问题`);
+    
+    // 添加一个明显的标记，方便调试
+    if (!pre.querySelector('.debug-unprocessed-marker')) {
+      const marker = document.createElement('div');
+      marker.className = 'debug-unprocessed-marker';
+      marker.style.cssText = 'background: red; color: white; padding: 2px 4px; font-size: 12px; margin-bottom: 4px;';
+      marker.textContent = `未处理的代码块 - 检查Shiki配置`;
+      pre.insertBefore(marker, pre.firstChild);
     }
+    
+    // 不再使用lowlight处理，避免冲突
     
     // 添加复制按钮
     if (!pre.querySelector('.code-copy-btn')) {

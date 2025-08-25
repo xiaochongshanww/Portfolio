@@ -167,7 +167,14 @@
         <!-- 系统健康状态 -->
         <el-card class="health-card">
           <template #header>
-            <span>系统健康状态</span>
+            <div class="card-header">
+              <span>系统健康状态</span>
+              <RouterLink to="/admin/performance" class="view-performance-link">
+                <el-button type="text" size="small" icon="TrendCharts">
+                  详细图表
+                </el-button>
+              </RouterLink>
+            </div>
           </template>
           
           <div class="health-metrics">
@@ -206,6 +213,25 @@
               <div class="network-stats">
                 <span class="network-in">↓ {{ formatBytes(systemHealth.networkIn) }}/s</span>
                 <span class="network-out">↑ {{ formatBytes(systemHealth.networkOut) }}/s</span>
+              </div>
+            </div>
+            
+            <div v-if="systemHealth.uptime_hours" class="health-item">
+              <div class="health-label">系统运行时间</div>
+              <div class="uptime-info">
+                <span class="uptime-value">{{ formatUptime(systemHealth.uptime_hours) }}</span>
+              </div>
+            </div>
+            
+            <div v-if="systemHealth.process_count" class="health-item">
+              <div class="health-label">
+                <span>进程数量</span>
+                <span v-if="systemHealth.cpu_count" class="cpu-count">
+                  ({{ systemHealth.cpu_count }}核CPU)
+                </span>
+              </div>
+              <div class="process-info">
+                <span class="process-value">{{ systemHealth.process_count }} 个进程</span>
               </div>
             </div>
           </div>
@@ -335,7 +361,7 @@ import { ref, reactive, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { 
   WarningFilled, Lock, User, Refresh, Setting,
-  UserFilled, Download
+  UserFilled, Download, TrendCharts
 } from '@element-plus/icons-vue';
 import api from '../../apiClient';
 
@@ -368,7 +394,12 @@ const systemHealth = reactive({
   memory: 0,
   disk: 0,
   networkIn: 0,
-  networkOut: 0
+  networkOut: 0,
+  uptime_hours: 0,
+  process_count: 0,
+  memory_total_gb: 0,
+  disk_total_gb: 0,
+  cpu_count: 0
 });
 
 // 访问统计
@@ -384,6 +415,35 @@ const recentEvents = ref([]);
 
 // 数据刷新定时器
 let refreshTimer: number | null = null;
+
+// 独立的系统健康数据获取函数
+const loadSystemHealth = async () => {
+  console.log('[DEBUG] 开始获取系统健康数据...');
+  try {
+    const healthRes = await api.get('/security/system-health');
+    console.log('[DEBUG] API响应:', {
+      status: healthRes.status,
+      code: healthRes.data.code,
+      message: healthRes.data.message,
+      uptime: healthRes.data.data?.uptime_hours
+    });
+    
+    if (healthRes.data.code === 0) {
+      const oldUptime = systemHealth.uptime_hours;
+      Object.assign(systemHealth, healthRes.data.data);
+      console.log('[DEBUG] 系统健康数据更新:', {
+        oldUptime: oldUptime,
+        newUptime: systemHealth.uptime_hours,
+        cpu: systemHealth.cpu,
+        memory: systemHealth.memory
+      });
+    } else {
+      console.error('系统健康数据获取失败:', healthRes.data.message);
+    }
+  } catch (error) {
+    console.error('[DEBUG] 系统健康监控API调用异常:', error);
+  }
+};
 
 // 加载数据
 const loadData = async () => {
@@ -413,22 +473,8 @@ const loadData = async () => {
       Object.assign(threatLevel, { level: 'low', text: '低危', class: 'low' });
     }
     
-    // 逐个加载其他数据，避免并发问题
-    try {
-      const healthRes = await api.get('/security/system-health');
-      if (healthRes.data.code === 0) {
-        Object.assign(systemHealth, healthRes.data.data);
-      }
-    } catch (error) {
-      // 使用模拟健康数据
-      Object.assign(systemHealth, {
-        cpu: 45,
-        memory: 67,
-        disk: 78,
-        networkIn: 2048,
-        networkOut: 1024
-      });
-    }
+    // 独立加载系统健康数据
+    await loadSystemHealth();
     
     try {
       const eventsRes = await api.get('/security/events/recent?limit=10');
@@ -458,6 +504,8 @@ const loadData = async () => {
   } catch (error) {
     console.error('加载安全监控数据失败:', error);
     
+    console.log('[DEBUG] 进入loadData的catch块，设置模拟数据');
+    
     // 完全使用模拟数据
     Object.assign(securityStats, {
       todayEvents: 8,
@@ -468,13 +516,10 @@ const loadData = async () => {
       userTrend: -1
     });
     Object.assign(threatLevel, { level: 'low', text: '低危', class: 'low' });
-    Object.assign(systemHealth, {
-      cpu: 45,
-      memory: 67,
-      disk: 78,
-      networkIn: 2048,
-      networkOut: 1024
-    });
+    
+    console.log('[DEBUG] 注意：systemHealth数据不应该在这里被修改')
+    // 系统健康数据独立获取，不使用模拟数据
+    // systemHealth数据应该从真实API获取
     Object.assign(accessStats, {
       totalVisits: 245,
       uniqueIPs: 89,
@@ -534,6 +579,30 @@ const formatBytes = (bytes: number) => {
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+const formatUptime = (hours: number) => {
+  console.log('[DEBUG] formatUptime输入:', hours);
+  
+  const totalMinutes = Math.floor(hours * 60);
+  const totalHours = Math.floor(totalMinutes / 60);
+  const remainingMinutes = totalMinutes % 60;
+  
+  let result;
+  if (totalHours < 24) {
+    result = `${totalHours}小时${remainingMinutes}分钟`;
+  } else {
+    const days = Math.floor(totalHours / 24);
+    const hoursInDay = totalHours % 24;
+    if (hoursInDay === 0) {
+      result = `${days}天`;
+    } else {
+      result = `${days}天${hoursInDay}小时`;
+    }
+  }
+  
+  console.log('[DEBUG] formatUptime输出:', result);
+  return result;
 };
 
 const getHealthColor = (percentage: number) => {
@@ -746,10 +815,10 @@ const showSecuritySettings = () => {
 onMounted(() => {
   loadData();
   
-  // 暂时禁用定时刷新，避免加载问题
-  // refreshTimer = setInterval(() => {
-  //   loadData();
-  // }, 30000);
+  // 定时刷新系统健康数据（每30秒）
+  refreshTimer = setInterval(() => {
+    loadSystemHealth();
+  }, 30000);
 });
 
 onUnmounted(() => {
@@ -895,6 +964,21 @@ onUnmounted(() => {
   align-items: center;
 }
 
+.view-performance-link {
+  text-decoration: none;
+}
+
+.view-performance-link .el-button {
+  color: #3b82f6;
+  transition: all 0.3s ease;
+}
+
+.view-performance-link .el-button:hover {
+  color: #1d4ed8;
+  background: rgba(59, 130, 246, 0.1);
+  transform: translateX(2px);
+}
+
 
 .health-card,
 .actions-card,
@@ -942,6 +1026,26 @@ onUnmounted(() => {
 
 .network-out {
   color: #dc2626;
+}
+
+.uptime-info, .process-info {
+  font-size: 14px;
+  color: #374151;
+  font-weight: 500;
+}
+
+.uptime-value {
+  color: #059669;
+}
+
+.process-value {
+  color: #3b82f6;
+}
+
+.cpu-count {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-left: 4px;
 }
 
 .quick-actions {

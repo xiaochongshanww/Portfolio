@@ -1,6 +1,6 @@
 """update timezone for article likes and bookmarks to Shanghai timezone
 
-Revision ID: 0007_update_timezone_for_likes_bookmarks
+Revision ID: 0007_timezone_update
 Revises: 0006_use_longtext_for_article
 Create Date: 2025-08-22 22:50:00.000000
 
@@ -11,7 +11,7 @@ New likes and bookmarks will use Shanghai timezone (UTC+8) instead of UTC.
 from alembic import op
 import sqlalchemy as sa
 
-revision = '0007_update_timezone_for_likes_bookmarks'
+revision = '0007_timezone_update'
 down_revision = '0006_use_longtext_for_article'
 branch_labels = None
 depends_on = None

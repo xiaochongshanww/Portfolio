@@ -3,7 +3,7 @@
  * 用于直接验证KaTeX功能和输出
  */
 
-import { renderMarkdown } from './markdownProcessor.simple.js'
+import { renderMarkdown, checkShikiStatus } from './markdownProcessor.simple.js'
 
 // 测试内容集合
 const testCases = [
@@ -234,12 +234,80 @@ export const debugKaTeX = {
   runTests: runAllTests,
   testCase: testSingleCase,
   checkStyles: checkKatexStyles,
+  checkShiki: checkShikiStatus,
   testCases
+}
+
+/**
+ * 专门调试代码高亮颜色问题
+ */
+export const debugCodeColors = async () => {
+  console.log('🎨 调试代码高亮颜色...')
+  
+  const simpleTestCase = {
+    name: '代码高亮颜色测试',
+    content: `测试代码高亮：
+
+\`\`\`python
+def hello():
+    print("Hello, World!")
+    return "success"
+\`\`\`
+
+\`\`\`javascript
+const greeting = "Hello";
+console.log(greeting);
+\`\`\`
+`
+  }
+  
+  try {
+    const result = await renderMarkdown(simpleTestCase.content)
+    
+    console.log('📄 生成的完整HTML:', result)
+    
+    // 分析HTML结构
+    const preMatches = result.match(/<pre[^>]*>.*?<\/pre>/gs)
+    if (preMatches) {
+      preMatches.forEach((match, i) => {
+        console.log(`🔍 代码块 ${i + 1}:`, match)
+        console.log(`   - 包含data-theme: ${match.includes('data-theme')}`)
+        console.log(`   - 包含class="shiki": ${match.includes('class="shiki"')}`)
+        console.log(`   - 包含背景色样式: ${match.includes('background-color')}`)
+        console.log(`   - 包含颜色span: ${match.includes('<span style="color')}`)
+      })
+    }
+    
+    // 检查可能的CSS问题
+    console.log('🔍 CSS样式检查:')
+    const stylesheets = Array.from(document.styleSheets)
+    stylesheets.forEach((sheet, i) => {
+      try {
+        const rules = sheet.cssRules || sheet.rules
+        if (rules) {
+          for (let rule of rules) {
+            if (rule.selectorText && rule.selectorText.includes('pre')) {
+              console.log(`   样式表 ${i}: ${rule.selectorText} -> ${rule.style.backgroundColor || 'no bg'}`)
+            }
+          }
+        }
+      } catch (e) {
+        console.log(`   样式表 ${i}: 无法访问 (可能是跨域)`)
+      }
+    })
+    
+    return result
+    
+  } catch (error) {
+    console.error('❌ 调试失败:', error)
+    return null
+  }
 }
 
 // 在浏览器控制台中暴露调试函数
 if (typeof window !== 'undefined') {
   window.debugKaTeX = debugKaTeX
+  window.debugCodeColors = debugCodeColors
 }
 
 export default debugKaTeX

@@ -13,7 +13,6 @@ const SearchPage = () => import(/* webpackChunkName: 'search-page' */ './views/S
 const CategoryPage = () => import('./views/CategoryPage.vue');
 const TagPage = () => import('./views/TagPage.vue');
 const CommentsModeration = () => import(/* webpackChunkName: 'comments-moderation' */ './views/CommentsModeration.vue');
-const TaxonomyAdmin = () => import(/* webpackChunkName: 'taxonomy-admin' */ './views/TaxonomyAdmin.vue');
 const UserAdmin = () => import(/* webpackChunkName: 'user-admin' */ './views/UserAdmin.vue');
 const SearchSynonymsAdmin = () => import('./views/SearchSynonymsAdmin.vue');
 const MetricsDashboard = () => import('./views/MetricsDashboard.vue');
@@ -29,6 +28,7 @@ const CategoryManagement = () => import(/* webpackChunkName: 'admin' */ './views
 const TagManagement = () => import(/* webpackChunkName: 'admin' */ './views/admin/TagManagement.vue');
 const UserManagement = () => import(/* webpackChunkName: 'admin' */ './views/admin/UserManagement.vue');
 const SecurityMonitoring = () => import(/* webpackChunkName: 'admin' */ './views/admin/SecurityMonitoring.vue');
+const SystemPerformance = () => import(/* webpackChunkName: 'admin' */ './views/admin/SystemPerformance.vue');
 const SystemSettings = () => import(/* webpackChunkName: 'admin' */ './views/admin/SystemSettings.vue');
 
 const routes = [
@@ -63,13 +63,13 @@ const routes = [
       { path: 'tags', component: TagManagement, meta: { requiresRole: ['editor', 'admin'] } },
       { path: 'users', component: UserManagement, meta: { requiresRole: ['admin'] } },
       { path: 'security', component: SecurityMonitoring, meta: { requiresRole: ['editor', 'admin'] } },
+      { path: 'performance', component: SystemPerformance, meta: { requiresRole: ['editor', 'admin'] } },
       { path: 'settings/general', component: SystemSettings, meta: { requiresRole: ['admin'] } },
     ]
   },
   
   // 兼容旧的管理路由
   { path: '/moderation/comments', component: CommentsModeration },
-  { path: '/admin/taxonomy', component: TaxonomyAdmin },
   { path: '/admin/users', component: UserAdmin },
   { path: '/admin/search/synonyms', component: SearchSynonymsAdmin },
   { path: '/admin/metrics', component: MetricsDashboard }

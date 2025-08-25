@@ -17,7 +17,24 @@
         </div>
       </div>
 
-      <div class="stat-card">
+      <div 
+        class="stat-card clickable-card"
+        @click="navigateToReview"
+        v-if="hasRole(['editor', 'admin'])"
+      >
+        <div class="stat-icon pending-articles">
+          <el-icon size="32"><Clock /></el-icon>
+        </div>
+        <div class="stat-content">
+          <div class="stat-value">{{ stats.pendingArticles || 0 }}</div>
+          <div class="stat-label">待审核文章</div>
+        </div>
+        <div class="card-action-hint">
+          <el-icon size="16"><ArrowRight /></el-icon>
+        </div>
+      </div>
+      
+      <div v-else class="stat-card">
         <div class="stat-icon pending-articles">
           <el-icon size="32"><Clock /></el-icon>
         </div>
@@ -150,6 +167,15 @@
                 <el-icon><UserFilled /></el-icon>
                 <span>管理用户</span>
               </RouterLink>
+              
+              <RouterLink 
+                v-if="hasRole(['editor', 'admin'])" 
+                to="/admin/performance" 
+                class="action-button"
+              >
+                <el-icon><TrendCharts /></el-icon>
+                <span>性能监控</span>
+              </RouterLink>
             </div>
           </div>
         </div>
@@ -186,14 +212,16 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { 
   Document, Clock, Check, User, List, Lightning, EditPen, 
-  View, ChatLineRound, UserFilled 
+  View, ChatLineRound, UserFilled, ArrowRight, TrendCharts 
 } from '@element-plus/icons-vue';
 import { useUserStore } from '../../stores/user';
 import apiClient from '../../apiClient';
 
 const userStore = useUserStore();
+const router = useRouter();
 
 // 数据状态
 const loading = ref(true);
@@ -211,6 +239,13 @@ const activities = ref<any[]>([]);
 // 权限检查
 function hasRole(roles: string[]): boolean {
   return roles.includes(userStore.user?.role || '');
+}
+
+// 导航函数
+function navigateToReview() {
+  if (hasRole(['editor', 'admin'])) {
+    router.push('/admin/articles/review');
+  }
 }
 
 // 状态类型映射
@@ -487,6 +522,34 @@ onMounted(() => {
   gap: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   border: 1px solid #e5e7eb;
+  position: relative;
+}
+
+.stat-card.clickable-card {
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stat-card.clickable-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 
+    0 8px 25px rgba(0, 0, 0, 0.12),
+    0 4px 15px rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.card-action-hint {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  color: #f59e0b;
+  opacity: 0.6;
+  transition: all 0.3s ease;
+}
+
+.stat-card.clickable-card:hover .card-action-hint {
+  opacity: 1;
+  transform: translateX(2px);
 }
 
 .stat-icon {

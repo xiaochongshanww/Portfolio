@@ -30,3 +30,5 @@ prometheus-client==0.20.0
 # 国际化
 yapf==0.40.2
 Flask-Babel==4.0.0
+# 系统监控
+psutil==6.0.0

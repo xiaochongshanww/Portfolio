@@ -6,6 +6,7 @@ from ..models import User, Article, Comment
 import logging
 import json
 import random
+import time
 from typing import Dict, List, Any
 
 security_bp = Blueprint('security', __name__)
@@ -139,14 +140,60 @@ def get_system_health():
     """获取系统健康状态"""
     try:
         import psutil
+        import os
         
         # 获取真实系统指标
+        # CPU 信息 - 使用更短的间隔避免阻塞
+        cpu_percent = psutil.cpu_percent(interval=0.1)  # 减少间隔时间
+        cpu_count_logical = psutil.cpu_count(logical=True)   # 逻辑核心数（包括超线程）
+        cpu_count_physical = psutil.cpu_count(logical=False) # 物理核心数
+        
+        # 内存信息
+        memory_info = psutil.virtual_memory()
+        memory_percent = memory_info.percent
+        memory_total_gb = memory_info.total / (1024**3)
+        
+        # 磁盘信息 (根据操作系统选择根目录)
+        if os.name == 'nt':  # Windows
+            disk_usage = psutil.disk_usage('C:\\')
+        else:  # Linux/Unix
+            disk_usage = psutil.disk_usage('/')
+        disk_percent = (disk_usage.used / disk_usage.total) * 100
+        disk_total_gb = disk_usage.total / (1024**3)
+        
+        # 网络流量 (获取网络接口统计)
+        network_io = psutil.net_io_counters()
+        if network_io:
+            # 简化的网络速率模拟（实际生产中应该计算差值）
+            network_in = min(network_io.bytes_recv % 100000, 50000)
+            network_out = min(network_io.bytes_sent % 50000, 25000)
+        else:
+            network_in = random.randint(1000, 10000)
+            network_out = random.randint(500, 5000)
+        
+        # 系统运行时间
+        boot_time = psutil.boot_time()
+        uptime_seconds = time.time() - boot_time
+        uptime_hours = uptime_seconds / 3600
+        
+        # 进程数量
+        process_count = len(psutil.pids())
+        
         health_data = {
-            'cpu': round(psutil.cpu_percent(interval=1), 1),
-            'memory': round(psutil.virtual_memory().percent, 1),
-            'disk': round(psutil.disk_usage('/').percent, 1),
-            'networkIn': random.randint(1000, 10000),  # 模拟网络流量
-            'networkOut': random.randint(500, 5000)
+            'cpu': round(cpu_percent, 1),
+            'memory': round(memory_percent, 1),
+            'disk': round(disk_percent, 1),
+            'networkIn': int(network_in),
+            'networkOut': int(network_out),
+            # 详细系统信息
+            'uptime_hours': round(uptime_hours, 1),
+            'process_count': process_count,
+            'memory_total_gb': round(memory_total_gb, 1),  # 四舍五入到1位小数
+            'disk_total_gb': round(disk_total_gb, 0),      # 四舍五入到整数
+            'cpu_count': cpu_count_logical,                # 使用逻辑核心数
+            'cpu_count_physical': cpu_count_physical,      # 添加物理核心数
+            # 新增详细CPU信息
+            'cpu_freq': round(psutil.cpu_freq().current, 0) if psutil.cpu_freq() else 0,  # CPU频率
         }
         
         return jsonify({
@@ -155,19 +202,27 @@ def get_system_health():
             'data': health_data
         })
         
-    except ImportError:
+    except ImportError as e:
+        security_logger.warning(f"psutil未安装，使用模拟数据: {str(e)}")
         # 如果没有安装psutil，使用模拟数据
         health_data = {
-            'cpu': random.uniform(10, 80),
-            'memory': random.uniform(20, 90),
-            'disk': random.uniform(30, 85),
+            'cpu': round(random.uniform(10, 80), 1),
+            'memory': round(random.uniform(20, 90), 1),
+            'disk': round(random.uniform(30, 85), 1),
             'networkIn': random.randint(1000, 10000),
-            'networkOut': random.randint(500, 5000)
+            'networkOut': random.randint(500, 5000),
+            'uptime_hours': random.uniform(1, 100),
+            'process_count': random.randint(50, 200),
+            'memory_total_gb': 32.0,        # 修正为32GB
+            'disk_total_gb': 1907.0,        # 修正为实际磁盘大小
+            'cpu_count': 8,                 # 修正为8核
+            'cpu_count_physical': 8,        # 物理核心数
+            'cpu_freq': 3000               # 模拟CPU频率
         }
         
         return jsonify({
             'code': 0,
-            'message': 'ok',
+            'message': 'ok (模拟数据)',
             'data': health_data
         })
         

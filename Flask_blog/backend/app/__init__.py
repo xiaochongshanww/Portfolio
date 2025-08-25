@@ -1,4 +1,8 @@
 import os
+# Load environment variables at module import time
+from dotenv import load_dotenv
+load_dotenv()
+
 # 添加 PyMySQL 兼容层
 try:
     import pymysql  # type: ignore
@@ -11,7 +15,6 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
-from dotenv import load_dotenv
 import jwt
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -178,6 +181,10 @@ def create_app(config_name=None):
     from .security.routes import security_bp
     from .settings.routes import settings_bp
     from .public_api import public_bp
+    from .middlewares import VisitorTrackingMiddleware
+
+    # 初始化访客追踪中间件
+    visitor_middleware = VisitorTrackingMiddleware(app)
 
     # OpenAPI 只注册一次 (根路径 /spec)
     app.register_blueprint(openapi_bp)
@@ -441,14 +448,14 @@ def require_auth(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
         auth = request.headers.get('Authorization','')
-        print(f"🔐 [AUTH] 收到认证请求，Authorization头: {auth[:20]}..." if auth else "🔐 [AUTH] 无Authorization头")
+        print(f"[AUTH] 收到认证请求，Authorization头: {auth[:20]}..." if auth else "[AUTH] 无Authorization头")
         
         if not auth.startswith('Bearer '):
-            print("🔐 [AUTH] 失败: 缺少Bearer token")
+            print("[AUTH] 失败: 缺少Bearer token")
             return jsonify({'code':4010,'message':_('missing token')}), 401
         
         token = auth.split(' ',1)[1]
-        print(f"🔐 [AUTH] 提取到token: {token[:20]}...")
+        print(f"[AUTH] 提取到token: {token[:20]}...")
         
         try:
             payload = jwt.decode(token, current_app.config['JWT_SECRET_KEY'], algorithms=['HS256'])
@@ -459,9 +466,9 @@ def require_auth(fn):
                 pass
             request.user_id = sub_val
             request.user_role = payload.get('role')
-            print(f"🔐 [AUTH] 成功: 用户ID={sub_val}, 角色={payload.get('role')}")
+            print(f"[AUTH] 成功: 用户ID={sub_val}, 角色={payload.get('role')}")
         except Exception as e:
-            print(f"🔐 [AUTH] 失败: JWT解码错误 {e}")
+            print(f"[AUTH] 失败: JWT解码错误 {e}")
             return jsonify({'code':4010,'message':_('invalid token')}), 401
         return fn(*args, **kwargs)
     return wrapper

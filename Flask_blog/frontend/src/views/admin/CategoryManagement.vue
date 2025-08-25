@@ -93,41 +93,46 @@
         
         <el-table-column prop="article_count" label="文章数量" width="120" align="center">
           <template #default="{ row }">
-            <el-badge 
-              :value="row.article_count" 
-              :type="row.article_count > 0 ? 'primary' : 'info'"
-              :hidden="row.article_count === 0"
-            >
-              <span class="article-count">{{ row.article_count }}</span>
-            </el-badge>
+            <div class="article-count-container">
+              <el-tag 
+                :type="row.article_count > 0 ? 'success' : 'info'"
+                size="small"
+                class="article-count-tag"
+              >
+                {{ row.article_count }}
+              </el-tag>
+            </div>
           </template>
         </el-table-column>
         
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button
                 size="small"
                 @click="showEditDialog(row)"
                 :icon="Edit"
+                class="action-btn-edit"
               >
                 编辑
               </el-button>
               
               <el-button
                 size="small"
+                type="primary"
                 @click="showCreateDialog(row)"
                 :icon="Plus"
+                class="action-btn-add"
               >
-                添加子分类
+                添加子类
               </el-button>
               
               <el-button
                 size="small"
                 type="danger"
                 @click="handleDelete(row)"
-                :disabled="row.article_count > 0"
                 :icon="Delete"
+                class="action-btn-delete"
               >
                 删除
               </el-button>
@@ -386,26 +391,51 @@ const handleSubmit = async () => {
 
 // 删除分类
 const handleDelete = async (category) => {
-  if (category.article_count > 0) {
-    ElMessage.warning('该分类下还有文章，无法删除');
-    return;
-  }
-  
   try {
-    await ElMessageBox.confirm(
-      `确定要删除分类「${category.name}」吗？此操作不可恢复！`,
-      '删除确认',
-      {
+    let confirmMessage = '';
+    let confirmTitle = '';
+    let confirmOptions = {
+      confirmButtonText: '确定删除',
+      cancelButtonText: '取消'
+    };
+    
+    if (category.article_count > 0) {
+      // 有文章的分类 - 警告式删除
+      confirmMessage = `⚠️ 警告：分类「${category.name}」下还有 ${category.article_count} 篇文章！
+      
+删除此分类后，这些文章将变为「未分类」状态。
+
+确定要继续删除吗？此操作不可恢复！`;
+      confirmTitle = '危险操作确认';
+      confirmOptions = {
+        type: 'error',
+        confirmButtonText: '我已了解风险，继续删除',
+        cancelButtonText: '取消',
+        confirmButtonClass: 'el-button--danger',
+        dangerouslyUseHTMLString: false
+      };
+    } else {
+      // 空分类 - 普通删除确认
+      confirmMessage = `确定要删除分类「${category.name}」吗？此操作不可恢复！`;
+      confirmTitle = '删除确认';
+      confirmOptions = {
         type: 'warning',
         confirmButtonText: '确定删除',
         cancelButtonText: '取消'
-      }
-    );
+      };
+    }
+    
+    await ElMessageBox.confirm(confirmMessage, confirmTitle, confirmOptions);
     
     const response = await api.delete(`/taxonomy/categories/${category.id}`);
     
     if (response.data.code === 0) {
-      ElMessage.success('分类删除成功');
+      // 根据是否有文章提供不同的成功信息
+      if (category.article_count > 0) {
+        ElMessage.success(`分类「${category.name}」删除成功，${category.article_count} 篇文章已转为未分类状态`);
+      } else {
+        ElMessage.success(`分类「${category.name}」删除成功`);
+      }
       await loadData();
     } else {
       ElMessage.error(response.data.message || '删除失败');
@@ -728,17 +758,6 @@ onMounted(() => {
   background: transparent;
 }
 
-.modern-table :deep(.el-table__header th) {
-  background: transparent !important;
-  border: none;
-  color: #1e293b;
-  font-weight: 700;
-  font-size: 0.875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 1.5rem 1rem;
-}
-
 .modern-table :deep(.el-table__body tr) {
   transition: all 0.3s ease;
   border: none;
@@ -747,12 +766,6 @@ onMounted(() => {
 .modern-table :deep(.el-table__body tr:hover) {
   background: rgba(34, 197, 94, 0.02);
   transform: scale(1.005);
-}
-
-.modern-table :deep(.el-table__body td) {
-  border: none;
-  padding: 1.25rem 1rem;
-  vertical-align: middle;
 }
 
 .modern-table :deep(.el-table::before) {
@@ -808,22 +821,106 @@ onMounted(() => {
   border-color: rgba(34, 197, 94, 0.2);
 }
 
+/* 文章数量样式 */
+.article-count-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.article-count-tag {
+  font-weight: 600;
+  min-width: 32px;
+  text-align: center;
+  border-radius: 16px;
+  transition: all 0.3s ease;
+}
+
+.article-count-tag:hover {
+  transform: scale(1.1);
+}
+
+/* 表格列分隔线 */
+.modern-table :deep(.el-table__header th) {
+  background: transparent !important;
+  border: none;
+  border-right: 1px solid rgba(229, 231, 235, 0.6);
+  color: #1e293b;
+  font-weight: 700;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 1.5rem 1rem;
+}
+
+.modern-table :deep(.el-table__header th:last-child) {
+  border-right: none;
+}
+
+.modern-table :deep(.el-table__body td) {
+  border: none;
+  border-right: 1px solid rgba(229, 231, 235, 0.4);
+  padding: 1.25rem 1rem;
+  vertical-align: middle;
+}
+
+.modern-table :deep(.el-table__body td:last-child) {
+  border-right: none;
+}
+
 /* 操作按钮 */
 .action-buttons {
   display: flex;
   gap: 0.5rem;
-  flex-wrap: wrap;
+  align-items: center;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
 }
 
 .action-buttons .el-button {
   min-width: auto;
-  border-radius: 8px;
+  border-radius: 6px;
   font-weight: 500;
+  font-size: 12px;
+  padding: 4px 8px;
   transition: all 0.3s ease;
+  flex-shrink: 0;
 }
 
 .action-buttons .el-button:hover {
-  transform: translateY(-2px) scale(1.05);
+  transform: translateY(-1px) scale(1.05);
+}
+
+.action-btn-edit {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #3b82f6;
+}
+
+.action-btn-edit:hover {
+  background: #3b82f6;
+  color: white;
+}
+
+.action-btn-add {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.3);
+  color: #22c55e;
+}
+
+.action-btn-add:hover {
+  background: #22c55e;
+  color: white;
+}
+
+.action-btn-delete {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.action-btn-delete:hover {
+  background: #ef4444;
+  color: white;
 }
 
 /* 空状态样式 */
@@ -922,12 +1019,14 @@ onMounted(() => {
   .action-buttons {
     flex-direction: column;
     gap: 0.25rem;
+    width: 100%;
   }
   
   .action-buttons .el-button {
     width: 100%;
     font-size: 0.75rem;
     padding: 0.5rem;
+    justify-content: center;
   }
 }
 

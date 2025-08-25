@@ -78,20 +78,53 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { EditPen, Link, ChatDotRound, Message, Connection, View, User } from '@element-plus/icons-vue'
+import apiClient from '../../apiClient'
 
 // 统计数据
-const todayViews = ref(1247)
-const totalVisitors = ref(15632)
+const todayViews = ref(0)
+const totalVisitors = ref(0)
+const loading = ref(false)
+const error = ref(null)
 
-// 模拟获取统计数据
+// 获取访客统计数据
 const fetchStats = async () => {
-  // 这里可以调用 API 获取真实数据
-  // const response = await apiClient.get('/stats/visitors')
-  // todayViews.value = response.data.today
-  // totalVisitors.value = response.data.total
+  try {
+    loading.value = true
+    error.value = null
+    
+    const response = await apiClient.get('/metrics/visitors')
+    
+    if (response.data.code === 0) {
+      const data = response.data.data
+      todayViews.value = data.today_visitors || 0
+      totalVisitors.value = data.total_visitors || 0
+    } else {
+      console.warn('获取访客统计失败:', response.data.message)
+      error.value = response.data.message
+    }
+  } catch (err) {
+    console.error('获取访客统计出错:', err)
+    error.value = '网络错误'
+    // 使用默认值
+    todayViews.value = 0
+    totalVisitors.value = 0
+  } finally {
+    loading.value = false
+  }
+}
+
+// 发送访问追踪
+const trackVisit = async () => {
+  try {
+    await apiClient.post('/metrics/track')
+  } catch (err) {
+    console.error('访问追踪失败:', err)
+  }
 }
 
 onMounted(() => {
+  // 先追踪访问，然后获取统计数据
+  trackVisit()
   fetchStats()
 })
 </script>
