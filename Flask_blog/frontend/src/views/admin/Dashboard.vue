@@ -7,7 +7,24 @@
 
     <!-- 统计卡片 -->
     <div class="stats-grid">
-      <div class="stat-card">
+      <div 
+        class="stat-card clickable-card"
+        @click="navigateToArticles"
+        v-if="hasRole(['editor', 'admin'])"
+      >
+        <div class="stat-icon total-articles">
+          <el-icon size="32"><Document /></el-icon>
+        </div>
+        <div class="stat-content">
+          <div class="stat-value">{{ stats.totalArticles || 0 }}</div>
+          <div class="stat-label">总文章数</div>
+        </div>
+        <div class="card-action-hint">
+          <el-icon size="16"><ArrowRight /></el-icon>
+        </div>
+      </div>
+      
+      <div v-else class="stat-card">
         <div class="stat-icon total-articles">
           <el-icon size="32"><Document /></el-icon>
         </div>
@@ -44,7 +61,24 @@
         </div>
       </div>
 
-      <div class="stat-card">
+      <div 
+        class="stat-card clickable-card"
+        @click="navigateToArticles"
+        v-if="hasRole(['editor', 'admin'])"
+      >
+        <div class="stat-icon published-articles">
+          <el-icon size="32"><Check /></el-icon>
+        </div>
+        <div class="stat-content">
+          <div class="stat-value">{{ stats.publishedArticles || 0 }}</div>
+          <div class="stat-label">已发布文章</div>
+        </div>
+        <div class="card-action-hint">
+          <el-icon size="16"><ArrowRight /></el-icon>
+        </div>
+      </div>
+      
+      <div v-else class="stat-card">
         <div class="stat-icon published-articles">
           <el-icon size="32"><Check /></el-icon>
         </div>
@@ -54,7 +88,24 @@
         </div>
       </div>
 
-      <div class="stat-card">
+      <div 
+        class="stat-card clickable-card"
+        @click="navigateToUsers"
+        v-if="hasRole(['admin'])"
+      >
+        <div class="stat-icon total-users">
+          <el-icon size="32"><User /></el-icon>
+        </div>
+        <div class="stat-content">
+          <div class="stat-value">{{ stats.totalUsers || 0 }}</div>
+          <div class="stat-label">用户总数</div>
+        </div>
+        <div class="card-action-hint">
+          <el-icon size="16"><ArrowRight /></el-icon>
+        </div>
+      </div>
+      
+      <div v-else class="stat-card">
         <div class="stat-icon total-users">
           <el-icon size="32"><User /></el-icon>
         </div>
@@ -245,6 +296,18 @@ function hasRole(roles: string[]): boolean {
 function navigateToReview() {
   if (hasRole(['editor', 'admin'])) {
     router.push('/admin/articles/review');
+  }
+}
+
+function navigateToArticles() {
+  if (hasRole(['editor', 'admin'])) {
+    router.push('/admin/articles');
+  }
+}
+
+function navigateToUsers() {
+  if (hasRole(['admin'])) {
+    router.push('/admin/users');
   }
 }
 

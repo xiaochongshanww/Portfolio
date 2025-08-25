@@ -2,8 +2,8 @@
   <div class="article-editor-container">
     <!-- 页面头部 -->
     <div class="editor-header">
-      <h1 class="page-title">创作新文章</h1>
-      <p class="page-subtitle">分享您的想法，创作优质内容</p>
+      <h1 class="page-title">{{ isEditMode ? '编辑文章' : '创作新文章' }}</h1>
+      <p class="page-subtitle">{{ isEditMode ? '修改和完善您的文章内容' : '分享您的想法，创作优质内容' }}</p>
     </div>
 
     <!-- 主要内容区域 -->
@@ -174,7 +174,7 @@
               快捷键提示 (Ctrl+K)
             </el-button>
             <span class="shortcuts-preview">
-              Ctrl+S 保存 · Ctrl+Enter 发布 · F1 帮助
+              Ctrl+S 保存 · Ctrl+Enter {{ isEditMode ? '更新' : '发布' }} · F1 帮助
             </span>
           </div>
         </div>
@@ -377,7 +377,7 @@
           class="submit-button"
         >
           <el-icon class="button-icon"><Check /></el-icon>
-          {{ loading ? '发布中...' : '发布文章' }}
+          {{ loading ? (isEditMode ? '更新中...' : '发布中...') : (isEditMode ? '更新文章' : '发布文章') }}
         </el-button>
 
         <el-button 
@@ -431,9 +431,9 @@
 
       <el-alert 
         v-if="success" 
-        title="文章已提交审核！"
-        description="您的文章已提交审核，编辑审核通过后将自动发布给读者"
-        type="success" 
+        :title="isEditMode ? '文章已重新提交审核！' : '文章已提交审核！'"
+        :description="isEditMode ? '您的文章修改已保存并重新提交审核，编辑审核通过后将更新发布' : '您的文章已提交审核，编辑审核通过后将自动发布给读者'"
+        type="warning" 
         :closable="true"
         @close="success = false"
         class="success-alert"
@@ -445,7 +445,7 @@
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { API } from '../api';
 import { UploadsService } from '../generated';
-import { useRouter, onBeforeRouteLeave } from 'vue-router';
+import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router';
 import { useUserStore } from '../stores/user';
 import apiClient from '../apiClient';
 import axios from 'axios';
@@ -464,7 +464,13 @@ import {
 } from '@element-plus/icons-vue';
 
 const router = useRouter();
+const route = useRoute();
 const userStore = useUserStore();
+
+// 编辑模式状态
+const isEditMode = ref(false);
+const editingArticleId = ref(null);
+const originalArticle = ref(null);
 
 // 表单状态
 const form = ref({ 
@@ -611,6 +617,64 @@ function onFeaturedCandidate(meta) {
 function onFocal(f) { 
   form.value.featured_focal_x = f.x; 
   form.value.featured_focal_y = f.y; 
+}
+
+// 加载文章数据用于编辑
+async function loadArticleForEdit(articleId) {
+  try {
+    console.log('正在加载文章数据用于编辑:', articleId);
+    loading.value = true;
+    
+    const response = await apiClient.get(`/articles/${articleId}`);
+    
+    if (response.data.code === 0 && response.data.data) {
+      const article = response.data.data;
+      originalArticle.value = article;
+      
+      // 检查编辑权限
+      if (article.author_id !== userStore.user?.id && !userStore.hasRole(['editor', 'admin'])) {
+        message.critical('没有编辑此文章的权限');
+        router.push('/');
+        return;
+      }
+      
+      // 填充表单数据
+      form.value = {
+        title: article.title || '',
+        content_md: article.content_md || '',
+        tags_raw: (article.tags || []).join(', '),
+        seo_title: article.seo_title || '',
+        seo_desc: article.seo_desc || '',
+        slug: article.slug || '',
+        summary: article.summary || '',
+        featured_image: article.featured_image || '',
+        featured_focal_x: article.featured_focal_x || null,
+        featured_focal_y: article.featured_focal_y || null,
+        enable_schedule: article.status === 'scheduled',
+        scheduled_at: article.scheduled_at || '',
+        category_id: article.category_id || null
+      };
+      
+      console.log('✅ 文章数据加载完成');
+      console.log('📝 文章分类ID:', article.category_id);
+      console.log('📝 表单分类ID:', form.value.category_id);
+      console.log('📝 可用分类列表:', categories.value);
+      
+      // 确保CategorySelector组件能接收到正确的值
+      await nextTick();
+      console.log('📝 NextTick后表单分类ID:', form.value.category_id);
+      
+      message.success('文章数据加载完成，可以开始编辑');
+    } else {
+      throw new Error(response.data.message || '加载文章失败');
+    }
+  } catch (error) {
+    console.error('加载文章数据失败:', error);
+    message.critical('加载文章失败: ' + error.message);
+    router.push('/');
+  } finally {
+    loading.value = false;
+  }
 }
 
 // 封面图片上传处理
@@ -860,6 +924,13 @@ async function submit() {
       tags 
     };
     
+    // 编辑文章时，重新进入审核流程
+    if (isEditMode.value) {
+      payload.status = 'pending';
+      console.log('编辑模式：文章状态设置为pending，需要重新审核');
+      console.log('📝 提交的payload包含status:', payload.status);
+    }
+    
     // 可选字段
     if (form.value.slug?.trim()) payload.slug = form.value.slug.trim();
     if (form.value.seo_title?.trim()) payload.seo_title = form.value.seo_title.trim();
@@ -879,24 +950,45 @@ async function submit() {
       payload.scheduled_at = new Date(form.value.scheduled_at).toISOString();
     }
     
-    const resp = await API.ArticlesService.postApiV1Articles(payload);
-    const data = resp.data?.data || resp.data;
-    const articleId = data.id;
-    const slug = data.slug || data.id;
+    let resp, data, articleId, slug;
+    
+    if (isEditMode.value && editingArticleId.value) {
+      // 编辑模式：更新现有文章
+      console.log('编辑模式：更新文章', editingArticleId.value);
+      resp = await apiClient.put(`/articles/${editingArticleId.value}`, payload);
+      data = resp.data?.data || resp.data;
+      articleId = editingArticleId.value;
+      slug = data.slug || originalArticle.value?.slug || articleId;
+    } else {
+      // 创建模式：新建文章
+      console.log('创建模式：新建文章');
+      resp = await API.ArticlesService.postApiV1Articles(payload);
+      data = resp.data?.data || resp.data;
+      articleId = data.id;
+      slug = data.slug || data.id;
+    }
     
     // 提交文章审核
     let publishMessage = '';
     let publishType = 'success';
     
-    try {
-      await apiClient.post(`/articles/${articleId}/submit`);
-      console.log('文章已提交审核');
-      publishMessage = '恭喜！您的文章已成功发布并提交审核。';
-      publishType = 'success';
-    } catch (submitError) {
-      console.warn('提交审核失败:', submitError);
-      publishMessage = '文章已保存为草稿，您可以稍后到文章管理页面提交审核。';
+    if (!isEditMode.value) {
+      // 新文章需要提交审核
+      try {
+        await apiClient.post(`/articles/${articleId}/submit`);
+        console.log('文章已提交审核');
+        publishMessage = '恭喜！您的文章已成功发布并提交审核。';
+        publishType = 'success';
+      } catch (submitError) {
+        console.warn('提交审核失败:', submitError);
+        publishMessage = '文章已保存为草稿，您可以稍后到文章管理页面提交审核。';
+        publishType = 'warning';
+      }
+    } else {
+      // 编辑模式：文章已更新，需要重新审核
+      publishMessage = '文章已成功更新！修改后的文章已重新提交审核。';
       publishType = 'warning';
+      console.log('文章编辑完成，状态已设置为pending等待审核');
     }
     
     // 清理本地草稿
@@ -992,10 +1084,10 @@ async function submit() {
     try {
       const result = await ElMessageBox.confirm(
         `${publishMessage}\n\n是否立即查看您的文章？`,
-        publishType === 'success' ? '🎉 发布成功！' : '📝 保存成功！',
+        isEditMode.value ? '✅ 更新成功！' : (publishType === 'success' ? '🎉 发布成功！' : '📝 保存成功！'),
         {
           confirmButtonText: '查看文章',
-          cancelButtonText: '稍后查看',
+          cancelButtonText: isEditMode.value ? '继续编辑' : '稍后查看',
           type: publishType,
           center: true,
           customClass: 'publish-success-dialog',
@@ -1016,13 +1108,19 @@ async function submit() {
     } catch (action) {
       // 用户选择稍后查看或关闭对话框
       if (action === 'cancel') {
-        console.log('用户选择稍后查看文章');
-        message.info('您可以在文章管理页面找到您的文章');
-        
-        // 跳转到首页
-        setTimeout(() => {
-          window.location.href = '/'; // 跳转到首页
-        }, 1000);
+        if (isEditMode.value) {
+          console.log('用户选择继续编辑');
+          message.info('您可以继续编辑文章');
+          // 在编辑模式下，用户选择继续编辑时留在当前页面
+        } else {
+          console.log('用户选择稍后查看文章');
+          message.info('您可以在文章管理页面找到您的文章');
+          
+          // 跳转到首页
+          setTimeout(() => {
+            window.location.href = '/'; // 跳转到首页
+          }, 1000);
+        }
         
       } else {
         console.log('用户关闭了对话框');
@@ -1752,8 +1850,6 @@ watch(() => form.value.content_md, (newValue) => {
 
 // 生命周期钩子
 onMounted(async () => {
-  setMeta({ title: '撰写新文章', description: '创作中心 - 新建文章' });
-  
   // 添加Promise错误处理，专门处理__vnode相关错误
   const handleUnhandledRejection = (event) => {
     if (event.reason && event.reason.message && event.reason.message.includes('__vnode')) {
@@ -1767,11 +1863,22 @@ onMounted(async () => {
   window.vueErrorHandler = handleUnhandledRejection;
   window.addEventListener('unhandledrejection', handleUnhandledRejection);
   
-  // 加载分类列表
+  // 先加载分类列表和标签，确保数据可用
   await loadCategories();
-  
-  // 加载可用标签
   await loadAvailableTags();
+  
+  // 检查是否为编辑模式
+  const articleId = route.params.id;
+  if (articleId && route.meta.editMode) {
+    isEditMode.value = true;
+    editingArticleId.value = parseInt(articleId);
+    setMeta({ title: '编辑文章', description: '编辑现有文章内容' });
+    
+    // 在分类数据加载完成后再加载文章数据
+    await loadArticleForEdit(articleId);
+  } else {
+    setMeta({ title: '撰写新文章', description: '创作中心 - 新建文章' });
+  }
   
   // 认证状态检查
   console.log('📝 NewArticle组件挂载，检查认证状态');
@@ -1795,19 +1902,21 @@ onMounted(async () => {
     }
   }
   
-  // 页面加载后检查是否有草稿 - 延迟到组件完全稳定后
-  setTimeout(() => {
-    nextTick(() => {
-      loadLatestDraft().catch(error => {
-        console.error('草稿恢复异步错误:', error);
-        // 确保状态重置
-        if (isRestoringDraft.value) {
-          isRestoringDraft.value = false;
-          hasUnsavedChanges.value = false;
-        }
+  // 页面加载后检查是否有草稿 - 只在新建文章时显示
+  if (!isEditMode.value) {
+    setTimeout(() => {
+      nextTick(() => {
+        loadLatestDraft().catch(error => {
+          console.error('草稿恢复异步错误:', error);
+          // 确保状态重置
+          if (isRestoringDraft.value) {
+            isRestoringDraft.value = false;
+            hasUnsavedChanges.value = false;
+          }
+        });
       });
-    });
-  }, 300);
+    }, 300);
+  }
   
   // 监听页面离开事件
   window.addEventListener('beforeunload', handleBeforeUnload);

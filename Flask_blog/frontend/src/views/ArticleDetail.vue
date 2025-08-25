@@ -40,6 +40,21 @@
             <!-- 文章标题 -->
             <h1 class="article-title">{{ article.title }}</h1>
             
+            <!-- 作者编辑操作区 -->
+            <div v-if="canEdit" class="author-edit-actions">
+              <el-button 
+                type="primary" 
+                size="small" 
+                :icon="Edit" 
+                @click="editArticle"
+                class="edit-btn"
+              >
+                编辑文章
+              </el-button>
+              <span v-if="isAuthor" class="edit-hint">作为文章作者，您可以随时编辑</span>
+              <span v-else-if="userStore.hasRole(['editor', 'admin'])" class="edit-hint">管理员权限</span>
+            </div>
+            
             <!-- 文章元信息 -->
             <div class="article-meta">
               <div class="meta-primary">
@@ -82,17 +97,37 @@
                 </div>
               </div>
               
-              <!-- 标签 -->
-              <div v-if="article.tags && article.tags.length" class="article-tags">
-                <el-tag 
-                  v-for="tag in article.tags" 
-                  :key="tag" 
-                  size="small" 
-                  type="info"
-                  class="tag-item"
-                >
-                  #{{ tag }}
-                </el-tag>
+              <!-- 分类和标签 -->
+              <div class="article-taxonomy">
+                <!-- 文章分类 -->
+                <div v-if="article.category" class="article-category">
+                  <router-link :to="`/category/${article.category_id || article.category}`" class="category-link">
+                    <el-tag 
+                      size="small" 
+                      type="primary" 
+                      effect="plain"
+                      class="category-tag"
+                    >
+                      <i class="fa fa-folder-o" aria-hidden="true"></i>
+                      {{ article.category }}
+                    </el-tag>
+                  </router-link>
+                </div>
+                
+                <!-- 标签 -->
+                <div v-if="article.tags && article.tags.length" class="article-tags">
+                  <el-tag 
+                    v-for="tag in article.tags" 
+                    :key="tag" 
+                    size="small" 
+                    type="info"
+                    effect="plain"
+                    class="tag-item"
+                  >
+                    <i class="fa fa-tag" aria-hidden="true"></i>
+                    {{ tag }}
+                  </el-tag>
+                </div>
               </div>
             </div>
           </header>
@@ -252,9 +287,10 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useUserStore } from '../stores/user';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { Edit } from '@element-plus/icons-vue';
 import CommentsThread from '../components/CommentsThread.vue';
 import CoverImage from '../components/CoverImage.vue';
 import ArticleContentRenderer from '../components/ArticleContentRenderer.vue';
@@ -289,6 +325,7 @@ const API = {
 }
 
 const route = useRoute();
+const router = useRouter();
 const userStore = useUserStore();
 const article = ref(null);
 const liked = ref(false);
@@ -322,6 +359,27 @@ const canOperate = (target) => true; // Simplified for demo
 const canSchedule = computed(()=> article.value && article.value.status === 'draft');
 const canUnschedule = computed(()=> article.value && article.value.status === 'scheduled');
 const canUnpublish = computed(()=> article.value && article.value.status === 'published');
+
+// 检查是否为文章作者
+const isAuthor = computed(() => {
+  return userStore.user?.id === article.value?.author?.id;
+});
+
+// 检查编辑权限（作者或管理员）
+const canEdit = computed(() => {
+  return isAuthor.value || userStore.hasRole(['editor', 'admin']);
+});
+
+// 编辑文章
+function editArticle() {
+  if (!article.value || !canEdit.value) {
+    message.warning('没有编辑权限');
+    return;
+  }
+  
+  // 路由到普通编辑页面，传入文章ID
+  router.push(`/articles/${article.value.id}/edit`);
+}
 
 async function doTransition(target){
   if(!article.value) return;
@@ -1056,13 +1114,53 @@ const handleContentClick = (clickInfo) => {
   font-weight: 800;
   line-height: 1.2;
   color: #111827;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   letter-spacing: -0.025em;
+}
+
+/* 作者编辑操作区 */
+.author-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.author-edit-actions:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.edit-btn {
+  font-size: 0.875rem;
+  border-radius: 0.375rem;
+  transition: all 0.2s ease;
+}
+
+.edit-hint {
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 500;
 }
 
 @media (max-width: 768px) {
   .article-title {
     font-size: 2rem;
+  }
+  
+  .author-edit-actions {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .edit-hint {
+    font-size: 0.8125rem;
   }
 }
 
@@ -1148,6 +1246,42 @@ const handleContentClick = (clickInfo) => {
   font-size: 0.875rem;
 }
 
+/* 分类和标签区域 */
+.article-taxonomy {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+/* 分类样式 */
+.article-category {
+  display: flex;
+  align-items: center;
+}
+
+.category-link {
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.category-link:hover {
+  transform: translateY(-1px);
+}
+
+.category-tag {
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.category-tag i {
+  margin-right: 0.375rem;
+}
+
+.category-tag:hover {
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
 /* 标签样式 */
 .article-tags {
   display: flex;
@@ -1158,11 +1292,26 @@ const handleContentClick = (clickInfo) => {
 .tag-item {
   transition: all 0.2s ease;
   cursor: pointer;
+  font-weight: 400;
+}
+
+.tag-item i {
+  margin-right: 0.25rem;
+  font-size: 0.75rem;
 }
 
 .tag-item:hover {
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 响应式调整 */
+@media (min-width: 768px) {
+  .article-taxonomy {
+    flex-direction: row;
+    align-items: center;
+    gap: 2rem;
+  }
 }
 
 /* ===== 封面图片样式 ===== */

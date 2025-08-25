@@ -98,6 +98,7 @@ if HAS_PY:
 
     class ArticleUpdateModel(ArticleCreateModel):
         title: str | None = None
+        status: str | None = None
 
 def serialize_article(a: Article, detail=False, include_user_flags=False, user_id=None):
     from ..models import ArticleLike, ArticleBookmark, Category  # 局部导入避免循环
@@ -138,6 +139,7 @@ def serialize_article(a: Article, detail=False, include_user_flags=False, user_i
         category = Category.query.get(a.category_id)
         if category:
             data['category'] = category.name
+            data['category_id'] = category.id
     if detail:
         data['content_html'] = a.content_html
         data['content_md'] = a.content_md
@@ -400,7 +402,7 @@ def update_article(article_id):
     if hasattr(parsed,'content_md') and parsed.content_md is not None:
         article.content_md = parsed.content_md or ''
         article.content_html = render_and_sanitize(article.content_md)  # 使用安全渲染
-    for f in ['summary','seo_title','seo_desc','featured_image','featured_focal_x','featured_focal_y','category_id']:
+    for f in ['summary','seo_title','seo_desc','featured_image','featured_focal_x','featured_focal_y','category_id','status']:
         if hasattr(parsed, f):
             setattr(article, f, getattr(parsed,f))
     if hasattr(parsed,'tags') and parsed.tags is not None:

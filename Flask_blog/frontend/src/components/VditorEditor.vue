@@ -4,7 +4,7 @@
     <div class="editor-header">
       <div class="header-info">
         <el-icon class="info-icon"><InfoFilled /></el-icon>
-        <span>Markdown编辑器，支持图片上传、拖拽和粘贴</span>
+        <span>Markdown编辑器，支持图片上传、拖拽、粘贴和自动上传</span>
       </div>
       <div class="header-actions">
         <el-select 
@@ -179,6 +179,223 @@ function getUploadConfig() {
   };
 }
 
+// 上传单个图片文件的功能函数
+async function uploadImageFile(file: File): Promise<string | null> {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await fetch('/api/v1/uploads/image', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${userStore.token || ''}`
+      },
+      body: formData
+    });
+    
+    const result = await response.json();
+    
+    if (result.code === 0 && result.data?.url) {
+      // 智能选择最佳图片尺寸
+      const data = result.data;
+      let bestUrl = data.url; // 默认原图
+      
+      // 如果有variants，选择最适合的尺寸
+      if (data.variants && data.variants.length > 0) {
+        const mdVariant = data.variants.find(v => v.label === 'md');
+        const smVariant = data.variants.find(v => v.label === 'sm');
+        
+        if (mdVariant) {
+          bestUrl = mdVariant.url;
+        } else if (smVariant) {
+          bestUrl = smVariant.url; 
+        }
+      }
+      
+      console.log('✅ 图片上传成功:', bestUrl);
+      return bestUrl;
+    } else {
+      console.error('上传响应格式错误:', result);
+      message.error('图片上传失败: ' + (result.message || '响应格式错误'));
+      return null;
+    }
+  } catch (error) {
+    console.error('❌ 图片上传失败:', error);
+    message.error('图片上传失败: ' + error.message);
+    return null;
+  }
+}
+
+// 处理粘贴内容中的本地图片路径
+async function processMarkdownImages(content: string): Promise<string> {
+  // 匹配markdown中的图片语法：![alt](path)
+  const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+  const matches = Array.from(content.matchAll(imageRegex));
+  
+  if (matches.length === 0) {
+    return content;
+  }
+  
+  let processedContent = content;
+  const uploadPromises = [];
+  
+  for (const match of matches) {
+    const [fullMatch, altText, imagePath] = match;
+    
+    // 检测是否是本地文件路径（Windows或Linux路径格式）
+    const isLocalPath = (
+      // Windows路径: C:\path\to\image.jpg 或 .\relative\path.jpg
+      /^[A-Za-z]:[\\\/]/.test(imagePath) ||
+      /^\.?[\\\/]/.test(imagePath) ||
+      // 或者不是HTTP(S)协议的路径
+      (!imagePath.startsWith('http://') && !imagePath.startsWith('https://') && !imagePath.startsWith('/'))
+    );
+    
+    if (isLocalPath) {
+      console.log('检测到本地图片路径:', imagePath);
+      
+      // 尝试读取本地文件（使用File API）
+      try {
+        // 创建一个Promise来处理文件读取和上传
+        const uploadPromise = (async () => {
+          try {
+            // 由于浏览器安全限制，我们不能直接读取本地文件系统
+            // 这里我们只能处理通过拖拽或粘贴进来的文件
+            // 对于markdown中的本地路径，我们给用户一个友好提示
+            const placeholder = `![${altText || '图片'}](本地图片-请拖拽或粘贴图片文件)`;
+            processedContent = processedContent.replace(fullMatch, placeholder);
+            
+            // 给用户一个提示
+            message.warning({
+              message: `检测到本地图片路径: ${imagePath.substring(0, 50)}${imagePath.length > 50 ? '...' : ''}。请直接拖拽或粘贴图片文件到编辑器中。`,
+              duration: 5000,
+              showClose: true
+            });
+          } catch (error) {
+            console.error('处理本地图片路径失败:', error);
+            // 保持原内容不变
+          }
+        })();
+        
+        uploadPromises.push(uploadPromise);
+      } catch (error) {
+        console.error('读取本地文件失败:', error);
+      }
+    }
+  }
+  
+  // 等待所有上传完成
+  if (uploadPromises.length > 0) {
+    await Promise.all(uploadPromises);
+  }
+  
+  return processedContent;
+}
+
+// 设置粘贴事件处理器
+function setupPasteHandler() {
+  if (!vditorRef.value || !vditor) {
+    console.warn('setupPasteHandler: 编辑器未就绪');
+    return;
+  }
+
+  // 寻找编辑器的实际文本输入区域
+  const editorElement = vditorRef.value.querySelector('.vditor-reset') || 
+                       vditorRef.value.querySelector('.vditor-content') ||
+                       vditorRef.value;
+  
+  if (!editorElement) {
+    console.warn('setupPasteHandler: 无法找到编辑器输入区域');
+    return;
+  }
+
+  const handlePaste = async (event: ClipboardEvent) => {
+    console.log('检测到粘贴事件');
+    
+    const clipboardData = event.clipboardData;
+    if (!clipboardData) return;
+
+    // 检查是否有图片文件
+    const files = Array.from(clipboardData.files);
+    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    
+    if (imageFiles.length > 0) {
+      console.log('检测到粘贴的图片文件:', imageFiles.length, '个');
+      
+      // 阻止默认粘贴行为
+      event.preventDefault();
+      
+      // 上传图片文件
+      for (const imageFile of imageFiles) {
+        try {
+          console.log('正在上传图片:', imageFile.name, imageFile.type);
+          message.info(`正在上传图片: ${imageFile.name}`);
+          
+          const imageUrl = await uploadImageFile(imageFile);
+          if (imageUrl) {
+            const imageMarkdown = `![${imageFile.name}](${imageUrl})`;
+            vditor?.insertValue('\n' + imageMarkdown + '\n');
+            console.log('✅ 图片已插入编辑器:', imageUrl);
+          }
+        } catch (error) {
+          console.error('上传图片失败:', error);
+          message.error(`上传图片失败: ${imageFile.name}`);
+        }
+      }
+      
+      return;
+    }
+
+    // 检查是否有文本内容
+    const text = clipboardData.getData('text/plain');
+    if (text) {
+      console.log('检测到粘贴的文本内容，长度:', text.length);
+      
+      // 检查是否包含本地图片路径
+      const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+      const hasImages = imageRegex.test(text);
+      
+      if (hasImages) {
+        console.log('文本内容包含markdown图片语法');
+        
+        // 阻止默认粘贴行为
+        event.preventDefault();
+        
+        try {
+          // 处理markdown中的本地图片路径
+          const processedText = await processMarkdownImages(text);
+          
+          // 插入处理后的内容
+          vditor?.insertValue(processedText);
+          
+          console.log('✅ 已插入处理后的markdown内容');
+        } catch (error) {
+          console.error('处理markdown内容失败:', error);
+          // 如果处理失败，插入原始内容
+          vditor?.insertValue(text);
+        }
+      }
+      // 如果没有图片，让Vditor正常处理文本粘贴
+    }
+  };
+
+  // 添加事件监听器
+  editorElement.addEventListener('paste', handlePaste);
+  console.log('✅ 粘贴事件监听器已设置');
+
+  // 保存清理函数
+  if (!window.vditorCleanupFunctions) {
+    window.vditorCleanupFunctions = [];
+  }
+  
+  const cleanup = () => {
+    editorElement.removeEventListener('paste', handlePaste);
+    console.log('✅ 粘贴事件监听器已清理');
+  };
+  
+  window.vditorCleanupFunctions.push(cleanup);
+}
+
 // 初始化Vditor
 async function initVditor() {
   if (!vditorRef.value) {
@@ -201,7 +418,7 @@ async function initVditor() {
       theme: 'classic',
       
       // 编辑器配置
-      placeholder: '支持Markdown编写，可粘贴文本内容，点击上传或拖拽图片...',
+      placeholder: '支持Markdown编写，可粘贴文本内容和图片，点击上传或拖拽图片...',
       
       // 工具栏配置（包含图片上传）
       toolbar: [
@@ -291,6 +508,9 @@ async function initVditor() {
                   console.warn('设置初始内容失败，可能组件正在卸载:', e);
                 }
               }
+              
+              // 添加粘贴事件监听
+              setupPasteHandler();
             } catch (error) {
               console.warn('Vditor初始化后状态更新失败:', error);
             }
@@ -438,6 +658,18 @@ onBeforeUnmount(() => {
   
   // 清空实例引用
   vditor = null;
+  
+  // 清理粘贴事件监听器
+  if (window.vditorCleanupFunctions) {
+    window.vditorCleanupFunctions.forEach(cleanup => {
+      try {
+        cleanup();
+      } catch (error) {
+        console.warn('清理粘贴事件监听器失败:', error);
+      }
+    });
+    delete window.vditorCleanupFunctions;
+  }
   
   // 清理Vditor错误处理
   if (window.vditorErrorCleanup) {

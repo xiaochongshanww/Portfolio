@@ -41,9 +41,38 @@
         </div>
         <h3 class="error-title">加载数据失败</h3>
         <p class="error-message">{{ error }}</p>
-        <el-button @click="fetchStats" type="primary" :icon="Refresh">
-          重新加载
-        </el-button>
+        
+        <!-- 诊断信息 -->
+        <div class="diagnostic-info">
+          <el-collapse>
+            <el-collapse-item title="诊断信息" name="1">
+              <div class="diagnostic-content">
+                <p><strong>问题排查建议：</strong></p>
+                <ul>
+                  <li>检查Flask后端服务是否正在运行（端口5000）</li>
+                  <li>确认您的用户权限为editor或admin</li>
+                  <li>检查数据库连接是否正常</li>
+                  <li>查看浏览器开发者工具的Network选项卡</li>
+                </ul>
+                <p><strong>当前状态：</strong></p>
+                <ul>
+                  <li>API地址: /api/v1/metrics/summary</li>
+                  <li>用户认证: {{ userStore.isAuthenticated ? '已登录' : '未登录' }}</li>
+                  <li>用户角色: {{ userStore.role || '无' }}</li>
+                </ul>
+              </div>
+            </el-collapse-item>
+          </el-collapse>
+        </div>
+        
+        <div class="error-actions">
+          <el-button @click="fetchStats" type="primary" :icon="Refresh">
+            重新加载
+          </el-button>
+          <el-button @click="() => fetchStats(999)" type="success" plain>
+            使用备用数据源
+          </el-button>
+        </div>
       </div>
     </div>
     <!-- 现代化统计网格 -->
@@ -217,7 +246,9 @@ import {
 } from '@element-plus/icons-vue';
 import apiClient from '../apiClient';
 import { setMeta } from '../composables/useMeta';
+import { useUserStore } from '../stores/user';
 
+const userStore = useUserStore();
 const loading = ref(true);
 const error = ref(null);
 const stats = ref({
@@ -229,18 +260,113 @@ const stats = ref({
 
 const api = {
   getSummary: () => apiClient.get('/metrics/summary'),
+  getTest: () => apiClient.get('/metrics/test'),
+  getFallbackStats: async () => {
+    // 备用方案：从多个简单API获取基础数据
+    try {
+      const [articles, categories] = await Promise.all([
+        apiClient.get('/public/v1/articles?per_page=1').catch(() => ({ data: { data: [] } })),
+        apiClient.get('/public/v1/categories').catch(() => ({ data: { data: [] } }))
+      ]);
+      
+      return {
+        data: {
+          code: 0,
+          data: {
+            users: { total: 0 },
+            articles: { 
+              total: articles.data.data?.length || 0, 
+              published: articles.data.data?.length || 0, 
+              draft: 0, 
+              pending: 0 
+            },
+            comments: { total: 0, pending: 0, approved: 0 },
+            taxonomy: { 
+              tags: 0, 
+              categories: categories.data.data?.length || 0 
+            }
+          }
+        }
+      };
+    } catch (error) {
+      throw new Error('备用数据源也无法访问');
+    }
+  }
 };
 
-const fetchStats = async () => {
+const fetchStats = async (retryCount = 0) => {
   loading.value = true;
   error.value = null;
+  
   try {
-    const response = await api.getSummary();
-    stats.value = response.data.data;
+    console.log('开始获取站点统计数据...');
+    
+    // 设置超时时间为10秒
+    const response = await Promise.race([
+      api.getSummary(),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('请求超时')), 10000)
+      )
+    ]);
+    
+    if (response.data.code === 0) {
+      stats.value = response.data.data;
+      console.log('✅ 站点统计数据获取成功');
+      ElMessage.success('数据加载完成');
+    } else {
+      throw new Error(response.data.message || '服务器返回错误');
+    }
+    
   } catch (err) {
-    error.value = err.response?.data?.message || '无法连接到服务器';
-    ElMessage.error('加载统计数据失败');
-    console.error(err);
+    console.error('获取统计数据失败:', err);
+    
+    // 根据错误类型提供不同的错误信息
+    let errorMsg = '加载数据失败';
+    
+    if (err.message === '请求超时') {
+      errorMsg = '服务器响应超时，请检查后端服务是否正常运行';
+    } else if (err.code === 'NETWORK_ERROR' || err.message.includes('Network Error')) {
+      errorMsg = '网络连接失败，请检查后端服务连接';
+    } else if (err.response?.status === 403) {
+      errorMsg = '没有权限访问数据，请确保您有editor或admin权限';
+    } else if (err.response?.status === 401) {
+      errorMsg = '身份验证失败，请重新登录';
+    } else if (err.response?.data?.message) {
+      errorMsg = err.response.data.message;
+    } else if (err.message) {
+      errorMsg = err.message;
+    }
+    
+    error.value = errorMsg;
+    
+    // 如果是网络问题且重试次数少于2次，自动重试
+    if ((err.message === '请求超时' || err.code === 'NETWORK_ERROR') && retryCount < 2) {
+      console.log(`自动重试中... (${retryCount + 1}/2)`);
+      ElMessage.warning(`连接失败，正在重试... (${retryCount + 1}/2)`);
+      
+      setTimeout(() => {
+        fetchStats(retryCount + 1);
+      }, 2000 * (retryCount + 1)); // 递增延迟
+    } else if (retryCount >= 2) {
+      // 重试失败后尝试备用数据源
+      console.log('主API重试失败，尝试备用数据源...');
+      ElMessage.info('主数据源不可用，正在尝试备用数据源...');
+      
+      try {
+        const fallbackResponse = await api.getFallbackStats();
+        stats.value = fallbackResponse.data.data;
+        console.log('✅ 备用数据源获取成功');
+        ElMessage.success('已使用备用数据源加载基础数据');
+        error.value = null; // 清除错误状态
+      } catch (fallbackErr) {
+        console.error('备用数据源也失败:', fallbackErr);
+        error.value = '主数据源和备用数据源均不可用，请检查网络连接或联系管理员';
+        ElMessage.error('所有数据源均不可用');
+      }
+    } else {
+      ElMessage.error(errorMsg);
+    }
+    
   } finally {
     loading.value = false;
   }
@@ -693,8 +819,35 @@ onMounted(() => {
 
 .error-message {
   color: #6b7280;
-  margin: 0 0 2rem 0;
+  margin: 0 0 1rem 0;
   line-height: 1.5;
+}
+
+.diagnostic-info {
+  margin: 1.5rem 0;
+  text-align: left;
+}
+
+.diagnostic-content {
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.diagnostic-content ul {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+
+.diagnostic-content li {
+  margin: 0.25rem 0;
+  color: #4b5563;
+}
+
+.error-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-top: 1.5rem;
 }
 
 /* 响应式设计 */

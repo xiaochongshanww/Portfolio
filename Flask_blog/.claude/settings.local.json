@@ -24,10 +24,14 @@
       "Bash(/dev/null)",
       "Bash(del test_system_health.py)",
       "Bash(powershell:*)",
-      "Bash(del simple_system_health_test.py test_minimal_flask.py test_actual_security_function.py test_full_app_bypass_auth.py simple_test.py test_health_api.py)"
+      "Bash(del simple_system_health_test.py test_minimal_flask.py test_actual_security_function.py test_full_app_bypass_auth.py simple_test.py test_health_api.py)",
+      "Bash(.venv/Scripts/python:*)"
     ],
     "deny": [],
-    "ask": []
+    "ask": [],
+    "additionalDirectories": [
+      "F:\\mnt\\f\\my_github_repo\\Portfolio\\Flask_blog"
+    ]
   },
   "outputStyle": "Explanatory"
 }

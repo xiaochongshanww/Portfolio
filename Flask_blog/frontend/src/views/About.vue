@@ -10,10 +10,10 @@
       </div>
       
       <div class="relative z-10 max-w-4xl mx-auto text-center">
-        <!-- 个人头像 -->
+        <!-- 网站Logo -->
         <div class="mb-8 flex justify-center">
-          <div class="w-32 h-32 rounded-full border-4 border-white shadow-xl bg-gray-200 flex items-center justify-center">
-            <span class="text-gray-400 text-sm">头像占位</span>
+          <div class="w-32 h-32 rounded-full border-4 border-white shadow-xl bg-white flex items-center justify-center p-6">
+            <img src="/assets/standard-blue.svg" alt="网站Logo" class="w-full h-full object-contain" />
           </div>
         </div>
         

@@ -3,51 +3,85 @@ from .. import db, require_roles
 from ..models import User, Article, Comment, Tag, Category
 from ..services.visitor_tracker import VisitorTracker
 import logging
+from datetime import datetime
 
 metrics_bp = Blueprint('metrics', __name__)
 logger = logging.getLogger(__name__)
+
+@metrics_bp.route('/test', methods=['GET'])
+def test_metrics():
+    """测试metrics接口是否可达"""
+    return jsonify({'code': 0, 'message': 'metrics API working', 'data': {'timestamp': str(datetime.now())}})
 
 @metrics_bp.route('/summary', methods=['GET'])
 @require_roles('editor', 'admin')
 def get_summary_stats():
     """获取全站核心统计数据。"""
     try:
-        users_count = db.session.query(User.id).count()
+        logger.info('开始获取站点统计数据...')
         
-        articles_total = db.session.query(Article.id).filter_by(deleted=False).count()
-        articles_published = db.session.query(Article.id).filter_by(deleted=False, status='published').count()
-        articles_draft = db.session.query(Article.id).filter_by(deleted=False, status='draft').count()
-        articles_pending = db.session.query(Article.id).filter_by(deleted=False, status='pending').count()
-
-        comments_total = db.session.query(Comment.id).count()
-        comments_pending = db.session.query(Comment.id).filter_by(status='pending').count()
-        comments_approved = db.session.query(Comment.id).filter_by(status='approved').count()
-
-        tags_count = db.session.query(Tag.id).count()
-        categories_count = db.session.query(Category.id).count()
-
+        # 逐步获取数据，如果某个查询失败就跳过
         payload = {
-            'users': {
-                'total': users_count,
-            },
-            'articles': {
+            'users': {'total': 0},
+            'articles': {'total': 0, 'published': 0, 'draft': 0, 'pending': 0},
+            'comments': {'total': 0, 'pending': 0, 'approved': 0},
+            'taxonomy': {'tags': 0, 'categories': 0}
+        }
+        
+        try:
+            users_count = db.session.query(User.id).count()
+            payload['users']['total'] = users_count
+            logger.info(f'用户总数: {users_count}')
+        except Exception as e:
+            logger.error(f'获取用户数据失败: {e}')
+        
+        try:
+            articles_total = db.session.query(Article.id).filter_by(deleted=False).count()
+            articles_published = db.session.query(Article.id).filter_by(deleted=False, status='published').count()
+            articles_draft = db.session.query(Article.id).filter_by(deleted=False, status='draft').count()
+            articles_pending = db.session.query(Article.id).filter_by(deleted=False, status='pending').count()
+            
+            payload['articles'] = {
                 'total': articles_total,
                 'published': articles_published,
                 'draft': articles_draft,
                 'pending': articles_pending,
-            },
-            'comments': {
+            }
+            logger.info(f'文章数据: total={articles_total}, published={articles_published}')
+        except Exception as e:
+            logger.error(f'获取文章数据失败: {e}')
+
+        try:
+            comments_total = db.session.query(Comment.id).count()
+            comments_pending = db.session.query(Comment.id).filter_by(status='pending').count()
+            comments_approved = db.session.query(Comment.id).filter_by(status='approved').count()
+            
+            payload['comments'] = {
                 'total': comments_total,
                 'pending': comments_pending,
                 'approved': comments_approved,
-            },
-            'taxonomy': {
+            }
+            logger.info(f'评论数据: total={comments_total}, pending={comments_pending}')
+        except Exception as e:
+            logger.error(f'获取评论数据失败: {e}')
+
+        try:
+            tags_count = db.session.query(Tag.id).count()
+            categories_count = db.session.query(Category.id).count()
+            
+            payload['taxonomy'] = {
                 'tags': tags_count,
                 'categories': categories_count,
             }
-        }
+            logger.info(f'分类标签数据: tags={tags_count}, categories={categories_count}')
+        except Exception as e:
+            logger.error(f'获取分类标签数据失败: {e}')
+        
+        logger.info('站点统计数据获取完成')
         return jsonify({'code': 0, 'message': 'ok', 'data': payload})
+        
     except Exception as e:
+        logger.error(f'获取统计数据异常: {e}')
         return jsonify({'code': 5000, 'message': f'server error: {str(e)}'}), 500
 
 

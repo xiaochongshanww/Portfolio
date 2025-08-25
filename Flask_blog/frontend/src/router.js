@@ -37,6 +37,7 @@ const routes = [
   { path: '/register', component: Register },
   { path: '/me/profile', component: Profile },
   { path: '/articles/new', component: NewArticle },
+  { path: '/articles/:id/edit', component: NewArticle, props: true, meta: { editMode: true, requiresAuth: true } },
   { path: '/new-article', redirect: '/articles/new' }, // 兼容重定向
   { path: '/article/:slug', component: ArticleDetail, props: true },
   { path: '/author/:id', component: AuthorProfile, props: true },
@@ -57,6 +58,7 @@ const routes = [
     children: [
       { path: '', component: Dashboard },
       { path: 'articles', component: ArticleManagement },
+      { path: 'articles/:id/edit', component: NewArticle, props: true, meta: { editMode: true } },
       { path: 'articles/review', component: ArticleReview, meta: { requiresRole: ['editor', 'admin'] } },
       { path: 'comments', component: CommentManagement, meta: { requiresRole: ['editor', 'admin'] } },
       { path: 'categories', component: CategoryManagement, meta: { requiresRole: ['editor', 'admin'] } },
