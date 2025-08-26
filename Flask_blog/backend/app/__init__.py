@@ -54,6 +54,7 @@ class BaseConfig:
     ALLOWED_IMAGE_TYPES = os.getenv('ALLOWED_IMAGE_TYPES','image/jpeg,image/png,image/webp').split(',')
     SUPPORTED_LOCALES = os.getenv('SUPPORTED_LOCALES','en,zh').split(',')
     DEFAULT_LOCALE = os.getenv('DEFAULT_LOCALE','zh')
+    AUTH_LOG_DETAIL = os.getenv('AUTH_LOG_DETAIL','true').lower() == 'true'
 
 class DevelopmentConfig(BaseConfig):
     DEBUG = True
@@ -82,6 +83,11 @@ def create_app(config_name=None):
     cfg_cls = CONFIG_MAP.get(config_name, DevelopmentConfig)
     app = Flask(__name__)
     app.config.from_object(cfg_cls)
+    # 允许带/不带/ 都直接命中，避免 301/308 重定向导致某些环境下 Authorization 丢失
+    try:
+        app.url_map.strict_slashes = False
+    except Exception:
+        pass
 
     # 日志
     log_level = os.getenv('LOG_LEVEL','INFO').upper()
@@ -103,12 +109,26 @@ def create_app(config_name=None):
         root.addHandler(handler)
     root.setLevel(log_level)
 
-    CORS(app, resources={r"/api/*": {
-        "origins": os.getenv('CORS_ORIGINS', '*'),
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"],
-        "supports_credentials": True
-    }})
+    CORS(app, resources={
+        r"/api/*": {
+            "origins": os.getenv('CORS_ORIGINS', '*'),
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "X-XSRF-TOKEN"],
+            "supports_credentials": True
+        },
+        r"/uploads/*": {
+            "origins": os.getenv('CORS_ORIGINS', '*'),
+            "methods": ["GET", "OPTIONS"],
+            "allow_headers": ["Content-Type"],
+            "supports_credentials": False
+        },
+        r"/public/*": {
+            "origins": os.getenv('CORS_ORIGINS', '*'),
+            "methods": ["GET", "OPTIONS"],
+            "allow_headers": ["Content-Type"],
+            "supports_credentials": False
+        }
+    })
 
     db.init_app(app)
     migrate.init_app(app, db)
@@ -186,6 +206,7 @@ def create_app(config_name=None):
     from .security.routes import security_bp
     from .settings.routes import settings_bp
     from .logs.routes import logs_bp
+    from .simple_logs import simple_logs_bp
     from .public_api import public_bp
     from .middlewares import VisitorTrackingMiddleware
 
@@ -206,6 +227,7 @@ def create_app(config_name=None):
     app.register_blueprint(security_bp, url_prefix='/api/v1/security')
     app.register_blueprint(settings_bp, url_prefix='/api/v1/settings')
     app.register_blueprint(logs_bp, url_prefix='/api/v1/admin/logs')
+    app.register_blueprint(simple_logs_bp, url_prefix='/api/v1/simple')
     # Public read-only namespace (versioned separately for stability)
     app.register_blueprint(public_bp, url_prefix='/public/v1')
 
@@ -222,6 +244,7 @@ def create_app(config_name=None):
     except Exception: pass
 
     @app.route('/uploads/<path:filename>')
+    @limiter.exempt  # 静态资源豁免rate limiting
     def serve_upload(filename):
         from flask import send_from_directory
         return send_from_directory(app.config['UPLOAD_DIR'], filename)
@@ -260,6 +283,10 @@ def create_app(config_name=None):
     def _start_timer():
         g._start = time.time()
         g.request_id = request.headers.get('X-Request-ID') or uuid.uuid4().hex
+        # （已解决 401 问题）去除针对 /admin/logs 的高频调试日志，仅保留轻量追踪
+        if '/admin/logs' in request.path:
+            auth = request.headers.get('Authorization','')
+            current_app.logger.debug(f"logs_access {request.method} auth_present={bool(auth)}")
         if METRICS_ENABLED:
             g._hist_timer = HTTP_REQUEST_DURATION.labels(request.method, request.path).time()
 
@@ -455,27 +482,69 @@ def require_auth(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
         auth = request.headers.get('Authorization','')
-        print(f"[AUTH] 收到认证请求，Authorization头: {auth[:20]}..." if auth else "[AUTH] 无Authorization头")
+        origin = request.headers.get('Origin', 'NO_ORIGIN')
+        host = request.headers.get('Host', 'NO_HOST')
+        referer = request.headers.get('Referer', 'NO_REFERER')
+        current_app.logger.warning(f"[AUTH] 收到认证请求 - Origin:{origin}, Host:{host}, Referer:{referer}")
+        current_app.logger.warning(f"[AUTH] Authorization头: {auth[:50]}..." if auth else "[AUTH] 无Authorization头")
         
         if not auth.startswith('Bearer '):
-            print("[AUTH] 失败: 缺少Bearer token")
+            current_app.logger.warning("[AUTH] 失败: 缺少Bearer token")
             return jsonify({'code':4010,'message':_('missing token')}), 401
         
         token = auth.split(' ',1)[1]
-        print(f"[AUTH] 提取到token: {token[:20]}...")
+        current_app.logger.warning(f"[AUTH] 提取到token: {token[:50]}...")
         
         try:
+            # 细分异常类型，便于定位 401 来源
+            from jwt import ExpiredSignatureError, InvalidSignatureError, DecodeError, InvalidTokenError
+            start_decode = time.time()
             payload = jwt.decode(token, current_app.config['JWT_SECRET_KEY'], algorithms=['HS256'])
+            decode_ms = int((time.time()-start_decode)*1000)
             sub_val = payload.get('sub')
+            raw_role = payload.get('role')
+            token_type = payload.get('type')
+            issued_at = payload.get('iat')
+            exp_at = payload.get('exp')
+            now_epoch = int(time.time())
+            # 记录时间偏差（本地时钟 vs token）
+            drift_iat = now_epoch - int(issued_at) if issued_at else None
+            ttl_left = int(exp_at - now_epoch) if exp_at else None
             try:
                 sub_val = int(sub_val)
             except Exception:
                 pass
             request.user_id = sub_val
-            request.user_role = payload.get('role')
-            print(f"[AUTH] 成功: 用户ID={sub_val}, 角色={payload.get('role')}")
-        except Exception as e:
-            print(f"[AUTH] 失败: JWT解码错误 {e}")
+            request.user_role = raw_role
+            if current_app.config.get('AUTH_LOG_DETAIL'):
+                current_app.logger.warning(
+                    json.dumps({
+                        'auth_event':'success',
+                        'user_id': sub_val,
+                        'role': raw_role,
+                        'token_type': token_type,
+                        'decode_ms': decode_ms,
+                        'drift_iat_s': drift_iat,
+                        'ttl_left_s': ttl_left,
+                        'path': request.path,
+                        'method': request.method
+                    }, ensure_ascii=False)
+                )
+        except Exception as e:  # 保持兼容，统一处理
+            et = e.__class__.__name__
+            msg = str(e)
+            if current_app.config.get('AUTH_LOG_DETAIL'):
+                current_app.logger.warning(json.dumps({
+                    'auth_event':'failure',
+                    'error_type': et,
+                    'error_msg': msg,
+                    'path': request.path,
+                    'method': request.method,
+                    'has_token': bool(token),
+                    'token_prefix': token[:16] if auth.startswith('Bearer ') else None
+                }, ensure_ascii=False))
+            else:
+                current_app.logger.warning(f"[AUTH] 失败: JWT解码错误 {et}: {msg}")
             return jsonify({'code':4010,'message':_('invalid token')}), 401
         return fn(*args, **kwargs)
     return wrapper

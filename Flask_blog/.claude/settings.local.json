@@ -28,7 +28,8 @@
       "Bash(.venv/Scripts/python:*)",
       "Bash(taskkill:*)",
       "Bash(del srccomponents.d.ts)",
-      "Bash(del debug_logs.py debug_registration.py create_test_logs.py)"
+      "Bash(del debug_logs.py debug_registration.py create_test_logs.py)",
+      "Bash(tasklist:*)"
     ],
     "deny": [],
     "ask": [],

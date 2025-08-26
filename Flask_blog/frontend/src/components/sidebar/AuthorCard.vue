@@ -126,7 +126,6 @@ const qrImageSources = [
   '/assets/images/wechat-qr.png',
   '/assets/images/wechat-qr.jpg', 
   '/assets/wechat-qr.png',
-  '/uploads/wechat-qr.png',
   null // 最后使用备用方案
 ]
 let currentQRIndex = 0
@@ -135,7 +134,6 @@ let currentQRIndex = 0
 const avatarSources = [
   '/assets/author-avatar.jpg',
   '/assets/author-avatar.png', 
-  '/uploads/author-avatar.jpg',
   '/assets/standard-blue.svg',
   '/assets/default-avatar.svg',
   'https://api.dicebear.com/7.x/avataaars/svg?seed=blog-author&backgroundColor=random',

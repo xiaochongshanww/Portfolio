@@ -452,11 +452,26 @@ const cleanupForm = reactive({
 const exporting = ref(false)
 const cleaning = ref(false)
 
-// 加载日志列表
-const loadLogs = async () => {
+// 加载日志列表（增加防抖与首轮重试）
+let loadingLogsOnce = false
+const loadLogs = async (retry=false) => {
   try {
     loading.value = true
-    
+    // 若无 token 且未重试，延迟再试
+    const token = localStorage.getItem('access_token')
+    if(!token){
+      if(!retry){
+        console.debug('[logs] no token yet, schedule retry')
+        setTimeout(()=>loadLogs(true), 180)
+      }
+      return
+    }
+    if(loadingLogsOnce && !retry){
+      // 避免并发重复
+      return
+    }
+    loadingLogsOnce = true
+
     const params = {
       page: pagination.page,
       size: pagination.size,
@@ -471,8 +486,9 @@ const loadLogs = async () => {
       params.start_time = filters.timeRange[0]
       params.end_time = filters.timeRange[1]
     }
-    
-    const response = await api.get('/admin/logs', { params })
+    console.log("请求参数:", params)
+  // 改为 POST 以使用新的 /admin/logs/query 端点，规避首个 GET 401 问题
+  const response = await api.post('/admin/logs/query', params)
     
     if (response.data.code === 0) {
       logs.value = response.data.data.logs
@@ -482,7 +498,13 @@ const loadLogs = async () => {
     }
   } catch (error) {
     console.error('加载日志失败:', error)
-    ElMessage.error('加载日志失败')
+    // 自动一次重试（只在有token但仍失败时）
+    if(!retry && localStorage.getItem('access_token')){
+      console.debug('[logs] first attempt failed, retry in 200ms')
+      setTimeout(()=>loadLogs(true), 200)
+    } else {
+      ElMessage.error('加载日志失败')
+    }
   } finally {
     loading.value = false
   }
@@ -732,12 +754,21 @@ const highlightKeyword = (text) => {
 }
 
 // 生命周期
+async function waitForToken(maxMs=2000){
+  const start = Date.now()
+  while(!localStorage.getItem('access_token') && Date.now()-start < maxMs){
+    await new Promise(r=>setTimeout(r,100))
+  }
+  return !!localStorage.getItem('access_token')
+}
+
 onMounted(async () => {
-  await Promise.all([
-    loadLogs(),
-    loadStats(),
-    loadOptions()
-  ])
+  await waitForToken()
+  // 首次加载使用 POST 查询端点，避免历史上首个 GET /admin/logs 可能出现的丢失 Authorization 现象
+  await loadLogs()
+  // 轻微延迟启动统计与选项，避免首批拥挤
+  setTimeout(()=>{ loadStats() }, 50)
+  setTimeout(()=>{ loadOptions() }, 80)
 })
 
 onUnmounted(() => {

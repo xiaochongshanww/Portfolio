@@ -1,13 +1,14 @@
 import axios from 'axios';
 
 // 统一 axios 基础实例；刷新逻辑已迁移到 generatedClientAdapter.request 内部，避免双重实现
-const api = axios.create({ baseURL: '/api/v1' });
+const api = axios.create({ baseURL: '/api/v1', withCredentials: true, headers:{ 'Accept':'application/json, text/plain, */*' } });
 api.interceptors.request.use(cfg => {
   const token = localStorage.getItem('access_token');
-  console.log('🌐 API请求拦截器 - token存在:', !!token);
+  const urlInfo = `${cfg.method?.toUpperCase()} ${cfg.baseURL || ''}${cfg.url}`;
+  console.log('🌐 API请求拦截器 ->', urlInfo, '| token存在:', !!token);
   if(token) {
     cfg.headers.Authorization = 'Bearer ' + token;
-    console.log('🌐 已设置Authorization头');
+    console.log('🌐 已设置Authorization头, token前16:', token.slice(0,16));
   } else {
     console.log('🌐 未设置Authorization头 - 无token');
   }

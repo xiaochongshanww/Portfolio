@@ -810,9 +810,9 @@ const toggleAutoRefresh = () => {
 };
 
 const startAutoRefresh = () => {
-  if (refreshTimer) clearInterval(refreshTimer);
+  if (refreshTimer !== null) window.clearInterval(refreshTimer);
   
-  refreshTimer = setInterval(() => {
+  refreshTimer = window.setInterval(() => {
     if (autoRefresh.value) {
       fetchPerformanceData();
     }
@@ -820,8 +820,8 @@ const startAutoRefresh = () => {
 };
 
 const stopAutoRefresh = () => {
-  if (refreshTimer) {
-    clearInterval(refreshTimer);
+  if (refreshTimer !== null) {
+    window.clearInterval(refreshTimer);
     refreshTimer = null;
   }
 };
