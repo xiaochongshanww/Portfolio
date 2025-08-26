@@ -448,6 +448,15 @@ async function load(){
     // 调试信息：检查API返回的数据
     console.log('📡 API返回数据 - 点赞数:', data.likes_count, '收藏数:', data.bookmarks_count, '已点赞:', data.liked, '已收藏:', data.bookmarked);
     
+    // 调试信息：检查作者数据
+    console.log('👤 作者数据调试:', {
+      hasAuthor: !!data.author,
+      authorData: data.author,
+      authorBio: data.author?.bio,
+      authorName: data.author?.name,
+      authorAvatar: data.author?.avatar
+    });
+    
     article.value = data;
     likeCount.value = data.likes_count || 0;
     bookmarkCount.value = data.bookmarks_count || 0;

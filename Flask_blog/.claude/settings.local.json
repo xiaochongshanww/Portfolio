@@ -25,7 +25,10 @@
       "Bash(del test_system_health.py)",
       "Bash(powershell:*)",
       "Bash(del simple_system_health_test.py test_minimal_flask.py test_actual_security_function.py test_full_app_bypass_auth.py simple_test.py test_health_api.py)",
-      "Bash(.venv/Scripts/python:*)"
+      "Bash(.venv/Scripts/python:*)",
+      "Bash(taskkill:*)",
+      "Bash(del srccomponents.d.ts)",
+      "Bash(del debug_logs.py debug_registration.py create_test_logs.py)"
     ],
     "deny": [],
     "ask": [],

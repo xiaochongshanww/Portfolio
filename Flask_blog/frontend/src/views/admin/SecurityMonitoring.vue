@@ -244,7 +244,7 @@
           </template>
           
           <div class="quick-actions">
-            <el-button @click="blockIP" type="danger" icon="Lock" size="small" block>
+            <el-button @click="blockIP" type="danger" icon="CircleCloseFilled" size="small" block>
               封禁IP地址
             </el-button>
             
@@ -361,7 +361,7 @@ import { ref, reactive, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { 
   WarningFilled, Lock, User, Refresh, Setting,
-  UserFilled, Download, TrendCharts
+  UserFilled, Download, TrendCharts, CircleCloseFilled
 } from '@element-plus/icons-vue';
 import api from '../../apiClient';
 
@@ -1052,6 +1052,46 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  align-items: stretch;
+  width: 100%;
+}
+
+.quick-actions .el-button .el-icon {
+  margin-right: 6px;
+}
+
+/* 重置所有按钮的基础样式，确保完全一致 */
+.quick-actions .el-button {
+  /* 重置所有可能影响对齐的属性 */
+  margin: 0 !important;
+  padding: 8px 12px !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+  position: relative !important;
+  transform: none !important;
+  left: auto !important;
+  right: auto !important;
+  /* 保持原有的对齐样式 */
+  width: 100% !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+  min-height: 32px !important;
+  box-sizing: border-box !important;
+  align-self: stretch !important;
+}
+
+/* 确保不同类型按钮的宽度和对齐完全一致 */
+.quick-actions .el-button--danger,
+.quick-actions .el-button--warning,
+.quick-actions .el-button--primary,
+.quick-actions .el-button--info {
+  width: 100% !important;
+  flex: none;
+  min-width: auto;
+  box-sizing: border-box !important;
 }
 
 .access-stats {

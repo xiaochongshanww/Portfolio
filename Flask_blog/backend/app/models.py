@@ -138,3 +138,68 @@ class DailyStats(db.Model):
     total_page_views = db.Column(db.Integer, default=0)  # 总页面浏览量
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(SHANGHAI_TZ))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(SHANGHAI_TZ), onupdate=lambda: datetime.now(SHANGHAI_TZ))
+
+
+class LogEntry(db.Model):
+    """系统日志条目"""
+    __tablename__ = 'log_entries'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, index=True, nullable=False, default=lambda: datetime.now(SHANGHAI_TZ))
+    level = db.Column(db.String(10), index=True, nullable=False)  # ERROR, WARNING, INFO, DEBUG
+    source = db.Column(db.String(50), index=True, nullable=False)  # 日志来源模块
+    message = db.Column(Text().with_variant(mysql.LONGTEXT(), 'mysql'), nullable=False)  # 日志消息
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, index=True)
+    ip_address = db.Column(db.String(45), nullable=True)  # IPv4/IPv6
+    user_agent = db.Column(db.String(500), nullable=True)
+    request_id = db.Column(db.String(36), index=True, nullable=True)  # 请求链路追踪
+    endpoint = db.Column(db.String(200), nullable=True)  # API端点
+    method = db.Column(db.String(10), nullable=True)  # HTTP方法
+    status_code = db.Column(db.Integer, nullable=True)  # HTTP状态码
+    duration_ms = db.Column(db.Integer, nullable=True)  # 请求耗时(毫秒)
+    extra_data = db.Column(db.JSON, nullable=True)  # 额外元数据
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(SHANGHAI_TZ))
+    
+    # 关联用户对象
+    user = db.relationship('User', backref='logs', lazy='select')
+    
+    # 复合索引优化查询性能
+    __table_args__ = (
+        db.Index('idx_level_timestamp', 'level', 'timestamp'),
+        db.Index('idx_source_timestamp', 'source', 'timestamp'),
+        db.Index('idx_user_timestamp', 'user_id', 'timestamp'),
+        db.Index('idx_request_id', 'request_id'),
+        db.Index('idx_endpoint_timestamp', 'endpoint', 'timestamp'),
+    )
+
+    def to_dict(self):
+        """序列化为字典"""
+        return {
+            'id': self.id,
+            'timestamp': self.timestamp.isoformat() if self.timestamp else None,
+            'level': self.level,
+            'source': self.source,
+            'message': self.message,
+            'user_id': self.user_id,
+            'user_name': self.user.nickname if self.user else None,
+            'ip_address': self.ip_address,
+            'user_agent': self.user_agent,
+            'request_id': self.request_id,
+            'endpoint': self.endpoint,
+            'method': self.method,
+            'status_code': self.status_code,
+            'duration_ms': self.duration_ms,
+            'extra_data': self.extra_data,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+class LogConfig(db.Model):
+    """日志配置表"""
+    __tablename__ = 'log_configs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    config_key = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    config_value = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.String(200), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(SHANGHAI_TZ))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(SHANGHAI_TZ), onupdate=lambda: datetime.now(SHANGHAI_TZ))

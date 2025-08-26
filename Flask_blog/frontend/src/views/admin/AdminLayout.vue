@@ -108,6 +108,16 @@
             <span>安全监控</span>
           </el-menu-item>
 
+          <!-- 日志管理 -->
+          <el-menu-item 
+            v-if="hasRole(['admin', 'editor'])" 
+            index="/admin/logs" 
+            route="/admin/logs"
+          >
+            <el-icon><Document /></el-icon>
+            <span>日志管理</span>
+          </el-menu-item>
+
           <!-- 系统设置 -->
           <el-sub-menu v-if="hasRole(['admin'])" index="settings">
             <template #title>
@@ -210,6 +220,8 @@ const breadcrumbs = computed(() => {
     crumbs.push({ text: '用户管理' });
   } else if (path.includes('/security')) {
     crumbs.push({ text: '安全监控' });
+  } else if (path.includes('/logs')) {
+    crumbs.push({ text: '日志管理' });
   } else if (path.includes('/settings')) {
     crumbs.push({ text: '系统设置' });
     if (path.includes('/general')) {

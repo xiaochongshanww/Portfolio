@@ -84,10 +84,9 @@
             v-for="tag in tags" 
             :key="tag.id"
             @click="handleTagClick(tag.slug)"
-            :class="getTagCloudClass(tag.article_count || 0)"
             class="tag-cloud-item"
           >
-            #{{ tag.name }}
+            <span :class="getTagCloudClass(tag.article_count || 0)">#{{ tag.name }}</span>
             <span class="tag-count">({{ tag.article_count || 0 }})</span>
           </button>
         </div>
@@ -189,9 +188,9 @@ const loading = ref(false);
 const currentView = ref('cloud');
 
 const viewModes = [
-  { label: '标签云', value: 'cloud', icon: 'Compass' },
-  { label: '网格', value: 'grid', icon: 'Grid' },
-  { label: '列表', value: 'list', icon: 'List' }
+  { label: '标签云', value: 'cloud', icon: Compass },
+  { label: '网格', value: 'grid', icon: Grid },
+  { label: '列表', value: 'list', icon: List }
 ];
 
 // 计算属性
@@ -215,8 +214,9 @@ const sortedTags = computed(() => {
 async function loadTags() {
   loading.value = true;
   try {
-    const response = await apiClient.get('/taxonomy/tags/');
-    tags.value = response.data.data || [];
+    const response = await apiClient.get('/taxonomy', { baseURL: '/public/v1' });
+    tags.value = response.data.data?.tags || [];
+    console.log('✅ 标签加载成功，数量:', tags.value.length);
     
     // 设置SEO元数据
     setMeta({
@@ -641,6 +641,7 @@ onMounted(loadTags);
   height: 100%;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
   transition: left 0.5s ease;
+  z-index: -1;
 }
 
 .tag-cloud-item:hover::before {
@@ -700,14 +701,19 @@ onMounted(loadTags);
 }
 
 .tag-count {
+  display: inline-block;
   font-size: 0.75rem;
+  line-height: 1.2;
   opacity: 0.8;
   background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
+  color: #3b82f6 !important;
   padding: 2px 8px;
   border-radius: 12px;
   margin-left: 4px;
   font-weight: 600;
+  min-width: 16px;
+  text-align: center;
+  -webkit-text-fill-color: #3b82f6 !important;
 }
 
 /* ===== 现代化卡片网格样式 ===== */

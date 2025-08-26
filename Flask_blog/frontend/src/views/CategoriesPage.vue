@@ -57,8 +57,9 @@ const loading = ref(false);
 async function loadCategories() {
   loading.value = true;
   try {
-    const response = await apiClient.get('/taxonomy/categories/');
-    categories.value = response.data.data || [];
+    const response = await apiClient.get('/taxonomy', { baseURL: '/public/v1' });
+    categories.value = response.data.data?.categories || [];
+    console.log('✅ 分类加载成功，数量:', categories.value.length);
     
     // 设置SEO元数据
     setMeta({

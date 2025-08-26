@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from .models import Article, Category, Tag
-from . import redis_client
+from . import redis_client, db
 from .utils import compute_etag
 from datetime import datetime
 
@@ -24,7 +24,14 @@ def _serialize_article_brief(a: Article, user_id=None):
         'category_id': a.category_id,
         'tags': [t.slug for t in a.tags],
         'views_count': a.views_count,
-        'likes_count': likes_count
+        'likes_count': likes_count,
+        # 添加作者信息
+        'author': {
+            'id': a.author.id,
+            'name': a.author.nickname or a.author.username,
+            'bio': a.author.bio,
+            'avatar': a.author.avatar
+        } if a.author else None
     }
     
     # 如果用户已登录，添加用户特定的状态
@@ -158,23 +165,56 @@ def public_article_detail(slug_or_id):
 
 @public_bp.route('/taxonomy', methods=['GET'])
 def public_taxonomy():
-    from .models import Category, Tag
+    from .models import Category, Tag, ArticleTag
+    from sqlalchemy import func, and_
     
     # 添加调试信息
     print(f'[DEBUG] 开始查询分类和标签数据')
     
-    cats = Category.query.order_by(Category.id.asc()).all()
-    tags = Tag.query.order_by(Tag.id.asc()).all()
+    # 获取分类及其文章数量（只统计已发布的文章）
+    categories_with_count = db.session.query(
+        Category.id, Category.name, Category.slug, Category.parent_id,
+        func.count(Article.id).label('article_count')
+    ).outerjoin(Article, and_(
+        Category.id == Article.category_id,
+        Article.deleted != True,
+        Article.status == 'published'  # 只统计已发布的文章
+    )).group_by(Category.id, Category.name, Category.slug, Category.parent_id)\
+     .order_by(Category.id.asc()).all()
     
-    print(f'[DEBUG] 查询到分类数量: {len(cats)}')
-    print(f'[DEBUG] 查询到标签数量: {len(tags)}')
+    # 获取标签及其文章数量（只统计已发布的文章）
+    tags_with_count = db.session.query(
+        Tag.id, Tag.name, Tag.slug,
+        func.count(ArticleTag.article_id).label('article_count')
+    ).outerjoin(ArticleTag, Tag.id == ArticleTag.tag_id)\
+     .outerjoin(Article, and_(
+        ArticleTag.article_id == Article.id,
+        Article.deleted != True,
+        Article.status == 'published'  # 只统计已发布的文章
+    )).group_by(Tag.id, Tag.name, Tag.slug)\
+     .order_by(Tag.id.asc()).all()
     
-    if len(cats) > 0:
-        print(f'[DEBUG] 前3个分类: {[(c.id, c.name, c.slug) for c in cats[:3]]}')
+    print(f'[DEBUG] 查询到分类数量: {len(categories_with_count)}')
+    print(f'[DEBUG] 查询到标签数量: {len(tags_with_count)}')
+    
+    if len(categories_with_count) > 0:
+        print(f'[DEBUG] 前3个分类: {[(c.id, c.name, c.slug, c.article_count) for c in categories_with_count[:3]]}')
     
     data = {
-        'categories': [{'id':c.id,'name':c.name,'slug':c.slug,'parent_id':c.parent_id} for c in cats],
-        'tags': [{'id':t.id,'name':t.name,'slug':t.slug} for t in tags]
+        'categories': [{
+            'id': c.id,
+            'name': c.name,
+            'slug': c.slug,
+            'parent_id': c.parent_id,
+            'article_count': c.article_count,
+            'description': None  # 可以后续扩展分类描述字段
+        } for c in categories_with_count],
+        'tags': [{
+            'id': t.id,
+            'name': t.name,
+            'slug': t.slug,
+            'article_count': t.article_count
+        } for t in tags_with_count]
     }
     
     print(f'[DEBUG] 最终数据结构: categories={len(data["categories"])}, tags={len(data["tags"])}')

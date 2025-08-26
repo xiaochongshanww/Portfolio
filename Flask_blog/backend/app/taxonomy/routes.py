@@ -216,6 +216,64 @@ def delete_tag(tid):
     db.session.commit()
     return jsonify({'code':0,'message':'ok'})
 
+# Public endpoints for unauthenticated access
+@taxonomy_bp.route('/categories/public', methods=['GET'])
+def list_categories_public():
+    """公开的分类列表API，包含文章数量统计"""
+    print(f"访问 list_categories_public")
+    from ..models import Article
+    from sqlalchemy import func, and_
+    
+    # 获取分类及其文章数量（只统计已发布的文章）
+    categories_with_count = db.session.query(
+        Category.id, Category.name, Category.slug, Category.parent_id,
+        func.count(Article.id).label('article_count')
+    ).outerjoin(Article, and_(
+        Category.id == Article.category_id,
+        Article.deleted != True,
+        Article.status == 'published'  # 只统计已发布的文章
+    )).group_by(Category.id, Category.name, Category.slug, Category.parent_id)\
+     .order_by(Category.id.desc()).all()
+    
+    data = [{
+        'id': c.id,
+        'name': c.name,
+        'slug': c.slug,
+        'parent_id': c.parent_id,
+        'article_count': c.article_count,
+        'description': None  # 可以后续扩展分类描述字段
+    } for c in categories_with_count]
+    
+    return jsonify({'code': 0, 'message': 'ok', 'data': data})
+
+@taxonomy_bp.route('/tags/public', methods=['GET'])
+def list_tags_public():
+    """公开的标签列表API，包含文章数量统计"""
+    print(f"访问 list_tags_public")
+    from ..models import Article, ArticleTag
+    from sqlalchemy import func, and_
+    
+    # 获取标签及其文章数量（只统计已发布的文章）
+    tags_with_count = db.session.query(
+        Tag.id, Tag.name, Tag.slug,
+        func.count(ArticleTag.article_id).label('article_count')
+    ).outerjoin(ArticleTag, Tag.id == ArticleTag.tag_id)\
+     .outerjoin(Article, and_(
+        ArticleTag.article_id == Article.id,
+        Article.deleted != True,
+        Article.status == 'published'  # 只统计已发布的文章
+    )).group_by(Tag.id, Tag.name, Tag.slug)\
+     .order_by(func.count(ArticleTag.article_id).desc()).all()
+    
+    data = [{
+        'id': t.id,
+        'name': t.name,
+        'slug': t.slug,
+        'article_count': t.article_count
+    } for t in tags_with_count]
+    
+    return jsonify({'code': 0, 'message': 'ok', 'data': data})
+
 # Statistics
 @taxonomy_bp.route('/stats', methods=['GET'])
 @require_roles('editor','admin')

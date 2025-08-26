@@ -103,7 +103,12 @@ def create_app(config_name=None):
         root.addHandler(handler)
     root.setLevel(log_level)
 
-    CORS(app, resources={r"/api/*": {"origins": os.getenv('CORS_ORIGINS', '*')}})
+    CORS(app, resources={r"/api/*": {
+        "origins": os.getenv('CORS_ORIGINS', '*'),
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"],
+        "supports_credentials": True
+    }})
 
     db.init_app(app)
     migrate.init_app(app, db)
@@ -180,6 +185,7 @@ def create_app(config_name=None):
     from .metrics.routes import metrics_bp
     from .security.routes import security_bp
     from .settings.routes import settings_bp
+    from .logs.routes import logs_bp
     from .public_api import public_bp
     from .middlewares import VisitorTrackingMiddleware
 
@@ -199,6 +205,7 @@ def create_app(config_name=None):
     app.register_blueprint(metrics_bp, url_prefix='/api/v1/metrics')
     app.register_blueprint(security_bp, url_prefix='/api/v1/security')
     app.register_blueprint(settings_bp, url_prefix='/api/v1/settings')
+    app.register_blueprint(logs_bp, url_prefix='/api/v1/admin/logs')
     # Public read-only namespace (versioned separately for stability)
     app.register_blueprint(public_bp, url_prefix='/public/v1')
 

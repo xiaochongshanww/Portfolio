@@ -131,7 +131,8 @@ def serialize_article(a: Article, detail=False, include_user_flags=False, user_i
             'name': a.author.nickname or a.author.email,  # 前端期望的name字段
             'nickname': a.author.nickname,
             'email': a.author.email,
-            'avatar': a.author.avatar
+            'avatar': a.author.avatar,
+            'bio': a.author.bio  # 添加个人简介字段
         }
     
     # 添加分类信息
