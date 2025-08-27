@@ -32,6 +32,8 @@ const LogManagement = () => import(/* webpackChunkName: 'admin' */ './views/admi
 const SimpleLogManagement = () => import(/* webpackChunkName: 'admin' */ './views/admin/SimpleLogManagement.vue');
 const SystemPerformance = () => import(/* webpackChunkName: 'admin' */ './views/admin/SystemPerformance.vue');
 const SystemSettings = () => import(/* webpackChunkName: 'admin' */ './views/admin/SystemSettings.vue');
+const BackupManagement = () => import(/* webpackChunkName: 'admin' */ './views/admin/BackupManagement.vue');
+const RestoreManagement = () => import(/* webpackChunkName: 'admin' */ './views/admin/RestoreManagement.vue');
 
 const routes = [
   { path: '/', component: Home },
@@ -73,6 +75,8 @@ const routes = [
       { path: 'simple-logs', component: SimpleLogManagement, meta: { requiresRole: ['editor', 'admin'] } },
       { path: 'performance', component: SystemPerformance, meta: { requiresRole: ['editor', 'admin'] } },
       { path: 'settings/general', component: SystemSettings, meta: { requiresRole: ['admin'] } },
+      { path: 'backup', component: BackupManagement, meta: { requiresRole: ['admin'] } },
+      { path: 'restore', component: RestoreManagement, meta: { requiresRole: ['admin'] } },
     ]
   },
   

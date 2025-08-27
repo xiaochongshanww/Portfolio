@@ -29,7 +29,11 @@
       "Bash(taskkill:*)",
       "Bash(del srccomponents.d.ts)",
       "Bash(del debug_logs.py debug_registration.py create_test_logs.py)",
-      "Bash(tasklist:*)"
+      "Bash(tasklist:*)",
+      "Bash(tar:*)",
+      "Bash(del:*)",
+      "Bash(.venvScriptspython -m flask run --debug)",
+      "Bash(.venvScriptspython.exe -m flask run --debug)"
     ],
     "deny": [],
     "ask": [],

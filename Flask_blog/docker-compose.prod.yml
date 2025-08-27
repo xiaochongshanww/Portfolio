@@ -1,0 +1,106 @@
+version: '3.9'
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    image: flask-blog-backend:prod
+    env_file: .env
+    environment:
+      FLASK_CONFIG: production
+      LOG_LEVEL: INFO
+      AUTO_MIGRATE: 1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      meili:
+        condition: service_started
+    volumes:
+      - uploads:/app/backend/uploads_store
+    networks:
+      - appnet
+  celery_worker:
+    image: flask-blog-backend:prod
+    command: celery -A app.tasks.celery_app worker -l info
+    env_file: .env
+    environment:
+      FLASK_CONFIG: production
+    depends_on:
+      - backend
+      - redis
+    networks:
+      - appnet
+  celery_beat:
+    image: flask-blog-backend:prod
+    command: celery -A app.tasks.celery_app beat -l info
+    env_file: .env
+    environment:
+      FLASK_CONFIG: production
+    depends_on:
+      - backend
+      - redis
+    networks:
+      - appnet
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    image: flask-blog-frontend:prod
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_BASE=/api/v1
+    networks:
+      - appnet
+  db:
+    image: mysql:8.4
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: blog
+      MYSQL_USER: blog
+      MYSQL_PASSWORD: blog
+    volumes:
+      - mysqldata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - appnet
+  redis:
+    image: redis:7-alpine
+    networks:
+      - appnet
+  meili:
+    image: getmeili/meilisearch:v1.7
+    environment:
+      MEILI_NO_ANALYTICS: 'true'
+    volumes:
+      - meilidata:/meili_data
+    networks:
+      - appnet
+  gateway:
+    image: nginx:1.27-alpine
+    depends_on:
+      - frontend
+      - backend
+    volumes:
+      - uploads:/var/www/uploads:ro
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "80:80"
+    networks:
+      - appnet
+
+volumes:
+  mysqldata:
+  meilidata:
+  uploads:
+
+networks:
+  appnet:
+    driver: bridge

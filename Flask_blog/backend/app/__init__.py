@@ -22,6 +22,7 @@ from flask_limiter.errors import RateLimitExceeded
 import redis
 import sqlalchemy
 import time, uuid, logging, json
+from logging.handlers import TimedRotatingFileHandler
 try:
     from apscheduler.schedulers.background import BackgroundScheduler
 except Exception:
@@ -108,6 +109,35 @@ def create_app(config_name=None):
     if not root.handlers:
         root.addHandler(handler)
     root.setLevel(log_level)
+
+    # 文件日志：按天切割，保留 7 天（或 LOG_RETENTION_DAYS 指定的天数）
+    try:
+        enable_file = os.getenv('LOG_FILE_ENABLED', 'true').lower() == 'true'
+        if enable_file:
+            log_dir = os.getenv('LOG_DIR', 'logs')
+            os.makedirs(log_dir, exist_ok=True)
+            log_file = os.path.join(log_dir, os.getenv('LOG_FILE_NAME', 'app.log'))
+            retention_days = int(os.getenv('LOG_RETENTION_DAYS', '7'))
+            # TimedRotatingFileHandler 的 backupCount 是保留的文件个数；按天切割时近似等于天数
+            has_file_handler = any(isinstance(h, TimedRotatingFileHandler) for h in root.handlers)
+            if not has_file_handler:
+                file_handler = TimedRotatingFileHandler(
+                    log_file,
+                    when='midnight',
+                    interval=1,
+                    backupCount=retention_days,
+                    encoding='utf-8',
+                    utc=False
+                )
+                file_handler.setFormatter(JsonFormatter())
+                # 降低文件里 DEBUG 噪音可设置 LOG_FILE_LEVEL，否则跟随 root
+                file_level = os.getenv('LOG_FILE_LEVEL')
+                if file_level:
+                    file_handler.setLevel(file_level.upper())
+                root.addHandler(file_handler)
+    except Exception as _file_log_err:
+        # 仅控制台警告，不影响应用启动
+        logging.warning('file logging init failed: %s', _file_log_err)
 
     CORS(app, resources={
         r"/api/*": {
@@ -207,6 +237,8 @@ def create_app(config_name=None):
     from .settings.routes import settings_bp
     from .logs.routes import logs_bp
     from .simple_logs import simple_logs_bp
+    from .backup import backup_bp
+    from .backup import routes  # 显式导入路由以注册到蓝图
     from .public_api import public_bp
     from .middlewares import VisitorTrackingMiddleware
 
@@ -228,6 +260,7 @@ def create_app(config_name=None):
     app.register_blueprint(settings_bp, url_prefix='/api/v1/settings')
     app.register_blueprint(logs_bp, url_prefix='/api/v1/admin/logs')
     app.register_blueprint(simple_logs_bp, url_prefix='/api/v1/simple')
+    app.register_blueprint(backup_bp, url_prefix='/api/v1/backup')
     # Public read-only namespace (versioned separately for stability)
     app.register_blueprint(public_bp, url_prefix='/public/v1')
 

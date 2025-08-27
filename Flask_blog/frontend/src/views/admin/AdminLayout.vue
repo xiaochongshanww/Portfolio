@@ -129,6 +129,16 @@
               <el-icon><Tools /></el-icon>
               <span>基本设置</span>
             </el-menu-item>
+            
+            <el-menu-item index="/admin/backup" route="/admin/backup">
+              <el-icon><FolderOpened /></el-icon>
+              <span>备份管理</span>
+            </el-menu-item>
+            
+            <el-menu-item index="/admin/restore" route="/admin/restore">
+              <el-icon><RefreshLeft /></el-icon>
+              <span>恢复任务</span>
+            </el-menu-item>
           </el-sub-menu>
         </el-menu>
       </nav>
@@ -184,7 +194,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { 
   DataBoard, Document, Edit, View, ChatLineRound, Collection, 
   FolderOpened, PriceTag, User, Lock, Setting, Tools, SwitchButton, 
-  HomeFilled, EditPen, Location 
+  HomeFilled, EditPen, Location, RefreshLeft 
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useUserStore } from '../../stores/user';

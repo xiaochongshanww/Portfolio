@@ -366,3 +366,54 @@ frontend/src
 
 ---
 如需进一步问题排查，可查看后端 JSON 日志 (含 request_id) 与 Prometheus 指标。
+
+## 一键生产部署 (Docker)
+
+提供精简生产编排 `docker-compose.prod.yml`，包含：
+backend (Gunicorn)、celery_worker、celery_beat、frontend (Nginx 静态)、gateway (总 Nginx 反向代理)、MySQL、Redis、MeiliSearch。
+
+### 快速开始
+1. 复制环境变量文件
+  cp .env.example .env  (Windows PowerShell: Copy-Item .env.example .env)
+  修改 `.env` 中 JWT_SECRET_KEY、数据库账号等敏感项。
+2. 启动
+  docker compose -f docker-compose.prod.yml up -d --build
+3. 访问
+  前端: http://localhost
+  API:   http://localhost/api/v1/health
+4. 查看日志
+  docker compose -f docker-compose.prod.yml logs -f backend
+
+首次启动包含自动迁移 (entrypoint 执行 `flask db upgrade`)；可通过环境变量 AUTO_MIGRATE=0 关闭。
+
+### 部署脚本 (Windows)
+执行: `pwsh deploy/deploy.ps1` （可加 `-Rebuild` 强制重建、`-Pull` 预拉镜像）。
+
+### 可调参数 (环境变量)
+| 变量 | 说明 | 默认 |
+| ---- | ---- | ---- |
+| AUTO_MIGRATE | 启动时自动 `flask db upgrade` | 1 |
+| REINDEX_ON_START | 启动后重建搜索索引 | false |
+| FLASK_CONFIG | Flask 配置模式 | production |
+
+### 数据持久化卷
+| 卷 | 作用 |
+| ---- | ---- |
+| mysqldata | MySQL 数据库文件 |
+| meilidata | MeiliSearch 数据 |
+| uploads | 上传媒体文件 |
+
+### 典型运维命令
+| 目的 | 命令 |
+| ---- | ---- |
+| 进入后端容器 | docker compose -f docker-compose.prod.yml exec backend bash |
+| 手动迁移 | docker compose -f docker-compose.prod.yml exec backend flask db upgrade |
+| 重建索引 | docker compose -f docker-compose.prod.yml exec backend python -m scripts.reindex_search |
+| 查看 celery 日志 | docker compose -f docker-compose.prod.yml logs -f celery_worker |
+
+### 下一步可选增强
+- 将 gateway Nginx 改为自定义镜像（加入安全头 / Brotli）。
+- 在 CI 中构建并推送镜像（`flask-blog-backend:git-sha`）。
+- 使用 `.env.prod` 区分生产变量并在 pipeline 注入 Secrets。
+- 引入 Traefik / Caddy 自动 HTTPS。
+
