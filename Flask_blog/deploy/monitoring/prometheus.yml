@@ -1,0 +1,59 @@
+# Prometheus 监控配置
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# 告警规则配置
+rule_files:
+  - "alert_rules.yml"
+
+# AlertManager 配置
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+# 监控目标配置
+scrape_configs:
+  # Prometheus 自身监控
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Node Exporter 系统监控
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # Flask 后端应用监控
+  - job_name: 'flask-backend'
+    static_configs:
+      - targets: ['backend:9090']  # 假设后端暴露 metrics 端点
+    metrics_path: '/api/v1/metrics'
+    scrape_interval: 10s
+
+  # Nginx 监控 (如果启用了 stub_status)
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['gateway:9113']  # 需要 nginx-prometheus-exporter
+    scrape_interval: 10s
+
+  # Redis 监控
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']  # 需要 redis_exporter
+    scrape_interval: 10s
+
+  # MySQL 监控
+  - job_name: 'mysql'
+    static_configs:
+      - targets: ['mysql-exporter:9104']  # 需要 mysqld_exporter
+    scrape_interval: 10s
+
+  # MeiliSearch 监控 (如果有 metrics 端点)
+  - job_name: 'meilisearch'
+    static_configs:
+      - targets: ['meili:7700']
+    metrics_path: '/stats'
+    scrape_interval: 30s

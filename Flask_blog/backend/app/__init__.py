@@ -22,7 +22,7 @@ from flask_limiter.errors import RateLimitExceeded
 import redis
 import sqlalchemy
 import time, uuid, logging, json
-from logging.handlers import TimedRotatingFileHandler
+from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
 try:
     from apscheduler.schedulers.background import BackgroundScheduler
 except Exception:
@@ -90,21 +90,75 @@ def create_app(config_name=None):
     except Exception:
         pass
 
-    # 日志
+    # 日志配置
     log_level = os.getenv('LOG_LEVEL','INFO').upper()
+    log_format = os.getenv('LOG_FORMAT', 'human').lower()  # human | json | simple
     handler = logging.StreamHandler()
-    class JsonFormatter(logging.Formatter):
-        def format(self, record):
-            base = {
-                'level': record.levelname,
-                'msg': record.getMessage(),
-                'logger': record.name,
-                'time': self.formatTime(record, "%Y-%m-%dT%H:%M:%S"),
+    
+    if log_format == 'json':
+        # 结构化JSON日志 - 适合生产环境和自动化解析
+        class JsonFormatter(logging.Formatter):
+            def format(self, record):
+                base = {
+                    'level': record.levelname,
+                    'msg': record.getMessage(),
+                    'logger': record.name,
+                    'time': self.formatTime(record, "%Y-%m-%dT%H:%M:%S"),
+                }
+                if hasattr(record, 'extra_data'):
+                    base.update(record.extra_data)
+                return json.dumps(base, ensure_ascii=False)
+        handler.setFormatter(JsonFormatter())
+    elif log_format == 'simple':
+        # 简洁格式 - 适合容器化环境
+        simple_format = '%(asctime)s [%(levelname)s] %(message)s'
+        handler.setFormatter(logging.Formatter(simple_format, datefmt='%H:%M:%S'))
+    else:
+        # 人性化格式 - 适合开发调试（默认）
+        class HumanFormatter(logging.Formatter):
+            # ANSI 颜色代码
+            COLORS = {
+                'DEBUG': '\033[36m',    # 青色
+                'INFO': '\033[32m',     # 绿色
+                'WARNING': '\033[33m',  # 黄色
+                'ERROR': '\033[31m',    # 红色
+                'CRITICAL': '\033[35m', # 紫色
+                'RESET': '\033[0m'      # 重置
             }
-            if hasattr(record, 'extra_data'):
-                base.update(record.extra_data)
-            return json.dumps(base, ensure_ascii=False)
-    handler.setFormatter(JsonFormatter())
+            
+            def format(self, record):
+                # 彩色级别显示
+                level_color = self.COLORS.get(record.levelname, '')
+                reset_color = self.COLORS['RESET']
+                colored_level = f"{level_color}{record.levelname:<8}{reset_color}"
+                
+                # 时间格式
+                time_str = self.formatTime(record, "%H:%M:%S")
+                
+                # 基础消息
+                message = record.getMessage()
+                
+                # 如果有额外数据，以易读格式显示
+                extra_info = ""
+                if hasattr(record, 'extra_data') and record.extra_data:
+                    extra_parts = []
+                    for k, v in record.extra_data.items():
+                        if k in ['request_id', 'user_id', 'method', 'path', 'status', 'duration_ms']:
+                            extra_parts.append(f"{k}={v}")
+                    if extra_parts:
+                        extra_info = f" [{', '.join(extra_parts)}]"
+                
+                # 记录器名称（简化显示）
+                logger_name = record.name
+                if logger_name.startswith('app.'):
+                    logger_name = logger_name[4:]  # 移除 'app.' 前缀
+                if len(logger_name) > 20:
+                    logger_name = logger_name[:17] + '...'
+                
+                return f"{time_str} {colored_level} {logger_name:<20} {message}{extra_info}"
+        
+        handler.setFormatter(HumanFormatter())
+    
     root = logging.getLogger()
     if not root.handlers:
         root.addHandler(handler)
@@ -118,18 +172,25 @@ def create_app(config_name=None):
             os.makedirs(log_dir, exist_ok=True)
             log_file = os.path.join(log_dir, os.getenv('LOG_FILE_NAME', 'app.log'))
             retention_days = int(os.getenv('LOG_RETENTION_DAYS', '7'))
-            # TimedRotatingFileHandler 的 backupCount 是保留的文件个数；按天切割时近似等于天数
-            has_file_handler = any(isinstance(h, TimedRotatingFileHandler) for h in root.handlers)
+            # 使用 RotatingFileHandler 避免 Windows 下的文件锁定问题
+            has_file_handler = any(isinstance(h, (TimedRotatingFileHandler, RotatingFileHandler)) for h in root.handlers)
             if not has_file_handler:
-                file_handler = TimedRotatingFileHandler(
+                # 使用基于文件大小的轮转，避免时间轮转的权限问题
+                max_bytes = int(os.getenv('LOG_MAX_BYTES', '10485760'))  # 10MB默认
+                file_handler = RotatingFileHandler(
                     log_file,
-                    when='midnight',
-                    interval=1,
+                    maxBytes=max_bytes,
                     backupCount=retention_days,
-                    encoding='utf-8',
-                    utc=False
+                    encoding='utf-8'
                 )
-                file_handler.setFormatter(JsonFormatter())
+                # 文件日志默认使用简洁格式（无ANSI颜色）
+                file_log_format = os.getenv('LOG_FILE_FORMAT', 'simple').lower()
+                if file_log_format == 'json':
+                    file_handler.setFormatter(JsonFormatter())
+                else:
+                    # 简洁格式 - 文件中不使用颜色
+                    file_format = '%(asctime)s [%(levelname)-8s] %(name)-20s %(message)s'
+                    file_handler.setFormatter(logging.Formatter(file_format))
                 # 降低文件里 DEBUG 噪音可设置 LOG_FILE_LEVEL，否则跟随 root
                 file_level = os.getenv('LOG_FILE_LEVEL')
                 if file_level:
@@ -239,6 +300,7 @@ def create_app(config_name=None):
     from .simple_logs import simple_logs_bp
     from .backup import backup_bp
     from .backup import routes  # 显式导入路由以注册到蓝图
+    from .media import media_bp
     from .public_api import public_bp
     from .middlewares import VisitorTrackingMiddleware
 
@@ -261,6 +323,7 @@ def create_app(config_name=None):
     app.register_blueprint(logs_bp, url_prefix='/api/v1/admin/logs')
     app.register_blueprint(simple_logs_bp, url_prefix='/api/v1/simple')
     app.register_blueprint(backup_bp, url_prefix='/api/v1/backup')
+    app.register_blueprint(media_bp, url_prefix='/api/v1/media')
     # Public read-only namespace (versioned separately for stability)
     app.register_blueprint(public_bp, url_prefix='/public/v1')
 
@@ -279,8 +342,30 @@ def create_app(config_name=None):
     @app.route('/uploads/<path:filename>')
     @limiter.exempt  # 静态资源豁免rate limiting
     def serve_upload(filename):
-        from flask import send_from_directory
-        return send_from_directory(app.config['UPLOAD_DIR'], filename)
+        from flask import send_from_directory, send_file
+        import os
+        
+        # 将路径分隔符标准化
+        filename = filename.replace('/', os.sep)
+        upload_dir = os.path.abspath(app.config['UPLOAD_DIR'])
+        full_path = os.path.join(upload_dir, filename)
+        
+        app.logger.info(f"[UPLOADS] Normalized filename: {filename}")
+        app.logger.info(f"[UPLOADS] Absolute upload dir: {upload_dir}")
+        app.logger.info(f"[UPLOADS] Full path: {full_path}")
+        app.logger.info(f"[UPLOADS] File exists: {os.path.exists(full_path)}")
+        
+        if os.path.exists(full_path):
+            try:
+                # 使用send_file直接发送文件，避免路径问题
+                return send_file(full_path)
+            except Exception as e:
+                app.logger.error(f"[UPLOADS] Error sending file: {e}")
+                return send_from_directory(upload_dir, filename)
+        else:
+            # Return a placeholder response instead of 404
+            from flask import jsonify
+            return jsonify({'error': 'File not found', 'path': filename}), 404
 
     # 启动定时发布调度器
     if getattr(app.config,'ENABLE_SCHEDULER', False) and BackgroundScheduler:
@@ -506,6 +591,22 @@ def create_app(config_name=None):
         resp = Response(content, mimetype='text/plain; charset=utf-8')
         resp.headers['Cache-Control'] = 'public, max-age=3600'
         return resp
+
+    # 初始化任务清理器
+    try:
+        from .backup.task_cleaner import init_task_cleaner
+        init_task_cleaner(app)
+        app.logger.info("任务清理器初始化成功")
+    except Exception as e:
+        app.logger.error(f"任务清理器初始化失败: {e}")
+
+    # 初始化外部元数据系统
+    try:
+        from .backup.backup_records_external import init_external_metadata_system
+        init_external_metadata_system(app)
+        app.logger.info("外部元数据系统初始化成功")
+    except Exception as e:
+        app.logger.error(f"外部元数据系统初始化失败: {e}")
 
     return app
 

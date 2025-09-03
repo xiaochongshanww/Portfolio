@@ -216,8 +216,8 @@ class BackupRecord(db.Model):
     backup_type = db.Column(db.String(20), nullable=False, index=True)  # full, incremental, snapshot
     status = db.Column(db.String(20), default='pending', index=True)    # pending, running, completed, failed
     
-    # 时间信息
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+    # 时间信息 - 统一使用上海时区
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(SHANGHAI_TZ), nullable=False, index=True)
     started_at = db.Column(db.DateTime)
     completed_at = db.Column(db.DateTime)
     
@@ -279,7 +279,8 @@ class BackupRecord(db.Model):
     
     def get_duration(self):
         """获取备份耗时(秒)"""
-        if self.started_at and self.completed_at:
+        # 只有成功完成的备份才计算耗时
+        if self.status == 'completed' and self.started_at and self.completed_at:
             return int((self.completed_at - self.started_at).total_seconds())
         return None
     
@@ -291,11 +292,12 @@ class BackupRecord(db.Model):
         def format_datetime(dt):
             if dt is None:
                 return None
-            # 确保datetime有timezone信息，如果没有则假设是UTC
+            # 确保datetime有timezone信息，如果没有则假设是上海时区
+            # 因为数据库中存储的时间默认是上海时间（由SHANGHAI_TZ生成）
             if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            # 转换为上海时间
-            shanghai_dt = dt.astimezone(shanghai_tz)
+                dt = dt.replace(tzinfo=shanghai_tz)
+            # 如果已经是上海时间，直接返回；否则转换为上海时间
+            shanghai_dt = dt.astimezone(shanghai_tz) if dt.tzinfo != shanghai_tz else dt
             return shanghai_dt.isoformat()
         
         return {
@@ -493,7 +495,7 @@ class RestoreRecord(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     restore_id = db.Column(db.String(50), unique=True, nullable=False, index=True)
-    backup_record_id = db.Column(db.Integer, db.ForeignKey('backup_records.id'), nullable=False)
+    backup_record_id = db.Column(db.Integer, db.ForeignKey('backup_records.id'), nullable=True)  # 物理恢复时可为空
     
     # 恢复配置
     restore_type = db.Column(db.String(20), nullable=False)  # full, partial, database_only, files_only
@@ -505,8 +507,8 @@ class RestoreRecord(db.Model):
     progress = db.Column(db.Integer, default=0)  # 恢复进度 (0-100)
     status_message = db.Column(db.String(200))  # 状态描述信息
     
-    # 时间信息
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    # 时间信息 - 统一使用上海时区
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(SHANGHAI_TZ), nullable=False)
     started_at = db.Column(db.DateTime)
     completed_at = db.Column(db.DateTime)
     
@@ -547,6 +549,20 @@ class RestoreRecord(db.Model):
     
     def to_dict(self):
         """转换为字典格式"""
+        from datetime import timezone, timedelta
+        
+        # 上海时区 (UTC+8)
+        shanghai_tz = timezone(timedelta(hours=8))
+        
+        def convert_to_shanghai(dt):
+            if dt is None:
+                return None
+            # 如果是UTC时间，转换为上海时间；否则假设已经是本地时间
+            if dt.tzinfo is None:
+                # 假设数据库中的时间是UTC时间
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(shanghai_tz).isoformat()
+        
         return {
             'id': self.id,
             'restore_id': self.restore_id,
@@ -557,12 +573,247 @@ class RestoreRecord(db.Model):
             'status': self.status,
             'progress': self.progress,
             'status_message': self.status_message,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'started_at': self.started_at.isoformat() if self.started_at else None,
-            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'created_at': convert_to_shanghai(self.created_at),
+            'started_at': convert_to_shanghai(self.started_at),
+            'completed_at': convert_to_shanghai(self.completed_at),
             'restored_files_count': self.restored_files_count,
             'restored_databases_count': self.restored_databases_count,
             'error_message': self.error_message,
             'requested_by': self.requested_by,
             'duration': self.get_duration()
+        }
+
+
+# ================================
+# 媒体库相关模型
+# ================================
+
+class MediaFolder(db.Model):
+    """媒体文件夹模型"""
+    __tablename__ = 'media_folders'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    parent_id = db.Column(db.Integer, db.ForeignKey('media_folders.id'), index=True)
+    
+    # 权限控制
+    visibility = db.Column(db.Enum('private', 'shared', 'public'), default='private', nullable=False, index=True)
+    # private: 仅所有者可见, shared: 编辑者及以上可见, public: 所有登录用户可见
+    
+    description = db.Column(db.String(500))
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    
+    # 关联关系
+    owner = db.relationship('User', backref='media_folders')
+    children = db.relationship('MediaFolder', backref=db.backref('parent', remote_side=[id]), lazy='dynamic')
+    media_files = db.relationship('Media', backref='folder', lazy='dynamic')
+    
+    def to_dict(self):
+        def convert_to_shanghai(dt):
+            if dt is None:
+                return None
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(SHANGHAI_TZ).isoformat()
+        
+        return {
+            'id': self.id,
+            'name': self.name,
+            'owner_id': self.owner_id,
+            'owner_name': self.owner.nickname or self.owner.email if self.owner else None,
+            'parent_id': self.parent_id,
+            'visibility': self.visibility,
+            'description': self.description,
+            'created_at': convert_to_shanghai(self.created_at),
+            'updated_at': convert_to_shanghai(self.updated_at),
+            'children_count': self.children.count(),
+            'media_count': self.media_files.count()
+        }
+
+
+class Media(db.Model):
+    """媒体文件模型"""
+    __tablename__ = 'media'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # 文件基本信息
+    filename = db.Column(db.String(255), nullable=False)  # 原始文件名
+    original_name = db.Column(db.String(255), nullable=False)  # 用户上传时的文件名
+    file_path = db.Column(db.String(500), nullable=False, index=True)  # 相对存储路径
+    file_size = db.Column(db.BigInteger, nullable=False)  # 文件大小（字节）
+    file_hash = db.Column(db.String(64), index=True)  # 文件哈希值，用于重复检测
+    
+    # 文件类型
+    mime_type = db.Column(db.String(100), nullable=False, index=True)
+    media_type = db.Column(db.Enum('image', 'video', 'document', 'audio', 'other'), nullable=False, index=True)
+    
+    # 权限控制
+    owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    visibility = db.Column(db.Enum('private', 'shared', 'public'), default='private', nullable=False, index=True)
+    folder_id = db.Column(db.Integer, db.ForeignKey('media_folders.id'), index=True)
+    
+    # 元数据
+    title = db.Column(db.String(255))  # 用户自定义标题
+    alt_text = db.Column(db.Text)  # 图片替代文本（无障碍）
+    description = db.Column(db.Text)  # 描述
+    tags = db.Column(Text().with_variant(mysql.LONGTEXT(), 'mysql'))  # JSON 格式标签数组
+    
+    # 图片特定字段
+    width = db.Column(db.Integer)  # 图片宽度
+    height = db.Column(db.Integer)  # 图片高度
+    focal_x = db.Column(db.Float, default=0.5)  # 焦点 X 坐标（0-1）
+    focal_y = db.Column(db.Float, default=0.5)  # 焦点 Y 坐标（0-1）
+    
+    # 变体信息（多尺寸、格式等）
+    variants = db.Column(Text().with_variant(mysql.LONGTEXT(), 'mysql'))  # JSON 格式变体信息
+    
+    # 使用统计
+    download_count = db.Column(db.Integer, default=0)  # 下载次数
+    usage_count = db.Column(db.Integer, default=0)  # 使用次数（被文章引用等）
+    
+    # 时间戳
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    
+    # 关联关系
+    owner = db.relationship('User', backref='media_files')
+    
+    def to_dict(self, include_variants=True):
+        """转换为字典格式"""
+        def convert_to_shanghai(dt):
+            if dt is None:
+                return None
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(SHANGHAI_TZ).isoformat()
+        
+        import json
+        
+        # 解析 JSON 字段
+        tags_list = []
+        variants_dict = {}
+        
+        try:
+            if self.tags:
+                tags_list = json.loads(self.tags)
+        except (json.JSONDecodeError, TypeError):
+            tags_list = []
+            
+        try:
+            if self.variants and include_variants:
+                variants_dict = json.loads(self.variants)
+        except (json.JSONDecodeError, TypeError):
+            variants_dict = {}
+        
+        result = {
+            'id': self.id,
+            'filename': self.filename,
+            'original_name': self.original_name,
+            'file_path': self.file_path,
+            'file_size': self.file_size,
+            'file_hash': self.file_hash,
+            'mime_type': self.mime_type,
+            'media_type': self.media_type,
+            'owner_id': self.owner_id,
+            'owner_name': self.owner.nickname or self.owner.email if self.owner else None,
+            'visibility': self.visibility,
+            'folder_id': self.folder_id,
+            'folder_name': self.folder.name if self.folder else None,
+            'title': self.title,
+            'alt_text': self.alt_text,
+            'description': self.description,
+            'tags': tags_list,
+            'width': self.width,
+            'height': self.height,
+            'focal_x': self.focal_x,
+            'focal_y': self.focal_y,
+            'download_count': self.download_count,
+            'usage_count': self.usage_count,
+            'created_at': convert_to_shanghai(self.created_at),
+            'updated_at': convert_to_shanghai(self.updated_at),
+            # 生成访问 URL
+            'url': f"/uploads/{self.file_path}" if self.file_path else None
+        }
+        
+        if include_variants and variants_dict:
+            result['variants'] = variants_dict
+            
+        return result
+    
+    def get_variants_dict(self):
+        """获取变体信息字典"""
+        import json
+        try:
+            return json.loads(self.variants) if self.variants else {}
+        except (json.JSONDecodeError, TypeError):
+            return {}
+    
+    def set_variants_dict(self, variants_dict):
+        """设置变体信息字典"""
+        import json
+        self.variants = json.dumps(variants_dict) if variants_dict else None
+    
+    def get_tags_list(self):
+        """获取标签列表"""
+        import json
+        try:
+            return json.loads(self.tags) if self.tags else []
+        except (json.JSONDecodeError, TypeError):
+            return []
+    
+    def set_tags_list(self, tags_list):
+        """设置标签列表"""
+        import json
+        self.tags = json.dumps(tags_list) if tags_list else None
+    
+    def increment_usage_count(self):
+        """增加使用次数"""
+        self.usage_count = (self.usage_count or 0) + 1
+        
+    def increment_download_count(self):
+        """增加下载次数"""
+        self.download_count = (self.download_count or 0) + 1
+
+
+class MediaUsage(db.Model):
+    """媒体使用记录模型 - 跟踪媒体文件在哪些地方被使用"""
+    __tablename__ = 'media_usage'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    media_id = db.Column(db.Integer, db.ForeignKey('media.id'), nullable=False, index=True)
+    
+    # 使用位置
+    usage_type = db.Column(db.Enum('article_content', 'article_featured', 'user_avatar', 'other'), 
+                          nullable=False, index=True)
+    reference_id = db.Column(db.Integer, index=True)  # 引用的对象ID（如文章ID）
+    reference_type = db.Column(db.String(50))  # 引用对象类型
+    
+    # 使用信息
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), index=True)  # 使用者
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    
+    # 关联关系
+    media = db.relationship('Media', backref='usage_records')
+    user = db.relationship('User')
+    
+    def to_dict(self):
+        def convert_to_shanghai(dt):
+            if dt is None:
+                return None
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(SHANGHAI_TZ).isoformat()
+        
+        return {
+            'id': self.id,
+            'media_id': self.media_id,
+            'usage_type': self.usage_type,
+            'reference_id': self.reference_id,
+            'reference_type': self.reference_type,
+            'user_id': self.user_id,
+            'user_name': self.user.nickname or self.user.email if self.user else None,
+            'created_at': convert_to_shanghai(self.created_at)
         }

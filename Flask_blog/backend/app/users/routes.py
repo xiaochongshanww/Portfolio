@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from .. import db, require_auth, require_roles, redis_client, METRICS_ENABLED, PUBLIC_AUTHOR_PROFILE_REQUESTS_TOTAL, PUBLIC_AUTHOR_ARTICLES_REQUESTS_TOTAL, PUBLIC_AUTHOR_ARTICLES_ZERO_RESULT_TOTAL, CACHE_HIT_TOTAL, CACHE_MISS_TOTAL
 from ..models import User, Article
 from ..utils import compute_etag
@@ -64,12 +64,14 @@ def serialize_user(u: User, include_email=False):
 @users_bp.route('/me', methods=['GET'])
 @require_auth
 def me():
+    current_app.logger.info(f"用户信息请求 - 用户ID: {request.user_id}")
     u = User.query.get_or_404(request.user_id)
     return jsonify({'code':0,'message':'ok','data':serialize_user(u, include_email=True)})
 
 @users_bp.route('/me', methods=['PATCH'])
 @require_auth
 def update_me():
+    current_app.logger.info(f"用户信息请求 - 用户ID: {request.user_id}")
     data = request.get_json() or {}
     try:
         parsed = ProfileUpdateModel(**data)

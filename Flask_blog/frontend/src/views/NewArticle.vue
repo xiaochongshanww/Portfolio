@@ -74,28 +74,54 @@
         <div class="cover-section">
           <!-- 上传区域 -->
           <div class="upload-section">
-            <el-form-item label="上传封面图">
+            <el-form-item label="选择封面图">
               <div class="upload-area">
-                <el-upload
-                  class="cover-uploader"
-                  action="#"
-                  :auto-upload="false"
-                  :on-change="handleCoverSelect"
-                  :show-file-list="false"
-                  accept="image/*"
-                  :disabled="uploading"
-                >
-                  <el-button 
-                    type="primary" 
-                    :loading="uploading"
-                    :icon="uploading ? Loading : UploadFilled"
-                    size="large"
+                <!-- 主要上传选项 -->
+                <div class="primary-upload">
+                  <el-upload
+                    class="cover-uploader"
+                    action="#"
+                    :auto-upload="false"
+                    :on-change="handleCoverSelect"
+                    :show-file-list="false"
+                    accept="image/*"
+                    :disabled="uploading"
                   >
-                    {{ uploading ? '上传中...' : '选择封面图片' }}
+                    <el-button 
+                      type="primary" 
+                      size="large"
+                      :loading="uploading"
+                      :icon="uploading ? Loading : UploadFilled"
+                    >
+                      {{ uploading ? '上传中...' : '上传新图片' }}
+                    </el-button>
+                  </el-upload>
+                  
+                  <div class="upload-progress" v-if="uploading">
+                    <el-progress :percentage="uploadProgress" />
+                  </div>
+                </div>
+
+                <!-- 分隔线 -->
+                <div class="option-divider">
+                  <span class="divider-text">或</span>
+                </div>
+
+                <!-- 媒体库选择 -->
+                <div class="media-library-option">
+                  <el-button 
+                    type="success"
+                    size="large"
+                    :icon="Picture"
+                    @click="showMediaSelector = true"
+                    :disabled="uploading"
+                    plain
+                  >
+                    从媒体库选择
                   </el-button>
-                </el-upload>
-                <div class="upload-progress" v-if="uploading">
-                  <el-progress :percentage="uploadProgress" />
+                  <div class="option-hint">
+                    选择已上传的图片作为封面
+                  </div>
                 </div>
               </div>
               <div class="input-hint">
@@ -439,6 +465,14 @@
         class="success-alert"
       />
     </div>
+
+    <!-- 媒体选择器 -->
+    <MediaSelector 
+      v-model:visible="showMediaSelector"
+      :multiple="false"
+      accept="image/*"
+      @selected="handleMediaSelected"
+    />
   </div>
 </template>
 <script setup>
@@ -452,6 +486,7 @@ import axios from 'axios';
 import { setMeta } from '../composables/useMeta';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import message, { MESSAGE_PRIORITY } from '../utils/message';
+import MediaSelector from '../components/media/MediaSelector.vue';
 import VditorEditor from '../components/VditorEditor.vue';
 import ImageUploader from '../components/ImageUploader.vue';
 import ImageFocalCropper from '../components/ImageFocalCropper.vue';
@@ -498,6 +533,7 @@ const categoryLoading = ref(false);
 
 // 标签相关状态
 const availableTags = ref([]);
+const showMediaSelector = ref(false);
 const selectedTags = ref([]);
 const tagsLoading = ref(false);
 
@@ -735,6 +771,18 @@ async function handleCoverSelect(file) {
     uploading.value = false;
     uploadProgress.value = 0;
   }
+}
+
+// 处理从媒体库选择图片
+function handleMediaSelected(selectedMedia) {
+  if (selectedMedia && selectedMedia.url) {
+    form.value.featured_image = selectedMedia.url;
+    message.success({
+      message: '🖼️ 已从媒体库选择封面图片！',
+      duration: 3000
+    });
+  }
+  showMediaSelector.value = false;
 }
 // 表单验证功能
 function validateField(fieldName, value) {
@@ -2117,7 +2165,12 @@ if (process.env.NODE_ENV === 'development') {
 .upload-area {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.5rem;
+}
+
+/* 主要上传区域 */
+.primary-upload {
+  text-align: center;
 }
 
 .cover-uploader {
@@ -2126,6 +2179,46 @@ if (process.env.NODE_ENV === 'development') {
 
 .upload-progress {
   width: 100%;
+  margin-top: 0.75rem;
+}
+
+/* 选项分隔线 */
+.option-divider {
+  position: relative;
+  text-align: center;
+  margin: 0.5rem 0;
+}
+
+.option-divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(to right, transparent, #e4e7ed 20%, #e4e7ed 80%, transparent);
+  z-index: 1;
+}
+
+.divider-text {
+  background: #fff;
+  padding: 0 1rem;
+  color: #909399;
+  font-size: 14px;
+  position: relative;
+  z-index: 2;
+}
+
+/* 媒体库选择区域 */
+.media-library-option {
+  text-align: center;
+}
+
+.option-hint {
+  margin-top: 0.5rem;
+  font-size: 13px;
+  color: #909399;
+  line-height: 1.4;
 }
 
 .url-section {

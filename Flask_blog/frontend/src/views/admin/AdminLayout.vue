@@ -88,6 +88,12 @@
             </el-menu-item>
           </el-sub-menu>
 
+          <!-- 媒体库 -->
+          <el-menu-item index="/admin/media" route="/admin/media">
+            <el-icon><Picture /></el-icon>
+            <span>媒体库</span>
+          </el-menu-item>
+
           <!-- 用户管理 -->
           <el-menu-item 
             v-if="hasRole(['admin'])" 

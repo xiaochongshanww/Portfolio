@@ -37,10 +37,14 @@
             <el-option label="部分恢复" value="partial" />
           </el-select>
         </el-col>
-        <el-col :span="6">
+        <el-col :span="12">
           <el-button type="primary" @click="loadRestoreRecords" :loading="loading">
             <el-icon><Refresh /></el-icon>
             刷新
+          </el-button>
+          <el-button type="warning" @click="cleanupStuckTasks" :loading="cleaningUp" style="margin-left: 10px;">
+            <el-icon><Delete /></el-icon>
+            清理卡住的任务
           </el-button>
         </el-col>
       </el-row>
@@ -52,6 +56,7 @@
       v-loading="loading" 
       style="width: 100%"
       @row-click="showRestoreDetail"
+      :row-class-name="getRowClassName"
     >
       <el-table-column prop="restore_id" label="恢复ID" width="200" show-overflow-tooltip>
         <template #default="scope">
@@ -95,13 +100,13 @@
         </template>
       </el-table-column>
 
-      <el-table-column prop="progress" label="进度" width="150">
+      <el-table-column prop="progress" label="进度" width="200">
         <template #default="scope">
           <div class="progress-container">
             <el-progress 
               :percentage="scope.row.progress || 0" 
               :status="getProgressStatus(scope.row.status)"
-              :stroke-width="8"
+              :stroke-width="16"
               text-inside
             />
             <div v-if="scope.row.status_message" class="status-message text-xs text-gray-600 mt-1">
@@ -128,7 +133,7 @@
           <el-button 
             type="primary" 
             size="small" 
-            @click="showRestoreDetail(scope.row)"
+            @click.stop="showRestoreDetail(scope.row)"
           >
             查看详情
           </el-button>
@@ -136,7 +141,7 @@
             v-if="canCancel(scope.row.status)"
             type="danger" 
             size="small" 
-            @click="cancelRestore(scope.row.restore_id)"
+            @click.stop="cancelRestore(scope.row.restore_id)"
             :loading="scope.row._cancelling"
           >
             取消
@@ -163,6 +168,8 @@
       v-model="detailDialog.visible"
       :title="'恢复任务详情 - ' + detailDialog.data?.restore_id"
       width="800px"
+      :z-index="3000"
+      :append-to-body="true"
       @close="stopProgressMonitoring"
     >
       <div v-if="detailDialog.data" class="restore-detail">
@@ -283,7 +290,7 @@
           <el-button 
             v-if="canCancel(detailDialog.data?.status)"
             type="danger" 
-            @click="cancelRestore(detailDialog.data.restore_id)"
+            @click="cancelRestoreFromDialog(detailDialog.data.restore_id)"
             :loading="detailDialog.data?._cancelling"
           >
             取消任务
@@ -297,13 +304,15 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh } from '@element-plus/icons-vue'
+import { Refresh, Delete } from '@element-plus/icons-vue'
 import { backupApi } from '@/api/backup'
 
 // 数据
 const restoreRecords = ref([])
 const loading = ref(false)
+const cleaningUp = ref(false)
 
 // 筛选条件
 const filters = reactive({
@@ -326,6 +335,9 @@ const detailDialog = reactive({
 
 // 进度监控定时器
 let progressTimer = null
+
+// 高亮显示的恢复任务ID
+const highlightRestoreId = ref(null)
 
 // 加载恢复记录
 const loadRestoreRecords = async () => {
@@ -402,7 +414,7 @@ const stopProgressMonitoring = () => {
   }
 }
 
-// 取消恢复任务
+// 取消恢复任务（从表格发起）
 const cancelRestore = async (restoreId) => {
   try {
     await ElMessageBox.confirm(
@@ -427,7 +439,9 @@ const cancelRestore = async (restoreId) => {
     const response = await backupApi.cancelRestore(restoreId)
     if (response.data.code === 0) {
       ElMessage.success('恢复任务已取消')
-      loadRestoreRecords()
+      await loadRestoreRecords()
+      
+      // 如果详情对话框正在显示这个任务，关闭它
       if (detailDialog.visible && detailDialog.data?.restore_id === restoreId) {
         detailDialog.visible = false
       }
@@ -448,6 +462,118 @@ const cancelRestore = async (restoreId) => {
     if (detailDialog.data?.restore_id === restoreId) {
       detailDialog.data._cancelling = false
     }
+  }
+}
+
+// 从详情对话框取消恢复任务
+const cancelRestoreFromDialog = async (restoreId) => {
+  // 临时保存对话框状态
+  const wasDetailDialogVisible = detailDialog.visible
+  const originalDialogData = detailDialog.data
+  
+  try {
+    // 如果详情对话框是打开的，先临时关闭它，避免层级问题
+    if (wasDetailDialogVisible) {
+      detailDialog.visible = false
+    }
+    
+    await ElMessageBox.confirm(
+      '确定要取消这个恢复任务吗？正在进行的恢复操作将被中止。',
+      '确认取消',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    
+    // 设置取消loading状态
+    const record = restoreRecords.value.find(r => r.restore_id === restoreId)
+    if (record) {
+      record._cancelling = true
+    }
+    if (originalDialogData?.restore_id === restoreId) {
+      originalDialogData._cancelling = true
+    }
+    
+    const response = await backupApi.cancelRestore(restoreId)
+    if (response.data.code === 0) {
+      ElMessage.success('恢复任务已取消')
+      await loadRestoreRecords()
+      
+      // 取消成功，不需要重新打开详情对话框
+      // 因为任务已被取消，详情已无意义
+    } else {
+      ElMessage.error(response.data.message || '取消恢复任务失败')
+      
+      // 取消失败，恢复详情对话框显示
+      if (wasDetailDialogVisible && originalDialogData?.restore_id === restoreId) {
+        detailDialog.data = originalDialogData
+        detailDialog.visible = true
+      }
+    }
+  } catch (error) {
+    if (error === 'cancel') {
+      // 用户取消了确认对话框，恢复详情对话框显示
+      if (wasDetailDialogVisible && originalDialogData?.restore_id === restoreId) {
+        detailDialog.data = originalDialogData
+        detailDialog.visible = true
+      }
+    } else {
+      console.error('取消恢复任务失败:', error)
+      ElMessage.error('取消恢复任务失败')
+      
+      // 发生错误，恢复详情对话框显示
+      if (wasDetailDialogVisible && originalDialogData?.restore_id === restoreId) {
+        detailDialog.data = originalDialogData
+        detailDialog.visible = true
+      }
+    }
+  } finally {
+    // 清除取消loading状态
+    const record = restoreRecords.value.find(r => r.restore_id === restoreId)
+    if (record) {
+      record._cancelling = false
+    }
+    // 注意：不再需要清理详情对话框的loading状态，因为对话框可能已经关闭
+  }
+}
+
+// 清理卡住的任务
+const cleanupStuckTasks = async () => {
+  try {
+    await ElMessageBox.confirm(
+      '此操作将清理所有运行时间超过10分钟的卡住任务。确定继续吗？',
+      '清理卡住的任务',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+        zIndex: 4000  // 确保在所有对话框之上
+      }
+    )
+
+    cleaningUp.value = true
+    const response = await backupApi.cleanupStuckRestores()
+    
+    if (response.data.code === 0) {
+      const cleanedCount = response.data.data.cleaned_count
+      if (cleanedCount > 0) {
+        ElMessage.success(`成功清理了 ${cleanedCount} 个卡住的任务`)
+        await loadRestoreRecords() // 刷新列表
+      } else {
+        ElMessage.info('没有发现卡住的任务')
+      }
+    } else {
+      ElMessage.error(response.data.message || '清理任务失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('清理卡住任务失败:', error)
+      ElMessage.error('清理任务失败')
+    }
+  } finally {
+    cleaningUp.value = false
   }
 }
 
@@ -535,9 +661,54 @@ const formatJSON = (jsonString) => {
   }
 }
 
+// 表格行样式
+const getRowClassName = ({ row }) => {
+  if (highlightRestoreId.value && row.restore_id === highlightRestoreId.value) {
+    return 'highlight-row'
+  }
+  if (row.status === 'running') {
+    return 'running-row'
+  }
+  return ''
+}
+
 // 生命周期
-onMounted(() => {
-  loadRestoreRecords()
+onMounted(async () => {
+  await loadRestoreRecords()
+  
+  // 检查URL查询参数，高亮显示特定的恢复任务
+  const route = useRoute()
+  const highlightId = route.query.highlight
+  if (highlightId) {
+    // 设置高亮显示的恢复任务ID
+    highlightRestoreId.value = highlightId
+    
+    // 查找对应的恢复任务
+    const targetRecord = restoreRecords.value.find(record => record.restore_id === highlightId)
+    if (targetRecord) {
+      // 如果是正在执行的任务，开始监控进度
+      if (targetRecord.status === 'running' || targetRecord.status === 'pending') {
+        startProgressMonitoring()
+      }
+      
+      // 延迟一下以确保表格已渲染，然后滚动到对应行
+      setTimeout(() => {
+        console.log('高亮显示恢复任务:', highlightId)
+        // 5秒后取消高亮
+        setTimeout(() => {
+          highlightRestoreId.value = null
+        }, 5000)
+      }, 500)
+    }
+  }
+  
+  // 对于任何正在运行的任务，自动开始监控
+  const runningTasks = restoreRecords.value.filter(record => 
+    record.status === 'running' || record.status === 'pending'
+  )
+  if (runningTasks.length > 0) {
+    startProgressMonitoring()
+  }
 })
 
 onUnmounted(() => {
@@ -580,6 +751,28 @@ onUnmounted(() => {
 
 .progress-container {
   width: 100%;
+  min-width: 120px; /* 确保进度条有足够空间显示百分比 */
+}
+
+/* 修复进度条文本显示问题 */
+.progress-container {
+  width: 100%;
+  min-width: 140px; /* 确保进度条有足够空间显示百分比 */
+  padding: 4px 0; /* 上下增加间距 */
+}
+
+.progress-container .el-progress {
+  width: 100%;
+}
+
+.progress-container .el-progress-bar {
+  padding-right: 0;
+}
+
+.progress-container .el-progress__text {
+  min-width: 35px;
+  font-size: 12px !important;
+  line-height: 16px !important; /* 确保文字有足够高度 */
 }
 
 .status-message {
@@ -651,5 +844,56 @@ onUnmounted(() => {
 
 .mt-2 {
   margin-top: 8px;
+}
+
+/* 确保对话框在侧边栏之上 */
+:deep(.el-dialog__wrapper) {
+  z-index: 3000 !important;
+}
+
+:deep(.el-overlay) {
+  z-index: 2999 !important;
+}
+
+:deep(.el-dialog) {
+  z-index: 3001 !important;
+}
+
+/* 针对AdminLayout的侧边栏确保层级正确 */
+:deep(.admin-sidebar) {
+  z-index: 1000 !important;
+}
+
+/* 确保MessageBox确认对话框在所有对话框之上 */
+:deep(.el-message-box__wrapper) {
+  z-index: 4000 !important;
+}
+
+:deep(.el-message-box) {
+  z-index: 4001 !important;
+}
+
+/* 表格行样式 */
+:deep(.highlight-row) {
+  background-color: #fff7e6 !important;
+  border-left: 3px solid #faad14 !important;
+  animation: highlight-pulse 1s ease-in-out;
+}
+
+:deep(.running-row) {
+  background-color: #f0f9ff !important;
+  border-left: 3px solid #1890ff !important;
+}
+
+@keyframes highlight-pulse {
+  0% {
+    background-color: #ffe58f;
+  }
+  50% {
+    background-color: #fff7e6;
+  }
+  100% {
+    background-color: #fff7e6;
+  }
 }
 </style>

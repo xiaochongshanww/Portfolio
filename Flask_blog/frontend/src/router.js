@@ -34,6 +34,7 @@ const SystemPerformance = () => import(/* webpackChunkName: 'admin' */ './views/
 const SystemSettings = () => import(/* webpackChunkName: 'admin' */ './views/admin/SystemSettings.vue');
 const BackupManagement = () => import(/* webpackChunkName: 'admin' */ './views/admin/BackupManagement.vue');
 const RestoreManagement = () => import(/* webpackChunkName: 'admin' */ './views/admin/RestoreManagement.vue');
+const MediaManagement = () => import(/* webpackChunkName: 'admin' */ './views/admin/MediaManagement.vue');
 
 const routes = [
   { path: '/', component: Home },
@@ -55,6 +56,7 @@ const routes = [
   { path: '/archive', component: () => import('./views/ArchivePage.vue') },
   { path: '/hot', component: () => import('./views/HotArticles.vue') },
   { path: '/about', component: () => import('./views/About.vue') },
+  { path: '/media', component: () => import('./views/MediaGallery.vue') },
   
   // CMS后台路由
   {
@@ -76,7 +78,10 @@ const routes = [
       { path: 'performance', component: SystemPerformance, meta: { requiresRole: ['editor', 'admin'] } },
       { path: 'settings/general', component: SystemSettings, meta: { requiresRole: ['admin'] } },
       { path: 'backup', component: BackupManagement, meta: { requiresRole: ['admin'] } },
+      { path: 'backup-management', component: BackupManagement, meta: { requiresRole: ['admin'] } },
       { path: 'restore', component: RestoreManagement, meta: { requiresRole: ['admin'] } },
+      { path: 'restore-management', component: RestoreManagement, meta: { requiresRole: ['admin'] } },
+      { path: 'media', component: MediaManagement, meta: { requiresRole: ['author', 'editor', 'admin'] } },
     ]
   },
   

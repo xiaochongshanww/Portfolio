@@ -962,6 +962,7 @@ def list_audit_logs(article_id):
 @articles_bp.route('/public/', methods=['GET'])
 def public_list_articles():
     """公开文章列表（仅 published）。支持: page,page_size, tag, category_id, author_id, sort(published_at desc|asc)。"""
+    current_app.logger.info("查询公开文章列表")
     page = int(request.args.get('page',1))
     size = min(int(request.args.get('page_size',10)),50)
     tag = request.args.get('tag')

@@ -26,6 +26,11 @@ export const backupApi = {
     return api.post('/backup/create', data)
   },
 
+  // 取消备份任务
+  cancelBackup(backupId) {
+    return api.post(`/backup/${backupId}/cancel`)
+  },
+
   // 删除备份
   deleteBackup(backupId) {
     return api.delete(`/backup/${backupId}`)
@@ -117,6 +122,11 @@ export const backupApi = {
   // 取消恢复任务
   cancelRestore(restoreId) {
     return api.post(`/backup/restores/${restoreId}/cancel`)
+  },
+
+  // 清理卡住的恢复任务
+  cleanupStuckRestores() {
+    return api.post('/backup/restores/cleanup')
   },
 
   // 获取备份配置项

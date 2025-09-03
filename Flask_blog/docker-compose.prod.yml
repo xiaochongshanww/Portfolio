@@ -19,6 +19,9 @@ services:
         condition: service_started
     volumes:
       - uploads:/app/backend/uploads_store
+      - backups:/app/backend/backups
+      - metadata:/app/backend/metadata
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - appnet
   celery_worker:
@@ -73,16 +76,32 @@ services:
       - appnet
   redis:
     image: redis:7-alpine
+    command: redis-server --requirepass ${REDIS_PASSWORD:-CHANGE-ME-REDIS-PASSWORD}
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-CHANGE-ME-REDIS-PASSWORD}
+    volumes:
+      - redisdata:/data
     networks:
       - appnet
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
   meili:
     image: getmeili/meilisearch:v1.7
     environment:
       MEILI_NO_ANALYTICS: 'true'
+      MEILI_MASTER_KEY: ${MEILISEARCH_MASTER_KEY:-CHANGE-ME-MEILI-MASTER-KEY}
     volumes:
       - meilidata:/meili_data
     networks:
       - appnet
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
   gateway:
     image: nginx:1.27-alpine
     depends_on:
@@ -99,7 +118,10 @@ services:
 volumes:
   mysqldata:
   meilidata:
+  redisdata:
   uploads:
+  backups:
+  metadata:
 
 networks:
   appnet:

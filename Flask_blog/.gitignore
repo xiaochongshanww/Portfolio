@@ -82,8 +82,10 @@ frontend/.env.development.local
 frontend/.env.test.local
 frontend/.env.production.local
 
-# Logs
-logs
+# Logs (exclude code directories)
+logs/
+!backend/app/logs/
+backend/app/logs/__pycache__/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -182,8 +184,10 @@ dump.rdb
 config.local.py
 settings.local.py
 
-# Uploads directory (if contains user uploads)
+# Uploads directory (exclude code directories)
 uploads/
+!backend/app/uploads/
+backend/app/uploads/__pycache__/
 *.upload
 
 # Migration files (optional - depend on your preference)
@@ -197,6 +201,13 @@ uploads/
 # Backup files
 *.bak
 *.backup
+
+# Database backup directories and files
+backend/backups/physical/
+backend/backups/snapshots/
+backend/metadata/backup_external.db
+backend/metadata/backup_external.db-journal
+backend/temp_backup.sql
 
 # Package lock files (optional - some prefer to include these)
 # package-lock.json

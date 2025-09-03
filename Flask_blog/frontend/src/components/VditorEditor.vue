@@ -4,7 +4,7 @@
     <div class="editor-header">
       <div class="header-info">
         <el-icon class="info-icon"><InfoFilled /></el-icon>
-        <span>Markdown编辑器，支持图片上传、拖拽、粘贴和自动上传</span>
+        <span>Markdown编辑器，支持图片上传、拖拽、粘贴和从媒体库选择</span>
       </div>
       <div class="header-actions">
         <el-select 
@@ -33,6 +33,8 @@
         </div>
       </div>
     </div>
+
+    <!-- 原生媒体选择模态框将通过JavaScript动态创建 -->
   </div>
 </template>
 
@@ -43,6 +45,7 @@ import message from '../utils/message';
 import Vditor from 'vditor';
 import 'vditor/dist/index.css';
 import { useUserStore } from '../stores/user';
+// MediaSelector组件已用原生JavaScript实现
 
 // Props
 interface Props {
@@ -81,10 +84,10 @@ function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T 
   }) as T;
 }
 
-// 获取上传配置（动态获取token）
+// 获取上传配置（使用媒体库API）
 function getUploadConfig() {
   return {
-    url: '/api/v1/uploads/image',
+    url: '/api/v1/media/upload',
     headers: {
       'Authorization': `Bearer ${userStore.token || ''}`
     },
@@ -99,24 +102,40 @@ function getUploadConfig() {
           // 智能选择最佳图片尺寸
           const data = response.data;
           let bestUrl = data.url; // 默认原图
+          let altText = data.alt_text || data.title || data.original_name || '图片';
           
-          // 如果有variants，选择最适合的尺寸（编辑器内显示建议800px以下）
-          if (data.variants && data.variants.length > 0) {
-            // 优先级：md(800px) > sm(400px) > lg(1600px) > 原图
-            const mdVariant = data.variants.find(v => v.label === 'md');
-            const smVariant = data.variants.find(v => v.label === 'sm');
-            
-            if (mdVariant) {
-              bestUrl = mdVariant.url;
-              console.log('使用md尺寸图片:', bestUrl);
-            } else if (smVariant) {
-              bestUrl = smVariant.url; 
-              console.log('使用sm尺寸图片:', bestUrl);
+          // 处理媒体库的变体格式
+          if (data.variants) {
+            // 如果variants是数组格式（旧格式）
+            if (Array.isArray(data.variants)) {
+              const mdVariant = data.variants.find(v => v.label === 'md');
+              const smVariant = data.variants.find(v => v.label === 'sm');
+              
+              if (mdVariant) {
+                bestUrl = mdVariant.url;
+                console.log('使用md尺寸图片:', bestUrl);
+              } else if (smVariant) {
+                bestUrl = smVariant.url; 
+                console.log('使用sm尺寸图片:', bestUrl);
+              }
+            } 
+            // 如果variants是对象格式（新的媒体库格式）
+            else if (data.variants.variants && Array.isArray(data.variants.variants)) {
+              const mdVariant = data.variants.variants.find(v => v.label === 'md');
+              const smVariant = data.variants.variants.find(v => v.label === 'sm');
+              
+              if (mdVariant) {
+                bestUrl = mdVariant.url;
+                console.log('使用md尺寸图片（媒体库格式）:', bestUrl);
+              } else if (smVariant) {
+                bestUrl = smVariant.url; 
+                console.log('使用sm尺寸图片（媒体库格式）:', bestUrl);
+              }
             }
           }
           
           // 直接插入图片，Vditor的success回调时机是合适的
-          const imageMarkdown = `![图片](${bestUrl})`;
+          const imageMarkdown = `![${altText}](${bestUrl})`;
           console.log('准备插入图片:', imageMarkdown);
           console.log('编辑器状态:', { vditor: !!vditor, isReady: isEditorReady.value });
           
@@ -185,7 +204,7 @@ async function uploadImageFile(file: File): Promise<string | null> {
     const formData = new FormData();
     formData.append('file', file);
     
-    const response = await fetch('/api/v1/uploads/image', {
+    const response = await fetch('/api/v1/media/upload', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${userStore.token || ''}`
@@ -200,15 +219,29 @@ async function uploadImageFile(file: File): Promise<string | null> {
       const data = result.data;
       let bestUrl = data.url; // 默认原图
       
-      // 如果有variants，选择最适合的尺寸
-      if (data.variants && data.variants.length > 0) {
-        const mdVariant = data.variants.find(v => v.label === 'md');
-        const smVariant = data.variants.find(v => v.label === 'sm');
-        
-        if (mdVariant) {
-          bestUrl = mdVariant.url;
-        } else if (smVariant) {
-          bestUrl = smVariant.url; 
+      // 处理媒体库的变体格式
+      if (data.variants) {
+        // 如果variants是数组格式（旧格式）
+        if (Array.isArray(data.variants)) {
+          const mdVariant = data.variants.find(v => v.label === 'md');
+          const smVariant = data.variants.find(v => v.label === 'sm');
+          
+          if (mdVariant) {
+            bestUrl = mdVariant.url;
+          } else if (smVariant) {
+            bestUrl = smVariant.url; 
+          }
+        } 
+        // 如果variants是对象格式（新的媒体库格式）
+        else if (data.variants.variants && Array.isArray(data.variants.variants)) {
+          const mdVariant = data.variants.variants.find(v => v.label === 'md');
+          const smVariant = data.variants.variants.find(v => v.label === 'sm');
+          
+          if (mdVariant) {
+            bestUrl = mdVariant.url;
+          } else if (smVariant) {
+            bestUrl = smVariant.url; 
+          }
         }
       }
       
@@ -411,6 +444,12 @@ async function initVditor() {
       vditorRef.value.id = `vditor-${Date.now()}`;
     }
     
+    // 创建原生媒体选择模态框函数
+    (window as any).openMediaLibrary = () => {
+      console.log('🚀 打开原生媒体选择模态框');
+      createNativeMediaModal();
+    };
+    
     vditor = new Vditor(vditorRef.value, {
       // 基础配置
       height: props.height,
@@ -438,6 +477,33 @@ async function initVditor() {
         'inline-code',
         'link',
         'upload',
+        {
+          name: 'media-library',
+          tipPosition: 'n',
+          tip: '从媒体库选择',
+          className: 'vditor-tooltipped vditor-tooltipped--n',
+          icon: '<svg viewBox="0 0 1024 1024"><path d="M853.333 469.333A42.667 42.667 0 0 0 896 426.667v-256A42.667 42.667 0 0 0 853.333 128H170.667A42.667 42.667 0 0 0 128 170.667v256a42.667 42.667 0 0 0 42.667 42.666h682.666z m-42.666-85.333H213.333v-170.667h597.334V384z m42.666 213.333A42.667 42.667 0 0 0 896 554.667v-42.667a42.667 42.667 0 0 0-85.333 0v42.667H213.333v-42.667a42.667 42.667 0 0 0-85.333 0v42.667A42.667 42.667 0 0 0 170.667 640h682.666z m0 256A42.667 42.667 0 0 0 896 832v-42.667a42.667 42.667 0 0 0-85.333 0V832H213.333v-42.667a42.667 42.667 0 0 0-85.333 0V832A42.667 42.667 0 0 0 170.667 896h682.666z"/></svg>',
+          click: (event?: Event) => {
+            console.log('📱 媒体库工具栏按钮被点击');
+            // 阻止事件冒泡，避免潜在的事件冲突
+            if (event) {
+              event.preventDefault();
+              event.stopPropagation();
+            }
+            
+            try {
+              if (typeof (window as any).openMediaLibrary === 'function') {
+                (window as any).openMediaLibrary();
+              } else {
+                console.error('❌ 全局媒体库函数未找到或不是函数');
+                console.log('window.openMediaLibrary:', (window as any).openMediaLibrary);
+              }
+            } catch (error) {
+              console.error('❌ 调用媒体库函数失败:', error);
+              console.error('错误堆栈:', error.stack);
+            }
+          }
+        },
         'table',
         '|',
         'undo',
@@ -544,6 +610,528 @@ async function initVditor() {
 
 // forceResetEditorStyles 函数已删除，让Vditor保持原生样式
 
+// 原生JavaScript媒体选择模态框
+function createNativeMediaModal() {
+  // 检查是否已存在模态框
+  const existingModal = document.getElementById('native-media-modal');
+  if (existingModal) {
+    existingModal.remove();
+  }
+
+  // 创建模态框容器
+  const modal = document.createElement('div');
+  modal.id = 'native-media-modal';
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  `;
+
+  // 创建模态框内容
+  const content = document.createElement('div');
+  content.style.cssText = `
+    background: white;
+    border-radius: 8px;
+    width: 600px;
+    max-height: 70vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  `;
+
+  content.innerHTML = `
+    <div style="padding: 20px; border-bottom: 1px solid #e4e7ed;">
+      <h3 style="margin: 0; color: #303133; font-size: 18px;">选择媒体文件</h3>
+      <div style="margin-top: 12px;">
+        <button id="browse-tab" style="padding: 8px 16px; background: #409eff; color: white; border: none; border-radius: 4px 0 0 4px; cursor: pointer; font-size: 14px;">浏览媒体库</button>
+        <button id="upload-tab" style="padding: 8px 16px; background: #f5f7fa; color: #606266; border: 1px solid #dcdfe6; border-radius: 0 4px 4px 0; cursor: pointer; font-size: 14px;">上传新文件</button>
+      </div>
+    </div>
+    
+    <div id="browse-content" style="padding: 0;">
+      <!-- 搜索栏 -->
+      <div style="padding: 20px; border-bottom: 1px solid #e4e7ed;">
+        <input type="text" id="search-input" placeholder="搜索图片..." style="width: 100%; padding: 8px 12px; border: 1px solid #dcdfe6; border-radius: 4px; font-size: 14px;">
+      </div>
+      
+      <!-- 媒体文件网格 -->
+      <div id="media-loading" style="text-align: center; padding: 40px; color: #909399;">
+        <div style="font-size: 32px; margin-bottom: 16px;">⏳</div>
+        <div>加载中...</div>
+      </div>
+      
+      <div id="media-grid" style="padding: 20px; display: none;">
+        <div id="media-items" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; margin-bottom: 20px;">
+          <!-- 媒体项目将在这里动态插入 -->
+        </div>
+        
+        <!-- 分页 -->
+        <div id="pagination" style="text-align: center; margin-top: 20px;">
+          <!-- 分页控件将在这里动态插入 -->
+        </div>
+      </div>
+      
+      <!-- 空状态 -->
+      <div id="empty-state" style="text-align: center; padding: 60px 20px; display: none;">
+        <div style="font-size: 48px; color: #c0c4cc; margin-bottom: 16px;">📷</div>
+        <div style="color: #909399; font-size: 16px; margin-bottom: 8px;">暂无媒体文件</div>
+        <div style="color: #c0c4cc; font-size: 14px;">点击"上传新文件"添加第一张图片</div>
+      </div>
+    </div>
+    
+    <div id="upload-content" style="padding: 30px; display: none;">
+      <!-- 上传区域 -->
+      <div style="border: 2px dashed #d9d9d9; border-radius: 6px; text-align: center; padding: 40px; margin-bottom: 30px; transition: border-color 0.3s;" id="upload-area">
+        <div style="font-size: 48px; color: #409eff; margin-bottom: 16px;">📁</div>
+        <div style="color: #303133; font-size: 16px; margin-bottom: 8px;">将图片拖到此处，或<span style="color: #409eff; cursor: pointer;" id="click-upload">点击上传</span></div>
+        <div style="color: #909399; font-size: 14px;">支持 JPG、PNG、WebP 格式，单个文件不超过 2MB</div>
+        <input type="file" id="file-input" accept="image/*" style="display: none;">
+      </div>
+      
+      <!-- 分隔线 -->
+      <div style="text-align: center; margin: 30px 0; position: relative;">
+        <div style="position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: #e4e7ed; z-index: 1;"></div>
+        <span style="background: white; padding: 0 16px; color: #909399; font-size: 14px; position: relative; z-index: 2;">或者</span>
+      </div>
+      
+      <!-- URL输入 -->
+      <div style="margin-top: 20px;">
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="image-url" placeholder="输入图片链接" style="flex: 1; padding: 8px 12px; border: 1px solid #dcdfe6; border-radius: 4px; font-size: 14px;">
+          <button id="insert-url" style="padding: 8px 16px; background: #409eff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">插入</button>
+        </div>
+      </div>
+      
+      <!-- 上传进度 -->
+      <div id="upload-progress" style="margin-top: 20px; display: none;">
+        <div style="background: #f0f9ff; border: 1px solid #409eff; border-radius: 4px; padding: 12px; color: #409eff;">
+          <div>正在上传...</div>
+        </div>
+      </div>
+    </div>
+    
+    <div style="padding: 15px 20px; border-top: 1px solid #e4e7ed; display: flex; justify-content: space-between; align-items: center;">
+      <div id="selection-info" style="color: #606266; font-size: 14px;"></div>
+      <div>
+        <button id="cancel-btn" style="padding: 8px 16px; background: white; color: #606266; border: 1px solid #dcdfe6; border-radius: 4px; cursor: pointer; margin-right: 12px;">取消</button>
+        <button id="select-btn" style="padding: 8px 16px; background: #409eff; color: white; border: none; border-radius: 4px; cursor: pointer; display: none;">选择</button>
+      </div>
+    </div>
+  `;
+
+  modal.appendChild(content);
+  document.body.appendChild(modal);
+
+  // 绑定事件处理器
+  setupModalEventHandlers(modal);
+}
+
+function setupModalEventHandlers(modal: HTMLElement) {
+  const browseTab = modal.querySelector('#browse-tab') as HTMLElement;
+  const uploadTab = modal.querySelector('#upload-tab') as HTMLElement;
+  const browseContent = modal.querySelector('#browse-content') as HTMLElement;
+  const uploadContent = modal.querySelector('#upload-content') as HTMLElement;
+  const searchInput = modal.querySelector('#search-input') as HTMLInputElement;
+  const mediaItems = modal.querySelector('#media-items') as HTMLElement;
+  const cancelBtn = modal.querySelector('#cancel-btn') as HTMLElement;
+  const selectBtn = modal.querySelector('#select-btn') as HTMLElement;
+  const selectionInfo = modal.querySelector('#selection-info') as HTMLElement;
+  
+  // 上传相关元素
+  const fileInput = modal.querySelector('#file-input') as HTMLInputElement;
+  const uploadArea = modal.querySelector('#upload-area') as HTMLElement;
+  const clickUpload = modal.querySelector('#click-upload') as HTMLElement;
+  const imageUrlInput = modal.querySelector('#image-url') as HTMLInputElement;
+  const insertUrlBtn = modal.querySelector('#insert-url') as HTMLElement;
+  const progressDiv = modal.querySelector('#upload-progress') as HTMLElement;
+
+  let selectedMedia: any = null;
+  let currentPage = 1;
+  let mediaData: any[] = [];
+
+  // 关闭模态框
+  const closeModal = () => {
+    modal.remove();
+  };
+
+  // 点击背景关闭
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+
+  // 取消按钮
+  cancelBtn.addEventListener('click', closeModal);
+  
+  // 选择按钮
+  selectBtn.addEventListener('click', () => {
+    if (selectedMedia && vditor) {
+      let imageUrl = selectedMedia.url;
+      const altText = selectedMedia.alt_text || selectedMedia.title || selectedMedia.original_name || '图片';
+      
+      // 选择合适的尺寸
+      if (selectedMedia.variants?.variants) {
+        const mdVariant = selectedMedia.variants.variants.find((v: any) => v.label === 'md');
+        const smVariant = selectedMedia.variants.variants.find((v: any) => v.label === 'sm');
+        
+        if (mdVariant) {
+          imageUrl = mdVariant.url;
+        } else if (smVariant) {
+          imageUrl = smVariant.url;
+        }
+      }
+      
+      const markdown = `![${altText}](${imageUrl})`;
+      vditor.insertValue('\n' + markdown + '\n');
+      showNativeMessage('图片插入成功！', 'success');
+      closeModal();
+    }
+  });
+
+  // 标签切换
+  browseTab.addEventListener('click', () => {
+    browseTab.style.background = '#409eff';
+    browseTab.style.color = 'white';
+    browseTab.style.border = 'none';
+    
+    uploadTab.style.background = '#f5f7fa';
+    uploadTab.style.color = '#606266';
+    uploadTab.style.border = '1px solid #dcdfe6';
+    
+    browseContent.style.display = 'block';
+    uploadContent.style.display = 'none';
+    
+    // 加载媒体数据
+    loadMediaData();
+  });
+  
+  uploadTab.addEventListener('click', () => {
+    uploadTab.style.background = '#409eff';
+    uploadTab.style.color = 'white';
+    uploadTab.style.border = 'none';
+    
+    browseTab.style.background = '#f5f7fa';
+    browseTab.style.color = '#606266';
+    browseTab.style.border = '1px solid #dcdfe6';
+    
+    browseContent.style.display = 'none';
+    uploadContent.style.display = 'block';
+  });
+
+  // 搜索功能
+  let searchTimeout: NodeJS.Timeout;
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      currentPage = 1;
+      loadMediaData();
+    }, 500);
+  });
+
+  // 加载媒体数据
+  const loadMediaData = async () => {
+    const mediaLoading = modal.querySelector('#media-loading') as HTMLElement;
+    const mediaGrid = modal.querySelector('#media-grid') as HTMLElement;
+    const emptyState = modal.querySelector('#empty-state') as HTMLElement;
+    
+    mediaLoading.style.display = 'block';
+    mediaGrid.style.display = 'none';
+    emptyState.style.display = 'none';
+    
+    try {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        size: '20',
+        type: 'image',
+        keyword: searchInput.value || ''
+      });
+      
+      const response = await fetch(`/api/v1/media?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${userStore.token}`
+        }
+      });
+      
+      const result = await response.json();
+      let data = result;
+      
+      // 处理嵌套响应格式
+      if (result.code === 0 && result.data) {
+        data = result.data;
+      }
+      
+      mediaData = data.items || data.media || [];
+      
+      mediaLoading.style.display = 'none';
+      
+      if (mediaData.length === 0) {
+        emptyState.style.display = 'block';
+      } else {
+        mediaGrid.style.display = 'block';
+        renderMediaItems();
+      }
+      
+    } catch (error) {
+      console.error('加载媒体数据失败:', error);
+      mediaLoading.style.display = 'none';
+      emptyState.style.display = 'block';
+      showNativeMessage('加载媒体文件失败', 'error');
+    }
+  };
+
+  // 渲染媒体项目
+  const renderMediaItems = () => {
+    mediaItems.innerHTML = '';
+    
+    mediaData.forEach((media: any) => {
+      const itemElement = document.createElement('div');
+      itemElement.style.cssText = `
+        position: relative;
+        aspect-ratio: 1;
+        border: 2px solid #e4e7ed;
+        border-radius: 6px;
+        overflow: hidden;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: #f8f9fa;
+      `;
+      
+      itemElement.addEventListener('mouseenter', () => {
+        itemElement.style.borderColor = '#409eff';
+        itemElement.style.transform = 'translateY(-2px)';
+        itemElement.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+      });
+      
+      itemElement.addEventListener('mouseleave', () => {
+        if (selectedMedia?.id !== media.id) {
+          itemElement.style.borderColor = '#e4e7ed';
+          itemElement.style.transform = 'translateY(0)';
+          itemElement.style.boxShadow = 'none';
+        }
+      });
+      
+      itemElement.addEventListener('click', () => {
+        // 取消之前选中的项目
+        if (selectedMedia) {
+          const prevSelected = modal.querySelector(`[data-media-id="${selectedMedia.id}"]`);
+          if (prevSelected) {
+            prevSelected.style.borderColor = '#e4e7ed';
+            prevSelected.style.background = '#f8f9fa';
+          }
+        }
+        
+        // 选中当前项目
+        selectedMedia = media;
+        itemElement.style.borderColor = '#409eff';
+        itemElement.style.background = '#f0f9ff';
+        
+        // 显示选择按钮和信息
+        selectBtn.style.display = 'inline-block';
+        selectionInfo.textContent = `已选择：${media.title || media.original_name}`;
+      });
+      
+      itemElement.setAttribute('data-media-id', media.id.toString());
+      
+      // 获取预览图片
+      let previewUrl = media.url;
+      if (media.variants?.variants) {
+        const thumbVariant = media.variants.variants.find((v: any) => v.label === 'thumb' || v.label === 'sm');
+        if (thumbVariant) {
+          previewUrl = thumbVariant.url;
+        }
+      }
+      
+      itemElement.innerHTML = `
+        <img 
+          src="${previewUrl}" 
+          alt="${media.alt_text || media.title || ''}"
+          style="width: 100%; height: 100%; object-fit: cover;"
+          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+        >
+        <div style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center; color: #909399; font-size: 24px;">
+          📷
+        </div>
+      `;
+      
+      mediaItems.appendChild(itemElement);
+    });
+  };
+
+  // 初始加载媒体数据
+  loadMediaData();
+
+  // 上传相关事件处理器
+  clickUpload.addEventListener('click', () => {
+    fileInput.click();
+  });
+
+  // 拖拽上传
+  uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.style.borderColor = '#409eff';
+    uploadArea.style.backgroundColor = '#f0f9ff';
+  });
+
+  uploadArea.addEventListener('dragleave', () => {
+    uploadArea.style.borderColor = '#d9d9d9';
+    uploadArea.style.backgroundColor = '';
+  });
+
+  uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.style.borderColor = '#d9d9d9';
+    uploadArea.style.backgroundColor = '';
+    
+    const files = e.dataTransfer?.files;
+    if (files && files[0]) {
+      handleFileUpload(files[0], progressDiv, loadMediaData);
+    }
+  });
+
+  // 文件选择
+  fileInput.addEventListener('change', (e) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (file) {
+      handleFileUpload(file, progressDiv, loadMediaData);
+    }
+  });
+
+  // URL插入
+  insertUrlBtn.addEventListener('click', () => {
+    const url = imageUrlInput.value.trim();
+    if (!url) {
+      showNativeMessage('请输入图片链接', 'warning');
+      return;
+    }
+    
+    if (vditor) {
+      const markdown = `![图片](${url})`;
+      vditor.insertValue('\n' + markdown + '\n');
+      showNativeMessage('图片链接插入成功！', 'success');
+      closeModal();
+    } else {
+      showNativeMessage('编辑器未就绪', 'warning');
+    }
+  });
+
+  // Enter键插入URL
+  imageUrlInput.addEventListener('keyup', (e) => {
+    if (e.key === 'Enter') {
+      insertUrlBtn.click();
+    }
+  });
+}
+
+function handleFileUpload(file: File, progressDiv: HTMLElement, refreshMediaData?: () => void) {
+  // 验证文件类型
+  if (!file.type.startsWith('image/')) {
+    showNativeMessage('只能上传图片文件', 'error');
+    return;
+  }
+
+  // 验证文件大小
+  if (file.size > 2 * 1024 * 1024) {
+    showNativeMessage('文件大小不能超过 2MB', 'error');
+    return;
+  }
+
+  // 显示进度
+  progressDiv.style.display = 'block';
+
+  // 创建FormData
+  const formData = new FormData();
+  formData.append('file', file);
+
+  // 上传文件
+  fetch('/api/v1/media/upload', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${userStore.token}`
+    },
+    body: formData
+  })
+  .then(response => response.json())
+  .then(data => {
+    progressDiv.style.display = 'none';
+    
+    if (data.code === 0 && data.data) {
+      showNativeMessage('图片上传成功！', 'success');
+      
+      // 如果有刷新回调，刷新媒体列表
+      if (refreshMediaData) {
+        refreshMediaData();
+        
+        // 切换回浏览标签
+        const modal = progressDiv.closest('#native-media-modal');
+        if (modal) {
+          const browseTab = modal.querySelector('#browse-tab') as HTMLElement;
+          if (browseTab) {
+            browseTab.click();
+          }
+        }
+      } else {
+        // 直接插入模式（兼容旧的上传逻辑）
+        let imageUrl = data.data.url;
+        const altText = data.data.alt_text || data.data.title || data.data.original_name || '图片';
+        
+        // 选择合适的尺寸
+        if (data.data.variants?.variants) {
+          const mdVariant = data.data.variants.variants.find((v: any) => v.label === 'md');
+          const smVariant = data.data.variants.variants.find((v: any) => v.label === 'sm');
+          
+          if (mdVariant) {
+            imageUrl = mdVariant.url;
+          } else if (smVariant) {
+            imageUrl = smVariant.url;
+          }
+        }
+        
+        if (vditor) {
+          const markdown = `![${altText}](${imageUrl})`;
+          vditor.insertValue('\n' + markdown + '\n');
+          showNativeMessage('图片上传并插入成功！', 'success');
+        }
+      }
+    } else {
+      showNativeMessage('图片上传失败', 'error');
+    }
+  })
+  .catch(error => {
+    progressDiv.style.display = 'none';
+    console.error('上传失败:', error);
+    showNativeMessage('图片上传失败', 'error');
+  });
+}
+
+function showNativeMessage(text: string, type: 'success' | 'warning' | 'error') {
+  const message = document.createElement('div');
+  message.style.cssText = `
+    position: fixed;
+    top: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 20px;
+    border-radius: 4px;
+    color: white;
+    font-size: 14px;
+    z-index: 10000;
+    background: ${type === 'success' ? '#67c23a' : type === 'warning' ? '#e6a23c' : '#f56c6c'};
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  `;
+  message.textContent = text;
+  
+  document.body.appendChild(message);
+  
+  setTimeout(() => {
+    message.remove();
+  }, 3000);
+}
+
 // 切换编辑模式
 function changeMode() {
   if (vditor && isEditorReady.value) {
@@ -642,6 +1230,11 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   console.log('🔄 VditorEditor: 开始卸载组件');
+  
+  // 清理全局函数
+  if ((window as any).openMediaLibrary) {
+    delete (window as any).openMediaLibrary;
+  }
   
   // 标记编辑器为非准备状态，避免其他操作
   isEditorReady.value = false;
@@ -747,6 +1340,7 @@ defineExpose({
   }
 });
 </script>
+
 
 <style scoped>
 .vditor-editor-container {

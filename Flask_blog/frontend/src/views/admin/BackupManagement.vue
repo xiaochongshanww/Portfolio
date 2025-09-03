@@ -97,20 +97,22 @@
             </div>
             <div class="backup-meta">
               <span class="time-text">开始时间: {{ formatDateTime(backup.started_at || backup.created_at) }}</span>
-              <span class="duration-text">已运行: {{ getRunningDuration(backup.started_at || backup.created_at) }}</span>
+              <span class="duration-text">{{ backup.status === 'pending' ? '状态' : '已运行' }}: {{ getRunningDuration(backup) }}</span>
             </div>
           </div>
           
           <div class="backup-progress">
             <el-progress 
-              :percentage="backup.status === 'completed' ? 100 : (backup.progress || 0)" 
-              :status="backup.status === 'failed' ? 'exception' : (backup.status === 'completed' ? 'success' : '')"
-              :indeterminate="backup.status === 'running' && !backup.progress"
+              :percentage="getBackupProgress(backup)" 
+              :status="getProgressStatus(backup)"
+              :indeterminate="backup.status === 'running' && (!backup.progress || backup.progress === 0)"
               :duration="3"
             />
             <div class="progress-text">
-              <span v-if="backup.status === 'completed'">已完成</span>
-              <span v-else-if="backup.progress">{{ backup.progress }}%</span>
+              <span v-if="backup.status === 'completed'">✅ 备份完成</span>
+              <span v-else-if="backup.status === 'failed'">❌ 备份失败</span>
+              <span v-else-if="backup.status === 'cancelled'">🚫 已取消</span>
+              <span v-else-if="backup.progress && backup.progress > 0">{{ backup.progress }}% - {{ getStatusLabel(backup.status) }}</span>
               <span v-else>{{ getStatusLabel(backup.status) }}...</span>
             </div>
           </div>
@@ -233,7 +235,7 @@
               </el-button>
               
               <el-button 
-                v-if="row.status === 'completed'"
+                v-if="canDownloadBackup(row)"
                 size="small" 
                 type="success"
                 @click="downloadBackup(row)"
@@ -243,7 +245,7 @@
               </el-button>
 
               <el-button 
-                v-if="row.status === 'completed'"
+                v-if="canRestoreBackup(row)"
                 size="small" 
                 type="warning"
                 @click="showRestoreDialog(row)"
@@ -437,7 +439,9 @@
       v-model="restoreDialogVisible"
       title="恢复备份"
       width="600px"
+      :z-index="9999"
       :close-on-click-modal="false"
+      append-to-body
     >
       <div v-if="currentRestoreBackup">
         <div class="restore-warning">
@@ -474,22 +478,40 @@
           <h4>恢复选项</h4>
           <el-form :model="restoreOptions" label-width="120px">
             <el-form-item label="恢复类型">
-              <el-select v-model="restoreOptions.restore_type" style="width: 100%">
+              <el-select 
+                v-model="restoreOptions.restore_type" 
+                style="width: 100%"
+                placeholder="请选择恢复类型"
+                popper-append-to-body
+                :teleported="false"
+              >
                 <el-option value="full" label="完整恢复（数据库 + 文件）">
-                  <span>完整恢复（数据库 + 文件）</span>
-                  <span style="color: #8492a6; font-size: 12px; margin-left: 8px;">推荐</span>
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>完整恢复（数据库 + 文件）</span>
+                    <el-tag size="small" type="success">推荐</el-tag>
+                  </div>
                 </el-option>
                 <el-option value="database_only" label="仅恢复数据库">
-                  <span>仅恢复数据库</span>
-                  <span style="color: #8492a6; font-size: 12px; margin-left: 8px;">安全</span>
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>仅恢复数据库</span>
+                    <el-tag size="small" type="info">安全</el-tag>
+                  </div>
                 </el-option>
                 <el-option value="files_only" label="仅恢复文件">
-                  <span>仅恢复文件</span>
-                  <span style="color: #8492a6; font-size: 12px; margin-left: 8px;">谨慎</span>
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>仅恢复文件</span>
+                    <el-tag size="small" type="warning">谨慎</el-tag>
+                  </div>
                 </el-option>
-                <el-option value="partial" label="自定义恢复" />
+                <el-option value="partial" label="自定义恢复">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>自定义恢复</span>
+                    <el-tag size="small" type="primary">高级</el-tag>
+                  </div>
+                </el-option>
               </el-select>
             </el-form-item>
+            
 
             <div v-if="restoreOptions.restore_type === 'partial'">
               <el-form-item label="恢复内容">
@@ -513,12 +535,25 @@
                 测试模式（仅验证，不实际执行恢复）
               </el-checkbox>
             </el-form-item>
+            
+            <el-form-item>
+              <el-alert
+                title="恢复说明"
+                type="info"
+                :closable="false"
+                show-icon
+              >
+                <div style="font-size: 13px;">
+                  恢复过程将同步执行，请耐心等待完成。大型备份恢复可能需要几分钟时间。
+                </div>
+              </el-alert>
+            </el-form-item>
           </el-form>
         </div>
 
         <!-- 恢复进度监控 -->
         <div v-if="currentRestoreTask" class="restore-progress">
-          <h4>恢复进度</h4>
+          <h4>{{ isTestMode ? '测试验证进度' : '恢复进度' }}</h4>
           <div class="progress-container">
             <el-progress 
               :percentage="currentRestoreTask.progress || 0"
@@ -535,9 +570,30 @@
                   {{ getStatusText(currentRestoreTask.status) }}
                 </el-tag>
                 <span class="task-id">ID: {{ currentRestoreTask.restore_id }}</span>
+                <el-tag v-if="isTestMode" type="info" size="small">测试模式</el-tag>
               </div>
               <div v-if="currentRestoreTask.status_message" class="status-message">
                 {{ currentRestoreTask.status_message }}
+              </div>
+            </div>
+          </div>
+          
+          <!-- 测试模式结果显示 -->
+          <div v-if="isTestMode && currentRestoreTask.status === 'completed' && testResults.length > 0" class="test-results">
+            <h5>验证结果:</h5>
+            <div class="test-result-list">
+              <div
+                v-for="(result, index) in testResults"
+                :key="index"
+                class="test-result-item"
+                :class="{
+                  'success': result.includes('✅'),
+                  'warning': result.includes('⚠️'),
+                  'error': result.includes('❌'),
+                  'info': result.includes('🗄️') || result.includes('📁')
+                }"
+              >
+                {{ result }}
               </div>
             </div>
           </div>
@@ -559,7 +615,7 @@
             :loading="restoring"
             :disabled="restoreOptions.restore_type === 'partial' && !restoreOptions.include_database && !restoreOptions.include_files"
           >
-            {{ restoring ? '启动恢复中...' : '确认恢复' }}
+            {{ restoring ? '恢复中，请稍候...' : '开始恢复' }}
           </el-button>
 
           <!-- 恢复进行中的按钮 -->
@@ -612,6 +668,9 @@ const pollingInterval = ref(null)
 const pollingEnabled = ref(true)
 const POLLING_INTERVAL = 3000 // 3秒轮询间隔
 
+// 防止并发更新的锁
+const isUpdatingBackups = ref(false)
+
 // 计算属性：运行中的备份
 const runningBackups = computed(() => {
   return backups.value.filter(backup => {
@@ -622,6 +681,11 @@ const runningBackups = computed(() => {
     
     // 如果是运行中状态但有完成时间，说明状态不同步，排除
     if (backup.status === 'running' && backup.completed_at) {
+      return false
+    }
+    
+    // 排除已取消的任务
+    if (backup.status === 'cancelled') {
       return false
     }
     
@@ -670,53 +734,143 @@ const detailDialog = reactive({
 // 获取备份统计
 const getBackupStats = async () => {
   try {
+    console.log('🔄 开始获取备份统计...')
     const response = await backupApi.getStatistics()
-    console.log('统计数据响应:', response)
+    console.log('✅ 统计数据响应:', response)
     stats.value = response.data?.data || response.data || {}
+    console.log('📊 设置统计数据:', stats.value)
   } catch (error) {
-    console.error('获取备份统计失败:', error)
-    ElMessage.error('获取备份统计失败: ' + (error.message || '网络错误'))
-    stats.value = {} // 提供默认值
+    console.error('❌ 获取备份统计失败:', error)
+    console.error('❌ 错误详情:', {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message
+    })
+    
+    // 设置默认统计数据，避免页面显示异常
+    stats.value = {
+      total_backups: 0,
+      completed_backups: 0,
+      total_storage_size: 0,
+      success_rate: 0
+    }
+    
+    // 只在非首次加载时显示错误消息
+    if (Object.keys(stats.value).length > 4) {
+      ElMessage.error('获取备份统计失败: ' + (error.response?.data?.message || error.message || '网络错误'))
+    }
+    
+    throw error // 重新抛出错误供上层处理
   }
 }
 
 // 获取备份列表
 const getBackupList = async () => {
   try {
+    console.log('🔄 开始获取备份列表...')
     loading.value = true
     const params = {
       page: pagination.page,
       per_page: pagination.per_page,
       ...filters
     }
+    console.log('🔄 请求参数:', params)
     
     const response = await backupApi.getBackupRecords(params)
-    console.log('备份列表响应:', response)
+    console.log('✅ 备份列表响应:', response)
     
     // 处理不同的响应结构
     const data = response.data?.data || response.data || {}
+    console.log('📋 解析的数据:', data)
     backups.value = data.records || []
     pagination.total = data.total || 0
     pagination.pages = data.pages || 1
+    console.log('📋 设置备份列表:', backups.value.length, '条记录')
   } catch (error) {
-    console.error('获取备份列表失败:', error)
-    ElMessage.error('获取备份列表失败: ' + (error.message || '网络错误'))
-    backups.value = [] // 提供默认值
+    console.error('❌ 获取备份列表失败:', error)
+    console.error('❌ 错误详情:', {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message,
+      config: error.config
+    })
+    
+    // 设置默认值，避免页面显示异常
+    backups.value = []
+    pagination.total = 0
+    pagination.pages = 1
+    
+    // 只在非首次加载时显示错误消息
+    if (backups.value.length > 0) {
+      ElMessage.error('获取备份列表失败: ' + (error.response?.data?.message || error.message || '网络错误'))
+    }
+    
+    throw error // 重新抛出错误供上层处理
   } finally {
     loading.value = false
+    console.log('🔄 备份列表请求完成，loading设为false')
   }
 }
 
 // 刷新数据
 const refreshBackups = async () => {
+  // 防止并发更新
+  if (isUpdatingBackups.value) {
+    console.log('🔒 备份数据正在更新中，跳过此次刷新请求')
+    return
+  }
+  
+  isUpdatingBackups.value = true
+  
+  // 减少超时时间，避免阻塞页面加载
+  const refreshTimeout = setTimeout(() => {
+    if (loading.value) {
+      loading.value = false
+      console.error('❌ 请求超时，停止加载状态')
+      // 页面初始化时不显示超时错误，避免干扰用户
+      if (backups.value.length === 0) {
+        ElMessage.error('数据加载超时，请点击刷新按钮重试')
+      }
+    }
+  }, 15000) // 15秒超时，原来是30秒太长
+
   try {
-    await Promise.all([
+    console.log('🔄 开始刷新所有数据...')
+    // 同时请求统计和列表数据，但不让任一失败影响整体
+    const results = await Promise.allSettled([
       getBackupStats(),
       getBackupList()
     ])
+    
+    // 检查结果
+    const [statsResult, listResult] = results
+    if (statsResult.status === 'rejected') {
+      console.error('❌ 统计数据获取失败:', statsResult.reason)
+    }
+    if (listResult.status === 'rejected') {
+      console.error('❌ 备份列表获取失败:', listResult.reason)
+    }
+    
+    // 只要有一个成功就认为刷新成功
+    if (statsResult.status === 'fulfilled' || listResult.status === 'fulfilled') {
+      console.log('✅ 数据刷新完成')
+    } else {
+      console.error('❌ 所有数据请求都失败')
+      throw new Error('所有数据请求都失败')
+    }
   } catch (error) {
-    console.error('刷新数据失败:', error)
-    // 不显示错误消息，因为单个函数已经处理了错误
+    console.error('❌ 刷新数据失败:', error)
+    loading.value = false // 确保loading状态被清除
+    // 只在已有数据的情况下显示错误（非首次加载）
+    if (backups.value.length > 0 || Object.keys(stats.value).length > 0) {
+      ElMessage.error('数据刷新失败，请检查网络连接')
+    }
+    throw error // 重新抛出错误，让调用方处理
+  } finally {
+    isUpdatingBackups.value = false
+    clearTimeout(refreshTimeout)
   }
 }
 
@@ -776,7 +930,16 @@ const startPolling = () => {
   pollingInterval.value = setInterval(async () => {
     if (!pollingEnabled.value) return
     
+    // 如果正在更新数据，跳过此次轮询
+    if (isUpdatingBackups.value) {
+      console.log('🔒 备份数据更新中，跳过轮询')
+      return
+    }
+    
     try {
+      // 设置更新锁，防止与手动刷新冲突
+      isUpdatingBackups.value = true
+      
       // 静默刷新，不显示加载状态
       const params = {
         page: pagination.page,
@@ -825,6 +988,9 @@ const startPolling = () => {
           if (pollingEnabled.value) startPolling()
         }, 10000) // 10秒后重试
       }
+    } finally {
+      // 确保释放更新锁
+      isUpdatingBackups.value = false
     }
   }, POLLING_INTERVAL)
 }
@@ -841,8 +1007,8 @@ const stopPolling = () => {
 const cancelBackup = async (backup) => {
   try {
     await ElMessageBox.confirm(
-      `确定要取消备份 ${backup.backup_id} 吗？`,
-      '取消备份',
+      `确定要取消备份任务 "${backup.backup_id}" 吗？\n\n取消后该备份任务将停止执行，已生成的部分数据将被清理。`,
+      '取消备份任务',
       {
         confirmButtonText: '确定取消',
         cancelButtonText: '继续备份',
@@ -850,22 +1016,132 @@ const cancelBackup = async (backup) => {
       }
     )
     
-    // TODO: 实现取消备份的API
-    ElMessage.info('取消备份功能正在开发中...')
+    console.log('🚫 用户确认取消备份:', backup.backup_id)
+    
+    const response = await backupApi.cancelBackup(backup.backup_id)
+    
+    if (response.data?.code === 0) {
+      ElMessage.success(`备份任务 "${backup.backup_id}" 已取消`)
+      
+      // 立即刷新备份列表
+      await refreshBackups()
+      
+      console.log('✅ 备份取消成功，列表已刷新')
+    } else {
+      throw new Error(response.data?.message || '取消失败')
+    }
+    
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('取消备份失败: ' + error.message)
+      console.error('❌ 取消备份失败:', error)
+      ElMessage.error('取消备份失败: ' + (error.response?.data?.message || error.message))
     }
   }
 }
 
+// 判断备份是否可以下载
+const canDownloadBackup = (backup) => {
+  // 完成状态的备份肯定可以下载
+  if (backup.status === 'completed') return true
+  
+  // 对于取消状态的备份，只有在有任何文件相关信息时才显示下载按钮
+  // 包括文件路径、文件大小或校验和，任何一个存在都表明可能有备份文件
+  if (backup.status === 'cancelled' && 
+      (backup.file_path || 
+       (backup.file_size && backup.file_size > 0) || 
+       backup.checksum)) {
+    return true
+  }
+  
+  // 其他状态不能下载
+  return false
+}
+
+// 判断备份是否可以用于恢复
+const canRestoreBackup = (backup) => {
+  // 完成状态的备份肯定可以恢复
+  if (backup.status === 'completed') return true
+  
+  // 取消状态的备份也应该允许尝试恢复
+  // 因为可能在备份完成后但在更新数据库前被取消
+  // 恢复时后端会验证文件是否真实存在
+  if (backup.status === 'cancelled') {
+    return true
+  }
+  
+  // 失败或其他状态不能恢复
+  return false
+}
+
+// 获取备份进度百分比
+const getBackupProgress = (backup) => {
+  if (backup.status === 'completed') return 100
+  if (backup.status === 'failed' || backup.status === 'cancelled') return 0
+  return backup.progress || 0
+}
+
+// 获取进度条状态
+const getProgressStatus = (backupOrStatus) => {
+  // 兼容两种参数：对象或字符串
+  const status = typeof backupOrStatus === 'string' ? backupOrStatus : backupOrStatus?.status
+  
+  if (status === 'completed') return 'success'
+  if (status === 'failed') return 'exception'
+  if (status === 'cancelled') return 'warning'
+  return ''
+}
+
 // 计算运行时长
-const getRunningDuration = (startTime) => {
+const getRunningDuration = (backup) => {
+  // 如果任务还在pending状态，显示等待时间
+  if (backup.status === 'pending') {
+    if (!backup.created_at) return '等待中'
+    
+    const created = new Date(backup.created_at)
+    const now = new Date()
+    const waitTime = Math.floor((now - created) / 1000)
+    
+    if (waitTime < 60) {
+      return `等待中 (${waitTime}秒)`
+    } else if (waitTime < 3600) {
+      const minutes = Math.floor(waitTime / 60)
+      return `等待中 (${minutes}分钟)`
+    } else {
+      const hours = Math.floor(waitTime / 3600)
+      const minutes = Math.floor((waitTime % 3600) / 60)
+      return `等待中 (${hours}小时${minutes}分钟)`
+    }
+  }
+  
+  // 对于running状态，使用started_at或created_at
+  const startTime = backup.started_at || backup.created_at
   if (!startTime) return '0秒'
   
-  const start = new Date(startTime)
+  // 处理时区：假设后端返回的时间是上海时区的时间字符串
+  // 如果时间字符串没有时区信息，我们需要正确解析
+  let start
+  try {
+    if (startTime.includes('+') || startTime.endsWith('Z')) {
+      // 有时区信息的ISO字符串
+      start = new Date(startTime)
+    } else {
+      // 无时区信息，假设为上海时间 (UTC+8)
+      // 将上海时间转换为本地时间进行比较
+      const shangaiTime = new Date(startTime + '+08:00')
+      start = shangaiTime
+    }
+  } catch (e) {
+    // 备用解析方式
+    start = new Date(startTime)
+  }
+  
   const now = new Date()
   const duration = Math.floor((now - start) / 1000)
+  
+  // 如果计算出负数时间，说明时区处理有问题，显示警告
+  if (duration < 0) {
+    return '时间异常'
+  }
   
   if (duration < 60) {
     return `${duration}秒`
@@ -905,6 +1181,7 @@ const restoreOptions = ref({
   test_mode: false
 })
 
+
 // 恢复对话框显示状态
 const restoreDialogVisible = ref(false)
 const currentRestoreBackup = ref(null)
@@ -914,6 +1191,14 @@ const restoring = ref(false)
 const currentRestoreTask = ref(null)
 const cancelling = ref(false)
 let restoreProgressTimer = null
+
+// 测试结果
+const testResults = ref([])
+
+// 计算属性：是否为测试模式
+const isTestMode = computed(() => {
+  return restoreOptions.value.test_mode
+})
 
 // 显示恢复对话框
 const showRestoreDialog = (backup) => {
@@ -950,18 +1235,26 @@ const performRestore = async () => {
     
     const response = await backupApi.restoreBackup(currentRestoreBackup.value.backup_id, options)
     
-    // 获取恢复任务ID并开始监控进度
-    if (response.data?.data?.restore_id) {
-      currentRestoreTask.value = {
-        restore_id: response.data.data.restore_id,
-        status: 'pending',
-        progress: 0,
-        status_message: '恢复任务已创建'
-      }
-      startRestoreProgressMonitoring(response.data.data.restore_id)
-    }
+    console.log('恢复任务响应:', response.data) // 添加调试日志
     
-    ElMessage.success('恢复任务已启动，正在监控进度...')
+    // 处理测试模式结果
+    if (restoreOptions.value.test_mode && response.data?.data?.test_results) {
+      testResults.value = response.data.data.test_results
+      ElMessage.success('测试验证完成！请查看验证结果')
+      // 测试模式不关闭对话框，让用户查看结果
+    } else {
+      // 异步恢复任务已启动，关闭对话框并跳转到恢复管理页面
+      ElMessage.success('恢复任务已启动，正在后台执行...')
+      restoreDialogVisible.value = false
+      
+      // 跳转到恢复任务管理页面
+      if (response.data?.data?.restore_id) {
+        await navigateToRestoreManagement(response.data.data.restore_id)
+      } else {
+        console.error('响应中缺少restore_id:', response.data)
+        ElMessage.warning('恢复任务已启动，但无法自动跳转，请手动前往恢复管理页面查看')
+      }
+    }
     
     // 刷新备份列表
     await refreshBackups()
@@ -971,6 +1264,22 @@ const performRestore = async () => {
     ElMessage.error(`恢复失败: ${error.response?.data?.message || error.message}`)
   } finally {
     restoring.value = false
+  }
+}
+
+// 跳转到恢复任务管理页面
+const navigateToRestoreManagement = async (restoreId) => {
+  try {
+    // 使用Vue Router进行页面跳转
+    await router.push({
+      path: '/admin/restore-management',
+      query: { 
+        highlight: restoreId  // 传递要高亮显示的恢复任务ID
+      }
+    })
+  } catch (error) {
+    console.error('导航到恢复管理页面失败:', error)
+    ElMessage.warning('无法跳转到恢复管理页面，请手动前往查看')
   }
 }
 
@@ -1083,16 +1392,9 @@ const getStatusTagType = (status) => {
     'running': 'warning',
     'completed': 'success',
     'failed': 'danger',
-    'cancelled': ''
+    'cancelled': 'warning'
   }
-  return typeMap[status] || ''
-}
-
-const getProgressStatus = (status) => {
-  if (status === 'completed') return 'success'
-  if (status === 'failed') return 'exception'
-  if (status === 'cancelled') return 'exception'
-  return undefined
+  return typeMap[status] || 'info'
 }
 
 const canCancelRestore = (status) => {
@@ -1183,25 +1485,8 @@ const getBackupTypeTagType = (type) => {
   return types[type] || 'info'
 }
 
-const getStatusLabel = (status) => {
-  const labels = {
-    pending: '等待中',
-    running: '运行中',
-    completed: '已完成',
-    failed: '失败'
-  }
-  return labels[status] || status
-}
-
-const getStatusTagType = (status) => {
-  const types = {
-    pending: 'info',
-    running: 'warning',
-    completed: 'success',
-    failed: 'danger'
-  }
-  return types[status] || 'info'
-}
+// 统一使用 getStatusText 函数
+const getStatusLabel = getStatusText
 
 // 监听过滤条件变化
 watch([() => filters.backup_type, () => filters.status], () => {
@@ -1211,15 +1496,65 @@ watch([() => filters.backup_type, () => filters.status], () => {
 
 // 组件挂载和卸载
 onMounted(async () => {
-  await refreshBackups()
-  
-  // 如果有运行中的备份，自动开始轮询
-  if (runningBackups.value.length > 0) {
-    startPolling()
-    ElMessage.info({
-      message: `检测到 ${runningBackups.value.length} 个运行中的备份任务，已开启实时监控`,
-      duration: 3000
+  console.log('🔄 BackupManagement 组件挂载')
+  console.log('🔄 当前用户信息:', {
+    token: localStorage.getItem('access_token') ? '存在' : '不存在',
+    role: localStorage.getItem('role')
+  })
+
+  try {
+    // 检查用户store
+    const { useUserStore } = await import('@/stores/user.js');
+    const userStore = useUserStore();
+    
+    console.log('🔄 用户store状态:', {
+      isAuthenticated: userStore.isAuthenticated,
+      user: userStore.user
     })
+    
+    // 确保用户已认证
+    if (!userStore.isAuthenticated) {
+      console.log('🔄 用户未认证，初始化认证状态...')
+      await userStore.initAuth()
+      console.log('🔄 认证状态初始化完成:', userStore.isAuthenticated)
+    }
+
+    console.log('🔄 开始刷新备份数据...')
+    // 立即开始数据加载，不等待，并提供用户反馈
+    console.time('initial-data-load')
+    refreshBackups()
+      .then(() => {
+        console.timeEnd('initial-data-load')
+        console.log('✅ 页面初始化数据加载成功')
+        // 如果数据加载成功，给用户视觉反馈
+        if (backups.value.length > 0 || Object.keys(stats.value).length > 0) {
+          // 轻微的成功反馈，不干扰用户
+          console.log('📊 页面数据加载完成:', {
+            backups: backups.value.length,
+            stats: Object.keys(stats.value).length
+          })
+        }
+      })
+      .catch(error => {
+        console.timeEnd('initial-data-load')
+        console.error('🔄 初始数据加载失败:', error)
+        ElMessage.error('初始数据加载失败，请点击刷新按钮重试')
+      })
+    
+    // 如果有运行中的备份，自动开始轮询
+    setTimeout(() => {
+      if (runningBackups.value.length > 0) {
+        startPolling()
+        ElMessage.info({
+          message: `检测到 ${runningBackups.value.length} 个运行中的备份任务，已开启实时监控`,
+          duration: 3000
+        })
+      }
+    }, 1000)
+    
+  } catch (error) {
+    console.error('🔄 组件初始化失败:', error)
+    ElMessage.error('页面初始化失败，请刷新页面重试')
   }
 })
 
@@ -1658,6 +1993,117 @@ onUnmounted(() => {
         padding: 8px 12px;
         border-radius: 4px;
         border-left: 3px solid #409eff;
+      }
+    }
+  }
+}
+
+// 测试结果显示样式
+.test-results {
+  margin-top: 24px;
+  
+  h4 {
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #303133;
+    display: flex;
+    align-items: center;
+    
+    .el-icon {
+      margin-right: 8px;
+      color: #67c23a;
+    }
+  }
+  
+  .test-result-list {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #e4e7ed;
+    border-radius: 8px;
+    background: #fafafa;
+    
+    .test-result-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid #e4e7ed;
+      font-family: monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      transition: all 0.3s ease;
+      
+      &:last-child {
+        border-bottom: none;
+      }
+      
+      &:hover {
+        background: rgba(64, 158, 255, 0.05);
+      }
+      
+      &.success {
+        background: #f0f9ff;
+        color: #155724;
+        border-left: 4px solid #28a745;
+        
+        &:hover {
+          background: #e3f2fd;
+        }
+      }
+      
+      &.warning {
+        background: #fffbf0;
+        color: #856404;
+        border-left: 4px solid #ffc107;
+        
+        &:hover {
+          background: #fff8e1;
+        }
+      }
+      
+      &.error {
+        background: #fef5f5;
+        color: #721c24;
+        border-left: 4px solid #dc3545;
+        
+        &:hover {
+          background: #fce4ec;
+        }
+      }
+      
+      &.info {
+        background: #f8f9fa;
+        color: #0c5460;
+        border-left: 4px solid #17a2b8;
+        
+        &:hover {
+          background: #e9ecef;
+        }
+      }
+      
+      // 添加图标样式
+      &::before {
+        content: '';
+        display: inline-block;
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        margin-right: 8px;
+        vertical-align: middle;
+      }
+      
+      &.success::before {
+        background: #28a745;
+      }
+      
+      &.warning::before {
+        background: #ffc107;
+      }
+      
+      &.error::before {
+        background: #dc3545;
+      }
+      
+      &.info::before {
+        background: #17a2b8;
       }
     }
   }

@@ -131,6 +131,10 @@
                       (设置昵称)
                     </span>
                   </el-dropdown-item>
+                  <el-dropdown-item command="/media">
+                    <el-icon><Picture /></el-icon>
+                    我的媒体库
+                  </el-dropdown-item>
                   <el-dropdown-item divided v-if="userStore.canAccessAdmin">
                     管理功能
                   </el-dropdown-item>
@@ -274,6 +278,15 @@
               >
                 <el-icon class="mr-3"><Setting /></el-icon>
                 设置
+              </router-link>
+              
+              <router-link 
+                to="/media" 
+                @click="drawer = false" 
+                class="mobile-nav-link"
+              >
+                <el-icon class="mr-3"><Picture /></el-icon>
+                我的媒体库
               </router-link>
             </div>
 
