@@ -69,32 +69,66 @@ cd Flask_blog
 ls -la
 ```
 
-### 2. 一键部署
+### 2. 部署脚本选择指南
 
-#### Linux/macOS
+项目提供了多层次的部署脚本，根据不同使用场景选择：
+
+#### 🚀 快速开始 (推荐新用户)
+**适用场景**: 开发、测试环境，快速体验
+
 ```bash
-# 给脚本执行权限
-chmod +x deploy.sh
+# Linux/macOS - 基础一键部署
+chmod +x deploy.sh && ./deploy.sh
 
-# 执行一键部署
-./deploy.sh
-```
-
-#### Windows (PowerShell)
-```powershell
-# 设置执行策略 (首次运行需要)
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-
-# 执行一键部署
+# Windows - 基础一键部署  
 .\deploy.ps1
 ```
 
-#### 高级选项
+#### 🏗️ 标准生产部署
+**适用场景**: 生产环境，基础部署需求
+
+```bash
+# Linux/macOS
+./deploy/deploy.ps1
+
+# Windows
+.\deploy\deploy.ps1
+```
+
+#### 🎯 企业级部署 (完整功能)
+**适用场景**: 企业生产环境，需要完整的监控、性能优化、备份策略
+
+```bash
+# 标准模式
+.\deploy\deploy-enhanced.ps1
+
+# 性能优化模式
+.\deploy\deploy-enhanced.ps1 -Mode performance
+
+# 监控模式 
+.\deploy\deploy-enhanced.ps1 -Mode monitoring
+
+# 完整模式 (性能优化 + 监控)
+.\deploy\deploy-enhanced.ps1 -Mode full -BackupFirst
+
+# 查看所有选项
+.\deploy\deploy-enhanced.ps1 --help
+```
+
+#### 📚 脚本功能对比
+
+| 脚本 | 复杂度 | 功能特性 | 适用环境 |
+|------|--------|----------|----------|
+| `deploy.sh/ps1` | ⭐ | 基础部署、环境检查 | 开发/测试 |
+| `deploy/deploy.ps1` | ⭐⭐ | 健康检查、基础监控 | 轻量生产 |
+| `deploy/deploy-enhanced.ps1` | ⭐⭐⭐⭐⭐ | 完整监控、性能优化、备份、SSL | 企业生产 |
+
+#### 🔧 基础脚本高级选项
 ```bash
 # 跳过Docker镜像构建 (如果已构建过)
 ./deploy.sh --skip-build
 
-# 强制重新创建所有资源
+# 强制重新创建所有资源  
 ./deploy.sh --force
 ```
 
