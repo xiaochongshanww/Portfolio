@@ -2,6 +2,18 @@
 
 本项目是一个具备版本控制、工作流审批、评论审核、搜索、点赞收藏、定时发布与动态 SEO 的内容平台示例。
 
+## 🚀 快速部署
+
+**一键部署指南**: [DEPLOYMENT.md](./DEPLOYMENT.md) - 完整的Docker一键部署解决方案，包含外部元数据系统和备份恢复功能。
+
+```bash
+# Linux/macOS
+./deploy.sh
+
+# Windows PowerShell  
+.\deploy.ps1
+```
+
 ### 核心特性
 - 角色 / 权限：author / editor / admin 工作流 (draft -> pending_review -> published -> archived/rejected)。
 - 文章：Markdown + 安全渲染 (Bleach) + 版本快照 & 回滚 + 定时发布 + SEO 字段 + 特色图。
