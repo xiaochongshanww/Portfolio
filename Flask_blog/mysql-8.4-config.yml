@@ -1,0 +1,23 @@
+# MySQL 8.4 兼容配置示例
+# 如果选择使用 MySQL 8.4，请将以下配置替换到 docker-compose.prod.yml
+
+  db:
+    image: mysql:8.4
+    # MySQL 8.4 移除了 --default-authentication-plugin 参数
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --skip-name-resolve
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: blog
+      MYSQL_USER: blog
+      MYSQL_PASSWORD: blog
+    volumes:
+      - mysqldata:/var/lib/mysql
+      # 可选：通过配置文件方式设置认证插件
+      - ./mysql-8.4.cnf:/etc/mysql/conf.d/mysql-8.4.cnf
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30  # 增加重试次数，因为8.4初始化可能更慢
+    networks:
+      - appnet

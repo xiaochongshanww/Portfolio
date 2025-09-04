@@ -1,0 +1,24 @@
+# MySQL 8.4 兼容配置文件
+# 如果使用 MySQL 8.4，这个配置文件可以替代命令行参数
+
+[mysqld]
+# 字符集设置
+character-set-server = utf8mb4
+collation-server = utf8mb4_unicode_ci
+
+# 如果需要兼容旧应用，可以为特定用户设置认证方式
+# 注意：这需要在用户创建后手动执行
+# ALTER USER 'blog'@'%' IDENTIFIED WITH mysql_native_password BY 'your_password';
+
+# 性能优化
+skip-name-resolve = 1
+innodb_buffer_pool_size = 256M
+max_connections = 100
+query_cache_type = 0
+query_cache_size = 0
+
+# 日志设置
+general_log = 0
+slow_query_log = 1
+slow_query_log_file = /var/log/mysql/mysql-slow.log
+long_query_time = 2
