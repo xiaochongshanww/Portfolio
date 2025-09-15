@@ -17,7 +17,9 @@
       "Bash(grep:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git check-ignore:*)"
+      "Bash(git check-ignore:*)",
+      "Bash(chmod:*)",
+      "Bash(scripts/verify-auto-build.sh:*)"
     ],
     "deny": [],
     "ask": [],

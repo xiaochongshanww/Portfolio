@@ -1,0 +1,56 @@
+# 后端开发环境Dockerfile - 优化开发体验
+FROM python:3.11-slim AS base
+
+ENV PYTHONDONTWRITEBYTECODE=1 
+ENV PYTHONUNBUFFERED=1 
+ENV PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+
+# 安装系统依赖和开发工具
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libmariadb-dev-compat \
+    libmariadb-dev \
+    curl \
+    git \
+    procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装Python依赖
+COPY backend/requirements.txt ./requirements.txt
+
+# 安装开发依赖
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir \
+    debugpy \
+    watchfiles \
+    ipdb \
+    pytest \
+    pytest-cov \
+    black \
+    flake8
+
+# 设置工作目录
+WORKDIR /app/backend
+
+# 设置Flask环境变量
+ENV FLASK_APP=app:create_app
+ENV FLASK_ENV=development
+ENV FLASK_DEBUG=1
+
+# 暴露端口
+EXPOSE 8000 5678
+
+# 创建启动脚本以支持调试
+RUN echo '#!/bin/bash\n\
+if [ "$FLASK_DEBUG_MODE" = "remote" ]; then\n\
+    echo "🐛 Starting Flask with remote debugging..."\n\
+    python -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m flask run --debug --host=0.0.0.0 --port=8000\n\
+else\n\
+    echo "🚀 Starting Flask in development mode..."\n\
+    flask run --debug --host=0.0.0.0 --port=8000\n\
+fi' > /app/start-dev.sh && chmod +x /app/start-dev.sh
+
+# 开发环境启动命令（可在docker-compose中覆盖）
+CMD ["/app/start-dev.sh"]

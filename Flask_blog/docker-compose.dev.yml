@@ -1,0 +1,169 @@
+version: '3.9'
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend.dev
+    container_name: blog_backend_dev
+    command: flask run --debug --host=0.0.0.0 --port=8000
+    env_file: .env.dev
+    environment:
+      FLASK_APP: app:create_app
+      FLASK_ENV: development
+      FLASK_DEBUG: 1
+      DATABASE_URL: mysql+pymysql://blog:blog@db:3306/blog?charset=utf8mb4
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      MEILISEARCH_URL: http://meili:7700
+      JWT_SECRET_KEY: dev-secret-key-change-in-production
+      CORS_ORIGINS: "http://localhost:5173,http://localhost:3000"
+      LOG_LEVEL: DEBUG
+      PYTHONUNBUFFERED: 1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      meili:
+        condition: service_started
+    volumes:
+      # 源代码热重载映射
+      - ./backend:/app/backend:cached
+      - uploads:/app/backend/uploads_store
+      - backups:/app/backend/backups
+      - metadata:/app/backend/metadata
+      # Python缓存映射（提升性能）
+      - backend_venv:/app/venv
+    ports:
+      - "8000:8000"
+      - "5678:5678"  # Python调试端口
+    networks:
+      - devnet
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .  
+      dockerfile: Dockerfile.frontend.dev
+    container_name: blog_frontend_dev
+    command: npm run dev -- --host 0.0.0.0 --port 3000
+    environment:
+      VITE_API_BASE: http://localhost:8000/api/v1
+      VITE_APP_TITLE: Flask Blog (Development)
+      NODE_ENV: development
+    depends_on:
+      - backend
+    volumes:
+      # 前端源代码热重载映射
+      - ./frontend:/app:cached
+      # node_modules映射（避免权限问题）
+      - frontend_node_modules:/app/node_modules
+    ports:
+      - "3000:3000"   # Vite开发服务器
+      - "24678:24678" # Vite HMR端口
+    networks:
+      - devnet
+    restart: unless-stopped
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend.dev
+    container_name: blog_celery_dev
+    command: watchfiles --ignore-paths ./backend/migrations "celery -A app.tasks.celery_app worker -l debug" ./backend
+    env_file: .env.dev
+    environment:
+      FLASK_APP: app:create_app
+      FLASK_ENV: development
+      DATABASE_URL: mysql+pymysql://blog:blog@db:3306/blog?charset=utf8mb4
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      PYTHONUNBUFFERED: 1
+    depends_on:
+      - backend
+      - redis
+    volumes:
+      - ./backend:/app/backend:cached
+      - backend_venv:/app/venv
+    networks:
+      - devnet
+    restart: unless-stopped
+
+  # 基础服务保持不变
+  db:
+    image: mysql:8.4
+    container_name: blog_mysql_dev
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --skip-name-resolve
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: blog
+      MYSQL_USER: blog
+      MYSQL_PASSWORD: blog
+    volumes:
+      - mysqldata_dev:/var/lib/mysql
+    ports:
+      - "3308:3306"  # 开发环境MySQL端口，避免与现有服务冲突
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    networks:
+      - devnet
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: blog_redis_dev
+    command: redis-server --requirepass ${REDIS_PASSWORD:-dev-redis-password}
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-dev-redis-password}
+    volumes:
+      - redisdata_dev:/data
+    ports:
+      - "6380:6379"  # 开发环境Redis端口，避免与现有服务冲突
+    networks:
+      - devnet
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  meili:
+    image: getmeili/meilisearch:v1.7
+    container_name: blog_meili_dev
+    environment:
+      MEILI_NO_ANALYTICS: 'true'
+      MEILI_ENV: development
+      MEILI_MASTER_KEY: ${MEILISEARCH_MASTER_KEY:-dev-meili-master-key}
+    volumes:
+      - meilidata_dev:/meili_data
+    ports:
+      - "7701:7700"  # 开发环境Meilisearch端口，避免与现有服务冲突
+    networks:
+      - devnet
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  mysqldata_dev:
+  redisdata_dev:
+  meilidata_dev:
+  uploads:
+  backups:
+  metadata:
+  backend_venv:        # Python虚拟环境缓存
+  frontend_node_modules: # Node.js模块缓存
+
+networks:
+  devnet:
+    driver: bridge
