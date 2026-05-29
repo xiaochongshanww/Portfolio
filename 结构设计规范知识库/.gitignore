@@ -26,6 +26,7 @@ Thumbs.db
 # Project-specific (generated data, DB, logs)
 /data/processed/
 /data/chunks/
+/data/images/
 /db/
 /logs/
 

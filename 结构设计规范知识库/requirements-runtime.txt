@@ -1,0 +1,9 @@
+# 运行时依赖（不含文档处理，保持镜像轻量）
+fastapi
+uvicorn[standard]
+chromadb
+zhipuai
+httpx
+python-dotenv
+sniffio
+rank-bm25

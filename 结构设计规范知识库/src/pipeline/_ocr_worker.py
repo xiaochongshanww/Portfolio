@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 """
-A small OCR worker that loads PaddleOCR inside a subprocess and returns recognized lines as JSON.
-This isolates Paddle's native libraries so the main process won't crash if Paddle triggers a segfault.
-Usage: python _ocr_worker.py /path/to/image.png
+[DEPRECATED] 独立 OCR 子进程工作器。
+
+此脚本是 PaddleOCR 子进程隔离方案的实验性代码，
+当前已被 `process_documents.py` 中 unstructured 库的内置 OCR 集成替代。
+
+保留以供参考，不再维护。请使用 src/pipeline/process_documents.py 处理 PDF。
+
+Usage (deprecated): python _ocr_worker.py /path/to/image.png
 """
 import sys
 import os

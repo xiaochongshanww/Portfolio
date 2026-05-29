@@ -1,0 +1,35 @@
+services:
+  api:
+    build: .
+    container_name: rag-api
+    ports:
+      - "8000:8000"
+    env_file: .env
+    volumes:
+      - ./db:/app/db
+      - ./logs:/app/logs
+      - ./data/images:/app/data/images
+    restart: unless-stopped
+    networks:
+      - rag-net
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    ports:
+      - "3000:8080"
+    depends_on:
+      - api
+    environment:
+      - OLLAMA_BASE_URL=
+      - OPENAI_API_BASE_URL=http://api:8000
+      - OPENAI_API_KEY=not-needed
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    networks:
+      - rag-net
+
+networks:
+  rag-net:
+    driver: bridge

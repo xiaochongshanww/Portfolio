@@ -10,7 +10,8 @@ PyMuPDF
 chromadb
 
 # AI Models & SDKs
-zhipuai
+sentence-transformers
+zhipuai  # 可选：如使用智谱AI云端API时可启用
 httpx
 
 # Development Tools
@@ -19,3 +20,7 @@ setuptools
 
 # HTML Parsing for Context Enrichment
 beautifulsoup4
+lxml
+
+# Environment Variables
+python-dotenv

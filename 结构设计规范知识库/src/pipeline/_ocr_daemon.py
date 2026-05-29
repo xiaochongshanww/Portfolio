@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """
-长期运行的 OCR 守护进程。启动后会初始化 PaddleOCR（仅一次），通过 TCP 接受 JSON 请求：
-  {"cmd": "ocr", "image_path": "/tmp/..png"}
-或
-  {"cmd": "preheat"}
-返回用 JSON（一行）响应：{"lines": [...]} 或 {"status":"preheated"} 或 {"error": "..."}
+[DEPRECATED] OCR 守护进程（TCP 服务器）。
 
-注意：为避免终端被 Paddle 的下载/进度条污染，初始化与识别时会屏蔽 stdout/stderr。
+此脚本是 PaddleOCR 常驻进程方案的实验性代码，
+当前已被 `process_documents.py` 中 unstructured 库的内置 OCR 集成替代。
+
+保留以供参考，不再维护。请使用 src/pipeline/process_documents.py 处理 PDF。
+
+旧版协议（仅作参考）:
+  {"cmd": "ocr", "image_path": "/tmp/..png"}
+  {"cmd": "preheat"}
 """
 import socketserver
 import socket
