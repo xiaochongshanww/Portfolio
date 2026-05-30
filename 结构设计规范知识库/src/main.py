@@ -1,7 +1,7 @@
 import os, json, logging, time, base64, re, httpx
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -204,6 +204,22 @@ async def rag_query(request: ChatCompletionRequest):
 
     logging.info(f"图片 {len(imgs_to_send)} 页, 文本 {len(context_parts)} 段")
 
+    # 生成图片引用列表（供 MiMo 在回答中引用）
+    IMG_BASE_URL = os.getenv("IMG_BASE_URL", "http://119.23.45.124/images")
+    img_refs = []
+    img_list = []
+    for doc, meta, dist in results:
+        source = meta.get("source", "")
+        pages_str = meta.get("pages", "")
+        if pages_str and source:
+            name_part = os.path.splitext(source)[0]
+            pages = [int(p) for p in pages_str.split(",") if p.strip().isdigit()]
+            for p in pages:
+                fn = f"{name_part}_p{p:04d}.png"
+                img_refs.append(fn)
+                img_list.append(f"- 第{p}页: `{fn}` → ![](http://119.23.45.124/images/{fn})")
+    img_list_str = "\n".join(img_list[:3])
+
     # 构建消息
     system_prompt = """你是一位建筑结构规范问答助手，专门根据提供的规范检索文本和规范页面截图回答问题。
 
@@ -217,6 +233,7 @@ async def rag_query(request: ChatCompletionRequest):
 7. 如果检索文本和截图不足以回答，必须回答"当前材料中未找到明确依据"，并说明缺少什么信息。
 8. 如果截图和检索文本存在冲突，应指出冲突，不要强行合并为一个确定结论。
 9. 不要输出推理过程，只输出最终答案。
+10. 回答末尾必须引用相关的规范截图，格式为：`![第X页](http://119.23.45.124/images/规范文件名)`
 
 输出格式固定如下：
 【结论】
@@ -245,7 +262,9 @@ async def rag_query(request: ChatCompletionRequest):
 {context}
 
 页面截图：
-已随消息附上，可能包含规范条文、表格、公式或页码。
+已随消息附上。以下为截图列表，你可以在回答末尾用 Markdown 格式引用它们：
+{img_list}
+
 请根据检索文本和截图回答问题。"""
 
     content_parts = [{"type": "text", "text": user_text}]
@@ -326,6 +345,22 @@ async def health():
         except Exception:
             pass
     return {"status": "ok", "version": app.version, "details": details}
+
+
+@app.get("/images/{filename:path}")
+async def serve_image(filename: str):
+    """返回规范页面截图。支持 URL 编码文件名。"""
+    from urllib.parse import unquote
+    decoded = unquote(filename)
+    # 尝试解码后的文件名
+    img_path = os.path.join(IMG_DIR, decoded)
+    if os.path.exists(img_path):
+        return FileResponse(img_path, media_type="image/png")
+    # 尝试原始文件名
+    img_path = os.path.join(IMG_DIR, filename)
+    if os.path.exists(img_path):
+        return FileResponse(img_path, media_type="image/png")
+    return JSONResponse(status_code=404, content={"error": f"not found: {filename}"})
 
 
 @app.get("/v1/models")
