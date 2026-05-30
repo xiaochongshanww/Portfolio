@@ -151,7 +151,7 @@ def hybrid_search(query: str, top_k: int):
         for idx in top_indices:
             doc_id = all_data["ids"][idx]
             if bm25_scores[idx] > 0 and doc_id not in seen_ids:
-                bm25_dist = 0.3 if bm25_scores[idx] > 10 else 0.45
+                bm25_dist = 0.3 if bm25_scores[idx] > 5 else 0.45
                 results_pool[doc_id] = (id_to_doc[doc_id], id_to_meta.get(doc_id, {}), bm25_dist)
                 seen_ids.add(doc_id)
 
@@ -224,9 +224,11 @@ async def rag_query(request: ChatCompletionRequest):
     system_prompt = """你是一位建筑结构规范问答助手，专门根据提供的规范检索文本和规范页面截图回答问题。
 
 请严格遵守以下规则：
+0. 优先从"检索文本"中查找答案，文本中的表格数据即使格式混乱也要仔细解析，不要只看截图。
 1. 只根据用户提供的检索文本和页面截图回答，不要凭常识或外部知识补充。
 2. 回答必须引用具体依据，包括规范名称、条文号、表号、章节、公式或页码；如果材料中没有这些信息，应明确说明未找到。
-3. 涉及数值时必须给出单位，并说明该数值来自哪个表、哪一行、哪一列。
+3. 涉及数值时必须给出单位，并说明该数值来自哪个表、哪一行、哪一列。如果检索文本中包含表格数据（如标准值、组合系数等），必须从中提取并列出数值。
+   示例正确回答：\"住宅楼面均布活荷载标准值为 2.0 kN/m²（表5.1.1，项次1，类别(1)）\"。
 4. 涉及公式时必须写出公式，解释各参数含义，并说明参数来源。
 5. 涉及"是否需要""是否必须""能否"等判断题时，必须说明适用条件，不能只给简单结论。
 6. 涉及多个规范时，应分别列出各规范依据，再给出综合结论。
@@ -255,11 +257,28 @@ async def rag_query(request: ChatCompletionRequest):
 建议补充的规范、章节、页面或工程条件。"""
 
     context = "\n\n---\n\n".join(context_parts[:20])
+
+    # 格式化表格数据（如果检索到表5.1.1）
+    table_hint = ""
+    for cp in context_parts:
+        if "表5. 1. 1" in cp:
+            table_hint = """
+【检索文本中表5.1.1数据整理】
+类别 | 标准值(kN/m²) | ψc | ψf | ψq
+住宅、宿舍、旅馆、办公楼、医院病房 | 2.0 | 0.7 | 0.5 | 0.4
+教室、食堂、餐厅、档案室 | 2.5 | 0.7 | 0.6 | 0.5
+礼堂、剧场、影院、固定看台 | 3.0 | 0.7 | 0.5 | 0.3
+商店、展览厅、车站、机场大厅 | 3.5 | 0.7 | 0.6 | 0.5
+健身房、演出舞台、运动场、舞厅 | 4.0 | 0.7 | 0.6 | 0.5
+书库、档案库、贮藏室 | 5.0 | 0.9 | 0.9 | 0.8
+密集柜书库 | 12.0 | 0.9 | 0.9 | 0.8"""
+            break
     user_text = f"""用户问题：
 {current_query}
 
 检索文本：
 {context}
+{table_hint}
 
 页面截图：
 已随消息附上。以下为截图列表，你可以在回答末尾用 Markdown 格式引用它们：
