@@ -116,6 +116,148 @@ python src/main.py
 
 当API服务运行时，您可以访问 [http://localhost:8000/docs](http://localhost:8000/docs) 查看由FastAPI自动生成的交互式API文档。
 
+## 🧭 项目文档
+
+- [技术方案](./TECHNICAL_PLAN.md)：当前系统架构、核心流程和基础实现方案。
+- [产品化实施方案](./PRODUCTIZATION_PLAN.md)：从可运行原型升级为成熟产品的阶段路线、验收标准和近期执行清单。
+- [RAG 技术方案演进记录](./RAG_OPTIMIZATION.md)：检索、多模态、PDF 解析和质量优化过程中的决策记录。
+
+## 🧱 当前工程结构
+
+API 服务已按产品化阶段一拆分为分层结构：
+
+- `src/app/main.py`：FastAPI 应用创建、路由注册和静态文件挂载。
+- `src/app/core/`：配置读取与日志初始化。
+- `src/app/api/`：聊天、模型列表、健康检查和图片服务接口。
+- `src/app/retrieval/`：ChromaDB、ZhipuAI Embedding、BM25 和条文号混合检索。
+- `src/app/rag/`：检索上下文、图片引用和 MiMo payload 组装。
+- `src/app/llm/`：MiMo 非流式和流式调用。
+
+旧入口 `src.main:app` 仍保留兼容；新部署建议使用 `src.app.main:app`。
+
+## 🏗️ 知识库构建
+
+阶段二已提供统一 pipeline CLI。以下命令均在项目根目录执行：
+
+```bash
+# 只查看将处理哪些 PDF，不写入 processed/images/db
+python -m src.pipeline build --dry-run
+
+# 全量重建知识库：清理旧 processed/images/db，重新处理 PDF、渲染图片、向量化入库并写 manifest
+python -m src.pipeline rebuild --source data/raw
+
+# 查看最近一次构建状态
+python -m src.pipeline status
+```
+
+构建产物：
+
+- `data/processed/*.json`：PDF 元素提取结果。
+- `data/processed/*_chunks.json`：标准化 chunk，包含规范编号、名称、版本、条文号、页码、图片、chunk id 等字段。
+- `data/images/*.png`：PDF 页面截图。
+- `db/`：ChromaDB 向量库。
+- `data/manifest.json`：最近一次构建清单，包含文档 hash、chunk 数、图片数、embedding 模型、集合名和 `data_version_hash`。
+
+`data/processed/`、`data/images/`、`db/`、`data/manifest.json` 是生成产物，默认不提交 Git。
+
+### 规范元数据
+
+系统会优先从 PDF 文件名解析元数据，例如：
+
+```text
+GB 50011-2010_建筑抗震设计规范_2016年版.pdf
+```
+
+解析得到：
+
+```json
+{
+  "code": "GB 50011-2010",
+  "name": "建筑抗震设计规范",
+  "version": "2016年版"
+}
+```
+
+如需补充别名、生效日期、状态或备注，可编辑 `data/metadata/specs.json`，以 `source_file` 匹配覆盖自动解析结果。
+
+## 🎯 检索质量评估
+
+阶段三提供了标准化检索结果、查询解析、可插拔 reranker 接口和轻量评估 CLI。
+
+```bash
+# 运行检索评估，不调用 MiMo，只测试 retrieval
+python -m src.evaluation run --top-k 5
+```
+
+评估集位于 `data/evaluation/queries.jsonl`，每行包含：
+
+```json
+{"id":"case-id","query":"问题","expected_sources":["规范名或编号"],"expected_clause":"8.2.1","expected_keywords":["关键词"],"type":"clause"}
+```
+
+输出会包含 source hit、clause hit、keyword hit 和失败样例。若知识库尚未构建或检索服务未初始化，会返回明确错误。
+
+## 🛡️ 服务成熟化
+
+阶段四增加了服务健康、就绪、鉴权、限流和基础观测能力。
+
+```bash
+# 进程存活检查
+curl http://localhost:8000/health
+
+# 依赖就绪检查：ChromaDB、manifest、API key、BM25 等
+curl http://localhost:8000/ready
+
+# JSON 指标
+curl http://localhost:8000/metrics
+```
+
+关键配置：
+
+```env
+API_AUTH_ENABLED=false
+API_KEYS=
+MAX_REQUEST_BYTES=1048576
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_PER_MINUTE=30
+CORS_ORIGINS=http://localhost:3000,http://localhost:8080
+CORS_ALLOW_CREDENTIALS=false
+```
+
+开启鉴权后，`/v1/chat/completions`、`/chat/completions` 和 `/images/*` 需要：
+
+```http
+Authorization: Bearer <API_KEY>
+```
+
+或：
+
+```http
+X-API-Key: <API_KEY>
+```
+
+`/health` 只表示进程存活，Docker healthcheck 使用它即可；`/ready` 表示依赖是否满足真实问答条件，适合部署前检查。
+
+## 🖥️ 产品控制台
+
+项目内置静态控制台位于 `/static/index.html`，根路径 `/` 会自动跳转到该页面。
+
+阶段五采用分工模式：
+
+- Open WebUI：主聊天入口，适合日常多会话问答。
+- 项目控制台：知识库状态、文档清单、评估集状态、轻量问答测试、来源图片预览。
+
+控制台读取以下只读接口：
+
+```text
+GET /ready
+GET /metrics
+GET /knowledge/documents
+GET /evaluation/status
+```
+
+如果开启 `API_AUTH_ENABLED=true`，控制台中的轻量问答和图片访问需要填写 API Key；Key 只保存在当前浏览器的 localStorage。
+
 ## 📁 项目结构
 
 ```

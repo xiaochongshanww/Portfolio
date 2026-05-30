@@ -1,0 +1,37 @@
+{
+  "documents": [
+    {
+      "source_file": "GB 50009-2012_.建筑结构荷载规范.pdf",
+      "name": "建筑结构荷载规范",
+      "status": "active",
+      "aliases": ["荷载规范", "建筑荷载规范"]
+    },
+    {
+      "source_file": "GB 50011-2010_建筑抗震设计规范_2016年版.pdf",
+      "status": "active",
+      "aliases": ["抗震规范", "建筑抗震规范"]
+    },
+    {
+      "source_file": "GB 50068-2018_建筑结构可靠性设计统一标准.pdf",
+      "status": "active",
+      "aliases": ["可靠性统一标准"]
+    },
+    {
+      "source_file": "GB 50223-2008_建筑工程抗震设防分类标准.pdf",
+      "status": "active",
+      "aliases": ["抗震设防分类标准"]
+    },
+    {
+      "source_file": "GB 50300-2013_建筑工程施工质量验收统一标准.pdf",
+      "status": "active",
+      "aliases": ["施工质量验收统一标准"]
+    },
+    {
+      "source_file": "test_image.pdf",
+      "code": "TEST",
+      "name": "测试图片文档",
+      "status": "test",
+      "notes": "用于 pipeline smoke test 的轻量 PDF"
+    }
+  ]
+}

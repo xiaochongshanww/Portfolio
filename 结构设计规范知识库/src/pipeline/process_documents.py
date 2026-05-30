@@ -1,14 +1,16 @@
-"""PyMuPDF 提取文本 + 渲染每页为图片"""
-import os, json, logging, re, fitz
+"""PyMuPDF 提取文本 + 渲染每页为图片。"""
+import json
+import logging
+import re
+import sys
+from pathlib import Path
 
-LOGS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'logs'))
-os.makedirs(LOGS_DIR, exist_ok=True)
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[logging.FileHandler(os.path.join(LOGS_DIR, 'process_documents.log'), encoding='utf-8'), logging.StreamHandler()])
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-RAW_DIR, OUT_DIR, IMG_DIR = os.path.join(PROJECT_ROOT, 'data', 'raw'), os.path.join(PROJECT_ROOT, 'data', 'processed'), os.path.join(PROJECT_ROOT, 'data', 'images')
-os.makedirs(OUT_DIR, exist_ok=True); os.makedirs(IMG_DIR, exist_ok=True)
+from src.pipeline.chunks import normalize_chunks
+from src.pipeline.metadata import SpecMetadata, load_spec_metadata
+from src.pipeline.paths import IMAGES_DIR, METADATA_DIR, PROCESSED_DIR, RAW_DIR
 
 
 # ── 条文编号模式 ──
@@ -61,23 +63,30 @@ def is_title_block(text: str, lines_in_block: int, font_size: float) -> bool:
     return False
 
 
-def render_page_as_image(doc, page_num, out_dir, basename):
+def render_page_as_image(doc, page_num, out_dir: Path, basename):
     page = doc[page_num]
+    import fitz
+
     pix = page.get_pixmap(matrix=fitz.Matrix(3, 3))  # 3x 分辨率
     fn = f"{basename}_p{page_num+1:04d}.png"
-    pix.save(os.path.join(out_dir, fn))
+    pix.save(out_dir / fn)
     return fn
 
 
-def extract_text_from_pdf(pdf_path):
+def extract_text_from_pdf(pdf_path: Path, image_dir: Path):
+    try:
+        import fitz
+    except ImportError as exc:
+        raise RuntimeError("缺少 PyMuPDF 依赖，请先安装 requirements.txt") from exc
+
     doc = fitz.open(pdf_path)
-    filename = os.path.basename(pdf_path)
-    basename = os.path.splitext(filename)[0]
+    filename = pdf_path.name
+    basename = pdf_path.stem
     elements = []
 
     for pn in range(len(doc)):
         page = doc[pn]
-        img_file = render_page_as_image(doc, pn, IMG_DIR, basename)
+        img_file = render_page_as_image(doc, pn, image_dir, basename)
         blocks = page.get_text("dict")["blocks"]
 
         for blk in blocks:
@@ -137,25 +146,43 @@ def chunk_to_paragraphs(elements):
     return chunks
 
 
+def process_pdf(pdf_path: Path, spec: SpecMetadata, out_dir: Path, image_dir: Path) -> list[dict]:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    image_dir.mkdir(parents=True, exist_ok=True)
+    logging.info("处理: %s", pdf_path.name)
+    elements = extract_text_from_pdf(pdf_path, image_dir)
+    raw_chunks = chunk_to_paragraphs(elements)
+    chunks = normalize_chunks(raw_chunks, spec)
+    logging.info("  元素: %s, 段落块: %s", len(elements), len(chunks))
+
+    basename = pdf_path.stem
+    (out_dir / f"{basename}.json").write_text(json.dumps(elements, ensure_ascii=False, indent=2), encoding="utf-8")
+    (out_dir / f"{basename}_chunks.json").write_text(json.dumps(chunks, ensure_ascii=False, indent=2), encoding="utf-8")
+    return chunks
+
+
+def process_pdfs(
+    pdf_files: list[Path],
+    metadata: dict[str, SpecMetadata],
+    out_dir: Path = PROCESSED_DIR,
+    image_dir: Path = IMAGES_DIR,
+) -> dict[str, list[dict]]:
+    chunks_by_file: dict[str, list[dict]] = {}
+    for pdf_file in pdf_files:
+        chunks_by_file[pdf_file.name] = process_pdf(pdf_file, metadata[pdf_file.name], out_dir, image_dir)
+
+    images = list(image_dir.glob("*.png"))
+    size = sum(image.stat().st_size for image in images)
+    logging.info("完成! %s 页图片, %.1fMB", len(images), size / 1024 / 1024)
+    return chunks_by_file
+
+
 def process_all():
-    pdfs = sorted([f for f in os.listdir(RAW_DIR) if f.lower().endswith('.pdf')])
-    logging.info(f"发现 {len(pdfs)} 个 PDF")
-
-    for pdf_file in pdfs:
-        bn = os.path.splitext(pdf_file)[0]
-        logging.info(f"处理: {pdf_file}")
-        elements = extract_text_from_pdf(os.path.join(RAW_DIR, pdf_file))
-        chunks = chunk_to_paragraphs(elements)
-        logging.info(f"  元素: {len(elements)}, 段落块: {len(chunks)}")
-
-        with open(os.path.join(OUT_DIR, f"{bn}.json"), 'w', encoding='utf-8') as f:
-            json.dump(elements, f, ensure_ascii=False, indent=2)
-        with open(os.path.join(OUT_DIR, f"{bn}_chunks.json"), 'w', encoding='utf-8') as f:
-            json.dump(chunks, f, ensure_ascii=False, indent=2)
-
-    imgs = [f for f in os.listdir(IMG_DIR) if f.endswith('.png')]
-    sz = sum(os.path.getsize(os.path.join(IMG_DIR, f)) for f in imgs)
-    logging.info(f"完成! {len(imgs)} 页图片, {sz/1024/1024:.1f}MB")
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+    pdfs = sorted(path for path in RAW_DIR.iterdir() if path.is_file() and path.suffix.lower() == ".pdf")
+    metadata = load_spec_metadata(pdfs, METADATA_DIR / "specs.json")
+    logging.info("发现 %s 个 PDF", len(pdfs))
+    process_pdfs(pdfs, metadata, PROCESSED_DIR, IMAGES_DIR)
 
 
 if __name__ == "__main__":
