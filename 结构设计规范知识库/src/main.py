@@ -22,6 +22,7 @@ MIMO_MODEL = os.getenv("MIMO_MODEL", "mimo-v2-omni")
 COLLECTION_NAME = "design_specs"
 DB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'db')
 IMG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'images')
+IMG_BASE_URL = os.getenv("IMG_BASE_URL", "/images")
 
 zhipu_client: Optional[ZhipuAI] = None
 chroma_collection = None
@@ -204,8 +205,7 @@ async def rag_query(request: ChatCompletionRequest):
 
     logging.info(f"图片 {len(imgs_to_send)} 页, 文本 {len(context_parts)} 段")
 
-    # 生成图片引用列表（供 MiMo 在回答中引用）
-    IMG_BASE_URL = os.getenv("IMG_BASE_URL", "http://119.23.45.124/images")
+    # 生成图片引用列表（供 LLM 在回答中引用）
     img_refs = []
     img_list = []
     for doc, meta, dist in results:
@@ -217,7 +217,7 @@ async def rag_query(request: ChatCompletionRequest):
             for p in pages:
                 fn = f"{name_part}_p{p:04d}.png"
                 img_refs.append(fn)
-                img_list.append(f"- 第{p}页: `{fn}` → ![](http://119.23.45.124/images/{fn})")
+                img_list.append(f"- 第{p}页: `{fn}` → ![]({IMG_BASE_URL}/{fn})")
     img_list_str = "\n".join(img_list)
 
     # 构建消息
@@ -227,15 +227,14 @@ async def rag_query(request: ChatCompletionRequest):
 0. 优先从"检索文本"中查找答案，文本中的表格数据即使格式混乱也要仔细解析，不要只看截图。
 1. 只根据用户提供的检索文本和页面截图回答，不要凭常识或外部知识补充。
 2. 回答必须引用具体依据，包括规范名称、条文号、表号、章节、公式或页码；如果材料中没有这些信息，应明确说明未找到。
-3. 涉及数值时必须给出单位，并说明该数值来自哪个表、哪一行、哪一列。如果检索文本中包含表格数据（如标准值、组合系数等），必须从中提取并列出数值。
-   示例正确回答：\"住宅楼面均布活荷载标准值为 2.0 kN/m²（表5.1.1，项次1，类别(1)）\"。
+3. 涉及数值时必须给出单位，并说明该数值来自哪个表、哪一行、哪一列。如果检索文本中包含表格数据，必须从中提取并列出数值。
 4. 涉及公式时必须写出公式，解释各参数含义，并说明参数来源。
 5. 涉及"是否需要""是否必须""能否"等判断题时，必须说明适用条件，不能只给简单结论。
 6. 涉及多个规范时，应分别列出各规范依据，再给出综合结论。
 7. 如果检索文本和截图不足以回答，必须回答"当前材料中未找到明确依据"，并说明缺少什么信息。
 8. 如果截图和检索文本存在冲突，应指出冲突，不要强行合并为一个确定结论。
 9. 不要输出推理过程，只输出最终答案。
-10. 回答末尾必须引用相关的规范截图，格式为：`![第X页](http://119.23.45.124/images/规范文件名)`
+10. 回答末尾必须引用相关的规范截图，格式为：`![第X页](图片地址/规范文件名)`
 
 输出格式固定如下：
 【结论】
@@ -258,27 +257,11 @@ async def rag_query(request: ChatCompletionRequest):
 
     context = "\n\n---\n\n".join(context_parts[:20])
 
-    # 格式化表格数据（如果检索到表5.1.1）
-    table_hint = ""
-    for cp in context_parts:
-        if "表5. 1. 1" in cp:
-            table_hint = """
-【检索文本中表5.1.1数据整理】
-类别 | 标准值(kN/m²) | ψc | ψf | ψq
-住宅、宿舍、旅馆、办公楼、医院病房 | 2.0 | 0.7 | 0.5 | 0.4
-教室、食堂、餐厅、档案室 | 2.5 | 0.7 | 0.6 | 0.5
-礼堂、剧场、影院、固定看台 | 3.0 | 0.7 | 0.5 | 0.3
-商店、展览厅、车站、机场大厅 | 3.5 | 0.7 | 0.6 | 0.5
-健身房、演出舞台、运动场、舞厅 | 4.0 | 0.7 | 0.6 | 0.5
-书库、档案库、贮藏室 | 5.0 | 0.9 | 0.9 | 0.8
-密集柜书库 | 12.0 | 0.9 | 0.9 | 0.8"""
-            break
     user_text = f"""用户问题：
 {current_query}
 
 检索文本：
 {context}
-{table_hint}
 
 页面截图：
 已随消息附上。以下为截图列表，你可以在回答末尾用 Markdown 格式引用它们：
@@ -386,8 +369,7 @@ async def serve_image(filename: str):
 @app.get("/models")
 async def list_models():
     return {"object": "list", "data": [
-        {"id": "mimo-v2-omni", "object": "model", "created": int(time.time()), "owned_by": "xiaomi"},
-        {"id": "mimo-v2.5", "object": "model", "created": int(time.time()), "owned_by": "xiaomi"},
+        {"id": MIMO_MODEL, "object": "model", "created": int(time.time()), "owned_by": "llm"},
     ]}
 
 
