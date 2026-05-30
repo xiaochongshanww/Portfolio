@@ -19,10 +19,28 @@ APPENDIX_RE = re.compile(r'^(附录|Appendix)\s+[A-Z]')
 TABLE_RE = re.compile(r'^(表|图)\s+[\d\.]+')
 
 
+# 非标题过滤（这些不应作为章节标题）
+PAGE_NUM_RE = re.compile(r'^\d{1,3}$')
+DECIMAL_RE = re.compile(r'^[\d\.\s]{1,5}$')
+URL_RE = re.compile(r'^[a-zA-Z0-9]+\.[a-z]')
+SHORT_SYMBOL_RE = re.compile(r'^[\d\.\-—·]+$')
+
+
 def is_title_block(text: str, lines_in_block: int, font_size: float) -> bool:
     """判断一个 text block 是否为标题/条文号。"""
     t = text.strip()
     if not t:
+        return False
+    # 排除页码、表格中的孤立数值、水印、短符号
+    if PAGE_NUM_RE.match(t):
+        return False
+    if DECIMAL_RE.match(t):
+        return False
+    if URL_RE.match(t):
+        return False
+    if SHORT_SYMBOL_RE.match(t):
+        return False
+    if len(t) <= 2 and not CLAUSE_RE.match(t):
         return False
     # 条文编号
     if CLAUSE_RE.match(t):
@@ -36,9 +54,9 @@ def is_title_block(text: str, lines_in_block: int, font_size: float) -> bool:
     # 大字号 / 短行粗体
     if font_size >= 14:
         return True
-    if lines_in_block <= 2 and font_size >= 12:
+    if lines_in_block <= 2 and font_size >= 12 and len(t) >= 4:
         return True
-    if lines_in_block == 1 and font_size >= 10:
+    if lines_in_block == 1 and font_size >= 10 and len(t) >= 6:
         return True
     return False
 
