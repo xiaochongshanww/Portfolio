@@ -218,7 +218,7 @@ async def rag_query(request: ChatCompletionRequest):
                 fn = f"{name_part}_p{p:04d}.png"
                 img_refs.append(fn)
                 img_list.append(f"- 第{p}页: `{fn}` → ![](http://119.23.45.124/images/{fn})")
-    img_list_str = "\n".join(img_list[:3])
+    img_list_str = "\n".join(img_list)
 
     # 构建消息
     system_prompt = """你是一位建筑结构规范问答助手，专门根据提供的规范检索文本和规范页面截图回答问题。
@@ -263,7 +263,7 @@ async def rag_query(request: ChatCompletionRequest):
 
 页面截图：
 已随消息附上。以下为截图列表，你可以在回答末尾用 Markdown 格式引用它们：
-{img_list}
+{img_list_str}
 
 请根据检索文本和截图回答问题。"""
 
