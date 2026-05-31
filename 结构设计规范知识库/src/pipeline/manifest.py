@@ -30,11 +30,15 @@ def build_manifest(
     collection_name: str,
     artifacts_by_file: dict[str, list[dict[str, Any]]] | None = None,
     parser_metadata_by_file: dict[str, dict[str, Any]] | None = None,
+    audit_by_file: dict[str, dict[str, Any]] | None = None,
+    corrections_by_file: dict[str, dict[str, Any]] | None = None,
     chunk_hashes_by_file: dict[str, list[str]] | None = None,
     build_params: dict[str, Any],
 ) -> dict[str, Any]:
     artifacts_by_file = artifacts_by_file or {}
     parser_metadata_by_file = parser_metadata_by_file or {}
+    audit_by_file = audit_by_file or {}
+    corrections_by_file = corrections_by_file or {}
     chunk_hashes_by_file = chunk_hashes_by_file or {}
     documents = []
     for pdf in pdf_files:
@@ -49,6 +53,8 @@ def build_manifest(
                 "chunk_hashes": chunk_hashes_by_file.get(pdf.name, []),
                 "artifacts": artifacts,
                 "parser_metadata": parser_metadata_by_file.get(pdf.name, {}),
+                "audit": audit_by_file.get(pdf.name, {}),
+                "corrections": corrections_by_file.get(pdf.name, {}),
                 "missing_artifacts": [item["kind"] for item in artifacts if item.get("status") != "ok"],
             }
         )
@@ -59,6 +65,15 @@ def build_manifest(
         for artifact in doc.get("artifacts", [])
         if artifact.get("status") != "ok"
     ]
+    audit_status = {
+        "finding_count": sum(doc.get("audit", {}).get("finding_count", 0) for doc in documents),
+        "high_risk_count": sum(doc.get("audit", {}).get("high_risk_count", 0) for doc in documents),
+    }
+    correction_status = {
+        "approved_count": sum(doc.get("corrections", {}).get("approved_count", 0) for doc in documents),
+        "applied_count": sum(doc.get("corrections", {}).get("applied_count", 0) for doc in documents),
+        "skipped_count": sum(doc.get("corrections", {}).get("skipped_count", 0) for doc in documents),
+    }
 
     version_payload = {
         "documents": documents,
@@ -77,6 +92,8 @@ def build_manifest(
         "collection_name": collection_name,
         "build_params": build_params,
         "metadata_status": "partial" if any(doc["metadata_status"] == "partial" for doc in documents) else "complete",
+        "audit_status": audit_status,
+        "correction_status": correction_status,
         "artifact_status": {
             "missing_count": len(missing_artifacts),
             "missing_required_count": sum(1 for item in missing_artifacts if item["required"]),

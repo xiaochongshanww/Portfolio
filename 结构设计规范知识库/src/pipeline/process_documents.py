@@ -9,9 +9,10 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from src.pipeline.chunks import normalize_chunks
+from src.pipeline.audit import apply_approved_corrections, audit_elements
 from src.pipeline.metadata import SpecMetadata, load_spec_metadata
 from src.pipeline.parsers import PdfParser, create_parser
-from src.pipeline.paths import IMAGES_DIR, METADATA_DIR, MINERU_DIR, PROCESSED_DIR, RAW_DIR
+from src.pipeline.paths import CORRECTIONS_DIR, IMAGES_DIR, METADATA_DIR, MINERU_DIR, PROCESSED_DIR, RAW_DIR
 
 
 DEFAULT_PARSER_BACKEND = os.environ.get("PDF_PARSER_BACKEND", "mineru")
@@ -120,23 +121,56 @@ def build_quality_entry(
     }
 
 
-def process_pdf(pdf_path: Path, spec: SpecMetadata, out_dir: Path, image_dir: Path, parser: PdfParser) -> dict:
+def process_pdf(
+    pdf_path: Path,
+    spec: SpecMetadata,
+    out_dir: Path,
+    image_dir: Path,
+    parser: PdfParser,
+    *,
+    apply_corrections: bool = True,
+) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
     image_dir.mkdir(parents=True, exist_ok=True)
     logging.info("处理: %s parser=%s", pdf_path.name, parser.name)
 
     parse_result = parser.parse(pdf_path, image_dir)
-    raw_chunks = chunk_to_paragraphs(parse_result.elements)
+    audit_report = audit_elements(pdf_path.name, parse_result.elements, parse_result.artifacts)
+    elements = parse_result.elements
+    correction_summary = {
+        "source_file": pdf_path.name,
+        "approved_count": 0,
+        "applied_count": 0,
+        "skipped_count": 0,
+        "applied": [],
+        "skipped": [],
+    }
+    if apply_corrections:
+        elements, correction_summary = apply_approved_corrections(elements, pdf_path.name, CORRECTIONS_DIR)
+
+    raw_chunks = chunk_to_paragraphs(elements)
     chunks = normalize_chunks(raw_chunks, spec)
-    quality = build_quality_entry(pdf_path, parse_result.elements, chunks, parse_result.artifacts)
-    logging.info("  元素: %s, 段落块: %s", len(parse_result.elements), len(chunks))
+    quality = build_quality_entry(pdf_path, elements, chunks, parse_result.artifacts)
+    quality["audit"] = {
+        "finding_count": audit_report["finding_count"],
+        "high_risk_count": audit_report["high_risk_count"],
+    }
+    quality["corrections"] = {
+        "approved_count": correction_summary["approved_count"],
+        "applied_count": correction_summary["applied_count"],
+        "skipped_count": correction_summary["skipped_count"],
+    }
+    logging.info("  元素: %s, 段落块: %s", len(elements), len(chunks))
 
     basename = pdf_path.stem
     elements_payload = {
         "source_file": pdf_path.name,
         "parser_backend": parser.name,
         "parser_metadata": parse_result.metadata,
-        "elements": parse_result.elements,
+        "artifacts": parse_result.artifacts,
+        "audit": audit_report,
+        "corrections": correction_summary,
+        "elements": elements,
     }
     (out_dir / f"{basename}.json").write_text(json.dumps(elements_payload, ensure_ascii=False, indent=2), encoding="utf-8")
     (out_dir / f"{basename}_chunks.json").write_text(json.dumps(chunks, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -145,6 +179,8 @@ def process_pdf(pdf_path: Path, spec: SpecMetadata, out_dir: Path, image_dir: Pa
         "artifacts": parse_result.artifacts,
         "quality": quality,
         "parser_metadata": parse_result.metadata,
+        "audit": audit_report,
+        "corrections": correction_summary,
         "media_files": parse_result.media_files,
     }
 
@@ -157,23 +193,35 @@ def process_pdfs(
     *,
     parser_backend: str = DEFAULT_PARSER_BACKEND,
     mineru_output_dir: Path = MINERU_DIR,
+    apply_corrections: bool = True,
 ) -> dict[str, dict]:
     parser = create_parser(parser_backend, mineru_output_dir=mineru_output_dir)
     results_by_file: dict[str, dict] = {}
     for pdf_file in pdf_files:
-        results_by_file[pdf_file.name] = process_pdf(pdf_file, metadata[pdf_file.name], out_dir, image_dir, parser)
+        results_by_file[pdf_file.name] = process_pdf(
+            pdf_file,
+            metadata[pdf_file.name],
+            out_dir,
+            image_dir,
+            parser,
+            apply_corrections=apply_corrections,
+        )
 
     images = list(image_dir.glob("*"))
     size = sum(image.stat().st_size for image in images if image.is_file())
     logging.info("完成! %s 张图片/媒体, %.1fMB", len(images), size / 1024 / 1024)
     quality_report = {
         "parser_backend": parser_backend,
+        "corrections_applied": apply_corrections,
         "documents": [result["quality"] for result in results_by_file.values()],
         "totals": {
             "document_count": len(results_by_file),
             "chunk_count": sum(len(result["chunks"]) for result in results_by_file.values()),
             "image_count": len(images),
             "missing_artifact_count": sum(len(result["quality"]["missing_artifacts"]) for result in results_by_file.values()),
+            "audit_finding_count": sum(result["audit"]["finding_count"] for result in results_by_file.values()),
+            "high_risk_count": sum(result["audit"]["high_risk_count"] for result in results_by_file.values()),
+            "applied_correction_count": sum(result["corrections"]["applied_count"] for result in results_by_file.values()),
         },
     }
     (out_dir / "build_quality.json").write_text(json.dumps(quality_report, ensure_ascii=False, indent=2), encoding="utf-8")

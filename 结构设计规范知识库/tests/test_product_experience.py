@@ -15,4 +15,6 @@ def test_static_console_contains_required_sections():
     assert "知识库文档" in html
     assert "/knowledge/documents" in html
     assert "/evaluation/status" in html
+    assert "/corrections/candidates" in html
+    assert "校对候选" in html
     assert "Open WebUI" in html

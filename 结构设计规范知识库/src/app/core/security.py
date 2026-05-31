@@ -7,7 +7,7 @@ PUBLIC_PATHS = {"/", "/health", "/ready", "/metrics", "/models", "/v1/models"}
 
 
 def is_protected_path(path: str) -> bool:
-    return path.endswith("/chat/completions") or path.startswith("/images/")
+    return path.endswith("/chat/completions") or path.startswith("/images/") or path.startswith("/corrections/")
 
 
 def extract_api_key(request: Request) -> str:
@@ -24,4 +24,3 @@ def is_authorized(request: Request) -> bool:
         return True
     key = extract_api_key(request)
     return bool(key and key in settings.api_keys)
-

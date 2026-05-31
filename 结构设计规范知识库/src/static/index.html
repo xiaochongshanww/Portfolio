@@ -136,6 +136,20 @@ td { overflow-wrap: anywhere; }
 .checks { display: grid; gap: 6px; margin-top: 10px; }
 .check { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; }
 .side-block { margin-bottom: 16px; }
+.candidate {
+  border: 1px solid #e3e8f0;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 8px;
+  background: #fbfcfe;
+}
+.candidate strong { display: block; font-size: 12px; margin-bottom: 4px; }
+.candidate pre {
+  margin: 6px 0;
+  white-space: pre-wrap;
+  font-size: 11px;
+  color: #344054;
+}
 .image-modal {
   position: fixed;
   inset: 0;
@@ -229,8 +243,14 @@ td { overflow-wrap: anywhere; }
         <div id="evaluation" class="checks"></div>
       </div>
       <div class="side-block">
+        <h3>校对候选</h3>
+        <div id="candidateDocs" class="checks"></div>
+        <div id="candidateDetail"></div>
+      </div>
+      <div class="side-block">
         <h3>常用命令</h3>
         <p class="muted"><code>python -m src.pipeline status</code></p>
+        <p class="muted"><code>python -m src.pipeline promote-corrections --doc DOC</code></p>
         <p class="muted"><code>python -m src.evaluation run --top-k 5</code></p>
       </div>
     </div>
@@ -301,6 +321,9 @@ async function refreshAll() {
     document.getElementById('evalCount').textContent = `评估集 ${evaluation.case_count}`;
     renderKeyValues(document.getElementById('evaluation'), { case_count: evaluation.case_count, ...evaluation.by_type });
   }
+
+  const candidates = await getJson('/corrections/candidates').catch(() => null);
+  if (candidates) renderCandidateDocs(candidates.documents || []);
 }
 
 function renderDocs(docs) {
@@ -315,6 +338,75 @@ function renderDocs(docs) {
     tr.innerHTML = `<td>${doc.name || doc.source_file}</td><td>${doc.code || '-'}</td><td>${doc.version || '-'}</td><td>${doc.chunk_count ?? '-'}</td><td>${doc.status || '-'}</td>`;
     tbody.appendChild(tr);
   });
+}
+
+function renderCandidateDocs(docs) {
+  const el = document.getElementById('candidateDocs');
+  el.innerHTML = '';
+  if (!docs.length) {
+    el.innerHTML = '<p class="muted">暂无 AI 校对候选。</p>';
+    document.getElementById('candidateDetail').innerHTML = '';
+    return;
+  }
+  docs.forEach(doc => {
+    const row = document.createElement('div');
+    row.className = 'check';
+    row.innerHTML = `<span>${doc.doc}</span><button onclick="loadCandidates('${doc.doc}')">${doc.pending_count} pending / ${doc.approved_count} approved</button>`;
+    el.appendChild(row);
+  });
+}
+
+async function loadCandidates(doc) {
+  const detail = await getJson(`/corrections/candidates/${encodeURIComponent(doc)}`);
+  const el = document.getElementById('candidateDetail');
+  const candidates = detail.corrections || [];
+  if (!candidates.length) {
+    el.innerHTML = '<p class="muted">该文档没有候选修正。</p>';
+    return;
+  }
+  el.innerHTML = '';
+  candidates.forEach((item, index) => {
+    const id = item.id || String(index);
+    const patch = item.suggested_patch || item;
+    const card = document.createElement('div');
+    card.className = 'candidate';
+    card.innerHTML = `
+      <strong>${id} · ${item.review_status || 'pending'} · ${item.severity || '-'}</strong>
+      <div class="muted">page ${item.page || '-'} · ${item.issue_type || '-'}</div>
+      <pre>${escapeHtml(JSON.stringify({ target: item.target, patch, evidence: item.evidence }, null, 2))}</pre>
+      <div class="row">
+        <button onclick="setCandidateStatus('${detail.doc}', '${id}', 'approved')">批准</button>
+        <button onclick="setCandidateStatus('${detail.doc}', '${id}', 'rejected')">拒绝</button>
+        <button onclick="setCandidateStatus('${detail.doc}', '${id}', 'pending')">待审</button>
+      </div>
+    `;
+    el.appendChild(card);
+  });
+  const promote = document.createElement('button');
+  promote.className = 'primary';
+  promote.textContent = '提升 approved 到构建修正';
+  promote.onclick = () => promoteCandidates(detail.doc);
+  el.appendChild(promote);
+}
+
+function escapeHtml(text) {
+  return text.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+
+async function setCandidateStatus(doc, id, status) {
+  await fetch(`/corrections/candidates/${encodeURIComponent(doc)}/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: headers({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ status })
+  });
+  await loadCandidates(doc);
+  await refreshAll();
+}
+
+async function promoteCandidates(doc) {
+  await fetch(`/corrections/promote/${encodeURIComponent(doc)}`, { method: 'POST', headers: headers() });
+  await loadCandidates(doc);
+  await refreshAll();
 }
 
 function addMessage(role, text) {

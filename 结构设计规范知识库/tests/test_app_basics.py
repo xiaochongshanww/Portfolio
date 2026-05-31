@@ -23,6 +23,10 @@ def test_expected_routes_exist():
     assert "/images/{filename:path}" in paths
     assert "/knowledge/documents" in paths
     assert "/evaluation/status" in paths
+    assert "/corrections/candidates" in paths
+    assert "/corrections/candidates/{doc}" in paths
+    assert "/corrections/candidates/{doc}/{candidate_id}" in paths
+    assert "/corrections/promote/{doc}" in paths
 
 
 def test_chinese_trigram_tokenizer_keeps_keyword_and_trigrams():

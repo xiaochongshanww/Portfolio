@@ -120,6 +120,7 @@ python src/main.py
 - [技术方案](./TECHNICAL_PLAN.md)：当前系统架构、核心流程和基础实现方案。
 - [产品化实施方案](./PRODUCTIZATION_PLAN.md)：从可运行原型升级为成熟产品的阶段路线、验收标准和近期执行清单。
 - [RAG 技术方案演进记录](./RAG_OPTIMIZATION.md)：检索、多模态、PDF 解析和质量优化过程中的决策记录。
+- [AI 校对修正层实施方案](./AI_CORRECTION_PLAN.md)：MinerU 解析后的规则审计、AI 候选和人工批准修正流程。
 
 ## 🧱 当前工程结构
 
@@ -150,14 +151,25 @@ python -m src.pipeline rebuild --source data/raw --parser-backend pymupdf
 
 # 查看最近一次构建状态
 python -m src.pipeline status
+
+# 对 processed 元素执行规则审计
+python -m src.pipeline audit --processed-dir data/processed
+
+# 生成多模态校对报告；配置 MIMO_API_KEY 后写入 correction candidates
+python -m src.pipeline review --doc GB50009-2012 --pages 40-45 --source data/raw --processed-dir data/processed
+
+# 将人工标记为 approved 的候选修正提升为构建会应用的 approved corrections
+python -m src.pipeline promote-corrections --doc GB50009-2012
 ```
 
-MinerU 依赖外部 CLI，安装后需确保 `mineru` 命令在 `PATH` 中。可通过环境变量调整：
+MinerU 依赖外部 CLI，安装后需确保 `mineru` 命令在 `PATH` 中。多模态 review 复用 MiMo 配置；未设置 `MIMO_API_KEY` 时只生成 `not_configured` 报告，不调用外部模型。可通过环境变量调整：
 
 ```bash
 export PDF_PARSER_BACKEND=mineru
 export MINERU_BIN=mineru
 export MINERU_ARGS=""
+export MIMO_API_KEY="..."
+export AI_REVIEW_MODEL="mimo-v2-omni"
 ```
 
 构建产物：
@@ -165,6 +177,9 @@ export MINERU_ARGS=""
 - `data/processed/*.json`：PDF 元素提取结果。
 - `data/processed/*_chunks.json`：标准化 chunk，包含规范编号、名称、版本、条文号、页码、图片、chunk id 等字段。
 - `data/processed/build_quality.json`：构建质量报告，统计 element/chunk/table/formula/figure 数、空文本比例和缺失产物。
+- `data/audit/reports/`：规则审计和 AI 校对报告。
+- `data/corrections/approved/`：人工批准后的修正文件，rebuild 默认应用。
+- `data/corrections/candidates/`：AI 生成的待审修正候选，默认不入库。
 - `data/mineru/<doc_id>/raw/`：MinerU 原始解析产物，包括 `content_list`、Markdown、middle/model JSON 和媒体文件。
 - `data/mineru/<doc_id>/artifacts.json`：单文档产物索引，记录 `kind/path/sha256/size_bytes/required/status`。
 - `data/images/`：从 MinerU 产物复制出的表格、公式、图片等媒体文件；PyMuPDF fallback 下为页面截图。
@@ -173,7 +188,39 @@ export MINERU_ARGS=""
 
 MinerU 标准流程以 `content_list` 作为唯一主入库输入；Markdown 用于人工审阅，middle/model JSON 用于后续版面定位、质量回归和审计。`content_list` 和 Markdown 缺失时构建失败，不写成功 manifest；middle/model/media 缺失会进入 manifest 和质量报告。
 
-`data/processed/`、`data/images/`、`data/mineru/`、`db/`、`data/manifest.json` 是生成产物，默认不提交 Git。
+### AI 校对与修正层
+
+MinerU 结果不被视为 100% 真值。构建流程增加了可审计修正层：
+
+```text
+MinerU content_list
+ -> standard elements
+ -> rules audit
+ -> apply data/corrections/approved/
+ -> chunks
+ -> ChromaDB
+```
+
+修正文件建议放在 `data/corrections/approved/<pdf_stem>.json`，结构如下：
+
+```json
+{
+  "corrections": [
+    {
+      "id": "fix-page-42-table",
+      "action": "replace_text",
+      "target": {"element_index": 15, "field": "text"},
+      "value": "修正后的文本或表格 Markdown"
+    }
+  ]
+}
+```
+
+支持的修正动作：`replace_text`、`set_field`、`delete_element`、`insert_after`、`merge_next`。AI 校对只生成 `candidates`，不会自动进入知识库；只有 `approved` 会在 rebuild 时应用。可使用 `--no-corrections` 临时关闭修正层。
+
+候选修正必须先把 `review_status` 改为 `approved`，再运行 `promote-corrections`。该命令默认跳过 pending 候选。
+
+`data/processed/`、`data/images/`、`data/mineru/`、`data/audit/`、`data/corrections/candidates/`、`db/`、`data/manifest.json` 是生成产物，默认不提交 Git。`data/corrections/approved/` 是否提交取决于是否要把人工校对结果纳入版本管理。
 
 ### 规范元数据
 

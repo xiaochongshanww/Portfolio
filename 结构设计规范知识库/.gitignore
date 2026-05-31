@@ -28,6 +28,8 @@ Thumbs.db
 /data/chunks/
 /data/images/
 /data/mineru/
+/data/audit/
+/data/corrections/candidates/
 /data/manifest.json
 /db/
 /logs/
