@@ -15,7 +15,7 @@ from .. import (
     require_roles,
 )
 from ..models import Article, User
-from ..utils import compute_etag
+from ..utils import audit_log, compute_etag
 
 users_bp = Blueprint('users', __name__)
 
@@ -186,7 +186,8 @@ def change_role(user_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'code':5001,'message':'database error','data':str(e)}), 500
-    
+
+    audit_log('user:role_change', getattr(request, 'user_id', 0), f"用户 {user_id} 角色变更: {old} → {u.role}")
     return jsonify({'code':0,'message':'ok','data':{'id':u.id,'old_role':old,'new_role':u.role}})
 
 @users_bp.route('/public/<int:user_id>', methods=['GET'])

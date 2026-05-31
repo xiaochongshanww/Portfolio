@@ -1,20 +1,23 @@
-import secrets
-import uuid
-from datetime import datetime, timedelta, timezone
+"""认证路由 — 仅负责 HTTP 编排，业务逻辑委托给 service.py"""
 
-import jwt
+import secrets
+from datetime import datetime, timezone
+
 from flask import Blueprint, current_app, jsonify, make_response, request
 
-from .. import (  # 添加 redis_client 方便 monkeypatch
-    bcrypt,
-    db,
-    limiter,
-    redis_client,
-    require_auth,
-)
+from .. import bcrypt, db, limiter, require_auth
 from ..models import User
-
-# 仅使用正式 PyJWT，不再包含最小 fallback 实现
+from .service import (
+    authenticate,
+    change_password,
+    check_brute_force,
+    clear_brute_force,
+    generate_tokens,
+    record_login_failure,
+    refresh_tokens,
+    register_user,
+    revoke_refresh,
+)
 
 # pydantic 验证
 try:
@@ -65,62 +68,29 @@ else:
     class LoginModel: pass
     class ChangePasswordModel: pass
 
-def _redis():
-    # 优先使用测试 monkeypatch 的模块级 redis_client（FakeRedis），否则再取 app.extensions
-    try:
-        from .. import redis_client as global_rc
-    except Exception:
-        global_rc = None
-    # 模块内（本文件）可能也被 monkeypatch
-    module_rc = globals().get('redis_client')
-    for candidate in (module_rc, global_rc):
-        if candidate is not None:
-            # 若是 Fake* 实例直接使用
-            if candidate.__class__.__name__.lower().startswith('fake'):
-                return candidate
-    if module_rc is not None:
-        return module_rc
-    if global_rc is not None:
-        return global_rc
-    if current_app:
-        return current_app.extensions.get('redis_client')
-    return None
 
-def generate_tokens(user_id, role):
-    secret = current_app.config['JWT_SECRET_KEY']
-    now = datetime.now(timezone.utc)
-    access_jti = str(uuid.uuid4())
-    refresh_jti = str(uuid.uuid4())
-    user_sub = str(user_id)  # PyJWT 要求 sub 为字符串
-    access_payload = {
-        'sub': user_sub,
-        'role': role,
-        'type': 'access',
-        'jti': access_jti,
-        'exp': now + timedelta(minutes=current_app.config['JWT_ACCESS_MINUTES']),
-        'iat': now
-    }
-    refresh_payload = {
-        'sub': user_sub,
-        'role': role,
-        'type': 'refresh',
-        'jti': refresh_jti,
-        'exp': now + timedelta(days=current_app.config['JWT_REFRESH_DAYS']),
-        'iat': now
-    }
-    access = jwt.encode(access_payload, secret, algorithm='HS256')
-    refresh = jwt.encode(refresh_payload, secret, algorithm='HS256')
-    rc = _redis()
-    if rc:
-        ttl = int((refresh_payload['exp'] - now).total_seconds())
-        try:
-            rc.setex(f'refresh:allow:{refresh_jti}', ttl, '1')
-            rc.setex(f'refresh:user:{user_sub}:{refresh_jti}', ttl, '1')
-            # 记录当前最新 refresh jti
-            rc.setex(f'refresh:current:{user_sub}', ttl, refresh_jti)
-        except Exception:
-            pass
-    return access, refresh
+def _make_security_event(event_type, description, user_id=None, severity='low', source_ip=None, extra=None):
+    """记录安全事件（容错）。"""
+    try:
+        from ..security import log_security_event
+        log_security_event(
+            event_type=event_type,
+            description=description,
+            source_ip=source_ip or request.remote_addr or '0.0.0.0',
+            user_id=user_id,
+            severity=severity,
+            additional_data=extra or {},
+        )
+    except Exception:
+        pass
+
+
+def _issue_csrf(resp):
+    """生成/刷新简易 CSRF Token (双提交 cookie 模式)。"""
+    token = secrets.token_hex(16)
+    resp.set_cookie('XSRF-TOKEN', token, httponly=False, samesite='Lax')
+    return token
+
 
 @auth_bp.route('/register', methods=['POST'])
 @limiter.limit('5/minute')
@@ -129,22 +99,15 @@ def register():
     try:
         parsed = RegisterModel(**data)
     except ValidationError as ve:
-        return jsonify({'code':4001,'message':'validation error','data':ve.errors()}), 400
-    if not getattr(parsed,'email', None) or not getattr(parsed,'password', None):
-        return jsonify({'code':4001,'message':'validation error'}), 400
-    if User.query.filter_by(email=parsed.email).first():
-        return jsonify({'code':4090,'message':'Email already exists'}), 409
-    pw_hash = bcrypt.generate_password_hash(parsed.password).decode('utf-8')
-    user = User(email=parsed.email, password_hash=pw_hash, role='author')
-    db.session.add(user)
-    db.session.commit()
-    return jsonify({'code':0,'data':{'id':user.id,'email':user.email},'message':'ok'}), 201
+        return jsonify({'code': 4001, 'message': 'validation error', 'data': ve.errors()}), 400
+    try:
+        user = register_user(parsed.email, parsed.password)
+        return jsonify({'code': 0, 'data': {'id': user.id, 'email': user.email}, 'message': 'ok'}), 201
+    except ValueError as e:
+        if str(e) == 'email_exists':
+            return jsonify({'code': 4090, 'message': 'Email already exists'}), 409
+        return jsonify({'code': 4001, 'message': str(e)}), 400
 
-def _issue_csrf(resp):
-    """生成/刷新简易 CSRF Token (双提交 cookie 模式)。前端提交变更请求时可通过 header X-XSRF-TOKEN 回传。"""
-    token = secrets.token_hex(16)
-    resp.set_cookie('XSRF-TOKEN', token, httponly=False, samesite='Lax')
-    return token
 
 @auth_bp.route('/login', methods=['POST'])
 @limiter.limit('10/minute')
@@ -153,209 +116,82 @@ def login():
     try:
         parsed = LoginModel(**data)
     except ValidationError as ve:
-        return jsonify({'code':4001,'message':'validation error','data':ve.errors()}), 400
-    # 暴力破解防护：Redis 计数 (email+ip)
-    rc = _redis()
-    ip = request.remote_addr or '0.0.0.0'
-    bf_key = f"login:bf:{getattr(parsed,'email','')}:{ip}"
-    if rc:
-        try:
-            fails = int(rc.get(bf_key) or 0)
-            if fails >= 5:
-                return jsonify({'code':4290,'message':'too many failed attempts'}), 429
-        except Exception:
-            pass
-    user = User.query.filter_by(email=getattr(parsed,'email', None)).first()
-    if not user or not bcrypt.check_password_hash(user.password_hash, getattr(parsed,'password','')):
-        if rc:
-            try:
-                new_fails = rc.incr(bf_key)
-                if new_fails == 1:
-                    rc.expire(bf_key, 900)  # 15 分钟窗口
-                
-                # 记录安全事件
-                try:
-                    from ..security import log_security_event
+        return jsonify({'code': 4001, 'message': 'validation error', 'data': ve.errors()}), 400
 
-                    # 单次登录失败
-                    log_security_event(
-                        event_type='login_failure',
-                        description=f'登录失败: {getattr(parsed, "email", "unknown")}',
-                        source_ip=ip,
-                        user_id=user.id if user else None,
-                        severity='low',
-                        additional_data={'email': getattr(parsed, 'email', '')}
-                    )
-                    
-                    # 检测暴力破解
-                    if new_fails >= 3:
-                        log_security_event(
-                            event_type='brute_force_attack',
-                            description=f'检测到暴力破解攻击: {getattr(parsed, "email", "unknown")}, 失败次数: {new_fails}',
-                            source_ip=ip,
-                            user_id=user.id if user else None,
-                            severity='high' if new_fails >= 5 else 'medium',
-                            additional_data={
-                                'email': getattr(parsed, 'email', ''),
-                                'failed_attempts': new_fails,
-                                'window_seconds': 900
-                            }
-                        )
-                except Exception as e:
-                    # 不让安全日志错误影响登录流程
-                    pass
-                    
-            except Exception:
-                pass
-        else:
-            # 即使没有Redis也要记录安全事件
-            try:
-                from ..security import log_security_event
-                log_security_event(
-                    event_type='login_failure',
-                    description=f'登录失败: {getattr(parsed, "email", "unknown")}',
-                    source_ip=ip,
-                    user_id=user.id if user else None,
-                    severity='low',
-                    additional_data={'email': getattr(parsed, 'email', '')}
-                )
-            except Exception:
-                pass
-                
-        return jsonify({'code':4010,'message':'Invalid credentials'}), 401
-    access, refresh = generate_tokens(user.id, user.role)
-    resp = make_response(jsonify({'code':0,'data':{'access_token':access,'role':user.role},'message':'ok'}))
+    email = parsed.email
+    password = parsed.password
+    ip = request.remote_addr or '0.0.0.0'
+
+    # 暴力破解防护
+    fails = check_brute_force(email, ip)
+    if fails >= 5:
+        return jsonify({'code': 4290, 'message': 'too many failed attempts'}), 429
+
+    result = authenticate(email, password)
+    if not result:
+        new_fails = record_login_failure(email, ip)
+        _make_security_event(
+            'login_failure', f'登录失败: {email}',
+            severity='low', extra={'email': email},
+        )
+        if new_fails >= 3:
+            _make_security_event(
+                'brute_force_attack',
+                f'检测到暴力破解: {email}, 失败: {new_fails}次',
+                severity='high' if new_fails >= 5 else 'medium',
+                extra={'email': email, 'failed_attempts': new_fails},
+            )
+        return jsonify({'code': 4010, 'message': 'Invalid credentials'}), 401
+
+    user, access, refresh = result
+    clear_brute_force(email, ip)
+    _make_security_event(
+        'login_success', f'用户登录成功: {email}',
+        severity='info', user_id=user.id,
+        extra={'role': user.role, 'user_agent': (request.headers.get('User-Agent', '')[:100] or '')},
+    )
+
+    resp = make_response(jsonify({'code': 0, 'data': {'access_token': access, 'role': user.role}, 'message': 'ok'}))
     resp.set_cookie('refresh_token', refresh, httponly=True, samesite='Lax')
     _issue_csrf(resp)
-    if rc:
-        try: rc.delete(bf_key)
-        except Exception: pass
-    
-    # 记录成功登录事件
-    try:
-        from ..security import log_security_event
-        log_security_event(
-            event_type='login_success',
-            description=f'用户登录成功: {user.email}',
-            source_ip=ip,
-            user_id=user.id,
-            severity='info',
-            additional_data={
-                'email': user.email,
-                'role': user.role,
-                'user_agent': request.headers.get('User-Agent', '')[:100] if request.headers.get('User-Agent') else ''
-            }
-        )
-    except Exception:
-        pass
-    
     return resp
+
 
 @auth_bp.route('/refresh', methods=['POST'])
 def refresh():
-    token = request.cookies.get('refresh_token')
-    # CSRF: 校验 header 与 cookie；前端需在刷新时附带
-    xsrf_cookie = request.cookies.get('XSRF-TOKEN')
-    xsrf_header = request.headers.get('X-XSRF-TOKEN')
-    if not xsrf_cookie or not xsrf_header or xsrf_cookie != xsrf_header:
-        return jsonify({'code':4010,'message':'csrf check failed'}), 401
-    if not token:
-        return jsonify({'code':4010,'message':'missing refresh token'}), 401
-    try:
-        payload = jwt.decode(token, current_app.config['JWT_SECRET_KEY'], algorithms=['HS256'])
-        if payload.get('type') != 'refresh':
-            raise ValueError('not refresh')
-        jti = payload.get('jti')
-        sub = payload.get('sub')
-        rc = _redis()
-        if rc:
-            current_jti = rc.get(f'refresh:current:{sub}') if hasattr(rc, 'get') else None
-            if rc.get(f'refresh:blacklist:{jti}') or not rc.get(f'refresh:allow:{jti}') or (current_jti and current_jti != jti):
-                return jsonify({'code':4010,'message':'refresh token revoked'}), 401
-    except Exception:
-        return jsonify({'code':4010,'message':'invalid refresh token'}), 401
-    new_access, new_refresh = generate_tokens(payload['sub'], payload.get('role'))
-    rc = _redis()
-    if rc and payload.get('jti'):
-        ttl = int(payload['exp'] - datetime.now(timezone.utc).timestamp())
-        if ttl > 0:
-            try: rc.setex(f"refresh:blacklist:{payload['jti']}", ttl, '1')
-            except Exception: pass
-        try: rc.delete(f"refresh:allow:{payload.get('jti')}")
-        except Exception: pass
-    resp = make_response(jsonify({'code':0,'data':{'access_token':new_access},'message':'ok'}))
+    result = refresh_tokens(
+        request.cookies.get('refresh_token'),
+        request.cookies.get('XSRF-TOKEN'),
+        request.headers.get('X-XSRF-TOKEN'),
+    )
+    if not result:
+        return jsonify({'code': 4010, 'message': 'refresh failed'}), 401
+    new_access, new_refresh = result
+    resp = make_response(jsonify({'code': 0, 'data': {'access_token': new_access}, 'message': 'ok'}))
     resp.set_cookie('refresh_token', new_refresh, httponly=True, samesite='Lax')
     _issue_csrf(resp)
     return resp
 
+
 @auth_bp.route('/logout', methods=['POST'])
 @require_auth
 def logout():
-    token = request.cookies.get('refresh_token')
-    rc = _redis()
-    if token and rc:
-        try:
-            payload = jwt.decode(token, current_app.config['JWT_SECRET_KEY'], algorithms=['HS256'])
-            if payload.get('type') == 'refresh':
-                ttl = int(payload['exp'] - datetime.now(timezone.utc).timestamp())
-                if ttl > 0:
-                    try:
-                        rc.setex(f"refresh:blacklist:{payload.get('jti')}", ttl, '1')
-                    except Exception:
-                        pass
-        except Exception:
-            pass
-    resp = jsonify({'code':0,'message':'ok'})
-    # 删除根路径 cookie
+    revoke_refresh(request.cookies.get('refresh_token'))
+    resp = jsonify({'code': 0, 'message': 'ok'})
     resp.delete_cookie('refresh_token')
     return resp
+
 
 @auth_bp.route('/change_password', methods=['POST'])
 @require_auth
 @limiter.limit('5/minute')
-def change_password():
+def change_password_route():
     data = request.get_json() or {}
     try:
         parsed = ChangePasswordModel(**data)
     except ValidationError as ve:
-        return jsonify({'code':4001,'message':'validation error','data':ve.errors()}), 400
-    user = User.query.filter_by(email=getattr(parsed,'email', None)).first()
-    if not user or not bcrypt.check_password_hash(user.password_hash, getattr(parsed,'old_password','')):
-        return jsonify({'code':4010,'message':'invalid credentials'}), 401
-    user.password_hash = bcrypt.generate_password_hash(parsed.new_password).decode('utf-8')
-    db.session.commit()
-    rc = _redis() or redis_client
-    if rc:
-        try:
-            allow_keys = []
-            user_keys = []
-            # 扫描 allow
-            try:
-                for k in rc.scan_iter(match='refresh:allow:*'):
-                    allow_keys.append(k)
-            except Exception:
-                store = getattr(rc, 'store', {})
-                allow_keys = [k for k in store.keys() if k.startswith('refresh:allow:')]
-            # 扫描 user
-            try:
-                for k in rc.scan_iter(match=f'refresh:user:{user.id}:*'):
-                    user_keys.append(k)
-            except Exception:
-                store = getattr(rc, 'store', {})
-                user_keys = [k for k in store.keys() if k.startswith(f'refresh:user:{user.id}:')]
-            # 将所有 allow/user 关联的 jti 加入黑名单并删除 key
-            for k in allow_keys + user_keys:
-                parts = k.split(':')
-                jti = parts[-1]
-                try:
-                    rc.setex(f'refresh:blacklist:{jti}', 3600, '1')
-                except Exception:
-                    pass
-                try:
-                    rc.delete(k)
-                except Exception:
-                    pass
-        except Exception:
-            pass
-    return jsonify({'code':0,'message':'ok'})
-
+        return jsonify({'code': 4001, 'message': 'validation error', 'data': ve.errors()}), 400
+    ok, msg = change_password(parsed.email, parsed.old_password, parsed.new_password)
+    if not ok:
+        return jsonify({'code': 4010, 'message': msg}), 401
+    return jsonify({'code': 0, 'message': 'ok'})

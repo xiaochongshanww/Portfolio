@@ -278,5 +278,5 @@ def search():
     if request.headers.get('If-None-Match') == etag:
         return ('',304,{'ETag': etag})
     if redis_client:
-        redis_client.setex(cache_key, 60, json.dumps(resp_obj, ensure_ascii=False))
+        redis_client.setex(cache_key, current_app.config.get('CACHE_SEARCH_TTL', 60), json.dumps(resp_obj, ensure_ascii=False))
     resp = jsonify(resp_obj); resp.headers['ETag'] = etag; return resp

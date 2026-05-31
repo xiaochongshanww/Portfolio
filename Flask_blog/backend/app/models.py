@@ -107,7 +107,7 @@ class ArticleBookmark(db.Model):
 class AuditLog(db.Model):
     __tablename__ = 'audit_logs'
     id = db.Column(db.Integer, primary_key=True)
-    article_id = db.Column(db.Integer, db.ForeignKey('articles.id'), index=True, nullable=False)
+    article_id = db.Column(db.Integer, db.ForeignKey('articles.id'), index=True, nullable=True)
     operator_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     action = db.Column(db.String(50), nullable=False)  # submit/approve/reject/unpublish/schedule/unschedule/delete/rollback
     note = db.Column(db.String(500))

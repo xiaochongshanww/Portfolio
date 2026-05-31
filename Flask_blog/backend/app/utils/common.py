@@ -27,6 +27,22 @@ def render_markdown(raw: str) -> str:  # noqa: E305
     cleaned = bleach.clean(html, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRS, strip=True)
     return cleaned
 
+def audit_log(action: str, operator_id: int, note: str = None, article_id: int = None):
+    """通用审计日志。"""
+    try:
+        from .. import db
+        from ..models import AuditLog
+        al = AuditLog(article_id=article_id, operator_id=operator_id, action=action, note=note)
+        db.session.add(al)
+        db.session.commit()
+    except Exception:
+        try:
+            from .. import db
+            db.session.rollback()
+        except Exception:
+            pass
+
+
 def compute_etag(obj) -> str:
     """根据对象（dict/列表/字符串）生成稳定 ETag。"""
     try:

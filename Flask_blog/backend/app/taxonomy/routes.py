@@ -6,6 +6,7 @@ from sqlalchemy import and_, func
 
 from .. import db, require_auth, require_roles
 from ..models import Category, Tag
+from ..utils import audit_log
 
 taxonomy_bp = Blueprint('taxonomy', __name__)
 
@@ -100,6 +101,7 @@ def create_category():
     c = Category(name=data.name, slug=slug, parent_id=parent.id if parent else None)
     db.session.add(c)
     db.session.commit()
+    audit_log('category:create', getattr(request, 'user_id', 0), f"创建分类: {c.name} (slug={c.slug})")
     return jsonify({'code':0,'message':'ok','data':{'id':c.id,'name':c.name,'slug':c.slug,'parent_id':c.parent_id}}), 201
 
 @taxonomy_bp.route('/categories/', methods=['GET'])
@@ -139,6 +141,7 @@ def update_category(cid):
             return jsonify({'code':4040,'message':'parent not found'}), 404
         c.parent_id = parent.id
     db.session.commit()
+    audit_log('category:update', getattr(request, 'user_id', 0), f"更新分类 {cid}: {c.name}")
     return jsonify({'code':0,'message':'ok','data':{'id':c.id,'name':c.name,'slug':c.slug,'parent_id':c.parent_id}})
 
 @taxonomy_bp.route('/categories/<int:cid>', methods=['DELETE'])
@@ -155,7 +158,8 @@ def delete_category(cid):
     
     db.session.delete(c)
     db.session.commit()
-    
+    audit_log('category:delete', getattr(request, 'user_id', 0), f"删除分类 {cid}: {c.name}")
+
     return jsonify({
         'code': 0, 
         'message': 'ok',
@@ -178,6 +182,7 @@ def create_tag():
     t = Tag(name=data.name.strip(), slug=slug)
     db.session.add(t)
     db.session.commit()
+    audit_log('tag:create', getattr(request, 'user_id', 0), f"创建标签: {t.name}")
     return jsonify({'code':0,'message':'ok','data':{'id':t.id,'name':t.name,'slug':t.slug}}), 201
 
 @taxonomy_bp.route('/tags/', methods=['GET'])
@@ -203,6 +208,7 @@ def update_tag(tid):
             return jsonify({'code':4090,'message':'slug exists'}), 409
         t.slug = data.slug
     db.session.commit()
+    audit_log('tag:update', getattr(request, 'user_id', 0), f"更新标签 {tid}: {t.name}")
     return jsonify({'code':0,'message':'ok','data':{'id':t.id,'name':t.name,'slug':t.slug}})
 
 @taxonomy_bp.route('/tags/<int:tid>', methods=['DELETE'])
@@ -216,6 +222,7 @@ def delete_tag(tid):
         return jsonify({'code':4002,'message':'tag in use'}), 400
     db.session.delete(t)
     db.session.commit()
+    audit_log('tag:delete', getattr(request, 'user_id', 0), f"删除标签 {tid}: {t.name}")
     return jsonify({'code':0,'message':'ok'})
 
 # Public endpoints for unauthenticated access

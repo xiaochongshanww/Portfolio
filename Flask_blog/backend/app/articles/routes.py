@@ -67,7 +67,7 @@ def add_cache_headers(response):
     """为公开接口添加 CDN 缓存头。"""
     if response.status_code == 200 and request.path.startswith('/articles/public/'):
         if 'Cache-Control' not in response.headers:
-            response.headers['Cache-Control'] = 'public, max-age=60'
+            response.headers['Cache-Control'] = f"public, max-age={current_app.config['PUBLIC_CACHE_MAX_AGE']}"
     return response
 
 
@@ -164,7 +164,7 @@ def get_article(article_id):
     data = serialize_article(article, detail=True, include_user_flags=True, user_id=user_id)
     if redis_client and article.status == 'published':
         try:
-            cache_track_set(cache_key, 300, json.dumps(data))
+            cache_track_set(cache_key, current_app.config['CACHE_ARTICLE_DETAIL_TTL'], json.dumps(data))
         except Exception:
             pass
 
@@ -250,7 +250,7 @@ def list_articles():
         return ('', 304, {'ETag': etag})
     if redis_client:
         try:
-            cache_track_set(cache_key, 120, json.dumps(payload))
+            cache_track_set(cache_key, current_app.config['CACHE_ARTICLE_LIST_TTL'], json.dumps(payload))
         except Exception:
             pass
     resp = jsonify({'code': 0, 'data': payload, 'message': 'ok'})
@@ -282,7 +282,7 @@ def get_article_by_slug(slug):
     data = serialize_article(article, detail=True, include_user_flags=True, user_id=getattr(request, 'user_id', None))
     if redis_client and article.status == 'published':
         try:
-            cache_track_set(cache_key, 300, json.dumps(data))
+            cache_track_set(cache_key, current_app.config['CACHE_ARTICLE_DETAIL_TTL'], json.dumps(data))
         except Exception:
             pass
     etag = compute_etag(data)
@@ -581,7 +581,7 @@ def public_list_articles():
     }
     if redis_client:
         try:
-            cache_track_set(cache_key, 120, json.dumps(data_payload))
+            cache_track_set(cache_key, current_app.config['CACHE_PUBLIC_LIST_TTL'], json.dumps(data_payload))
         except Exception:
             pass
     etag = compute_etag(data_payload)
@@ -649,7 +649,7 @@ def public_article_by_slug(slug):
 
     if redis_client and not user_id:
         try:
-            cache_track_set(cache_key, 120, json.dumps(data))
+            cache_track_set(cache_key, current_app.config['CACHE_PUBLIC_ARTICLE_TTL'], json.dumps(data))
         except Exception:
             pass
     etag = compute_etag(data)
