@@ -19,7 +19,10 @@
     "governance:sync": "node scripts/sync-governance.mjs",
     "governance:check": "node scripts/check-governance-drift.mjs",
     "test": "vitest run",
-    "test:ui": "vitest"
+    "test:ui": "vitest",
+    "test:cov": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install --with-deps chromium"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
