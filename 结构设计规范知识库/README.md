@@ -121,6 +121,7 @@ python src/main.py
 - [产品化实施方案](./PRODUCTIZATION_PLAN.md)：从可运行原型升级为成熟产品的阶段路线、验收标准和近期执行清单。
 - [RAG 技术方案演进记录](./RAG_OPTIMIZATION.md)：检索、多模态、PDF 解析和质量优化过程中的决策记录。
 - [AI 校对修正层实施方案](./AI_CORRECTION_PLAN.md)：MinerU 解析后的规则审计、AI 候选和人工批准修正流程。
+- [阶段六 MinerU 环境执行交接文档](./STAGE6_MINERU_HANDOFF.md)：在另一台具备 MinerU 的环境中继续构建、验收和带回结果的操作手册。
 
 ## 🧱 当前工程结构
 
