@@ -8,11 +8,14 @@ import os
 import shutil
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
 from flask import current_app
+
 try:
-    from cryptography.fernet import Fernet
     import base64
+
+    from cryptography.fernet import Fernet
     CRYPTOGRAPHY_AVAILABLE = True
 except ImportError:
     CRYPTOGRAPHY_AVAILABLE = False

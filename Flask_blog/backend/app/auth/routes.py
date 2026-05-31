@@ -1,12 +1,21 @@
-from flask import Blueprint, request, jsonify, current_app, make_response
-from datetime import datetime, timedelta, timezone
-import jwt, uuid
 import secrets
+import uuid
+from datetime import datetime, timedelta, timezone
+
+import jwt
+from flask import Blueprint, current_app, jsonify, make_response, request
+
+from .. import (  # 添加 redis_client 方便 monkeypatch
+    bcrypt,
+    db,
+    limiter,
+    redis_client,
+    require_auth,
+)
+from ..models import User
 
 # 仅使用正式 PyJWT，不再包含最小 fallback 实现
 
-from .. import db, bcrypt, limiter, redis_client  # 添加 redis_client 方便 monkeypatch
-from ..models import User
 # pydantic 验证
 try:
     from pydantic import BaseModel, EmailStr, ValidationError, field_validator
@@ -167,7 +176,7 @@ def login():
                 # 记录安全事件
                 try:
                     from ..security import log_security_event
-                    
+
                     # 单次登录失败
                     log_security_event(
                         event_type='login_failure',
@@ -280,6 +289,7 @@ def refresh():
     return resp
 
 @auth_bp.route('/logout', methods=['POST'])
+@require_auth
 def logout():
     token = request.cookies.get('refresh_token')
     rc = _redis()
@@ -301,6 +311,7 @@ def logout():
     return resp
 
 @auth_bp.route('/change_password', methods=['POST'])
+@require_auth
 @limiter.limit('5/minute')
 def change_password():
     data = request.get_json() or {}

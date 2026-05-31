@@ -6,6 +6,15 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-    setupFiles: './vitest.setup.ts'
-  }
+    setupFiles: './vitest.setup.ts',
+    coverage: {
+      provider: 'v8',
+      enabled: false,
+      include: ['src/stores/', 'src/views/Login.vue', 'src/components/ArticleContentRenderer.vue'],
+      thresholds: {
+        lines: 20,
+        statements: 20,
+      },
+    },
+  },
 });

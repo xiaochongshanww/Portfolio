@@ -1,6 +1,7 @@
 import os
+from typing import Dict, List, Tuple
+
 from PIL import Image
-from typing import List, Dict, Tuple
 
 # Reuse size labels consistent with upload variants
 SIZE_VARIANTS: List[Tuple[str, int]] = [

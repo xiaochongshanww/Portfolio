@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { permission } from '../src/directives/permission';
 import { setActivePinia, createPinia } from 'pinia';
-import { useSessionStore } from '../src/stores/session.js';
+import { useUserStore } from '../src/stores/user.js';
 
 // Mock ROLE_MATRIX via jest-like manual override (the directive imports from governance/index.js)
 vi.mock('../src/governance/index.js', ()=>({
@@ -10,8 +10,8 @@ vi.mock('../src/governance/index.js', ()=>({
 
 describe('permission directive', ()=>{
   setActivePinia(createPinia());
-  const session = useSessionStore();
-  session.setAuth('t','author');
+  const user = useUserStore();
+  user.setAuth('t','author');
 
   it('allows element for permitted role', ()=>{
     const el:any = document.createElement('div');
@@ -20,7 +20,7 @@ describe('permission directive', ()=>{
   });
 
   it('hides element for not permitted role', ()=>{
-    session.setAuth('t','guest');
+    user.setAuth('t','guest');
     const el:any = document.createElement('div');
   (permission as any).beforeMount(el, { value: 'articles:create' });
     expect(el.style.display).toBe('none');

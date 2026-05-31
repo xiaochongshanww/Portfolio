@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "postinstall": "node scripts/download-openapi.mjs && npm run errors:generate || echo 'codegen skipped (backend may not be running)'",
     "lh": "lighthouse http://localhost:5173/ --preset=mobile --output=json --output-path=./.lighthouse-temp.json",
     "lh:ci": "lhci autorun",
     "lint": "eslint src",

@@ -25,6 +25,10 @@ export default defineConfig({
     }
   },
   build: {
+    minify: 'esbuild',
+    esbuild: {
+      drop: process.env.NODE_ENV === 'production' ? ['console'] : [],
+    },
     rollupOptions: {
       output: {
         manualChunks: {

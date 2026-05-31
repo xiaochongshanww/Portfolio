@@ -8,8 +8,10 @@
 运行时将权限码映射到 ROLE_MATRIX（从 OpenAPI 生成或手动同步），并在非法操作时抛出统一 BusinessError。
 """
 from functools import wraps
-from flask import request, jsonify, current_app
 from typing import Callable, Iterable, Optional
+
+from flask import current_app, jsonify, request
+
 
 # 业务异常
 class BusinessError(Exception):

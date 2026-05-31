@@ -1,4 +1,5 @@
 import os
+
 from meilisearch import Client
 
 MEILI_URL = os.getenv('MEILI_URL','http://127.0.0.1:7700')

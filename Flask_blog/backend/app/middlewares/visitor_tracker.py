@@ -1,6 +1,7 @@
 """访客追踪中间件"""
 
-from flask import request, g
+from flask import g, request
+
 from ..services.visitor_tracker import VisitorTracker
 
 

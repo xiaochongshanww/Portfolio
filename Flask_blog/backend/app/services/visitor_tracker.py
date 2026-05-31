@@ -1,13 +1,15 @@
 """访客统计追踪服务"""
 
 import hashlib
-from datetime import datetime, date
-from sqlalchemy import func, and_
-from sqlalchemy.exc import IntegrityError
-from flask import request
-from .. import db
-from ..models import VisitorStats, DailyStats, SHANGHAI_TZ
 import logging
+from datetime import date, datetime
+
+from flask import request
+from sqlalchemy import and_, func
+from sqlalchemy.exc import IntegrityError
+
+from .. import db
+from ..models import SHANGHAI_TZ, DailyStats, VisitorStats
 
 logger = logging.getLogger(__name__)
 

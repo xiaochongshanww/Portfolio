@@ -8,12 +8,13 @@
 - 支持物理文件验证和状态修复
 """
 
-from datetime import datetime, timezone, timedelta
-from flask_sqlalchemy import SQLAlchemy
-from typing import Optional, Dict, Any, List
 import json
 import os
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from flask_sqlalchemy import SQLAlchemy
 
 # 使用独立的SQLAlchemy实例，配置为SQLite
 external_db = SQLAlchemy()
@@ -24,7 +25,7 @@ try:
     SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
 except ImportError:
     # Python 3.8及以下版本的兼容性处理
-    from datetime import timezone, timedelta
+    from datetime import timedelta, timezone
     SHANGHAI_TZ = timezone(timedelta(hours=8))
 
 
@@ -153,11 +154,11 @@ class BackupRecordExternal(external_db.Model):
         """检查Docker Volume物理备份是否可用"""
         try:
             import subprocess
-            
+
             # 尝试检查是否有相关的Docker资源
             # 这里使用保守策略：如果无法验证，就认为备份可能存在
             # 避免误删除正确的备份状态
-            
+
             # 检查Docker是否可用
             result = subprocess.run(['docker', 'version'], 
                                   capture_output=True, text=True, timeout=5)
@@ -522,7 +523,7 @@ class ExternalMetadataManager:
         """独立模式初始化数据库"""
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
-        
+
         # 创建引擎和会话
         self._standalone_engine = create_engine(self.db_path, echo=False)
         
@@ -929,6 +930,7 @@ class ExternalMetadataManager:
         """获取新的独立数据库会话（用于避免会话状态冲突）"""
         if self._standalone_engine:
             from contextlib import contextmanager
+
             from sqlalchemy.orm import sessionmaker
             
             @contextmanager
@@ -1155,8 +1157,9 @@ class ExternalMetadataManager:
         """从MySQL备份记录同步到外部数据库"""
         try:
             # 需要在Flask应用上下文中调用
+            from flask import current_app, has_app_context
+
             from ..models import BackupRecord
-            from flask import has_app_context, current_app
             
             if not has_app_context():
                 return 0
@@ -1236,10 +1239,12 @@ class ExternalMetadataManager:
     def sync_to_mysql_backup_records(self) -> int:
         """从外部数据库同步到MySQL备份记录"""  
         try:
-            from ..models import BackupRecord
-            from .. import db
-            from flask import has_app_context, current_app
             import json
+
+            from flask import current_app, has_app_context
+
+            from .. import db
+            from ..models import BackupRecord
             
             if not has_app_context():
                 return 0

@@ -1,9 +1,11 @@
-from flask import Blueprint, jsonify, request
-from .. import db, require_roles
-from ..models import User, Article, Comment, Tag, Category
-from ..services.visitor_tracker import VisitorTracker
 import logging
 from datetime import datetime
+
+from flask import Blueprint, jsonify, request
+
+from .. import db, limiter, require_roles
+from ..models import Article, Category, Comment, Tag, User
+from ..services.visitor_tracker import VisitorTracker
 
 metrics_bp = Blueprint('metrics', __name__)
 logger = logging.getLogger(__name__)
@@ -104,15 +106,17 @@ def get_visitor_stats():
 
 
 @metrics_bp.route('/track', methods=['POST'])
+@limiter.limit('60/minute')
 def track_visit():
     """记录访问（由前端页面调用）"""
     try:
         logger.info("Track API called")
         
         # 直接测试数据库操作
-        from ..models import VisitorStats, DailyStats, SHANGHAI_TZ
-        from datetime import datetime
         import hashlib
+        from datetime import datetime
+
+        from ..models import SHANGHAI_TZ, DailyStats, VisitorStats
         
         ip_address = request.remote_addr or '127.0.0.1'
         user_agent = request.headers.get('User-Agent', '')

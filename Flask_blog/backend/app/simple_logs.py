@@ -3,11 +3,13 @@
 直接集成到现有Flask应用中，使用最简单的认证方式
 """
 
-from flask import Blueprint, request, jsonify, current_app
-from sqlalchemy import desc, and_, func
 from datetime import datetime, timedelta
+
+from flask import Blueprint, current_app, jsonify, request
+from sqlalchemy import and_, desc, func
+
 from . import db
-from .models import LogEntry, LogConfig, User
+from .models import LogConfig, LogEntry, User
 
 simple_logs_bp = Blueprint('simple_logs', __name__)
 

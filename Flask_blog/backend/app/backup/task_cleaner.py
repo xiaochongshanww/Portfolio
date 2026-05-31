@@ -4,15 +4,17 @@
 定期清理卡死的备份和恢复任务，维护系统健康状态
 """
 
+import logging
 import threading
 import time
-import logging
 from datetime import datetime, timedelta
-from typing import Dict, Any
+from typing import Any, Dict
+
 from flask import Flask, current_app
-from sqlalchemy.exc import OperationalError, DisconnectionError
+from sqlalchemy.exc import DisconnectionError, OperationalError
+
 from .. import db
-from ..models import BackupRecord, RestoreRecord, SHANGHAI_TZ
+from ..models import SHANGHAI_TZ, BackupRecord, RestoreRecord
 
 
 class TaskCleaner:

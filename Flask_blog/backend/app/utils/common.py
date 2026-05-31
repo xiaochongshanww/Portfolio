@@ -1,7 +1,8 @@
-import markdown as md
-import bleach
 import hashlib
 import json
+
+import bleach
+import markdown as md
 
 ALLOWED_TAGS = bleach.sanitizer.ALLOWED_TAGS.union({
     'p','pre','code','img','h1','h2','h3','h4','h5','h6','span','blockquote','hr','br','ul','ol','li','strong','em','table','thead','tbody','tr','th','td','a'

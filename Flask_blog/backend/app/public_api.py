@@ -1,16 +1,18 @@
-from flask import Blueprint, request, jsonify
-from .models import Article, Category, Tag
-from . import redis_client, db
-from .utils import compute_etag
 from datetime import datetime
+
+from flask import Blueprint, jsonify, request
+
+from . import db, redis_client
+from .models import Article, Category, Tag
+from .utils import compute_etag
 
 public_bp = Blueprint('public_api', __name__)
 
 # 只读列表：已发布 + 未删除
 
 def _serialize_article_brief(a: Article, user_id=None):
-    from .models import ArticleLike, ArticleBookmark  # 导入模型
-    
+    from .models import ArticleBookmark, ArticleLike  # 导入模型
+
     # 正确计算点赞数
     likes_count = ArticleLike.query.filter_by(article_id=a.id).count()
     
@@ -165,9 +167,10 @@ def public_article_detail(slug_or_id):
 
 @public_bp.route('/taxonomy', methods=['GET'])
 def public_taxonomy():
-    from .models import Category, Tag, ArticleTag
-    from sqlalchemy import func, and_
-    
+    from sqlalchemy import and_, func
+
+    from .models import ArticleTag, Category, Tag
+
     # 添加调试信息
     print(f'[DEBUG] 开始查询分类和标签数据')
     

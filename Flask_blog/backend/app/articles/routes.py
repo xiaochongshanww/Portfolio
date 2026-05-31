@@ -3,26 +3,53 @@
 import json
 from datetime import datetime, timezone
 
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, current_app, jsonify, request
 
-from .. import db, require_auth, require_roles, limiter
+from .. import db, limiter, require_auth, require_roles
 from ..models import Article, ArticleVersion, AuditLog, Category
+from ..security.enforcer import BusinessError, permission_required, workflow_transition
 from ..utils import compute_etag
-from ..security.enforcer import permission_required, workflow_transition, BusinessError
 from .schemas import ArticleCreateModel, ArticleUpdateModel
 from .service import (
-    serialize_article, parse_dt, _view_fingerprint, _safe_article_slug,
-    invalidate_article_cache, log_action, try_index, try_remove_from_search,
-    create_article, update_article, create_version_snapshot, rollback_to_version, diff_versions,
-    approve_article as svc_approve,
-    reject_article as svc_reject,
-    submit_article as svc_submit,
-    schedule_article as svc_schedule,
-    unschedule_article as svc_unschedule,
-    unpublish_article as svc_unpublish,
-    delete_article as svc_delete,
-    toggle_like, toggle_bookmark,
-    check_article_visibility, _resolve_tags, _make_focal_crops,
+    _make_focal_crops,
+    _resolve_tags,
+    _safe_article_slug,
+    _view_fingerprint,
+)
+from .service import approve_article as svc_approve
+from .service import (
+    cache_track_set,
+    check_article_visibility,
+    create_article,
+    create_version_snapshot,
+)
+from .service import delete_article as svc_delete
+from .service import (
+    diff_versions,
+    invalidate_article_cache,
+    log_action,
+    parse_dt,
+)
+from .service import reject_article as svc_reject
+from .service import (
+    rollback_to_version,
+)
+from .service import schedule_article as svc_schedule
+from .service import (
+    serialize_article,
+    serialize_articles_batch,
+)
+from .service import submit_article as svc_submit
+from .service import (
+    toggle_bookmark,
+    toggle_like,
+    try_index,
+    try_remove_from_search,
+)
+from .service import unpublish_article as svc_unpublish
+from .service import unschedule_article as svc_unschedule
+from .service import (
+    update_article,
 )
 
 try:
@@ -33,6 +60,15 @@ except Exception:
 articles_bp = Blueprint('articles', __name__)
 
 HAS_PY = True  # pydantic is always installed
+
+
+@articles_bp.after_request
+def add_cache_headers(response):
+    """为公开接口添加 CDN 缓存头。"""
+    if response.status_code == 200 and request.path.startswith('/articles/public/'):
+        if 'Cache-Control' not in response.headers:
+            response.headers['Cache-Control'] = 'public, max-age=60'
+    return response
 
 
 # ─── 创建 ─────────────────────────────────────────────────
@@ -128,7 +164,7 @@ def get_article(article_id):
     data = serialize_article(article, detail=True, include_user_flags=True, user_id=user_id)
     if redis_client and article.status == 'published':
         try:
-            redis_client.setex(cache_key, 300, json.dumps(data))
+            cache_track_set(cache_key, 300, json.dumps(data))
         except Exception:
             pass
 
@@ -206,7 +242,7 @@ def list_articles():
     payload = {
         'total': total, 'page': page, 'page_size': size,
         'has_next': page * size < total,
-        'list': [serialize_article(a) for a in items],
+        'list': serialize_articles_batch(items),
     }
 
     etag = compute_etag(payload)
@@ -214,7 +250,7 @@ def list_articles():
         return ('', 304, {'ETag': etag})
     if redis_client:
         try:
-            redis_client.setex(cache_key, 120, json.dumps(payload))
+            cache_track_set(cache_key, 120, json.dumps(payload))
         except Exception:
             pass
     resp = jsonify({'code': 0, 'data': payload, 'message': 'ok'})
@@ -246,7 +282,7 @@ def get_article_by_slug(slug):
     data = serialize_article(article, detail=True, include_user_flags=True, user_id=getattr(request, 'user_id', None))
     if redis_client and article.status == 'published':
         try:
-            redis_client.setex(cache_key, 300, json.dumps(data))
+            cache_track_set(cache_key, 300, json.dumps(data))
         except Exception:
             pass
     etag = compute_etag(data)
@@ -294,7 +330,7 @@ def list_bookmarks():
     payload = {
         'total': total, 'page': page, 'page_size': size,
         'has_next': page * size < total,
-        'list': [serialize_article(a) for a in items],
+        'list': serialize_articles_batch(items),
     }
     return jsonify({'code': 0, 'data': payload, 'message': 'ok'})
 
@@ -541,11 +577,11 @@ def public_list_articles():
     data_payload = {
         'total': total, 'page': page, 'page_size': size,
         'has_next': page * size < total,
-        'list': [serialize_article(a) for a in items],
+        'list': serialize_articles_batch(items),
     }
     if redis_client:
         try:
-            redis_client.setex(cache_key, 120, json.dumps(data_payload))
+            cache_track_set(cache_key, 120, json.dumps(data_payload))
         except Exception:
             pass
     etag = compute_etag(data_payload)
@@ -613,7 +649,7 @@ def public_article_by_slug(slug):
 
     if redis_client and not user_id:
         try:
-            redis_client.setex(cache_key, 120, json.dumps(data))
+            cache_track_set(cache_key, 120, json.dumps(data))
         except Exception:
             pass
     etag = compute_etag(data)
@@ -640,14 +676,12 @@ def public_hot_articles():
                     .offset(start).limit(size).all())
         total = Article.query.filter_by(deleted=False, status='published').count()
 
-        data_list = []
-        for a in articles:
-            item = serialize_article(a)
-            views = getattr(a, 'views_count', 0) or 0
+        data_list = serialize_articles_batch(articles)
+        for item in data_list:
+            views = item.get('views_count', 0) or 0
             item['views_count'] = views
             item['likes_count'] = 0
             item['score'] = views
-            data_list.append(item)
 
         payload = {
             'total': total, 'page': page, 'page_size': size,

@@ -4,18 +4,18 @@
 完全独立的恢复进程，避免所有SQLAlchemy会话冲突
 """
 
-import os
-import sys
-import subprocess
-import tempfile
-import tarfile
 import json
-import time
-from pathlib import Path
-from typing import Dict, Any, Optional
 import logging
+import os
+import subprocess
+import sys
+import tarfile
+import tempfile
+import time
 from datetime import datetime, timezone
 from logging.handlers import TimedRotatingFileHandler
+from pathlib import Path
+from typing import Any, Dict, Optional
 
 
 class SimpleRestoreEngine:
@@ -202,8 +202,8 @@ class SimpleRestoreEngine:
                 return {"success": False, "error": "SQL文件过滤失败"}
             
             # 将过滤后的内容写入临时文件，然后复制到容器
-            import tempfile
             import os
+            import tempfile
             with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', suffix='.sql', delete=False) as temp_filtered:
                 temp_filtered.write(filtered_content)
                 temp_filtered_path = temp_filtered.name
@@ -517,7 +517,7 @@ class SimpleRestoreEngine:
             
             # 使用正则表达式进行块级过滤
             import re
-            
+
             # 首先添加错误容忍机制，过滤可能不存在的表引用
             self.logger.info("添加错误容忍机制...")
             

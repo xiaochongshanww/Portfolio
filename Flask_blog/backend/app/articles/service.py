@@ -1,21 +1,32 @@
 """文章业务逻辑层 — 供 routes.py 编排调用"""
 
-import json
 import difflib
 import hashlib
+import json
 from datetime import datetime, timezone
 
 from flask import current_app, request
 from slugify import slugify
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
 from .. import db, redis_client
-from ..models import Article, Tag, ArticleTag, ArticleLike, ArticleBookmark, ArticleVersion, AuditLog, Category
-from ..utils import compute_etag
-from ..services.content_sanitizer import render_and_sanitize
-from ..search.indexer import index_article, delete_article as search_delete_article
-from ..services.image_variants import generate_focal_crops
+from ..models import (
+    Article,
+    ArticleBookmark,
+    ArticleLike,
+    ArticleTag,
+    ArticleVersion,
+    AuditLog,
+    Category,
+    Tag,
+)
+from ..search.indexer import delete_article as search_delete_article
+from ..search.indexer import index_article
 from ..security.enforcer import BusinessError
+from ..services.content_sanitizer import render_and_sanitize
+from ..services.image_variants import generate_focal_crops
+from ..utils import compute_etag
 
 # 指标
 try:
@@ -26,7 +37,26 @@ except Exception:
 
 # ─── 序列化 ───────────────────────────────────────────────
 
-def serialize_article(a: Article, detail=False, include_user_flags=False, user_id=None):
+def _batch_likes_bookmarks(article_ids: list[int]):
+    """批量预查点赞/收藏计数，避免 N+1。"""
+    if not article_ids:
+        return {}, {}
+    likes_q = db.session.query(ArticleLike.article_id, func.count()).filter(
+        ArticleLike.article_id.in_(article_ids)).group_by(ArticleLike.article_id).all()
+    bookmarks_q = db.session.query(ArticleBookmark.article_id, func.count()).filter(
+        ArticleBookmark.article_id.in_(article_ids)).group_by(ArticleBookmark.article_id).all()
+    likes_map = {row[0]: row[1] for row in likes_q}
+    bookmarks_map = {row[0]: row[1] for row in bookmarks_q}
+    return likes_map, bookmarks_map
+
+
+def serialize_article(a: Article, detail=False, include_user_flags=False, user_id=None,
+                      likes_count=None, bookmarks_count=None):
+    if likes_count is None:
+        likes_count = ArticleLike.query.filter_by(article_id=a.id).count()
+    if bookmarks_count is None:
+        bookmarks_count = ArticleBookmark.query.filter_by(article_id=a.id).count()
+
     data = {
         'id': a.id,
         'title': a.title,
@@ -42,8 +72,8 @@ def serialize_article(a: Article, detail=False, include_user_flags=False, user_i
         'published_at': a.published_at.isoformat() + 'Z' if a.published_at else None,
         'updated_at': a.updated_at.isoformat() + 'Z' if a.updated_at else None,
         'tags': [t.slug for t in a.tags],
-        'likes_count': ArticleLike.query.filter_by(article_id=a.id).count(),
-        'bookmarks_count': ArticleBookmark.query.filter_by(article_id=a.id).count(),
+        'likes_count': likes_count,
+        'bookmarks_count': bookmarks_count,
         'views_count': getattr(a, 'views_count', None),
         'content_excerpt': (a.content_md or '')[:200] if a.content_md else '',
     }
@@ -79,6 +109,18 @@ def serialize_article(a: Article, detail=False, include_user_flags=False, user_i
             data['bookmarked'] = False
 
     return data
+
+
+def serialize_articles_batch(articles: list[Article], detail=False):
+    """批量序列化文章列表，预查点赞/收藏计数避免 N+1。"""
+    ids = [a.id for a in articles]
+    likes_map, bookmarks_map = _batch_likes_bookmarks(ids)
+    return [
+        serialize_article(a, detail=detail,
+                          likes_count=likes_map.get(a.id, 0),
+                          bookmarks_count=bookmarks_map.get(a.id, 0))
+        for a in articles
+    ]
 
 
 # ─── 工具函数 ─────────────────────────────────────────────
@@ -180,30 +222,51 @@ def _make_focal_crops(featured_image, focal_x, focal_y):
 
 # ─── 缓存 ─────────────────────────────────────────────────
 
-def invalidate_article_cache(article_id=None, author_id=None):
+def _cache_track_key(cache_key: str):
+    """将缓存 key 加入失效索引，供批量清除使用。"""
     if not redis_client:
         return
     try:
+        redis_client.sadd('cache:idx:articles', cache_key)
+    except Exception:
+        pass
+
+
+def cache_track_set(key: str, value: str, ex: int):
+    """设置 Redis 缓存并注册 key 到失效索引。"""
+    if not redis_client:
+        return
+    try:
+        redis_client.setex(key, ex, value)
+        redis_client.sadd('cache:idx:articles', key)
+        redis_client.expire('cache:idx:articles', 86400)
+    except Exception:
+        pass
+
+
+def invalidate_article_cache(article_id=None, author_id=None):
+    """失效文章相关缓存。使用缓存 key 索引集，批量删除避免 scan_iter 遍历。"""
+    if not redis_client:
+        return
+    try:
+        keys = []
+        idx_key = 'cache:idx:articles'
+        # 从索引中读取所有已注册的缓存 key
+        tracked = redis_client.smembers(idx_key)
+        if tracked:
+            keys = [k for k in tracked if isinstance(k, (str, bytes))]
+        # 加上独立 key
         if article_id:
-            redis_client.delete(f"article:{article_id}")
-            for k in redis_client.scan_iter(match=f"public:article:*:{article_id}"):
-                redis_client.delete(k)
+            keys.append(f"article:{article_id}")
             article = Article.query.get(article_id)
             if article and article.slug:
-                redis_client.delete(f"public:article:slug:{article.slug}")
-        for k in redis_client.scan_iter(match="articles:list:*"):
-            redis_client.delete(k)
-        for k in redis_client.scan_iter(match="public:articles:list:*"):
-            redis_client.delete(k)
-        for k in redis_client.scan_iter(match="public:search:*"):
-            redis_client.delete(k)
-        for k in redis_client.scan_iter(match="search:*"):
-            redis_client.delete(k)
+                keys.append(f"public:article:slug:{article.slug}")
         if author_id:
-            redis_client.delete(f"public:author:{author_id}")
-            for k in redis_client.scan_iter(match=f"public:author_articles:{author_id}:*"):
-                redis_client.delete(k)
-        redis_client.delete('sitemap:xml')
+            keys.append(f"public:author:{author_id}")
+        keys.append('sitemap:xml')
+        if keys:
+            redis_client.delete(*keys)
+        redis_client.delete(idx_key)
     except Exception:
         pass
 

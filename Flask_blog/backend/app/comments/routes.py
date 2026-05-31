@@ -1,6 +1,8 @@
-from flask import Blueprint, request, jsonify
-from .. import db, require_auth, require_roles, limiter
-from ..models import Comment, Article
+from flask import Blueprint, jsonify, request
+
+from .. import db, limiter, require_auth, require_roles
+from ..models import Article, Comment
+
 # pydantic 校验
 try:
     from pydantic import BaseModel, ValidationError, field_validator
@@ -196,8 +198,8 @@ def admin_list_comments():
 @require_roles('editor','admin')
 def admin_stats():
     """管理员统计数据"""
-    from datetime import datetime, timezone, timedelta
-    
+    from datetime import datetime, timedelta, timezone
+
     # 待审核数量
     pending_count = Comment.query.filter_by(status='pending').count()
     

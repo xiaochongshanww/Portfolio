@@ -4,18 +4,19 @@ ULTRALTHINK 恢复管理器 - 完全重构版本
 解决所有事务冲突和架构问题
 """
 
+import json
 import os
 import subprocess
-import json
 import threading
 import time
-from pathlib import Path
-from typing import Dict, Any, Optional
 from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, Optional
 
 from flask import current_app
+
 from .. import db
-from ..models import BackupRecord, RestoreRecord, SHANGHAI_TZ
+from ..models import SHANGHAI_TZ, BackupRecord, RestoreRecord
 from .smart_table_validator import SmartTableValidator
 
 
@@ -252,7 +253,7 @@ class UltralthinkRestoreManager:
                 # 创建完全独立的数据库会话，避免与主请求会话冲突
                 from sqlalchemy import create_engine
                 from sqlalchemy.orm import sessionmaker
-                
+
                 # 使用新的独立会话
                 engine = db.engine
                 SessionLocal = sessionmaker(bind=engine)
@@ -359,7 +360,7 @@ class UltralthinkRestoreManager:
         try:
             import tarfile
             import tempfile
-            
+
             # 提取备份文件
             with tempfile.TemporaryDirectory(prefix="validation_") as temp_dir:
                 temp_path = Path(temp_dir)

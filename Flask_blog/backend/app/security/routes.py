@@ -1,13 +1,15 @@
-from flask import Blueprint, jsonify, request
-from datetime import datetime, timedelta
-from sqlalchemy import func, desc
-from .. import db, require_auth, require_roles
-from ..models import User, Article, Comment
-import logging
 import json
+import logging
 import random
 import time
-from typing import Dict, List, Any
+from datetime import datetime, timedelta
+from typing import Any, Dict, List
+
+from flask import Blueprint, jsonify, request
+from sqlalchemy import desc, func
+
+from .. import db, require_auth, require_roles
+from ..models import Article, Comment, User
 
 security_bp = Blueprint('security', __name__)
 
@@ -139,9 +141,10 @@ def get_security_stats():
 def get_system_health():
     """获取系统健康状态"""
     try:
-        import psutil
         import os
-        
+
+        import psutil
+
         # 获取真实系统指标
         # CPU 信息 - 使用更短的间隔避免阻塞
         cpu_percent = psutil.cpu_percent(interval=0.1)  # 减少间隔时间
@@ -411,9 +414,10 @@ def enable_protection_mode():
 def download_security_report():
     """下载安全报告"""
     try:
-        from flask import make_response
         import io
-        
+
+        from flask import make_response
+
         # 在实际环境中，这里应该生成真实的PDF报告
         # 这里返回一个简单的文本报告作为演示
         report_content = f"""安全监控报告

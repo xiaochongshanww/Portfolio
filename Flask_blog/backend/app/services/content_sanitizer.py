@@ -10,11 +10,13 @@ Design:
 - Centralize ALLOWED_* so other modules (e.g., feeds, previews) can reuse.
 """
 from __future__ import annotations
-from typing import Iterable
+
 import re
-from urllib.parse import urlparse, parse_qs
-import markdown as md
+from typing import Iterable
+from urllib.parse import parse_qs, urlparse
+
 import bleach
+import markdown as md
 
 # 兼容: 某些 bleach 版本可能没有 build_rel_callback；提供回退实现
 try:  # pragma: no cover - 简单探测

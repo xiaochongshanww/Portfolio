@@ -1,9 +1,11 @@
-from flask import Blueprint, request, jsonify
-from sqlalchemy import func, and_
+import re
+
+from flask import Blueprint, jsonify, request
+from pydantic import BaseModel, ValidationError, field_validator
+from sqlalchemy import and_, func
+
 from .. import db, require_auth, require_roles
 from ..models import Category, Tag
-from pydantic import BaseModel, field_validator, ValidationError
-import re
 
 taxonomy_bp = Blueprint('taxonomy', __name__)
 
@@ -221,9 +223,10 @@ def delete_tag(tid):
 def list_categories_public():
     """公开的分类列表API，包含文章数量统计"""
     print(f"访问 list_categories_public")
+    from sqlalchemy import and_, func
+
     from ..models import Article
-    from sqlalchemy import func, and_
-    
+
     # 获取分类及其文章数量（只统计已发布的文章）
     categories_with_count = db.session.query(
         Category.id, Category.name, Category.slug, Category.parent_id,
@@ -250,9 +253,10 @@ def list_categories_public():
 def list_tags_public():
     """公开的标签列表API，包含文章数量统计"""
     print(f"访问 list_tags_public")
+    from sqlalchemy import and_, func
+
     from ..models import Article, ArticleTag
-    from sqlalchemy import func, and_
-    
+
     # 获取标签及其文章数量（只统计已发布的文章）
     tags_with_count = db.session.query(
         Tag.id, Tag.name, Tag.slug,
@@ -280,7 +284,7 @@ def list_tags_public():
 def get_stats():
     """获取分类和标签的统计信息"""
     from ..models import Article, ArticleTag
-    
+
     # 分类统计
     categories_with_count = db.session.query(
         Category.id, Category.name, Category.slug, Category.parent_id,

@@ -1,8 +1,13 @@
-import os, uuid, base64, io
+import base64
+import io
+import os
+import uuid
 from datetime import datetime
-from flask import Blueprint, request, jsonify, current_app
+
+from flask import Blueprint, current_app, jsonify, request
 from PIL import Image
-from .. import require_auth, limiter  # 补充导入
+
+from .. import limiter, require_auth  # 补充导入
 
 # 新增: 统一尺寸配置
 VARIANTS = [

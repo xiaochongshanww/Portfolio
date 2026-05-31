@@ -3,45 +3,25 @@
 提供日志查看、搜索、统计等功能
 """
 
-from flask import Blueprint, request, jsonify, g
-from sqlalchemy import desc, and_, func, text
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
+
+from flask import Blueprint, g, jsonify, request
+from sqlalchemy import and_, desc, func, text
+
 from .. import db, require_auth, require_roles
-from ..models import LogEntry, LogConfig, User
+from ..models import LogConfig, LogEntry, User
 from ..utils.logging_utils import (
-    log_user_action, log_system_event, LogLevel, LogSource,
-    get_log_config, cleanup_old_logs
+    LogLevel,
+    LogSource,
+    cleanup_old_logs,
+    get_log_config,
+    log_system_event,
+    log_user_action,
 )
 
 logs_bp = Blueprint('logs', __name__)
 
-
-@logs_bp.route('/test', methods=['GET'])
-def test_logs_route():
-    """测试路由是否工作"""
-    print("=== TEST ROUTE HIT ===")
-    import sys; sys.stdout.flush()
-    return jsonify({'code': 0, 'message': 'logs blueprint working', 'data': None})
-
-
-@logs_bp.route('/debug-auth', methods=['GET'])  
-@require_auth
-def debug_auth_route():
-    """调试认证路由"""
-    from flask import current_app
-    current_app.logger.warning("=== DEBUG AUTH ROUTE HIT WITH VALID TOKEN ===")
-    auth = request.headers.get('Authorization','')
-    current_app.logger.warning(f"=== AUTH HEADER: {auth} ===")
-    return jsonify({'code': 0, 'message': 'debug route with auth', 'auth_header': auth})
-
-@logs_bp.route('/public-check', methods=['GET'])
-def public_check():
-    """无需鉴权，用于对比 header 传递情况"""
-    from flask import current_app
-    hdr = {k: v for k,v in request.headers.items()}
-    current_app.logger.warning(f"=== PUBLIC_CHECK HEADERS: {list(hdr.keys())} ===")
-    return jsonify({'code':0,'message':'ok','data':{'headers':hdr}})
 
 def _query_logs_common(page:int,size:int,level:str,source:str,keyword:str,user_id,request_id,start_time,end_time):
     query = LogEntry.query

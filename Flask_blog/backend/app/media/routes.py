@@ -2,25 +2,31 @@
 媒体库API路由
 提供媒体文件和文件夹的管理功能
 """
-import os
-import json
+import base64
 import hashlib
+import io
+import json
+import os
 import uuid
 from datetime import datetime, timezone
-from flask import Blueprint, request, jsonify, current_app, send_file
-from sqlalchemy import desc, and_, or_, func
-from werkzeug.utils import secure_filename
-from PIL import Image
-import io
-import base64
 
-from .. import db, require_auth, require_roles, limiter
+from flask import Blueprint, current_app, jsonify, request, send_file
+from PIL import Image
+from sqlalchemy import and_, desc, func, or_
+from werkzeug.utils import secure_filename
+
+from .. import db, limiter, require_auth, require_roles
 from ..models import Media, MediaFolder, User
 from .permissions import (
-    get_media_query_for_user, get_folder_query_for_user,
-    can_view_media, can_modify_media, can_delete_media,
-    can_view_folder, can_modify_folder, can_delete_folder,
-    filter_media_by_permissions
+    can_delete_folder,
+    can_delete_media,
+    can_modify_folder,
+    can_modify_media,
+    can_view_folder,
+    can_view_media,
+    filter_media_by_permissions,
+    get_folder_query_for_user,
+    get_media_query_for_user,
 )
 
 media_bp = Blueprint('media', __name__)

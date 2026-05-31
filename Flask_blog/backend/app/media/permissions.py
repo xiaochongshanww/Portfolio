@@ -3,8 +3,10 @@
 """
 from flask import request
 from sqlalchemy import or_
-from ..models import Media, MediaFolder
+
 from .. import db
+from ..models import Media, MediaFolder
+
 
 def get_media_query_for_user(user_id: int, user_role: str):
     """根据用户角色返回相应的媒体查询条件"""

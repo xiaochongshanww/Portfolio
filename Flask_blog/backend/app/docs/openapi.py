@@ -1,5 +1,7 @@
+import logging  # 添加日志
+import traceback
+
 from flask import Blueprint, jsonify
-import logging, traceback  # 添加日志
 
 openapi_bp = Blueprint('openapi', __name__)
 
@@ -1872,7 +1874,8 @@ def assemble_spec():
 OPENAPI_SPEC = assemble_spec()
 # 离线快照写入 (供前端 fallback)
 try:
-    import os, json as _json
+    import json as _json
+    import os
     _backend_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
     _target_file = os.path.join(_backend_root, 'openapi.json')
     with open(_target_file, 'w', encoding='utf-8') as f:

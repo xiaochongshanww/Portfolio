@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
 """备份恢复管理器"""
 
+import json
 import os
 import shutil
-import tempfile
-import tarfile
-import json
-from pathlib import Path
-from typing import Dict, Any, Optional, List
-from datetime import datetime, timezone
 import subprocess
+import tarfile
+import tempfile
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 from flask import current_app
+
 from .. import db
-from ..models import BackupRecord, RestoreRecord, SHANGHAI_TZ
+from ..models import SHANGHAI_TZ, BackupRecord, RestoreRecord
 from .smart_table_validator import SmartTableValidator
 
 
@@ -349,9 +350,10 @@ class RestoreManager:
     
     def _restore_mysql_with_sqlalchemy(self, db_file: Path, database_url: str, options: Dict[str, Any]):
         """使用SQLAlchemy恢复MySQL数据库 - 事务隔离修复版本"""
-        from sqlalchemy import create_engine, inspect
-        import pymysql
         import urllib.parse
+
+        import pymysql
+        from sqlalchemy import create_engine, inspect
         
         current_app.logger.info(f"使用事务隔离修复版SQLAlchemy恢复数据库: {db_file}")
         
@@ -667,7 +669,7 @@ class RestoreManager:
     def _extract_table_name(self, insert_sql: str) -> Optional[str]:
         """从INSERT语句中提取表名"""
         import re
-        
+
         # 匹配 INSERT INTO `table_name` 或 INSERT INTO table_name
         patterns = [
             r'INSERT\s+INTO\s+`([^`]+)`',  # 反引号包围的表名
@@ -688,7 +690,7 @@ class RestoreManager:
         
         # 方法1: 将所有的 %(xxx) 模式替换为转义版本
         import re
-        
+
         # 查找所有 %(变量名) 模式并转义
         def escape_bind_params(match):
             full_match = match.group(0)
@@ -745,9 +747,9 @@ class RestoreManager:
     
     def _restore_mysql_with_docker(self, db_file: Path, database_url: str, options: Dict[str, Any]):
         """使用Docker容器恢复MySQL数据库"""
-        import urllib.parse
         import subprocess
-        
+        import urllib.parse
+
         # 检测MySQL Docker容器
         container_name = self._detect_mysql_docker_container()
         if not container_name:
@@ -933,8 +935,9 @@ class RestoreManager:
         try:
             # 使用独立的数据库会话来更新恢复任务状态，避免与数据恢复操作的事务冲突
             from sqlalchemy.orm import sessionmaker
+
             from .. import db
-            
+
             # 创建独立会话
             Session = sessionmaker(bind=db.engine)
             independent_session = Session()
@@ -961,8 +964,9 @@ class RestoreManager:
         try:
             # 使用独立的数据库会话来更新恢复任务状态
             from sqlalchemy.orm import sessionmaker
+
             from .. import db
-            
+
             # 创建独立会话
             Session = sessionmaker(bind=db.engine)
             independent_session = Session()
@@ -992,8 +996,9 @@ class RestoreManager:
                 # 关键修复：使用独立的数据库会话来更新恢复任务状态
                 # 避免与数据恢复操作的事务冲突
                 from sqlalchemy.orm import sessionmaker
+
                 from .. import db
-                
+
                 # 创建独立会话
                 Session = sessionmaker(bind=db.engine)
                 independent_session = Session()
@@ -1166,7 +1171,7 @@ class RestoreManager:
         """验证备份文件的校验和"""
         try:
             import hashlib
-            
+
             # 计算提取后文件的整体校验和
             actual_checksum = self._calculate_directory_checksum(extracted_path)
             

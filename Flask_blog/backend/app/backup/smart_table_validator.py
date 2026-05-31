@@ -5,15 +5,16 @@
 避免硬编码表名，自动适应项目结构变化
 """
 
-import re
 import logging
-from pathlib import Path
-from typing import Dict, Set, List, Tuple, Any, Optional
+import re
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from flask import current_app
 from sqlalchemy import text
+
 from .. import db
 
 

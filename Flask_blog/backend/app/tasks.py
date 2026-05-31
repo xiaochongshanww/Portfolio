@@ -1,9 +1,12 @@
 import os
 from datetime import datetime, timezone
+
 from celery import Celery
+
 from . import create_app, db, redis_client
 from .models import Article
 from .search.indexer import index_article
+
 # 指标
 try:
     from . import ARTICLE_PUBLISHED_TOTAL

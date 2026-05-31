@@ -1,5 +1,6 @@
-from .client import ensure_index
 from ..models import Article
+from .client import ensure_index
+
 
 def article_to_doc(article: Article):
     return {

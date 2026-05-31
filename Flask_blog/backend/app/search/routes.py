@@ -1,12 +1,23 @@
-from flask import Blueprint, request, jsonify, current_app
+import hashlib
+import json
+
+from flask import Blueprint, current_app, jsonify, request
+from flask_limiter.util import get_remote_address
+
+from .. import limiter, redis_client
+from ..utils import compute_etag
+
 # 替换直接函数导入，改为模块引用以便测试 monkeypatch app.search.client.ensure_index 生效
 from . import client as search_client
-from .. import limiter, redis_client
-import hashlib, json
-from ..utils import compute_etag
+
 # 指标
 try:
-    from .. import SEARCH_QUERIES_TOTAL, SEARCH_ZERO_RESULT_TOTAL, CACHE_HIT_TOTAL, CACHE_MISS_TOTAL
+    from .. import (
+        CACHE_HIT_TOTAL,
+        CACHE_MISS_TOTAL,
+        SEARCH_QUERIES_TOTAL,
+        SEARCH_ZERO_RESULT_TOTAL,
+    )
 except Exception:
     SEARCH_QUERIES_TOTAL = None
     SEARCH_ZERO_RESULT_TOTAL = None
@@ -16,6 +27,7 @@ except Exception:
 search_bp = Blueprint('search', __name__)
 
 @search_bp.route('/', methods=['GET'])
+@limiter.limit('120/minute', key_func=get_remote_address)
 @limiter.limit('30/minute')
 def search():
     raw_q = request.args.get('q', '')
@@ -147,8 +159,8 @@ def search():
             force_fallback = True
     if force_fallback:
         used_fallback = True
-        from ..models import Article, Tag
         from .. import db
+        from ..models import Article, Tag
         query = Article.query.filter_by(deleted=False, status='published')
         if q.strip():
             # 使用 ilike 进行不区分大小写匹配，兼容中文
@@ -201,12 +213,16 @@ def search():
         } for a in items]
         # 回退模式 facets 需要额外 SQL 统计（仅在请求 facets 时计算，避免性能开销）
         if facets_wanted:
-            from ..models import Article as A, Tag as T
             from sqlalchemy import func
+
+            from ..models import Article as A
+            from ..models import Tag as T
+
             # 基础集合（匹配当前过滤但忽略分页）
             base_q = query.session.query(A).filter_by(deleted=False, status='published')
             if date_from:
                 from datetime import datetime
+
                 # 简化解析：仅使用字符串前缀匹配，跳过无效格式
                 try:
                     base_q = base_q.filter(A.published_at >= date_from)

@@ -1,7 +1,9 @@
-from datetime import datetime, timezone, timedelta
-from sqlalchemy.dialects.mysql import LONGTEXT
+from datetime import datetime, timedelta, timezone
+
 from sqlalchemy import Text
 from sqlalchemy.dialects import mysql
+from sqlalchemy.dialects.mysql import LONGTEXT
+
 from . import db
 
 # 定义上海时区 (UTC+8)
@@ -87,6 +89,7 @@ class Comment(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     content = db.Column(db.Text, nullable=False)
     status = db.Column(db.String(16), default='pending', index=True)
+    deleted = db.Column(db.Boolean, default=False, index=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 class ArticleLike(db.Model):
@@ -286,7 +289,7 @@ class BackupRecord(db.Model):
     
     def to_dict(self):
         """转换为字典格式"""
-        from datetime import timezone, timedelta
+        from datetime import timedelta, timezone
         shanghai_tz = timezone(timedelta(hours=8))
         
         def format_datetime(dt):
@@ -549,8 +552,8 @@ class RestoreRecord(db.Model):
     
     def to_dict(self):
         """转换为字典格式"""
-        from datetime import timezone, timedelta
-        
+        from datetime import timedelta, timezone
+
         # 上海时区 (UTC+8)
         shanghai_tz = timezone(timedelta(hours=8))
         
@@ -691,7 +694,7 @@ class Media(db.Model):
             return dt.astimezone(SHANGHAI_TZ).isoformat()
         
         import json
-        
+
         # 解析 JSON 字段
         tags_list = []
         variants_dict = {}

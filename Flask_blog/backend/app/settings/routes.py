@@ -1,11 +1,13 @@
-from flask import Blueprint, request, jsonify, current_app
-from datetime import datetime, timedelta
-from sqlalchemy import func, text
-from .. import db, require_auth, require_roles
-from ..models import User, Article, Comment, Category, Tag
 import json
-import os
 import logging
+import os
+from datetime import datetime, timedelta
+
+from flask import Blueprint, current_app, jsonify, request
+from sqlalchemy import func, text
+
+from .. import db, require_auth, require_roles
+from ..models import Article, Category, Comment, Tag, User
 
 settings_bp = Blueprint('settings', __name__)
 

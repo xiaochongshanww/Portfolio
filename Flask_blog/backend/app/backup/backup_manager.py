@@ -4,21 +4,23 @@
 提供数据库备份、文件系统快照、增量备份等核心功能
 """
 
+import gzip
+import hashlib
+import json
 import os
 import shutil
 import sqlite3
-import hashlib
-import json
 import tarfile
-import gzip
-import time
 import threading
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
+
 from flask import current_app
+
 from .. import db
-from ..models import BackupRecord, BackupConfig, SHANGHAI_TZ
+from ..models import SHANGHAI_TZ, BackupConfig, BackupRecord
 from .storage_manager import StorageManager
 
 
@@ -277,7 +279,7 @@ class BackupManager:
             with app.app_context():
                 # 获取新的数据库会话，避免线程间共享
                 from .. import db
-                
+
                 # 重新查询备份记录以获取线程本地的实例
                 backup_record_local = BackupRecord.query.filter_by(backup_id=backup_id).first()
                 if not backup_record_local:
@@ -545,8 +547,9 @@ class BackupManager:
         """备份MySQL数据库"""
         try:
             import urllib.parse
+
             from sqlalchemy import create_engine, text
-            
+
             # 解析数据库连接信息
             parsed = urllib.parse.urlparse(db_uri)
             host = parsed.hostname or 'localhost'
@@ -620,8 +623,8 @@ class BackupManager:
     def _backup_mysql_with_sqlalchemy(self, db_uri: str, backup_dir: Path, timestamp: str) -> Optional[Path]:
         """使用SQLAlchemy备份MySQL数据库"""
         try:
-            from sqlalchemy import text, inspect
-            
+            from sqlalchemy import inspect, text
+
             # 使用优化的连接池
             engine = self.get_engine_with_pool(db_uri)
             inspector = inspect(engine)
@@ -1064,6 +1067,7 @@ class BackupManager:
         """检测MySQL Docker容器"""
         try:
             import subprocess
+
             # 查找运行中的MySQL容器
             cmd = ['docker', 'ps', '--filter', 'ancestor=mysql', '--format', '{{.Names}}']
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)

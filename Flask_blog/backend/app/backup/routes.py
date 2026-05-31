@@ -4,16 +4,17 @@
 提供备份管理的RESTful API接口
 """
 
-from flask import request, jsonify, current_app
-from datetime import datetime, timezone, timedelta
 import json
+from datetime import datetime, timedelta, timezone
+
+from flask import current_app, jsonify, request
+
 from .. import db, require_auth, require_roles
-from ..models import BackupRecord, BackupConfig, BackupTask, RestoreRecord, SHANGHAI_TZ
+from ..models import SHANGHAI_TZ, BackupConfig, BackupRecord, BackupTask, RestoreRecord
 from . import backup_bp
+from .backup_records_external import get_external_metadata_manager
 from .physical_backup_engine import PhysicalBackupEngine
 from .physical_restore_engine import PhysicalRestoreEngine
-from .backup_records_external import get_external_metadata_manager
-
 
 # 物理备份引擎实例
 physical_backup_engine = None
@@ -659,9 +660,10 @@ def download_backup(backup_id):
             }), 404
         
         # 直接从物理备份目录下载文件
-        from flask import send_file
         from pathlib import Path
-        
+
+        from flask import send_file
+
         # 检查是否有压缩归档
         if backup_info.get('compressed', False) and 'archive_path' in backup_info:
             # 使用压缩归档文件
@@ -868,9 +870,10 @@ def restore_backup(backup_id):
                     
                     # 修复AUTO_INCREMENT问题：使用更强力的方案避免ID冲突
                     try:
-                        from sqlalchemy import text
                         import time
-                        
+
+                        from sqlalchemy import text
+
                         # 方案1：尝试设置 AUTO_INCREMENT 到一个足够大的值
                         timestamp_based_id = int(time.time()) % 1000000  # 使用时间戳生成唯一ID
                         safe_auto_increment = max(record_id + 1000, timestamp_based_id)
@@ -1131,8 +1134,9 @@ def get_backup_statistics():
         
         # 从数据库查询统计信息
         from collections import defaultdict
+
         from sqlalchemy import func
-        
+
         # 基本统计
         total_backups = BackupRecord.query.filter_by(backup_type=backup_type).count()
         completed_backups = BackupRecord.query.filter_by(backup_type=backup_type, status='completed').count()
@@ -1332,7 +1336,7 @@ def cleanup_expired_backups():
         backups = engine.list_backups()
         
         # 计算过期的备份
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta, timezone
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_to_keep)
         
         deleted_backups = []
@@ -1683,7 +1687,7 @@ def trigger_manual_cleanup():
     """手动触发任务清理"""
     try:
         from .task_cleaner import task_cleaner
-        
+
         # 在应用上下文中执行清理
         result = task_cleaner.cleanup_stuck_tasks()
         

@@ -1,8 +1,21 @@
-from flask import Blueprint, request, jsonify, current_app
-from .. import db, require_auth, require_roles, redis_client, METRICS_ENABLED, PUBLIC_AUTHOR_PROFILE_REQUESTS_TOTAL, PUBLIC_AUTHOR_ARTICLES_REQUESTS_TOTAL, PUBLIC_AUTHOR_ARTICLES_ZERO_RESULT_TOTAL, CACHE_HIT_TOTAL, CACHE_MISS_TOTAL
-from ..models import User, Article
-from ..utils import compute_etag
 import json
+
+from flask import Blueprint, current_app, jsonify, request
+
+from .. import (
+    CACHE_HIT_TOTAL,
+    CACHE_MISS_TOTAL,
+    METRICS_ENABLED,
+    PUBLIC_AUTHOR_ARTICLES_REQUESTS_TOTAL,
+    PUBLIC_AUTHOR_ARTICLES_ZERO_RESULT_TOTAL,
+    PUBLIC_AUTHOR_PROFILE_REQUESTS_TOTAL,
+    db,
+    redis_client,
+    require_auth,
+    require_roles,
+)
+from ..models import Article, User
+from ..utils import compute_etag
 
 users_bp = Blueprint('users', __name__)
 

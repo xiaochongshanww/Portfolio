@@ -1,6 +1,8 @@
 import os
+
 # Load environment variables at module import time
 from dotenv import load_dotenv
+
 load_dotenv()
 
 # 添加 PyMySQL 兼容层
@@ -9,27 +11,33 @@ try:
     pymysql.install_as_MySQLdb()
 except Exception:
     pass
+import json
+import logging
+import time
+import uuid
 from functools import wraps
-from flask import Flask, request, jsonify, current_app, g, Response
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-from flask_bcrypt import Bcrypt
-from flask_cors import CORS
+from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
+
 import jwt
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-from flask_limiter.errors import RateLimitExceeded
 import redis
 import sqlalchemy
-import time, uuid, logging, json
-from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
+from flask import Flask, Response, current_app, g, jsonify, request
+from flask_bcrypt import Bcrypt
+from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.errors import RateLimitExceeded
+from flask_limiter.util import get_remote_address
+from flask_migrate import Migrate
+from flask_sqlalchemy import SQLAlchemy
+
 try:
     from apscheduler.schedulers.background import BackgroundScheduler
 except Exception:
     BackgroundScheduler = None
 # i18n
 try:
-    from flask_babel import Babel, gettext as _
+    from flask_babel import Babel
+    from flask_babel import gettext as _
 except Exception:
     Babel = None
     _ = lambda x: x
@@ -200,21 +208,27 @@ def create_app(config_name=None):
         # 仅控制台警告，不影响应用启动
         logging.warning('file logging init failed: %s', _file_log_err)
 
+    # 生产环境 CORS_ORIGINS 不能为 *
+    _cors_origins = os.getenv('CORS_ORIGINS', '*')
+    if _cors_origins == '*' and app.config.get('ENV') == 'production':
+        app.logger.warning("CORS_ORIGINS='*' in production — restricting to same-origin")
+        _cors_origins = []
+
     CORS(app, resources={
         r"/api/*": {
-            "origins": os.getenv('CORS_ORIGINS', '*'),
+            "origins": _cors_origins,
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "X-XSRF-TOKEN"],
             "supports_credentials": True
         },
         r"/uploads/*": {
-            "origins": os.getenv('CORS_ORIGINS', '*'),
+            "origins": _cors_origins if _cors_origins != [] else [],
             "methods": ["GET", "OPTIONS"],
             "allow_headers": ["Content-Type"],
             "supports_credentials": False
         },
         r"/public/*": {
-            "origins": os.getenv('CORS_ORIGINS', '*'),
+            "origins": _cors_origins if _cors_origins != [] else [],
             "methods": ["GET", "OPTIONS"],
             "allow_headers": ["Content-Type"],
             "supports_credentials": False
@@ -284,25 +298,25 @@ def create_app(config_name=None):
         babel = Babel(app, locale_selector=select_locale)
 
     # 蓝图
-    from .auth.routes import auth_bp
     from .articles.routes import articles_bp
+    from .auth.routes import auth_bp
+    from .backup import routes  # 显式导入路由以注册到蓝图
+    from .backup import backup_bp
     from .comments.routes import comments_bp
+    from .docs.openapi import openapi_bp
+    from .logs.routes import logs_bp
+    from .media import media_bp
+    from .metrics.routes import metrics_bp
+    from .middlewares import VisitorTrackingMiddleware
+    from .public_api import public_bp
     from .search.routes import search_bp
     from .search.synonyms import synonyms_bp
-    from .docs.openapi import openapi_bp
-    from .users.routes import users_bp
-    from .taxonomy.routes import taxonomy_bp
-    from .uploads.routes import uploads_bp
-    from .metrics.routes import metrics_bp
     from .security.routes import security_bp
     from .settings.routes import settings_bp
-    from .logs.routes import logs_bp
     from .simple_logs import simple_logs_bp
-    from .backup import backup_bp
-    from .backup import routes  # 显式导入路由以注册到蓝图
-    from .media import media_bp
-    from .public_api import public_bp
-    from .middlewares import VisitorTrackingMiddleware
+    from .taxonomy.routes import taxonomy_bp
+    from .uploads.routes import uploads_bp
+    from .users.routes import users_bp
 
     # 初始化访客追踪中间件
     visitor_middleware = VisitorTrackingMiddleware(app)
@@ -342,9 +356,10 @@ def create_app(config_name=None):
     @app.route('/uploads/<path:filename>')
     @limiter.exempt  # 静态资源豁免rate limiting
     def serve_upload(filename):
-        from flask import send_from_directory, send_file
         import os
-        
+
+        from flask import send_file, send_from_directory
+
         # 将路径分隔符标准化
         filename = filename.replace('/', os.sep)
         upload_dir = os.path.abspath(app.config['UPLOAD_DIR'])
@@ -372,6 +387,7 @@ def create_app(config_name=None):
         scheduler = BackgroundScheduler(timezone='UTC')
         def publish_scheduled():
             from datetime import datetime, timezone
+
             from .models import Article
             from .search.indexer import index_article
             with app.app_context():
@@ -559,6 +575,7 @@ def create_app(config_name=None):
     @app.route('/sitemap.xml')
     def sitemap_xml():
         from datetime import datetime
+
         from .models import Article
         cache_key = 'sitemap:xml'
         xml = None
@@ -631,7 +648,12 @@ def require_auth(fn):
         
         try:
             # 细分异常类型，便于定位 401 来源
-            from jwt import ExpiredSignatureError, InvalidSignatureError, DecodeError, InvalidTokenError
+            from jwt import (
+                DecodeError,
+                ExpiredSignatureError,
+                InvalidSignatureError,
+                InvalidTokenError,
+            )
             start_decode = time.time()
             payload = jwt.decode(token, current_app.config['JWT_SECRET_KEY'], algorithms=['HS256'])
             decode_ms = int((time.time()-start_decode)*1000)
@@ -708,7 +730,12 @@ def require_roles(*roles):
 
 # 指标
 try:
-    from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+    from prometheus_client import (
+        CONTENT_TYPE_LATEST,
+        Counter,
+        Histogram,
+        generate_latest,
+    )
     METRICS_ENABLED = True
     HTTP_REQUESTS_TOTAL = Counter('app_http_requests_total', 'Total HTTP requests', ['method','path','status'])
     HTTP_REQUEST_DURATION = Histogram('app_http_request_duration_seconds', 'Request duration seconds', ['method','path'])
