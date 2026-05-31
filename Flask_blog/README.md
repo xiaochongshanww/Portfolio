@@ -19,13 +19,15 @@
 - 文章：Markdown + 安全渲染 (Bleach) + 版本快照 & 回滚 + 定时发布 + SEO 字段 + 特色图。
 - 搜索：MeiliSearch（失效回退 DB fuzzy）。
 - 互动：点赞、收藏、树状评论（审核流）。
-- 性能：Redis 缓存已发布文章 + ETag + 路由按需分包 + 图片懒加载 + 多尺寸/WEBP 生成。
-- 安全：JWT Access/Refresh + 刷新吊销、CSP、安全头、HTML 清洗、速率限制(全局 + 细化)。
-- 指标：Prometheus 指标、sitemap.xml / robots.txt。
+- 媒体库：图片上传多尺寸/WEBP生成、文件夹管理、焦点裁剪。
+- 性能：Redis 缓存 + ETag + 路由按需分包 + 图片懒加载。
+- 安全：JWT Access/Refresh + 刷新吊销、CSP、安全头、HTML 清洗、速率限制(全局 + 细化)、安全监控面板。
+- 备份恢复：物理备份引擎、增量备份、外部元数据系统、恢复管理器。
+- 指标：Prometheus 指标、sitemap.xml / robots.txt、审计日志。
 
 ### 技术栈
-- 后端：Flask, SQLAlchemy, Alembic(Flask-Migrate), Redis, Flask-Limiter, MeiliSearch, APScheduler。
-- 前端：Vue3 + Vite + Pinia + vue-router (动态 import) + EasyMDE + highlight.js。
+- 后端：Flask, SQLAlchemy, Alembic(Flask-Migrate), Redis, Celery, Flask-Limiter, MeiliSearch, APScheduler。
+- 前端：Vue3 + Vite + Pinia + vue-router (动态 import) + Vditor + highlight.js + Element Plus。
 
 ### 环境变量 (节选)
 | 变量 | 说明 | 默认 |

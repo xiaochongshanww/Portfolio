@@ -81,11 +81,13 @@ Flask_blog/
 ├── frontend/               # 前端源码 (映射到容器)
 ├── docker-compose.dev.yml  # 开发环境配置
 ├── .env.dev               # 开发环境变量
-├── Dockerfile.*.dev       # 开发环境镜像
-├── dev-*.ps1             # 开发工具脚本
-└── .vscode/              # VS Code配置
-    ├── launch.json       # 调试配置
-    └── tasks.json        # 任务配置
+├── Dockerfile.backend    # 后端镜像 (BUILD_ENV=development)
+├── Dockerfile.frontend   # 前端镜像 (target=dev)
+├── docker-compose.yml    # 生产 Compose
+├── Makefile              # 测试 / Lint 命令 (跨平台)
+├── dev-*.ps1             # 开发工具脚本 (Windows)
+├── deploy.sh             # 部署脚本 (Linux/macOS)
+└── deploy.ps1            # 部署脚本 (Windows)
 ```
 
 ## 🔧 高级配置

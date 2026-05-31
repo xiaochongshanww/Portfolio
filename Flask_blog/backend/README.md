@@ -33,7 +33,7 @@ docker compose logs -f backend
 - backend: Flask + Gunicorn (端口 8000)
 - celery_worker: 任务执行（定时发布）
 - celery_beat: 调度
-- db: PostgreSQL 16
+- db: MySQL 8
 - redis: 缓存/限流/队列
 - meili: MeiliSearch 7700
 
