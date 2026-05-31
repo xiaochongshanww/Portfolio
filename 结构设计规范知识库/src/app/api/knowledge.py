@@ -19,6 +19,8 @@ async def knowledge_documents():
             "image_count": 0,
             "data_version_hash": "",
             "built_at": "",
+            "parser_backend": "",
+            "missing_artifact_count": 0,
         }
     return {
         "built": True,
@@ -29,6 +31,8 @@ async def knowledge_documents():
         "data_version_hash": manifest.get("data_version_hash", ""),
         "built_at": manifest.get("built_at", ""),
         "metadata_status": manifest.get("metadata_status", "unknown"),
+        "parser_backend": manifest.get("build_params", {}).get("parser_backend", ""),
+        "missing_artifact_count": manifest.get("artifact_status", {}).get("missing_count", 0),
     }
 
 

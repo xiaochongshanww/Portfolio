@@ -7,6 +7,7 @@ unstructured[local-inference]
 paddlepaddle
 paddleocr
 PyMuPDF
+mineru
 chromadb
 
 # AI Models & SDKs

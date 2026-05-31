@@ -81,11 +81,10 @@ ollama pull qwen:14b-chat
     - **文件命名规范**: 为了保证元数据处理的准确性，请遵循 `[规范编号]_[规范名称]_[版本].pdf` 的格式。
     - **例如**: `GB 50010-2010_混凝土结构设计规范_2015版.pdf`
 
-2.  **执行流水线脚本**: 在项目根目录，依次运行以下脚本。
+2.  **执行统一构建命令**: 在项目根目录运行全量构建。默认使用 MinerU 解析 PDF，并写入 ChromaDB。
 
     ```bash
-    python src/pipeline/process_documents.py
-    python src/pipeline/step_04_load_to_db.py
+    python -m src.pipeline rebuild --source data/raw
     ```
 
     执行完毕后，您的知识库就已经构建完成了。
@@ -137,28 +136,44 @@ API 服务已按产品化阶段一拆分为分层结构：
 
 ## 🏗️ 知识库构建
 
-阶段二已提供统一 pipeline CLI。以下命令均在项目根目录执行：
+阶段二已提供统一 pipeline CLI。PDF 解析当前围绕 MinerU 构建，默认后端为 `mineru`；`pymupdf` 仅作为兼容 fallback。以下命令均在项目根目录执行：
 
 ```bash
-# 只查看将处理哪些 PDF，不写入 processed/images/db
+# 只查看将处理哪些 PDF，不写入 processed/images/mineru/db
 python -m src.pipeline build --dry-run
 
-# 全量重建知识库：清理旧 processed/images/db，重新处理 PDF、渲染图片、向量化入库并写 manifest
+# 全量重建知识库：清理旧 processed/images/mineru/db，使用 MinerU 解析、向量化入库并写 manifest
 python -m src.pipeline rebuild --source data/raw
+
+# 临时使用旧 PyMuPDF 解析后端
+python -m src.pipeline rebuild --source data/raw --parser-backend pymupdf
 
 # 查看最近一次构建状态
 python -m src.pipeline status
+```
+
+MinerU 依赖外部 CLI，安装后需确保 `mineru` 命令在 `PATH` 中。可通过环境变量调整：
+
+```bash
+export PDF_PARSER_BACKEND=mineru
+export MINERU_BIN=mineru
+export MINERU_ARGS=""
 ```
 
 构建产物：
 
 - `data/processed/*.json`：PDF 元素提取结果。
 - `data/processed/*_chunks.json`：标准化 chunk，包含规范编号、名称、版本、条文号、页码、图片、chunk id 等字段。
-- `data/images/*.png`：PDF 页面截图。
+- `data/processed/build_quality.json`：构建质量报告，统计 element/chunk/table/formula/figure 数、空文本比例和缺失产物。
+- `data/mineru/<doc_id>/raw/`：MinerU 原始解析产物，包括 `content_list`、Markdown、middle/model JSON 和媒体文件。
+- `data/mineru/<doc_id>/artifacts.json`：单文档产物索引，记录 `kind/path/sha256/size_bytes/required/status`。
+- `data/images/`：从 MinerU 产物复制出的表格、公式、图片等媒体文件；PyMuPDF fallback 下为页面截图。
 - `db/`：ChromaDB 向量库。
-- `data/manifest.json`：最近一次构建清单，包含文档 hash、chunk 数、图片数、embedding 模型、集合名和 `data_version_hash`。
+- `data/manifest.json`：最近一次构建清单，包含文档 hash、chunk hash、MinerU 产物 hash、chunk 数、图片数、embedding 模型、集合名、解析后端和 `data_version_hash`。
 
-`data/processed/`、`data/images/`、`db/`、`data/manifest.json` 是生成产物，默认不提交 Git。
+MinerU 标准流程以 `content_list` 作为唯一主入库输入；Markdown 用于人工审阅，middle/model JSON 用于后续版面定位、质量回归和审计。`content_list` 和 Markdown 缺失时构建失败，不写成功 manifest；middle/model/media 缺失会进入 manifest 和质量报告。
+
+`data/processed/`、`data/images/`、`data/mineru/`、`db/`、`data/manifest.json` 是生成产物，默认不提交 Git。
 
 ### 规范元数据
 

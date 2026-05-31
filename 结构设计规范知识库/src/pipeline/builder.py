@@ -9,7 +9,7 @@ from src.app.core.config import settings
 
 from .manifest import build_manifest, read_manifest, write_manifest
 from .metadata import load_spec_metadata
-from .paths import DB_DIR, IMAGES_DIR, MANIFEST_PATH, METADATA_DIR, PROCESSED_DIR, RAW_DIR
+from .paths import DB_DIR, IMAGES_DIR, MANIFEST_PATH, METADATA_DIR, MINERU_DIR, PROCESSED_DIR, RAW_DIR
 
 
 class BuildPreflightError(RuntimeError):
@@ -24,48 +24,66 @@ def list_pdf_files(source_dir: Path) -> list[Path]:
     return sorted(path for path in source_dir.iterdir() if path.is_file() and path.suffix.lower() == ".pdf")
 
 
+DEFAULT_PARSER_BACKEND = os.environ.get("PDF_PARSER_BACKEND", "mineru")
+
+
 def clean_generated_outputs() -> None:
-    for path in [PROCESSED_DIR, IMAGES_DIR, DB_DIR]:
+    for path in [PROCESSED_DIR, IMAGES_DIR, MINERU_DIR, DB_DIR]:
         if path.exists():
             shutil.rmtree(path)
-    for path in [PROCESSED_DIR, IMAGES_DIR, DB_DIR]:
+    for path in [PROCESSED_DIR, IMAGES_DIR, MINERU_DIR, DB_DIR]:
         path.mkdir(parents=True, exist_ok=True)
     if MANIFEST_PATH.exists():
         MANIFEST_PATH.unlink()
 
 
-def dry_run(source_dir: Path = RAW_DIR) -> dict[str, Any]:
+def dry_run(source_dir: Path = RAW_DIR, *, parser_backend: str = DEFAULT_PARSER_BACKEND) -> dict[str, Any]:
     pdf_files = list_pdf_files(source_dir)
     metadata = load_spec_metadata(pdf_files, METADATA_DIR / "specs.json")
     return {
         "mode": "dry-run",
         "source_dir": str(source_dir),
+        "parser_backend": parser_backend,
         "document_count": len(pdf_files),
         "documents": [metadata[pdf.name].to_dict() for pdf in pdf_files],
     }
 
 
-def rebuild(source_dir: Path = RAW_DIR, *, dry_run_only: bool = False) -> dict[str, Any]:
+def validate_parser_backend(parser_backend: str) -> None:
+    if parser_backend == "mineru" and shutil.which(os.environ.get("MINERU_BIN", "mineru")) is None:
+        raise BuildPreflightError("未找到 MinerU CLI，请先安装 MinerU，或使用 --parser-backend pymupdf")
+
+
+def rebuild(source_dir: Path = RAW_DIR, *, dry_run_only: bool = False, parser_backend: str = DEFAULT_PARSER_BACKEND) -> dict[str, Any]:
     configure_pipeline_logging()
     source_dir = source_dir.resolve()
     pdf_files = list_pdf_files(source_dir)
     metadata = load_spec_metadata(pdf_files, METADATA_DIR / "specs.json")
 
     if dry_run_only:
-        return dry_run(source_dir)
+        return dry_run(source_dir, parser_backend=parser_backend)
 
     if not os.environ.get("ZHIPUAI_API_KEY"):
         raise BuildPreflightError("ZHIPUAI_API_KEY 未设置，无法执行全量构建和向量化入库")
+    validate_parser_backend(parser_backend)
 
     clean_generated_outputs()
 
     from .load_to_db import load_chunks_to_db
     from .process_documents import process_pdfs
 
-    chunks_by_file = process_pdfs(pdf_files, metadata, PROCESSED_DIR, IMAGES_DIR)
+    processed_by_file = process_pdfs(
+        pdf_files,
+        metadata,
+        PROCESSED_DIR,
+        IMAGES_DIR,
+        parser_backend=parser_backend,
+        mineru_output_dir=MINERU_DIR,
+    )
+    chunks_by_file = {source_file: result["chunks"] for source_file, result in processed_by_file.items()}
     total_loaded = load_chunks_to_db(chunks_by_file, DB_DIR)
     chunk_counts = {source_file: len(chunks) for source_file, chunks in chunks_by_file.items()}
-    image_count = len(list(IMAGES_DIR.glob("*.png")))
+    image_count = len([path for path in IMAGES_DIR.glob("*") if path.is_file()])
     manifest = build_manifest(
         pdf_files=pdf_files,
         metadata=metadata,
@@ -73,9 +91,18 @@ def rebuild(source_dir: Path = RAW_DIR, *, dry_run_only: bool = False) -> dict[s
         image_count=image_count,
         embedding_model=settings.embedding_model,
         collection_name=settings.collection_name,
+        artifacts_by_file={source_file: result.get("artifacts", []) for source_file, result in processed_by_file.items()},
+        parser_metadata_by_file={source_file: result.get("parser_metadata", {}) for source_file, result in processed_by_file.items()},
+        chunk_hashes_by_file={
+            source_file: [chunk["chunk_id"] for chunk in result.get("chunks", [])]
+            for source_file, result in processed_by_file.items()
+        },
         build_params={
             "source_dir": str(source_dir),
             "mode": "rebuild",
+            "parser_backend": parser_backend,
+            "mineru_output_dir": str(MINERU_DIR),
+            "mineru_args": os.environ.get("MINERU_ARGS", ""),
             "loaded_chunks": total_loaded,
         },
     )
@@ -83,8 +110,8 @@ def rebuild(source_dir: Path = RAW_DIR, *, dry_run_only: bool = False) -> dict[s
     return manifest
 
 
-def build(source_dir: Path = RAW_DIR, *, dry_run_only: bool = False) -> dict[str, Any]:
-    return rebuild(source_dir=source_dir, dry_run_only=dry_run_only)
+def build(source_dir: Path = RAW_DIR, *, dry_run_only: bool = False, parser_backend: str = DEFAULT_PARSER_BACKEND) -> dict[str, Any]:
+    return rebuild(source_dir=source_dir, dry_run_only=dry_run_only, parser_backend=parser_backend)
 
 
 def status() -> dict[str, Any]:
@@ -99,6 +126,8 @@ def status() -> dict[str, Any]:
         "image_count": manifest.get("image_count", 0),
         "data_version_hash": manifest.get("data_version_hash", ""),
         "metadata_status": manifest.get("metadata_status", "unknown"),
+        "parser_backend": manifest.get("build_params", {}).get("parser_backend", ""),
+        "missing_artifact_count": manifest.get("artifact_status", {}).get("missing_count", 0),
     }
 
 

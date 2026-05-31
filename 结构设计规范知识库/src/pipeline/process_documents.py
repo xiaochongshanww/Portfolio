@@ -1,7 +1,7 @@
-"""PyMuPDF 提取文本 + 渲染每页为图片。"""
+"""PDF 解析、chunk 生成和中间产物写入。"""
 import json
 import logging
-import re
+import os
 import sys
 from pathlib import Path
 
@@ -10,155 +10,143 @@ if __package__ in (None, ""):
 
 from src.pipeline.chunks import normalize_chunks
 from src.pipeline.metadata import SpecMetadata, load_spec_metadata
-from src.pipeline.paths import IMAGES_DIR, METADATA_DIR, PROCESSED_DIR, RAW_DIR
+from src.pipeline.parsers import PdfParser, create_parser
+from src.pipeline.paths import IMAGES_DIR, METADATA_DIR, MINERU_DIR, PROCESSED_DIR, RAW_DIR
 
 
-# ── 条文编号模式 ──
-CLAUSE_RE = re.compile(r'^(\d+\.\d+[\d\.\-]*(\s+[A-Z]|\s+[一-鿿])?)')
-# 匹配: "3.7" "5.1.1" "8.1.1-1" "5.1.4-1" "3.7 非结构构件"
-# 以及英文 "A.0.1" 附录编号
-APPENDIX_RE = re.compile(r'^(附录|Appendix)\s+[A-Z]')
-TABLE_RE = re.compile(r'^(表|图)\s+[\d\.]+')
+DEFAULT_PARSER_BACKEND = os.environ.get("PDF_PARSER_BACKEND", "mineru")
 
 
-# 非标题过滤（这些不应作为章节标题）
-PAGE_NUM_RE = re.compile(r'^\d{1,3}$')
-DECIMAL_RE = re.compile(r'^[\d\.\s]{1,5}$')
-URL_RE = re.compile(r'^[a-zA-Z0-9]+\.[a-z]')
-SHORT_SYMBOL_RE = re.compile(r'^[\d\.\-—·]+$')
-
-
-def is_title_block(text: str, lines_in_block: int, font_size: float) -> bool:
-    """判断一个 text block 是否为标题/条文号。"""
-    t = text.strip()
-    if not t:
-        return False
-    # 排除页码、表格中的孤立数值、水印、短符号
-    if PAGE_NUM_RE.match(t):
-        return False
-    if DECIMAL_RE.match(t):
-        return False
-    if URL_RE.match(t):
-        return False
-    if SHORT_SYMBOL_RE.match(t):
-        return False
-    if len(t) <= 2 and not CLAUSE_RE.match(t):
-        return False
-    # 条文编号
-    if CLAUSE_RE.match(t):
-        return True
-    # 附录
-    if APPENDIX_RE.match(t):
-        return True
-    # 表 / 图
-    if TABLE_RE.match(t):
-        return True
-    # 大字号 / 短行粗体
-    if font_size >= 14:
-        return True
-    if lines_in_block <= 2 and font_size >= 12 and len(t) >= 4:
-        return True
-    if lines_in_block == 1 and font_size >= 10 and len(t) >= 6:
-        return True
-    return False
-
-
-def render_page_as_image(doc, page_num, out_dir: Path, basename):
-    page = doc[page_num]
-    import fitz
-
-    pix = page.get_pixmap(matrix=fitz.Matrix(3, 3))  # 3x 分辨率
-    fn = f"{basename}_p{page_num+1:04d}.png"
-    pix.save(out_dir / fn)
-    return fn
-
-
-def extract_text_from_pdf(pdf_path: Path, image_dir: Path):
-    try:
-        import fitz
-    except ImportError as exc:
-        raise RuntimeError("缺少 PyMuPDF 依赖，请先安装 requirements.txt") from exc
-
-    doc = fitz.open(pdf_path)
-    filename = pdf_path.name
-    basename = pdf_path.stem
-    elements = []
-
-    for pn in range(len(doc)):
-        page = doc[pn]
-        img_file = render_page_as_image(doc, pn, image_dir, basename)
-        blocks = page.get_text("dict")["blocks"]
-
-        for blk in blocks:
-            if blk["type"] != 0:
-                continue
-            lines = []
-            for ln in blk["lines"]:
-                t = "".join(s["text"] for s in ln["spans"]).strip()
-                if t:
-                    lines.append(t)
-            if not lines:
-                continue
-
-            text = " ".join(lines)
-            span0 = blk["lines"][0]["spans"][0]
-            fs = span0["size"]
-
-            el_type = "Title" if is_title_block(text, len(lines), fs) else "Text"
-            elements.append({"type": el_type, "text": text, "page": pn + 1, "img": img_file})
-
-    doc.close()
-    return elements
-
-
-def chunk_to_paragraphs(elements):
-    """按标题/条文号 + 页码自然断点合并。"""
+def chunk_to_paragraphs(elements: list[dict]) -> list[dict]:
     chunks = []
-    cur_title = ""
-    buffer = []
-    pages = set()
-    imgs = set()
-    last_page = None
+    current_title = ""
+    buffer: list[str] = []
+    pages: set[int] = set()
+    images: set[str] = set()
+    original_images: set[str] = set()
+    chunk_types: set[str] = set()
+    html_parts: list[str] = []
+    last_page: int | None = None
 
-    for el in elements:
-        is_title = el["type"] == "Title"
-        page_changed = last_page is not None and el["page"] != last_page
+    for element in elements:
+        text = str(element.get("text", "")).strip()
+        if not text:
+            continue
+        page = int(element.get("page") or 0)
+        image = str(element.get("img") or "")
+        original_image = str(element.get("original_img_path") or "")
+        is_title = element.get("type") == "Title"
+        page_changed = last_page is not None and page != last_page
 
-        # 遇到标题或换页时切分
-        if is_title or page_changed:
-            # 换页且当前块有内容时切分
-            if (is_title or (page_changed and buffer)) and buffer:
-                chunks.append({"title": cur_title, "text": "\n".join(buffer), "pages": sorted(pages), "images": sorted(imgs)})
-                buffer = []
-                pages = set()
-                imgs = set()
+        if (is_title or page_changed) and buffer:
+            chunks.append(
+                {
+                    "title": current_title,
+                    "text": "\n".join(buffer),
+                    "pages": sorted(page for page in pages if page),
+                    "images": sorted(image for image in images if image),
+                    "original_images": sorted(image for image in original_images if image),
+                    "html": "\n".join(html_parts),
+                    "chunk_type": _dominant_chunk_type(chunk_types),
+                }
+            )
+            buffer = []
+            pages = set()
+            images = set()
+            original_images = set()
+            chunk_types = set()
+            html_parts = []
 
-            if is_title:
-                cur_title = el["text"]
+        if is_title:
+            current_title = text
 
-        buffer.append(el["text"])
-        pages.add(el["page"])
-        imgs.add(el["img"])
-        last_page = el["page"]
+        buffer.append(text)
+        if page:
+            pages.add(page)
+        if image:
+            images.add(image)
+        if original_image:
+            original_images.add(original_image)
+        if element.get("html"):
+            html_parts.append(str(element["html"]))
+        chunk_types.add(str(element.get("chunk_type") or "text"))
+        last_page = page
 
     if buffer:
-        chunks.append({"title": cur_title, "text": "\n".join(buffer), "pages": sorted(pages), "images": sorted(imgs)})
+        chunks.append(
+            {
+                "title": current_title,
+                "text": "\n".join(buffer),
+                "pages": sorted(page for page in pages if page),
+                "images": sorted(image for image in images if image),
+                "original_images": sorted(image for image in original_images if image),
+                "html": "\n".join(html_parts),
+                "chunk_type": _dominant_chunk_type(chunk_types),
+            }
+        )
     return chunks
 
 
-def process_pdf(pdf_path: Path, spec: SpecMetadata, out_dir: Path, image_dir: Path) -> list[dict]:
+def _dominant_chunk_type(chunk_types: set[str]) -> str:
+    for preferred in ("table", "formula", "figure", "explanation"):
+        if preferred in chunk_types:
+            return preferred
+    return "text"
+
+
+def build_quality_entry(
+    pdf_path: Path,
+    elements: list[dict],
+    chunks: list[dict],
+    artifacts: list[dict],
+) -> dict:
+    total_elements = len(elements)
+    empty_text = sum(1 for element in elements if not str(element.get("text", "")).strip())
+    counts: dict[str, int] = {"text": 0, "table": 0, "formula": 0, "figure": 0, "explanation": 0}
+    for element in elements:
+        chunk_type = str(element.get("chunk_type") or "text")
+        counts[chunk_type] = counts.get(chunk_type, 0) + 1
+    missing = [item["kind"] for item in artifacts if item.get("status") != "ok"]
+    return {
+        "source_file": pdf_path.name,
+        "element_count": total_elements,
+        "chunk_count": len(chunks),
+        "table_count": counts.get("table", 0),
+        "formula_count": counts.get("formula", 0),
+        "figure_count": counts.get("figure", 0),
+        "empty_text_ratio": round(empty_text / total_elements, 4) if total_elements else 0,
+        "missing_artifacts": missing,
+        "missing_required_artifacts": [item["kind"] for item in artifacts if item.get("required") and item.get("status") != "ok"],
+    }
+
+
+def process_pdf(pdf_path: Path, spec: SpecMetadata, out_dir: Path, image_dir: Path, parser: PdfParser) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
     image_dir.mkdir(parents=True, exist_ok=True)
-    logging.info("处理: %s", pdf_path.name)
-    elements = extract_text_from_pdf(pdf_path, image_dir)
-    raw_chunks = chunk_to_paragraphs(elements)
+    logging.info("处理: %s parser=%s", pdf_path.name, parser.name)
+
+    parse_result = parser.parse(pdf_path, image_dir)
+    raw_chunks = chunk_to_paragraphs(parse_result.elements)
     chunks = normalize_chunks(raw_chunks, spec)
-    logging.info("  元素: %s, 段落块: %s", len(elements), len(chunks))
+    quality = build_quality_entry(pdf_path, parse_result.elements, chunks, parse_result.artifacts)
+    logging.info("  元素: %s, 段落块: %s", len(parse_result.elements), len(chunks))
 
     basename = pdf_path.stem
-    (out_dir / f"{basename}.json").write_text(json.dumps(elements, ensure_ascii=False, indent=2), encoding="utf-8")
+    elements_payload = {
+        "source_file": pdf_path.name,
+        "parser_backend": parser.name,
+        "parser_metadata": parse_result.metadata,
+        "elements": parse_result.elements,
+    }
+    (out_dir / f"{basename}.json").write_text(json.dumps(elements_payload, ensure_ascii=False, indent=2), encoding="utf-8")
     (out_dir / f"{basename}_chunks.json").write_text(json.dumps(chunks, ensure_ascii=False, indent=2), encoding="utf-8")
-    return chunks
+    return {
+        "chunks": chunks,
+        "artifacts": parse_result.artifacts,
+        "quality": quality,
+        "parser_metadata": parse_result.metadata,
+        "media_files": parse_result.media_files,
+    }
 
 
 def process_pdfs(
@@ -166,18 +154,33 @@ def process_pdfs(
     metadata: dict[str, SpecMetadata],
     out_dir: Path = PROCESSED_DIR,
     image_dir: Path = IMAGES_DIR,
-) -> dict[str, list[dict]]:
-    chunks_by_file: dict[str, list[dict]] = {}
+    *,
+    parser_backend: str = DEFAULT_PARSER_BACKEND,
+    mineru_output_dir: Path = MINERU_DIR,
+) -> dict[str, dict]:
+    parser = create_parser(parser_backend, mineru_output_dir=mineru_output_dir)
+    results_by_file: dict[str, dict] = {}
     for pdf_file in pdf_files:
-        chunks_by_file[pdf_file.name] = process_pdf(pdf_file, metadata[pdf_file.name], out_dir, image_dir)
+        results_by_file[pdf_file.name] = process_pdf(pdf_file, metadata[pdf_file.name], out_dir, image_dir, parser)
 
-    images = list(image_dir.glob("*.png"))
-    size = sum(image.stat().st_size for image in images)
-    logging.info("完成! %s 页图片, %.1fMB", len(images), size / 1024 / 1024)
-    return chunks_by_file
+    images = list(image_dir.glob("*"))
+    size = sum(image.stat().st_size for image in images if image.is_file())
+    logging.info("完成! %s 张图片/媒体, %.1fMB", len(images), size / 1024 / 1024)
+    quality_report = {
+        "parser_backend": parser_backend,
+        "documents": [result["quality"] for result in results_by_file.values()],
+        "totals": {
+            "document_count": len(results_by_file),
+            "chunk_count": sum(len(result["chunks"]) for result in results_by_file.values()),
+            "image_count": len(images),
+            "missing_artifact_count": sum(len(result["quality"]["missing_artifacts"]) for result in results_by_file.values()),
+        },
+    }
+    (out_dir / "build_quality.json").write_text(json.dumps(quality_report, ensure_ascii=False, indent=2), encoding="utf-8")
+    return results_by_file
 
 
-def process_all():
+def process_all() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
     pdfs = sorted(path for path in RAW_DIR.iterdir() if path.is_file() and path.suffix.lower() == ".pdf")
     metadata = load_spec_metadata(pdfs, METADATA_DIR / "specs.json")

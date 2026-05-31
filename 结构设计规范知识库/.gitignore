@@ -27,6 +27,7 @@ Thumbs.db
 /data/processed/
 /data/chunks/
 /data/images/
+/data/mineru/
 /data/manifest.json
 /db/
 /logs/

@@ -28,19 +28,37 @@ def build_manifest(
     image_count: int,
     embedding_model: str,
     collection_name: str,
+    artifacts_by_file: dict[str, list[dict[str, Any]]] | None = None,
+    parser_metadata_by_file: dict[str, dict[str, Any]] | None = None,
+    chunk_hashes_by_file: dict[str, list[str]] | None = None,
     build_params: dict[str, Any],
 ) -> dict[str, Any]:
+    artifacts_by_file = artifacts_by_file or {}
+    parser_metadata_by_file = parser_metadata_by_file or {}
+    chunk_hashes_by_file = chunk_hashes_by_file or {}
     documents = []
     for pdf in pdf_files:
         spec = metadata[pdf.name]
+        artifacts = artifacts_by_file.get(pdf.name, [])
         documents.append(
             {
                 **spec.to_dict(),
                 "sha256": file_sha256(pdf),
                 "size_bytes": pdf.stat().st_size,
                 "chunk_count": chunk_counts.get(pdf.name, 0),
+                "chunk_hashes": chunk_hashes_by_file.get(pdf.name, []),
+                "artifacts": artifacts,
+                "parser_metadata": parser_metadata_by_file.get(pdf.name, {}),
+                "missing_artifacts": [item["kind"] for item in artifacts if item.get("status") != "ok"],
             }
         )
+
+    missing_artifacts = [
+        {"source_file": doc["source_file"], "kind": artifact["kind"], "required": artifact["required"]}
+        for doc in documents
+        for artifact in doc.get("artifacts", [])
+        if artifact.get("status") != "ok"
+    ]
 
     version_payload = {
         "documents": documents,
@@ -59,6 +77,11 @@ def build_manifest(
         "collection_name": collection_name,
         "build_params": build_params,
         "metadata_status": "partial" if any(doc["metadata_status"] == "partial" for doc in documents) else "complete",
+        "artifact_status": {
+            "missing_count": len(missing_artifacts),
+            "missing_required_count": sum(1 for item in missing_artifacts if item["required"]),
+            "missing": missing_artifacts,
+        },
         "data_version_hash": compute_data_version_hash(version_payload),
     }
 
@@ -72,4 +95,3 @@ def read_manifest(path: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
     return json.loads(path.read_text(encoding="utf-8"))
-

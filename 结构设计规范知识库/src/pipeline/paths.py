@@ -7,7 +7,7 @@ RAW_DIR = DATA_DIR / "raw"
 METADATA_DIR = DATA_DIR / "metadata"
 PROCESSED_DIR = DATA_DIR / "processed"
 IMAGES_DIR = DATA_DIR / "images"
+MINERU_DIR = DATA_DIR / "mineru"
 MANIFEST_PATH = DATA_DIR / "manifest.json"
 DB_DIR = PROJECT_ROOT / "db"
 LOGS_DIR = PROJECT_ROOT / "logs"
-
