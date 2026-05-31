@@ -3,7 +3,9 @@ services:
   backend:
     build:
       context: .
-      dockerfile: Dockerfile.backend.dev
+      dockerfile: Dockerfile.backend
+      args:
+        BUILD_ENV: development
     container_name: blog_backend_dev
     command: flask run --debug --host=0.0.0.0 --port=8000
     env_file: .env.dev
@@ -45,7 +47,8 @@ services:
   frontend:
     build:
       context: .  
-      dockerfile: Dockerfile.frontend.dev
+      dockerfile: Dockerfile.frontend
+      target: dev
     container_name: blog_frontend_dev
     command: npm run dev -- --host 0.0.0.0 --port 3000
     environment:
@@ -69,7 +72,9 @@ services:
   celery_worker:
     build:
       context: .
-      dockerfile: Dockerfile.backend.dev
+      dockerfile: Dockerfile.backend
+      args:
+        BUILD_ENV: development
     container_name: blog_celery_dev
     command: watchfiles --ignore-paths ./backend/migrations "celery -A app.tasks.celery_app worker -l debug" ./backend
     env_file: .env.dev

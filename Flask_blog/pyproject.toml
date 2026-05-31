@@ -1,0 +1,60 @@
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | migrations
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 88
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+skip_gitignore = true
+extend_skip = ["migrations"]
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = [
+    "E203",  # whitespace before ':' (black兼容)
+    "W503",  # line break before binary operator (black兼容)
+]
+exclude = [
+    ".git",
+    "__pycache__",
+    "migrations",
+    ".venv",
+    "venv",
+    ".tox",
+]
+
+[tool.pytest.ini_options]
+testpaths = [
+    "backend/tests",
+]
+python_files = ["test_*.py"]
+addopts = "-q --tb=short --cov=app --cov-report=term-missing --cov-fail-under=0"
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_ignores = true
+exclude = [
+    "migrations/",
+]

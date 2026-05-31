@@ -10,7 +10,7 @@ export function bindGeneratedClient(OpenAPI) {
 import api from '../apiClient';
 import { OpenAPI } from '../generated/core/OpenAPI';
 import { request as genRequest } from '../generated/core/request';
-import { useSessionStore } from '../stores/session';
+import { useUserStore } from '../stores/user';
 import router from '../router';
 
 OpenAPI.TOKEN = () => Promise.resolve(localStorage.getItem('access_token') || '');
@@ -22,7 +22,7 @@ const etagCache = new Map(); // key -> { etag, data, ts }
 const ETAG_TTL = 60_000; // 60s
 
 function getSession(){
-  try { return useSessionStore(); } catch { return null; }
+  try { return useUserStore(); } catch { return null; }
 }
 
 async function refreshTokenOnce(){

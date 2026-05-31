@@ -1,0 +1,13 @@
+# 开发与测试工具
+# pip install -r requirements-dev.txt
+
+# Lint & Format
+flake8==7.1.0
+black==24.4.2
+isort==5.13.2
+
+# Type checking (optional)
+mypy==1.10.0
+
+# Testing
+pytest-cov==5.0.0

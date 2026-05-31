@@ -266,3 +266,18 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Auto-generated API client code (built at CI time)
+frontend/src/generated/
+
+# OpenAPI definitions (duplicated across root/backend/frontend)
+openapi.json
+backend/openapi.json
+frontend/openapi.json
+
+# Root-level npm artifacts (frontend managed under frontend/)
+package.json
+package-lock.json
+
+# Committed dev environment (template is .env.example)
+.env.dev

@@ -30,7 +30,6 @@ export default defineConfig({
         manualChunks: {
           vue: ['vue', 'vue-router', 'pinia'],
           element: ['element-plus'],
-          tiptap: ['@tiptap/vue-3', '@tiptap/starter-kit'],
           highlight: ['highlight.js'],
           axios: ['axios']
         }

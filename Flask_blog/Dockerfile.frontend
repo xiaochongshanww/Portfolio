@@ -1,13 +1,27 @@
 # Frontend Dockerfile
-FROM node:20-alpine AS build
-WORKDIR /fe
+#   Production:  docker build -f Dockerfile.frontend --target prod-nginx .
+#   Development: docker build -f Dockerfile.frontend --target dev .
+
+# ─── base (deps install) ─────────────────────────────────
+FROM node:20-alpine AS base
+WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm install --legacy-peer-deps || npm install
+RUN npm install --legacy-peer-deps
+
+# ─── development (hot reload) ────────────────────────────
+FROM base AS dev
+RUN apk add --no-cache git curl
+ENV NODE_ENV=development
+EXPOSE 3000 24678
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3000"]
+
+# ─── production build stage ──────────────────────────────
+FROM base AS build
 COPY frontend ./
 RUN npm run build
 
-FROM nginx:1.27-alpine AS prod
-COPY --from=build /fe/dist /usr/share/nginx/html
-# Basic security & compression tweaks (can be extended)
-RUN sed -i 's/sendfile on;/sendfile on;\n  gzip on;\n  gzip_types text/css application/javascript application/json image/svg+xml;/' /etc/nginx/nginx.conf
+# ─── production nginx stage ──────────────────────────────
+FROM nginx:1.27-alpine AS prod-nginx
+COPY --from=build /app/dist /usr/share/nginx/html
+RUN sed -i 's/sendfile on;/sendfile on;\n  gzip on;\n  gzip_types text/css application/javascript application\/json image\/svg+xml;/' /etc/nginx/nginx.conf
 EXPOSE 80

@@ -1,27 +1,54 @@
-# Backend Dockerfile
+# Backend Dockerfile — supports both production and development via BUILD_ENV arg
+#   docker build --build-arg BUILD_ENV=production  -f Dockerfile.backend .
+#   docker build --build-arg BUILD_ENV=development -f Dockerfile.backend .
+
+ARG BUILD_ENV=production
+
 FROM python:3.11-slim AS base
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends \
-	build-essential libmariadb-dev-compat libmariadb-dev curl \
-	&& rm -rf /var/lib/apt/lists/*
 
-# === Dependency layer (better caching) ===
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential libmariadb-dev-compat libmariadb-dev curl \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# === Application code ===
 COPY backend ./backend
 WORKDIR /app/backend
 ENV FLASK_APP=app:create_app
-ENV APP_ENV=prod
 
-# === Entrypoint (runs migrations / optional reindex) ===
+# ─── production target ────────────────────────────────────
+FROM base AS production
+ENV APP_ENV=prod
 COPY backend/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
-
-# Runtime defaults (override via docker compose / k8s)
 ENV AUTO_MIGRATE=1 REINDEX_ON_START=false
-
 CMD ["gunicorn","-w","4","-k","gthread","--threads","4","-b","0.0.0.0:8000","app:create_app()"]
+
+# ─── development target ───────────────────────────────────
+FROM base AS development
+RUN pip install --no-cache-dir \
+    debugpy watchfiles ipdb pytest pytest-cov black flake8
+
+RUN apt-get update && apt-get install -y --no-install-recommends git procps \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV FLASK_ENV=development FLASK_DEBUG=1
+EXPOSE 8000 5678
+
+RUN printf '#!/bin/bash\n\
+if [ "$FLASK_DEBUG_MODE" = "remote" ]; then\n\
+    echo "Starting Flask with remote debugging..."\n\
+    python -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m flask run --debug --host=0.0.0.0 --port=8000\n\
+else\n\
+    echo "Starting Flask in development mode..."\n\
+    flask run --debug --host=0.0.0.0 --port=8000\n\
+fi' > /app/start-dev.sh && chmod +x /app/start-dev.sh
+
+CMD ["/app/start-dev.sh"]
+
+# ─── default target ───────────────────────────────────────
+FROM ${BUILD_ENV}
