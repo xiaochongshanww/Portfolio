@@ -3,7 +3,6 @@ import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 import router from './router';
 import App from './App.vue';
-import './rum.ts';
 // 全局引入 KaTeX 样式，尽量在 Tailwind 之前导入以减少被覆盖的风险
 import 'katex/dist/katex.min.css';
 // 导入Element Plus样式

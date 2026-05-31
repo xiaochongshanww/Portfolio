@@ -23,7 +23,7 @@ async function onFile(e){
   fd.append('file', f);
   uploading.value = true;
   try {
-    const resp = await api.post('/api/v1/uploads/image', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+    const resp = await api.post('/uploads/image', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
     const data = resp.data?.data;
     if(data){
       emit('uploaded', data);

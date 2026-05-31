@@ -1281,7 +1281,7 @@ async function loadCategories() {
     // 如果公开接口失败，尝试使用认证接口
     console.log('🔄 公开接口失败，尝试使用认证接口...');
     try {
-      const authResponse = await apiClient.get('/api/v1/categories/');
+      const authResponse = await apiClient.get('/categories/');
       console.log('📡 认证接口响应:', authResponse.data);
       
       if (authResponse.data.code === 0 && authResponse.data.data) {

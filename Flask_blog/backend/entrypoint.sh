@@ -6,7 +6,7 @@ python -c "import platform,sys;print(f'Python {platform.python_version()} - {sys
 
 if [ "${AUTO_MIGRATE:-1}" = "1" ]; then
   echo "[entrypoint] Running database migrations..."
-  flask db upgrade || { echo "[entrypoint] Migration failed"; exit 1; }
+  flask db upgrade || { echo "[entrypoint] Migration failed — continuing for manual repair"; }
 else
   echo "[entrypoint] AUTO_MIGRATE disabled. Skipping migrations."
 fi

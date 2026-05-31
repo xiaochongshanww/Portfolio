@@ -34,7 +34,7 @@ const error = ref('');
 
 async function load(){
   try {
-    const r = await api.get('/api/v1/search/synonyms/');
+    const r = await api.get('/search/synonyms/');
     list.value = r.data?.data || [];
   } catch(e){ pushError('加载失败'); }
 }
@@ -42,7 +42,7 @@ async function add(){
   loading.value=true; error.value='';
   try {
     const syns = synonymsRaw.value.split(',').map(s=>s.trim()).filter(Boolean);
-    const r = await api.post('/api/v1/search/synonyms/', { term: term.value, synonyms: syns });
+    const r = await api.post('/search/synonyms/', { term: term.value, synonyms: syns });
     pushSuccess('已更新'); term.value=''; synonymsRaw.value=''; await load();
   } catch(e){ pushError('提交失败'); }
   finally { loading.value=false; }
@@ -50,7 +50,7 @@ async function add(){
 async function del(t){
   if(!confirm('确定删除该同义词组?')) return;
   loading.value=true; error.value='';
-  try { await api.delete('/api/v1/search/synonyms/' + encodeURIComponent(t)); pushSuccess('已删除'); await load(); }
+  try { await api.delete('/search/synonyms/' + encodeURIComponent(t)); pushSuccess('已删除'); await load(); }
   catch(e){ pushError('删除失败'); }
   finally { loading.value=false; }
 }
