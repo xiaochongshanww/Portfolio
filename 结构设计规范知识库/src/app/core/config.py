@@ -52,7 +52,7 @@ class Settings:
     rate_limit_enabled: bool = field(default_factory=lambda: _env_bool("RATE_LIMIT_ENABLED", "true"))
     rate_limit_per_minute: int = field(default_factory=lambda: int(os.getenv("RATE_LIMIT_PER_MINUTE", "30")))
 
-    db_dir: Path = field(default_factory=lambda: Path(_env_or_default("DB_DIR", str(PROJECT_ROOT / "db"))))
+    db_dir: Path = field(default_factory=lambda: Path(_env_or_default("DB_DIR", "db")))
     img_dir: Path = field(default_factory=lambda: Path(_env_or_default("IMG_DIR", str(PROJECT_ROOT / "data" / "images"))))
     img_base_url: str = field(default_factory=lambda: os.getenv("IMG_BASE_URL", "/images"))
     static_dir: Path = field(default_factory=lambda: Path(_env_or_default("STATIC_DIR", str(PROJECT_ROOT / "src" / "static"))))

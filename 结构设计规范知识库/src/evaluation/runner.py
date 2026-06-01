@@ -110,6 +110,9 @@ def summarize_results(cases: list[EvaluationCase], results_by_id: dict[str, list
 
 def run_evaluation(path: Path = DEFAULT_EVAL_PATH, top_k: int = 5) -> dict[str, Any]:
     if not retrieval_state.ready:
+        retrieval_state.initialize()
+
+    if not retrieval_state.ready:
         return {"ok": False, "error": "知识库检索服务未就绪，请先启动并完成 ChromaDB/ZhipuAI 初始化"}
 
     cases = load_cases(path)
