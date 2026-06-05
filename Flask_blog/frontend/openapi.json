@@ -1549,6 +1549,14 @@
             "schema": {
               "type": "integer"
             }
+          },
+          {
+            "name": "detail",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "传 1 返回内容字段"
           }
         ],
         "responses": {
@@ -1600,6 +1608,157 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CreateVersionResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized",
+            "description": ""
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden",
+            "description": ""
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound",
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/articles/{id}/versions/{version_no}": {
+      "get": {
+        "summary": "Get article version detail",
+        "tags": [
+          "versions",
+          "workflow",
+          "articles"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "version_no",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "version_no": {
+                          "type": "integer"
+                        },
+                        "created_at": {
+                          "type": "string"
+                        },
+                        "content_md": {
+                          "type": "string"
+                        },
+                        "content_html": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized",
+            "description": ""
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden",
+            "description": ""
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound",
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/articles/{id}/versions/{version_no}/rollback": {
+      "post": {
+        "summary": "Rollback to version",
+        "tags": [
+          "versions",
+          "workflow",
+          "articles"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "version_no",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "rolled_back_to": {
+                          "type": "integer"
+                        },
+                        "new_version_no": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }

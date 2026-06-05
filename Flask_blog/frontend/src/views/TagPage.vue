@@ -11,7 +11,7 @@
   </div>
   <div v-else class="loading">加载中...</div>
 </template>
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 const props = withDefaults(defineProps<{ slug?: string }>(), { slug: "" })

@@ -19,7 +19,7 @@ from .service import (
     sync_physical_backups_to_database,
     update_config,
 )
-from .task_cleaner import BackupTaskCleaner
+from .task_cleaner import TaskCleaner as BackupTaskCleaner
 
 PAGE_SIZE = 20
 

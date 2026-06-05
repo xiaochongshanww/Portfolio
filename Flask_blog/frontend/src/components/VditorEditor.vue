@@ -75,15 +75,12 @@ let vditor: Vditor | null = null;
 
 // 防抖函数
 function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T {
-  let timeout: NodeJS.Timeout | null = null;
-  return ((...args: any[]) => {
-    const later = () => {
-      timeout = null;
-      func(...args);
-    };
-    if (timeout) clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  }) as T;
+  let timeout: ReturnType<typeof setTimeout> | null = null
+  const fn: any = function(...args: any[]) {
+    if (timeout) clearTimeout(timeout)
+    timeout = setTimeout(() => { func(...args) }, wait)
+  }
+  return fn
 }
 
 // 获取上传配置（使用媒体库API）
@@ -193,7 +190,6 @@ function getUploadConfig() {
   };
   
   window.vditorCleanupFunctions.push(cleanup);
-}
 
 // 初始化Vditor
 async function initVditor() {

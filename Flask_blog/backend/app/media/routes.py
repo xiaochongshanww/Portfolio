@@ -12,8 +12,7 @@ from .. import db, limiter, require_auth, require_roles
 from ..models import Media, MediaFolder, User
 from .permissions import (
     can_delete_media,
-    can_edit_media,
-    can_upload_media,
+    can_modify_media,
     can_view_media,
 )
 from .service import (
@@ -98,7 +97,7 @@ def get_media_detail(media_id: int):
 @require_auth
 def update_media(media_id: int):
     m = Media.query.get_or_404(media_id)
-    if not can_edit_media(m, request.user_id, request.user_role):
+    if not can_modify_media(m, request.user_id, request.user_role):
         return _err(4030, 'Forbidden', 403)
     data = request.get_json() or {}
     for field in ('alt_text', 'caption', 'folder_id'):

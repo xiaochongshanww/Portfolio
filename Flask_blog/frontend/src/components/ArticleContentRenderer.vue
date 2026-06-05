@@ -96,8 +96,6 @@ import 'katex/dist/katex.min.css';
 
 import { ContentTypeDetector } from '@/utils/contentTypeDetector.js';
 import { renderMarkdown, preload, testProcessor, getProcessorStatus } from '@/utils/markdownProcessor.reliable.js';
-import { testKaTeX } from '@/utils/testMarkdown.js';
-import { debugKaTeX } from '@/utils/debugKaTeX.js';
 
 // Props定义
 const props = defineProps({
@@ -455,11 +453,6 @@ onMounted(async () => {
   if (isDevelopment.value && typeof window !== 'undefined') {
     try {
       // 检查KaTeX样式
-      if (window.debugKaTeX) {
-        const check = window.debugKaTeX.checkStyles();
-        console.log('debugKaTeX.checkStyles():', check);
-      }
-      
       // 检查页面上的代码块元素
       setTimeout(() => {
         const codeBlocks = document.querySelectorAll('.article-content pre');

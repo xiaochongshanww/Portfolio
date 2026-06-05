@@ -185,7 +185,7 @@
     </div>
   </div>
 </template>
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 const props = withDefaults(defineProps<{ id?: string|number }>(), { id: "" })

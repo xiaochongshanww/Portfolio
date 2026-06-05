@@ -69,7 +69,7 @@
     <div v-if="loading" class="loading">搜索中...</div>
   </div>
 </template>
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue';
 import { setMeta, injectJsonLd } from '../composables/useMeta';
 import { API } from '../api';
