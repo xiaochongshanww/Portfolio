@@ -188,6 +188,7 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+const props = withDefaults(defineProps<{ id?: string|number }>(), { id: "" })
 import { setMeta, injectJsonLd } from '../composables/useMeta';
 import { Grid, List } from '@element-plus/icons-vue';
 import { API } from '../api';
@@ -196,7 +197,7 @@ const route = useRoute();
 const router = useRouter();
 const loaded = ref(false);
 const articles = ref([]);
-const slugOrId = ref(route.params.id || route.params.slug);
+const slugOrId = ref(props.id || route.params.id || route.params.slug);
 const categoryName = ref('');
 const categoryDescription = ref('');
 const lastUpdated = ref(null);
@@ -339,7 +340,7 @@ function formatNumber(num) {
 }
 
 onMounted(load);
-watch(() => route.params.id, (newId) => {
+watch(() => props.id || route.params.id, (newId) => {
   if (newId) {
     slugOrId.value = newId;
     load();

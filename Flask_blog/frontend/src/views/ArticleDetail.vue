@@ -289,6 +289,11 @@
 import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useUserStore } from '../stores/user';
+
+const props = withDefaults(defineProps<{
+  slug?: string
+}>(), { slug: '' })
+
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Edit } from '@element-plus/icons-vue';
 import CommentsThread from '../components/CommentsThread.vue';
@@ -414,7 +419,7 @@ async function load(){
   error.value = '';
   
   try {
-    const slug = route.params.slug;
+    const slug = props.slug || route.params.slug;
     if (!slug) {
       throw new Error('文章slug参数缺失');
     }

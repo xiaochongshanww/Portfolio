@@ -14,9 +14,10 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
+const props = withDefaults(defineProps<{ slug?: string }>(), { slug: "" })
 import { setMeta, injectJsonLd } from '../composables/useMeta';
 const route = useRoute();
-const tagSlug = ref(route.params.slug);
+const tagSlug = ref(props.slug || route.params.slug);
 const loaded = ref(false);
 const articles = ref([]);
 async function load(){
@@ -33,7 +34,7 @@ async function load(){
 }
 function formatDate(dt){ if(!dt) return ''; return new Date(dt).toLocaleDateString(); }
 onMounted(load);
-watch(()=>route.params.slug, v=>{ if(v){ tagSlug.value=v; load(); }});
+watch(() => props.slug || route.params.slug, v=>{ if(v){ tagSlug.value=v; load(); }});
 </script>
 <style scoped>
 .meta { margin-left:.5rem; color:#666; }

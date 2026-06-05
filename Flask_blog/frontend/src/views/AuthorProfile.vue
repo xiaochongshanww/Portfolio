@@ -10,6 +10,7 @@
             <div v-else class="avatar-placeholder">
               <el-icon size="48"><User /></el-icon>
             </div>
+
             <div class="avatar-ring"></div>
           </div>
         </div>
@@ -173,7 +174,7 @@
   </div>
 </template>
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useNotify } from '../composables/useNotify';
 import { UsersService } from '../generated';
@@ -186,7 +187,8 @@ import {
 const route = useRoute();
 const { pushError } = useNotify();
 
-const userId = ref(Number(route.params.id));
+const props = withDefaults(defineProps<{ id?: string|number }>(), { id: "" })
+const userId = computed(() => Number(props.id || route.params.id));
 const profile = ref({});
 const articles = ref([]);
 const stats = ref({ articles_count:0,total_views:0,total_likes:0,last_published_at:null });
@@ -205,7 +207,7 @@ async function loadProfile(){
 async function loadStats(){
   try {
     const r = await fetch(`/api/v1/users/public/${userId.value}/stats`);
-    const j = await r.json();
+    const j = r.data || await r.json();
     if(j && j.data) stats.value = j.data; statsLoaded.value=true;
   }catch(e){ statsLoaded.value=true; }
 }
