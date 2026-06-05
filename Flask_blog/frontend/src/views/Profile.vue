@@ -800,7 +800,7 @@ async function changePassword() {
     }
     
     // 调用密码修改API
-    const response = await fetch('/api/v1/auth/change_password', {
+    const response = await apiClient.post('/auth/change_password', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -813,12 +813,13 @@ async function changePassword() {
       })
     });
     
-    if (!response.ok) {
+    const respData = response.data || {}
+  if (response.status >= 400 || respData.code !== 0) {
       // 处理HTTP错误状态
       let errorMessage = '密码修改失败';
       try {
-        const errorData = await response.json();
-        errorMessage = errorData.message || `HTTP ${response.status}: ${response.statusText}`;
+        const errorData = respData;
+        errorMessage = respData.message || `HTTP ${response.status}: ${response.statusText}`;
       } catch (e) {
         errorMessage = `HTTP ${response.status}: ${response.statusText}`;
       }
@@ -826,7 +827,7 @@ async function changePassword() {
       return;
     }
     
-    const result = await response.json();
+    const result = response.data;
     
     if (result.code === 0) {
       passwordChanged.value = true;
