@@ -55,10 +55,7 @@ interface Props {
   height?: number;
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  modelValue: '',
-  height: 500
-});
+const props = defineProps<Props>();
 
 const emit = defineEmits<{
   'update:modelValue': [value: string];
