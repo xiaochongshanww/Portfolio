@@ -4,5 +4,5 @@ app = create_app()
 
 if __name__ == '__main__':
     # 使用 Alembic 迁移管理数据库结构，参见 README 与 migrations/README_migrations.md
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0')
 

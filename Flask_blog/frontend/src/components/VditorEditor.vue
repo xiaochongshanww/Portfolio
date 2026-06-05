@@ -89,7 +89,8 @@ function getUploadConfig() {
 }
 
 
-// 处理粘贴内容中的本地图片路径
+// 设置粘贴事件处理器
+function setupPasteHandler() {
   if (!vditorRef.value || !vditor) {
     console.warn('setupPasteHandler: 编辑器未就绪');
     return;
@@ -190,6 +191,7 @@ function getUploadConfig() {
   };
   
   window.vditorCleanupFunctions.push(cleanup);
+}
 
 // 初始化Vditor
 async function initVditor() {
