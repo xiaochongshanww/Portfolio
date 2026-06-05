@@ -78,9 +78,9 @@ const routes = [
       { path: 'performance', component: SystemPerformance, meta: { requiresRole: ['editor', 'admin'] } },
       { path: 'settings/general', component: SystemSettings, meta: { requiresRole: ['admin'] } },
       { path: 'backup', component: BackupManagement, meta: { requiresRole: ['admin'] } },
-      { path: 'backup-management', component: BackupManagement, meta: { requiresRole: ['admin'] } },
+      { path: 'backup-management', redirect: 'backup' },
       { path: 'restore', component: RestoreManagement, meta: { requiresRole: ['admin'] } },
-      { path: 'restore-management', component: RestoreManagement, meta: { requiresRole: ['admin'] } },
+      { path: 'restore-management', redirect: 'restore' },
       { path: 'media', component: MediaManagement, meta: { requiresRole: ['author', 'editor', 'admin'] } },
     ]
   },

@@ -52,9 +52,9 @@
       <ul>
         <li v-for="r in results" :key="r.id">
           <router-link :to="'/article/' + r.slug">
-            <strong v-html="r.title"></strong>
+            <strong v-html="sanitize(r.title)"></strong>
             <small class="meta">{{ r.views_count || 0 }} 阅读 · {{ formatDate(r.published_at || r.created_at) }}</small>
-            <p class="excerpt" v-html="r.excerpt"></p>
+            <p class="excerpt" v-html="sanitize(r.excerpt)"></p>
             <span class="tag" v-for="t in r.tags || []" :key="t">#{{ t }}</span>
           </router-link>
         </li>
@@ -74,6 +74,7 @@ import { ref } from 'vue';
 import { setMeta, injectJsonLd } from '../composables/useMeta';
 import { API } from '../api';
 import { useNotify } from '../composables/useNotify';
+import DOMPurify from 'dompurify';
 
 const { pushError } = useNotify();
 const q = ref('');
@@ -92,6 +93,10 @@ const facets = ref({});
 const categoryMap = ref({});
 const authorMap = ref({});
 const selectedFacetTags = ref([]);
+
+function sanitize(html: string): string {
+  return DOMPurify.sanitize(html || '', { ALLOWED_TAGS: ['mark', 'strong', 'em'], ALLOWED_ATTR: [] });
+}
 const categoryId = ref();
 const authorId = ref();
 

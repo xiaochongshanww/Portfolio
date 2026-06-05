@@ -123,12 +123,11 @@
           </el-empty>
 
           <!-- 文章列表 -->
-          <div v-else class="article-grid space-y-8 md:space-y-0" style="margin-top: 2.5rem;">
-            <article 
-              v-for="a in articles" 
-              :key="a.id" 
-              class="article-card bg-slate-50 rounded-3xl shadow-sm hover:shadow-xl transition-all duration-300 group"
-              style="background-color: rgb(248 250 252); padding: 24px;"
+          <div v-else class="article-grid space-y-8 md:space-y-0 article-list-container">
+            <article
+              v-for="a in articles"
+              :key="a.id"
+              class="article-card article-card-body bg-slate-50 rounded-3xl shadow-sm hover:shadow-xl transition-all duration-300 group"
             >
               <!-- 封面图片（顶部） - 优化的嵌入样式 -->
               <div class="cover-image-container">
@@ -1108,6 +1107,9 @@ watch(() => userStore.isAuthenticated, (newAuth, oldAuth) => {
 </script>
 
 <style scoped>
+.article-list-container { margin-top: 2.5rem; }
+.article-card-body { background-color: rgb(248 250 252); padding: 24px; }
+
 /* ===== 现代化分类按钮样式 ===== */
 .quick-filter-container {
   align-items: center;

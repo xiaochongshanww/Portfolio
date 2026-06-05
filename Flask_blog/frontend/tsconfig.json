@@ -14,10 +14,13 @@
     "skipLibCheck": true,
     "types": ["node", "vite/client"],
     "allowJs": true,
-    "checkJs": false,
+    "checkJs": true,
     "noEmit": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"]
   },
-  "include": ["src/**/*", "env.d.ts"],
-  "exclude": ["node_modules", "dist"]
+  "vueCompilerOptions": {
+    "target": 3.4
+  },
+  "include": ["src/**/*", "src/**/*.vue", "env.d.ts"],
+  "exclude": ["node_modules", "dist", "src/generated"]
 }

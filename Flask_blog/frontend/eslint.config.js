@@ -1,6 +1,7 @@
 import pluginVue from 'eslint-plugin-vue'
 import ts from '@typescript-eslint/eslint-plugin'
 import tsParser from '@typescript-eslint/parser'
+import tsRecommended from '@typescript-eslint/eslint-plugin/configs/recommended.js'
 
 export default [
   {
@@ -15,6 +16,7 @@ export default [
   ...pluginVue.configs['flat/recommended'],
   {
     files: ['src/**/*.ts', 'src/**/*.vue'],
+    ...tsRecommended,
     languageOptions: {
       parser: tsParser,
       parserOptions: {
@@ -23,11 +25,13 @@ export default [
       },
     },
     rules: {
+      ...tsRecommended.rules,
       'vue/multi-word-component-names': 'off',
       'vue/max-attributes-per-line': 'off',
       'vue/singleline-html-element-content-newline': 'off',
-      'no-console': ['warn', { allow: ['warn', 'error'] }],
-      'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      'no-console': ['error', { allow: ['warn', 'error'] }],
     },
   },
 ]
