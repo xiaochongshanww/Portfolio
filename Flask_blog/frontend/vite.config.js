@@ -41,10 +41,6 @@ export default defineConfig({
     },
     chunkSizeWarningLimit: 1200
   },
-  optimizeDeps: {
-    noDiscovery: true,
-    include: [],
-  },
   server: {
     host: '0.0.0.0',
     port: 5174,
