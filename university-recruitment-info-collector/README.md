@@ -154,6 +154,12 @@ university-recruitment-api
 university-recruitment-report
 ```
 
+查看信息源健康报告，定位采集为空、禁用源分类和下一步适配动作：
+
+```bash
+university-recruitment-report --source-health
+```
+
 主要接口：
 
 - `GET /health`: 健康检查
@@ -162,7 +168,7 @@ university-recruitment-report
 
 信息源配置位于 `config/sources.toml`，第一批信息源说明位于 `docs/sources/university_talent_sites.md`。
 
-广州高校候选池位于 `docs/sources/guangzhou_universities.md`。当前候选池约 84 所高校，其中已经接入 4 所，其余学校需要逐校核验招聘入口后再加入采集配置。
+广州高校候选池位于 `docs/sources/guangzhou_universities.md`。当前候选池约 84 所高校，均已纳入配置或明确标记；不可静态采集、动态系统、合并管理和过宽聚合源会以禁用源形式保留。
 
 聚合招聘信息源位于 `docs/sources/aggregators.md`。高校人才网/高才网已纳入聚合源配置，普通 HTTP 采集会被 403 拒绝，因此当前使用 Playwright 浏览器采集。
 

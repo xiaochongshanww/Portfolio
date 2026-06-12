@@ -42,6 +42,7 @@ class JobStore:
                 )
                 """
             )
+            self._ensure_columns(connection)
 
     def upsert_jobs(self, jobs: Iterable[RecruitmentJob]) -> int:
         rows = [self._job_to_row(job) for job in jobs]
@@ -93,6 +94,19 @@ class JobStore:
         with self.connect() as connection:
             rows = connection.execute(query, params).fetchall()
         return [self._row_to_job(row) for row in rows]
+
+    @staticmethod
+    def _ensure_columns(connection: sqlite3.Connection) -> None:
+        existing_columns = {
+            row["name"] for row in connection.execute("PRAGMA table_info(recruitment_jobs)").fetchall()
+        }
+        migrations = {
+            "longitude": "ALTER TABLE recruitment_jobs ADD COLUMN longitude REAL",
+            "latitude": "ALTER TABLE recruitment_jobs ADD COLUMN latitude REAL",
+        }
+        for column, statement in migrations.items():
+            if column not in existing_columns:
+                connection.execute(statement)
 
     @staticmethod
     def _job_to_row(job: RecruitmentJob) -> dict[str, object]:

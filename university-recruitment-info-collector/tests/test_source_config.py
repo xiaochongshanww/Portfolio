@@ -12,7 +12,8 @@ else:
     import tomli as tomllib
 
 from university_recruitment.source_config import SourceConfig, load_sources
-from university_recruitment.sources.factory import _build_location
+from university_recruitment.sources.factory import _build_location, build_source_adapter
+from university_recruitment.sources.university_talent_sites import BrowserTalentSiteAdapter
 
 
 @pytest.fixture
@@ -115,6 +116,20 @@ class TestBuildLocation:
             district="番禺区",
         )
         assert _build_location(config) == "番禺区"
+
+
+class TestBuildSourceAdapter:
+    def test_builds_browser_list_adapter(self) -> None:
+        config = SourceConfig(
+            school="测试大学",
+            city="广州",
+            source_name="测试大学招聘系统",
+            source_type="university_talent_site",
+            list_url="https://example.edu.cn/recruit",
+            parser="browser_list",
+        )
+        adapter = build_source_adapter(config)
+        assert isinstance(adapter, BrowserTalentSiteAdapter)
 
 
 class TestLoadSources:

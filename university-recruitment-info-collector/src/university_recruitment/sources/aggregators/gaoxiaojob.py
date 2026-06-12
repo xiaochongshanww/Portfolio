@@ -47,6 +47,7 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
         self,
         source_name: str,
         list_url: str,
+        school: str | None = None,
         location: str | None = None,
         longitude: float | None = None,
         latitude: float | None = None,
@@ -57,6 +58,7 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
     ) -> None:
         self.source_name = source_name
         self.list_url = list_url
+        self.school = school
         self.location = location
         self.longitude = longitude
         self.latitude = latitude
@@ -95,6 +97,8 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
         response.encoding = response.encoding or response.apparent_encoding
 
         soup = BeautifulSoup(response.text, "html.parser")
+        if self._is_detail_link(str(httpx.URL(self.list_url).path)):
+            return [self._build_detail_job(soup, str(response.url), 1)]
         return self._extract_jobs(soup)
 
     def _collect_with_browser(self) -> list[RecruitmentJob]:
@@ -115,6 +119,12 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
             )
             page.goto(self.list_url, wait_until="networkidle", timeout=int(self.timeout * 1000))
             html = page.content()
+            current_url = page.url
+            if self._is_detail_link(str(httpx.URL(current_url).path)):
+                soup = BeautifulSoup(html, "html.parser")
+                jobs = [self._build_detail_job(soup, current_url, 1)]
+                browser.close()
+                return jobs
             details = self._fetch_browser_details(page, html)
             browser.close()
 
@@ -157,7 +167,7 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
             if "gaoxiaojob.com" not in source_url:
                 continue
             detail = details.get(source_url)
-            school = self._infer_school(title, link)
+            school = self._configured_school() or self._infer_school(title, link)
             description = detail.text if detail and detail.text else title
             location = extract_address(description) or self.location
             jobs.append(
@@ -183,6 +193,46 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
             )
         return self._deduplicate(jobs)
 
+    def _build_detail_job(self, soup: BeautifulSoup, source_url: str, index: int) -> RecruitmentJob:
+        title = self._extract_detail_title(soup)
+        detail = parse_detail_html(str(soup))
+        description = detail.text if detail and detail.text else title
+        school = self._configured_school() or self._infer_school(title)
+        return RecruitmentJob(
+            id=f"{self.source_name}-{index}",
+            school=school,
+            position=title,
+            department=extract_department(title, description, school),
+            discipline=extract_discipline(description),
+            location=self.location,
+            longitude=self.longitude,
+            latitude=self.latitude,
+            education_requirement=extract_education_requirement(description),
+            job_type=extract_job_type(title, description),
+            deadline=detail.deadline if detail else None,
+            source_type=SourceType.AGGREGATOR,
+            source_name=self.source_name,
+            source_url=source_url,
+            published_at=detail.published_at if detail else None,
+            collected_at=datetime.utcnow(),
+            description=description,
+        )
+
+    @staticmethod
+    def _extract_detail_title(soup: BeautifulSoup) -> str:
+        for selector in ("h1", ".title", ".article-title"):
+            node = soup.select_one(selector)
+            if node is not None:
+                title = node.get_text(" ", strip=True)
+                if title:
+                    return title
+        return soup.title.get_text(" ", strip=True) if soup.title else "高校人才网招聘公告"
+
+    def _configured_school(self) -> str | None:
+        if self.school and self.school != "聚合源":
+            return self.school
+        return None
+
     @staticmethod
     def _is_detail_link(href: str) -> bool:
         return "/announcement/detail/" in href or "/job/detail/" in href
@@ -194,6 +244,7 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
         excluded_keywords = (
             "登录",
             "注册",
+            "已下线",
             "简历",
             "客服",
             "会员",
@@ -242,7 +293,7 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
             company_link = parent.find("a", class_="company-name") if hasattr(parent, "find") else None
             if company_link is not None:
                 company_name = company_link.get_text(" ", strip=True)
-                company_name = company_name.replace("-高校人才网直荐", "").strip()
+                company_name = company_name.replace("-高校人才网直荐", "").strip(" #")
                 if company_name and not GaoxiaojobColumnAdapter._looks_like_job_card_text(company_name):
                     return company_name
         return None

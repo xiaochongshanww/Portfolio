@@ -56,6 +56,9 @@ class StaticTalentSiteAdapter(SourceAdapter):
         response.raise_for_status()
         response.encoding = response.encoding or response.apparent_encoding
         soup = BeautifulSoup(response.text, "html.parser")
+        return self._extract_jobs_from_soup(soup)
+
+    def _extract_jobs_from_soup(self, soup: BeautifulSoup) -> list[RecruitmentJob]:
         jobs: list[RecruitmentJob] = []
         for index, link in enumerate(soup.find_all("a", href=True), start=1):
             title = self._normalize_title(link.get_text(" ", strip=True))
@@ -119,6 +122,8 @@ class StaticTalentSiteAdapter(SourceAdapter):
             return False
         excluded_titles = {
             "人才招聘",
+            "人才招聘系统",
+            "人才招聘平台",
             "人员招聘",
             "人才招聘办公室",
             "博士后工作",
@@ -152,6 +157,7 @@ class StaticTalentSiteAdapter(SourceAdapter):
             "教辅人员招聘",
             "后勤人员招聘",
             "其他人员招聘",
+            "当前位置：首页>招聘公告",
         }
         if title in excluded_titles:
             return False
@@ -174,6 +180,8 @@ class StaticTalentSiteAdapter(SourceAdapter):
             "成绩表",
             "成绩公告",
             "考试成绩",
+            "考试安排",
+            "应聘确认",
             "笔试安排",
             "体检",
             "体检环节",
@@ -184,6 +192,18 @@ class StaticTalentSiteAdapter(SourceAdapter):
             "简历投递指南",
             "考核论证报告",
             "招聘会",
+            "操作说明",
+            "公开招聘专栏",
+            "会议评审",
+            "地点变更",
+            "附件",
+            "岗位需求表",
+            "企业云招聘",
+            "双选会",
+            "揽才",
+            "由谁组织",
+            "不得报名",
+            "公开招聘的程序",
         )
         if any(keyword in title for keyword in excluded_keywords):
             return False

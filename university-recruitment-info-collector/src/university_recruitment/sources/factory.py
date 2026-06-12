@@ -2,7 +2,11 @@ from university_recruitment.models import SourceType
 from university_recruitment.source_config import SourceConfig
 from university_recruitment.sources.aggregators import GaoxiaojobColumnAdapter
 from university_recruitment.sources.base import SourceAdapter
-from university_recruitment.sources.university_talent_sites import StaticTalentSiteAdapter
+from university_recruitment.sources.university_talent_sites import (
+    BrowserTalentSiteAdapter,
+    HkustGzCareerAdapter,
+    StaticTalentSiteAdapter,
+)
 
 
 def _build_location(config: SourceConfig) -> str | None:
@@ -25,6 +29,29 @@ def build_source_adapter(config: SourceConfig) -> SourceAdapter:
             verify_ssl=config.verify_ssl,
             detail_limit=config.detail_limit,
         )
+    if config.source_type == SourceType.UNIVERSITY_TALENT_SITE and config.parser == "browser_list":
+        return BrowserTalentSiteAdapter(
+            source_name=config.source_name,
+            list_url=str(config.list_url),
+            school=config.school,
+            location=location,
+            longitude=config.longitude,
+            latitude=config.latitude,
+            timeout=config.request_timeout_seconds,
+            verify_ssl=config.verify_ssl,
+            detail_limit=config.detail_limit,
+        )
+    if config.source_type == SourceType.UNIVERSITY_TALENT_SITE and config.parser == "hkust_gz_career":
+        return HkustGzCareerAdapter(
+            source_name=config.source_name,
+            list_url=str(config.list_url),
+            school=config.school,
+            location=location,
+            longitude=config.longitude,
+            latitude=config.latitude,
+            timeout=config.request_timeout_seconds,
+            detail_limit=config.detail_limit,
+        )
     if config.source_type == SourceType.AGGREGATOR and config.parser in {
         "gaoxiaojob_column",
         "gaoxiaojob_browser",
@@ -32,6 +59,7 @@ def build_source_adapter(config: SourceConfig) -> SourceAdapter:
         return GaoxiaojobColumnAdapter(
             source_name=config.source_name,
             list_url=str(config.list_url),
+            school=config.school,
             location=location,
             longitude=config.longitude,
             latitude=config.latitude,

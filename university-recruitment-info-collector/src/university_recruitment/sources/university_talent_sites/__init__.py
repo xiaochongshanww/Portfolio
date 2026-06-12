@@ -1,3 +1,5 @@
+from university_recruitment.sources.university_talent_sites.browser_site import BrowserTalentSiteAdapter
+from university_recruitment.sources.university_talent_sites.hkust_gz import HkustGzCareerAdapter
 from university_recruitment.sources.university_talent_sites.static_site import StaticTalentSiteAdapter
 
-__all__ = ["StaticTalentSiteAdapter"]
+__all__ = ["BrowserTalentSiteAdapter", "HkustGzCareerAdapter", "StaticTalentSiteAdapter"]
