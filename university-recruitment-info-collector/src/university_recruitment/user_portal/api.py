@@ -11,7 +11,7 @@ from university_recruitment.storage import JobStore
 app = FastAPI(title="University Recruitment Matcher", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -46,7 +46,7 @@ def match_jobs(request: MatchRequest) -> MatchResponse:
 
 
 def main() -> None:
-    uvicorn.run("university_recruitment.user_portal.api:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("university_recruitment.user_portal.api:app", host="0.0.0.0", port=8001, reload=False)
 
 
 if __name__ == "__main__":
