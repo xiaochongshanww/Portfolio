@@ -8,6 +8,7 @@ from university_recruitment.models import RecruitmentJob, SourceType
 from university_recruitment.sources.base import SourceAdapter
 from university_recruitment.sources.detail_parser import parse_detail_html
 from university_recruitment.sources.field_extractor import (
+    extract_address,
     extract_department,
     extract_discipline,
     extract_education_requirement,
@@ -22,6 +23,8 @@ class StaticTalentSiteAdapter(SourceAdapter):
         list_url: str,
         school: str,
         location: str | None = None,
+        longitude: float | None = None,
+        latitude: float | None = None,
         timeout: float = 20,
         verify_ssl: bool = True,
         detail_limit: int = 10,
@@ -30,6 +33,8 @@ class StaticTalentSiteAdapter(SourceAdapter):
         self.list_url = list_url
         self.school = school
         self.location = location
+        self.longitude = longitude
+        self.latitude = latitude
         self.timeout = timeout
         self.verify_ssl = verify_ssl
         self.detail_limit = detail_limit
@@ -63,6 +68,7 @@ class StaticTalentSiteAdapter(SourceAdapter):
                 continue
             detail = self._fetch_detail(source_url) if len(jobs) < self.detail_limit else None
             description = detail.text if detail and detail.text else title
+            location = extract_address(description) or self.location
             jobs.append(
                 RecruitmentJob(
                     id=f"{self.source_name}-{index}",
@@ -70,7 +76,9 @@ class StaticTalentSiteAdapter(SourceAdapter):
                     position=title,
                     department=extract_department(title, description, self.school),
                     discipline=extract_discipline(description),
-                    location=self.location,
+                    location=location,
+                    longitude=self.longitude,
+                    latitude=self.latitude,
                     education_requirement=extract_education_requirement(description),
                     job_type=extract_job_type(title, description),
                     deadline=detail.deadline if detail else None,

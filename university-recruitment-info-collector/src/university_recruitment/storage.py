@@ -28,6 +28,8 @@ class JobStore:
                     department TEXT,
                     discipline TEXT,
                     location TEXT,
+                    longitude REAL,
+                    latitude REAL,
                     education_requirement TEXT,
                     job_type TEXT,
                     deadline TEXT,
@@ -50,13 +52,15 @@ class JobStore:
                 """
                 INSERT INTO recruitment_jobs (
                     id, school, position, department, discipline, location,
-                    education_requirement, job_type, deadline, source_type,
-                    source_name, source_url, published_at, collected_at, description
+                    longitude, latitude, education_requirement, job_type, deadline,
+                    source_type, source_name, source_url, published_at, collected_at,
+                    description
                 )
                 VALUES (
                     :id, :school, :position, :department, :discipline, :location,
-                    :education_requirement, :job_type, :deadline, :source_type,
-                    :source_name, :source_url, :published_at, :collected_at, :description
+                    :longitude, :latitude, :education_requirement, :job_type, :deadline,
+                    :source_type, :source_name, :source_url, :published_at, :collected_at,
+                    :description
                 )
                 ON CONFLICT(source_url) DO UPDATE SET
                     school = excluded.school,
@@ -64,6 +68,8 @@ class JobStore:
                     department = excluded.department,
                     discipline = excluded.discipline,
                     location = excluded.location,
+                    longitude = excluded.longitude,
+                    latitude = excluded.latitude,
                     education_requirement = excluded.education_requirement,
                     job_type = excluded.job_type,
                     deadline = excluded.deadline,
@@ -89,7 +95,7 @@ class JobStore:
         return [self._row_to_job(row) for row in rows]
 
     @staticmethod
-    def _job_to_row(job: RecruitmentJob) -> dict[str, str | None]:
+    def _job_to_row(job: RecruitmentJob) -> dict[str, object]:
         return {
             "id": job.id,
             "school": job.school,
@@ -97,6 +103,8 @@ class JobStore:
             "department": job.department,
             "discipline": job.discipline,
             "location": job.location,
+            "longitude": job.longitude,
+            "latitude": job.latitude,
             "education_requirement": job.education_requirement,
             "job_type": job.job_type,
             "deadline": job.deadline.isoformat() if job.deadline else None,
@@ -117,6 +125,8 @@ class JobStore:
             department=row["department"],
             discipline=row["discipline"],
             location=row["location"],
+            longitude=row["longitude"],
+            latitude=row["latitude"],
             education_requirement=row["education_requirement"],
             job_type=row["job_type"],
             deadline=date.fromisoformat(row["deadline"]) if row["deadline"] else None,

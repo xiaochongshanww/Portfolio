@@ -13,3 +13,7 @@ data/exports/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/exports/.gitkeep
+
+frontend/node_modules/
+frontend/dist/
+node_modules/

@@ -20,6 +20,19 @@ EDUCATION_RULES = (
     "本科",
 )
 DISCIPLINE_LABELS = ("需求学科", "学科专业", "专业要求", "招聘专业", "相关专业", "专业方向")
+
+def extract_address(text: str) -> str | None:
+    """Extract a detailed street address from job description text."""
+    match = ADDRESS_PATTERN.search(text)
+    if match:
+        return match.group(0)
+    return None
+
+
+ADDRESS_PATTERN = re.compile(
+    r"广州市?\s*[一-龥]{1,8}(?:区)\s*[一-龥]{0,30}(?:路|街|大道|巷|号)"
+)
+
 DEPARTMENT_PATTERN = re.compile(
     r"([\u4e00-\u9fa5A-Za-z0-9（）()·]+(?:学院|学部|研究院|医院|中心|实验室|课题组|系|部))"
 )

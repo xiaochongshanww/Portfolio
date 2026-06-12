@@ -58,6 +58,9 @@ source_type = "university_talent_site"
 list_url = "https://rcb.sysu.edu.cn/"
 parser = "static_list"
 enabled = true
+district = "海珠区"
+longitude = 113.3014
+latitude = 23.1007
 
 [[sources]]
 school = "华南理工大学"
@@ -68,6 +71,9 @@ source_type = "university_talent_site"
 list_url = "https://www2.scut.edu.cn/hr/_t287/main.htm"
 parser = "static_list"
 enabled = true
+district = "天河区"
+longitude = 113.3514
+latitude = 23.1547
 
 [[sources]]
 school = "暨南大学"
@@ -78,6 +84,9 @@ source_type = "university_talent_site"
 list_url = "https://hrdam.jnu.edu.cn/298/list.htm"
 parser = "static_list"
 enabled = true
+district = "天河区"
+longitude = 113.3514
+latitude = 23.1291
 
 [[sources]]
 school = "广州大学"
@@ -88,6 +97,9 @@ source_type = "university_talent_site"
 list_url = "https://www.gzhu.edu.cn/rczp1/gccrczpgg.htm"
 parser = "static_list"
 enabled = true
+district = "番禺区"
+longitude = 113.3724
+latitude = 23.0457
 
 [[sources]]
 region = "广东"
@@ -97,6 +109,9 @@ source_type = "aggregator"
 list_url = "https://www.gaoxiaojob.com/column/46.html"
 parser = "gaoxiaojob_browser"
 enabled = false
+district = "番禺区"
+longitude = 113.3724
+latitude = 23.0457
 
 [[sources]]
 region = "广东"
@@ -106,6 +121,9 @@ source_type = "aggregator"
 list_url = "https://www.gaoxiaojob.com/column/494.html"
 parser = "gaoxiaojob_browser"
 enabled = true
+district = "番禺区"
+longitude = 113.3724
+latitude = 23.0457
 detail_limit = 5
 
 [[sources]]
@@ -116,6 +134,9 @@ source_type = "aggregator"
 list_url = "https://www.gaoxiaojob.com/hotword/utsl891453"
 parser = "gaoxiaojob_browser"
 enabled = true
+district = "番禺区"
+longitude = 113.3724
+latitude = 23.0457
 detail_limit = 5
 
 [[sources]]
@@ -127,6 +148,9 @@ source_type = "university_talent_site"
 list_url = "https://rsc.gzhmu.edu.cn/index/zpgg.htm"
 parser = "static_list"
 enabled = true
+district = "番禺区"
+longitude = 113.3634
+latitude = 23.0034
 
 [[sources]]
 school = "广州中医药大学"
@@ -137,6 +161,9 @@ source_type = "university_talent_site"
 list_url = "https://www.gzucm.edu.cn/zpzb/gkzp.htm"
 parser = "static_list"
 enabled = true
+district = "番禺区"
+longitude = 113.407
+latitude = 23.058
 
 [[sources]]
 school = "广州中医药大学"
@@ -147,6 +174,9 @@ source_type = "university_talent_site"
 list_url = "https://rsc.gzucm.edu.cn/rcyj.htm"
 parser = "static_list"
 enabled = true
+district = "番禺区"
+longitude = 113.407
+latitude = 23.058
 
 [[sources]]
 school = "广东药科大学"
@@ -157,6 +187,9 @@ source_type = "university_talent_site"
 list_url = "https://gdphu.com/rczp/gccrczp.html"
 parser = "static_list"
 enabled = false
+district = "海珠区"
+longitude = 113.273
+latitude = 23.1074
 
 [[sources]]
 school = "广东工业大学"
@@ -167,6 +200,9 @@ source_type = "university_talent_site"
 list_url = "https://hr.gdut.edu.cn/rczp.htm"
 parser = "static_list"
 enabled = true
+district = "番禺区"
+longitude = 113.39
+latitude = 23.045
 
 [[sources]]
 school = "广东外语外贸大学"
@@ -177,6 +213,9 @@ source_type = "university_talent_site"
 list_url = "https://rsc.gdufs.edu.cn/zpxx.htm"
 parser = "static_list"
 enabled = true
+district = "白云区"
+longitude = 113.265
+latitude = 23.185
 
 [[sources]]
 school = "南方医科大学"
@@ -187,6 +226,9 @@ source_type = "university_talent_site"
 list_url = "https://portal.smu.edu.cn/renshi/rsgl/rczp.htm"
 parser = "static_list"
 enabled = true
+district = "白云区"
+longitude = 113.324
+latitude = 23.18
 
 [[sources]]
 school = "广东外语外贸大学南国商学院"
@@ -197,6 +239,9 @@ source_type = "university_talent_site"
 list_url = "https://www.gwng.edu.cn/rsc/992/list.htm"
 parser = "static_list"
 enabled = true
+district = "白云区"
+longitude = 113.27
+latitude = 23.26
 
 [[sources]]
 school = "华南师范大学"
@@ -207,6 +252,9 @@ source_type = "university_talent_site"
 list_url = "https://zp.scnu.edu.cn/"
 parser = "static_list"
 enabled = false
+district = "天河区"
+longitude = 113.3547
+latitude = 23.1397
 
 [[sources]]
 school = "广州体育学院"
@@ -217,6 +265,9 @@ source_type = "university_talent_site"
 list_url = "https://zp.gzsport.edu.cn/"
 parser = "static_list"
 enabled = true
+district = "天河区"
+longitude = 113.325
+latitude = 23.14
 
 [[sources]]
 school = "广州美术学院"
@@ -227,6 +278,9 @@ source_type = "university_talent_site"
 list_url = "https://zp.gzarts.edu.cn/"
 parser = "static_list"
 enabled = false
+district = "番禺区"
+longitude = 113.39
+latitude = 23.06
 
 [[sources]]
 school = "广州美术学院"
@@ -237,6 +291,9 @@ source_type = "university_talent_site"
 list_url = "https://rsc.gzarts.edu.cn/tzgg/rczp.htm"
 parser = "static_list"
 enabled = true
+district = "番禺区"
+longitude = 113.39
+latitude = 23.06
 
 [[sources]]
 school = "星海音乐学院"
@@ -247,6 +304,9 @@ source_type = "university_talent_site"
 list_url = "https://rsc.xhcom.edu.cn/rczp.htm"
 parser = "static_list"
 enabled = true
+district = "番禺区"
+longitude = 113.393
+latitude = 23.06
 
 [[sources]]
 school = "广东财经大学"
@@ -257,6 +317,9 @@ source_type = "university_talent_site"
 list_url = "https://rsc.gdufe.edu.cn/7198/list.htm"
 parser = "static_list"
 enabled = true
+district = "海珠区"
+longitude = 113.3474
+latitude = 23.1107
 
 [[sources]]
 school = "广东财经大学"
@@ -267,6 +330,9 @@ source_type = "university_talent_site"
 list_url = "https://rsc.gdufe.edu.cn/4712/list.htm"
 parser = "static_list"
 enabled = true
+district = "海珠区"
+longitude = 113.3474
+latitude = 23.1107
 
 [[sources]]
 school = "广东财经大学"
@@ -277,6 +343,9 @@ source_type = "university_talent_site"
 list_url = "https://rsc.gdufe.edu.cn/bshzp/list.htm"
 parser = "static_list"
 enabled = true
+district = "海珠区"
+longitude = 113.3474
+latitude = 23.1107
 
 [[sources]]
 school = "广州航海学院"
@@ -287,6 +356,9 @@ source_type = "university_talent_site"
 list_url = "https://rsc.gzmtu.edu.cn/rczp.htm"
 parser = "static_list"
 enabled = true
+district = "黄埔区"
+longitude = 113.468
+latitude = 23.103
 
 [[sources]]
 school = "广东白云学院"
@@ -297,6 +369,9 @@ source_type = "university_talent_site"
 list_url = "https://rlzy.baiyunu.edu.cn/rczpo.htm"
 parser = "static_list"
 enabled = true
+district = "白云区"
+longitude = 113.245
+latitude = 23.28
 
 [[sources]]
 school = "广东培正学院"
@@ -307,6 +382,9 @@ source_type = "university_talent_site"
 list_url = "https://pzrensc.peizheng.edu.cn/zpxx/index.htm"
 parser = "static_list"
 enabled = true
+district = "花都区"
+longitude = 113.12
+latitude = 23.4
 
 [[sources]]
 school = "广东培正学院"
@@ -317,6 +395,9 @@ source_type = "university_talent_site"
 list_url = "https://pzrszp.peizheng.edu.cn/"
 parser = "static_list"
 enabled = false
+district = "花都区"
+longitude = 113.12
+latitude = 23.4
 
 [[sources]]
 school = "广州城市理工学院"
@@ -327,6 +408,9 @@ source_type = "university_talent_site"
 list_url = "https://rsc.gcu.edu.cn/rczp/list.htm"
 parser = "static_list"
 enabled = true
+district = "花都区"
+longitude = 113.17
+latitude = 23.44
 
 [[sources]]
 school = "仲恺农业工程学院"
@@ -337,6 +421,9 @@ source_type = "university_talent_site"
 list_url = "https://rsc.zhku.edu.cn/rczp.htm"
 parser = "static_list"
 enabled = true
+district = "海珠区"
+longitude = 113.284
+latitude = 23.11
 
 [[sources]]
 school = "仲恺农业工程学院"
@@ -347,6 +434,9 @@ source_type = "university_talent_site"
 list_url = "https://zp.zhku.edu.cn/"
 parser = "static_list"
 enabled = false
+district = "海珠区"
+longitude = 113.284
+latitude = 23.11
 
 [[sources]]
 school = "广东技术师范大学"
@@ -357,6 +447,9 @@ source_type = "university_talent_site"
 list_url = "https://rszp.gpnu.edu.cn/"
 parser = "static_list"
 enabled = false
+district = "天河区"
+longitude = 113.38
+latitude = 23.15
 
 [[sources]]
 school = "广东金融学院"
@@ -367,6 +460,9 @@ source_type = "university_talent_site"
 list_url = "https://rsc.gduf.edu.cn/index/ggl.htm"
 parser = "static_list"
 enabled = false
+district = "天河区"
+longitude = 113.366
+latitude = 23.17
 
 [[sources]]
 school = "广东轻工职业技术大学"
@@ -377,6 +473,9 @@ source_type = "university_talent_site"
 list_url = "https://rsc.gdipu.edu.cn/"
 parser = "static_list"
 enabled = true
+district = "海珠区"
+longitude = 113.286
+latitude = 23.095
 
 [[sources]]
 school = "广州职业技术大学"
@@ -387,6 +486,9 @@ source_type = "university_talent_site"
 list_url = "https://www.gzpyp.edu.cn/rs/rczp/zpgg"
 parser = "static_list"
 enabled = true
+district = "番禺区"
+longitude = 113.37
+latitude = 22.99
 
 [[sources]]
 school = "广州软件学院"
@@ -397,6 +499,9 @@ source_type = "university_talent_site"
 list_url = "https://www.gzus.edu.cn/rsc/rczp.htm"
 parser = "static_list"
 enabled = false
+district = "从化区"
+longitude = 113.56
+latitude = 23.53
 
 [[sources]]
 school = "广州南方学院"
@@ -407,6 +512,9 @@ source_type = "university_talent_site"
 list_url = "https://rlzyb.nfu.edu.cn/rczp/szrczp.htm"
 parser = "static_list"
 enabled = true
+district = "从化区"
+longitude = 113.58
+latitude = 23.62
 
 [[sources]]
 school = "广州华商学院"
@@ -417,6 +525,9 @@ source_type = "university_talent_site"
 list_url = "https://rsc.gzhs.edu.cn/"
 parser = "static_list"
 enabled = true
+district = "增城区"
+longitude = 113.82
+latitude = 23.25
 
 [[sources]]
 school = "华南农业大学珠江学院"
@@ -427,6 +538,9 @@ source_type = "university_talent_site"
 list_url = "https://rsc.scauzj.edu.cn/rczp/D3902index_1.htm"
 parser = "static_list"
 enabled = true
+district = "从化区"
+longitude = 113.54
+latitude = 23.55
 
 [[sources]]
 school = "广州科技职业技术大学"
@@ -437,6 +551,9 @@ source_type = "university_talent_site"
 list_url = "https://www.gkd.edu.cn/rsc/channels/409.html"
 parser = "static_list"
 enabled = true
+district = "白云区"
+longitude = 113.45
+latitude = 23.36
 
 [[sources]]
 school = "广东第二师范学院"
@@ -447,6 +564,9 @@ source_type = "university_talent_site"
 list_url = "https://www.gdei.edu.cn/rsc/zpgg/list.htm"
 parser = "static_list"
 enabled = true
+district = "海珠区"
+longitude = 113.28
+latitude = 23.1
 
 [[sources]]
 school = "广州理工学院"
@@ -457,6 +577,9 @@ source_type = "university_talent_site"
 list_url = "https://www.gzist.edu.cn/rcyj/zpqs.htm"
 parser = "static_list"
 enabled = true
+district = "白云区"
+longitude = 113.34
+latitude = 23.24
 
 [[sources]]
 school = "广州华立学院"
@@ -467,6 +590,9 @@ source_type = "university_talent_site"
 list_url = "https://www.hualixy.edu.cn/rsc/rczp1/rczp"
 parser = "static_list"
 enabled = true
+district = "增城区"
+longitude = 113.82
+latitude = 23.21
 
 [[sources]]
 school = "广州应用科技学院"
@@ -477,6 +603,9 @@ source_type = "university_talent_site"
 list_url = "https://www.gzasc.edu.cn/rsc/"
 parser = "static_list"
 enabled = true
+district = "增城区"
+longitude = 113.84
+latitude = 23.24
 
 [[sources]]
 school = "广州商学院"
@@ -487,6 +616,9 @@ source_type = "university_talent_site"
 list_url = "https://hr.gcc.edu.cn/rczp/index.htm"
 parser = "static_list"
 enabled = true
+district = "黄埔区"
+longitude = 113.54
+latitude = 23.24
 
 [[sources]]
 school = "广州工商学院"
@@ -497,6 +629,9 @@ source_type = "university_talent_site"
 list_url = "https://www.gzgs.edu.cn/rsc/rczp.htm"
 parser = "static_list"
 enabled = true
+district = "花都区"
+longitude = 113.19
+latitude = 23.37
 
 [[sources]]
 school = "广州新华学院"
@@ -507,6 +642,9 @@ source_type = "university_talent_site"
 list_url = "https://zdxhrsc.xhsysu.edu.cn/rczp/jszp.htm"
 parser = "static_list"
 enabled = true
+district = "天河区"
+longitude = 113.38
+latitude = 23.14
 
 [[sources]]
 school = "香港科技大学（广州）"
@@ -517,6 +655,9 @@ source_type = "university_talent_site"
 list_url = "https://www.hkust-gz.edu.cn/zh/join-us/?variant=zh-cn"
 parser = "static_list"
 enabled = false
+district = "南沙区"
+longitude = 113.54
+latitude = 22.85
 
 [[sources]]
 school = "香港科技大学（广州）"
@@ -527,3 +668,569 @@ source_type = "university_talent_site"
 list_url = "https://career.hkust-gz.edu.cn/"
 parser = "static_list"
 enabled = false
+district = "南沙区"
+longitude = 113.54
+latitude = 22.85
+
+# == 本科新增（2026-06 补全） ==
+
+[[sources]]
+school = "华南农业大学"
+region = "广东"
+city = "广州"
+source_name = "华南农业大学人力资源处-招聘公告"
+source_type = "university_talent_site"
+list_url = "https://hr.scau.edu.cn/p15207c6122/list.htm"
+parser = "static_list"
+enabled = true
+district = "天河区"
+longitude = 113.3544
+latitude = 23.1587
+
+[[sources]]
+school = "广东警官学院"
+region = "广东"
+city = "广州"
+district = "白云区"
+longitude = 113.278
+latitude = 23.23
+source_name = "广东警官学院人才招聘系统"
+source_type = "university_talent_site"
+list_url = "https://hrzp.gdppla.edu.cn"
+parser = "static_list"
+enabled = false
+
+# == 专科新增（2026-06 接入第一批） ==
+
+[[sources]]
+school = "广东交通职业技术学院"
+region = "广东"
+city = "广州"
+source_name = "广东交通职业技术学院人事处-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://www.gdcp.edu.cn/rczp.htm"
+parser = "static_list"
+enabled = true
+district = "天河区"
+longitude = 113.37
+latitude = 23.15
+
+[[sources]]
+school = "广东水利电力职业技术学院"
+region = "广东"
+city = "广州"
+source_name = "广东水利电力职业技术学院人事处-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://www.gdsdxy.edu.cn/html/964/"
+parser = "static_list"
+enabled = true
+district = "天河区"
+longitude = 113.38
+latitude = 23.14
+
+[[sources]]
+school = "广州城市职业学院"
+region = "广东"
+city = "广州"
+source_name = "广州城市职业学院组织人事处-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://www.gcp.edu.cn/zzrsc/rczp.htm"
+parser = "static_list"
+enabled = true
+district = "白云区"
+longitude = 113.3
+latitude = 23.14
+
+[[sources]]
+school = "广州城建职业学院"
+region = "广东"
+city = "广州"
+source_name = "广州城建职业学院人事处-信息公告"
+source_type = "university_talent_site"
+list_url = "https://rsw.gzccc.edu.cn/bf/xxgg/15.htm"
+parser = "static_list"
+enabled = true
+district = "从化区"
+longitude = 113.56
+latitude = 23.55
+
+[[sources]]
+school = "广州南洋理工职业学院"
+region = "广东"
+city = "广州"
+source_name = "广州南洋理工职业学院人力资源部-招聘公告"
+source_type = "university_talent_site"
+list_url = "https://www.gznylg.edu.cn/index.php/Department/rlzy/articlelist/itemid/364.html"
+parser = "static_list"
+enabled = true
+district = "从化区"
+longitude = 113.57
+latitude = 23.55
+
+[[sources]]
+school = "广东南华工商职业学院"
+region = "广东"
+city = "广州"
+source_name = "广东南华工商职业学院人事处-招聘信息"
+source_type = "university_talent_site"
+list_url = "https://www.nhic.edu.cn/rsc/rczp/zpxx.htm"
+parser = "static_list"
+enabled = true
+district = "天河区"
+longitude = 113.45
+latitude = 23.14
+
+[[sources]]
+school = "广东食品药品职业学院"
+region = "广东"
+city = "广州"
+source_name = "广东食品药品职业学院人力资源部-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://www.gdyzy.edu.cn/web/loadWebPage.do?4401401_440113662_0_4&lmy=44015908"
+parser = "static_list"
+enabled = false
+district = "天河区"
+longitude = 113.385
+latitude = 23.2
+
+# == 专科新增（2026-06 接入第二批） ==
+
+[[sources]]
+school = "广东建设职业技术学院"
+region = "广东"
+city = "广州"
+district = "白云区"
+longitude = 113.28
+latitude = 23.22
+source_name = "广东建设职业技术学院-通知公告"
+source_type = "university_talent_site"
+list_url = "https://www.gdcvi.edu.cn/xyxx/tzgg/"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广东科贸职业学院"
+region = "广东"
+city = "广州"
+source_name = "广东科贸职业学院人力资源部-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://gdkm.edu.cn/rlzyb/rczp/rczp1"
+parser = "static_list"
+enabled = true
+district = "白云区"
+longitude = 113.34
+latitude = 23.2
+
+[[sources]]
+school = "广州工程技术职业学院"
+region = "广东"
+city = "广州"
+source_name = "广州工程技术职业学院人事处"
+source_type = "university_talent_site"
+list_url = "https://www.gzvtc.edu.cn/rsc/"
+parser = "static_list"
+enabled = true
+district = "越秀区"
+longitude = 113.275
+latitude = 23.125
+
+[[sources]]
+school = "广东工程职业技术学院"
+region = "广东"
+city = "广州"
+source_name = "广东工程职业技术学院人力资源部"
+source_type = "university_talent_site"
+list_url = "https://www.gdep.edu.cn/rsc/"
+parser = "static_list"
+enabled = true
+district = "天河区"
+longitude = 113.41
+latitude = 23.18
+
+[[sources]]
+school = "广东理工职业学院"
+region = "广东"
+city = "广州"
+source_name = "广东理工职业学院-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://www.gdpi.edu.cn/rczp.htm"
+parser = "static_list"
+enabled = true
+district = "越秀区"
+longitude = 113.28
+latitude = 23.13
+
+[[sources]]
+school = "广东行政职业学院"
+region = "广东"
+city = "广州"
+source_name = "广东行政职业学院-招聘公告"
+source_type = "university_talent_site"
+list_url = "https://www.gdxzzy.edu.cn/zpgg.htm"
+parser = "static_list"
+enabled = true
+district = "花都区"
+longitude = 113.21
+latitude = 23.4
+
+[[sources]]
+school = "广东省外语艺术职业学院"
+region = "广东"
+city = "广州"
+source_name = "广东省外语艺术职业学院人力资源部"
+source_type = "university_talent_site"
+list_url = "https://rsc.gtcfla.edu.cn"
+parser = "static_list"
+enabled = true
+district = "天河区"
+longitude = 113.37
+latitude = 23.16
+
+[[sources]]
+school = "广州卫生职业技术学院"
+region = "广东"
+city = "广州"
+source_name = "广州卫生职业技术学院人事处-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://www.gzws.edu.cn/rs/rczp"
+parser = "static_list"
+enabled = true
+district = "从化区"
+longitude = 113.47
+latitude = 23.54
+
+[[sources]]
+school = "广东岭南职业技术学院"
+region = "广东"
+city = "广州"
+source_name = "广东岭南职业技术学院-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://lnc.edu.cn/js/rczp"
+parser = "static_list"
+enabled = true
+district = "天河区"
+longitude = 113.37
+latitude = 23.16
+
+# == 专科新增（2026-06 接入第三批） ==
+
+[[sources]]
+school = "广州铁路职业技术学院"
+region = "广东"
+city = "广州"
+source_name = "广州铁路职业技术学院组织人事处-招聘公告"
+source_type = "university_talent_site"
+list_url = "https://www.gtxy.edu.cn/zzrsc/rczp/zpgg/"
+parser = "static_list"
+enabled = true
+district = "增城区"
+longitude = 113.83
+latitude = 23.28
+
+[[sources]]
+school = "广州现代信息工程职业技术学院"
+region = "广东"
+city = "广州"
+source_name = "广州现代信息工程职业技术学院人事处"
+source_type = "university_talent_site"
+list_url = "http://rsc.gzmiec.edu.cn/"
+parser = "static_list"
+enabled = true
+district = "天河区"
+longitude = 113.41
+latitude = 23.16
+
+[[sources]]
+school = "广东生态工程职业学院"
+region = "广东"
+city = "广州"
+source_name = "广东生态工程职业学院-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://gdsty.edu.cn/rencaiindex.html"
+parser = "static_list"
+enabled = true
+district = "天河区"
+longitude = 113.41
+latitude = 23.16
+
+[[sources]]
+school = "私立华联学院"
+region = "广东"
+city = "广州"
+source_name = "私立华联学院人力资源处-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://www2.hlu.edu.cn/edu/jobs/"
+parser = "static_list"
+enabled = true
+district = "天河区"
+longitude = 113.38
+latitude = 23.13
+
+[[sources]]
+school = "广州华南商贸职业学院"
+region = "广东"
+city = "广州"
+source_name = "广州华南商贸职业学院人力资源部-招聘信息"
+source_type = "university_talent_site"
+list_url = "https://rsc.scbt.edu.cn/html/rsc/zhaopinxinxi1269/list-2.html"
+parser = "static_list"
+enabled = true
+district = "白云区"
+longitude = 113.31
+latitude = 23.33
+
+[[sources]]
+school = "广州华夏职业学院"
+region = "广东"
+city = "广州"
+source_name = "广州华夏职业学院人事处-招聘信息"
+source_type = "university_talent_site"
+list_url = "http://hr.gzhxtc.edu.cn/zhaopinxinxi/"
+parser = "static_list"
+enabled = true
+district = "从化区"
+longitude = 113.47
+latitude = 23.54
+
+[[sources]]
+school = "广州珠江职业技术学院"
+region = "广东"
+city = "广州"
+source_name = "广州珠江职业技术学院-就业招聘"
+source_type = "university_talent_site"
+list_url = "http://www.gzzjxy.edu.cn/news/1552/3.html"
+parser = "static_list"
+enabled = true
+district = "增城区"
+longitude = 113.82
+latitude = 23.26
+
+[[sources]]
+school = "广东科学技术职业学院"
+region = "广东"
+source_name = "广东科学技术职业学院人力资源部"
+source_type = "university_talent_site"
+list_url = "https://www.gdit.edu.cn/rsc/"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广东农工商职业技术学院"
+region = "广东"
+city = "广州"
+district = "天河区"
+longitude = 113.37
+latitude = 23.15
+source_name = "广东农工商职业技术学院人才招聘系统"
+source_type = "university_talent_site"
+list_url = "https://rczp.gdaib.edu.cn/rczp/page?wf_num=P_RCZP_010&WF_ORUNID=f8fa0cb60c4f1043d20a03706afb00f27db2"
+parser = "static_list"
+enabled = false
+
+# == 专科新增（2026-06 接入第四批：最终轮） ==
+
+[[sources]]
+school = "广州东华职业学院"
+region = "广东"
+city = "广州"
+source_name = "广州东华职业学院人力资源处-招聘公告"
+source_type = "university_talent_site"
+list_url = "https://www.gzdhxy.edu.cn/rlcxy/index.aspx"
+parser = "static_list"
+enabled = true
+district = "白云区"
+longitude = 113.34
+latitude = 23.25
+
+[[sources]]
+school = "广州涉外经济职业技术学院"
+region = "广东"
+city = "广州"
+source_name = "广州涉外经济职业技术学院人事处-招聘信息"
+source_type = "university_talent_site"
+list_url = "https://www.gziec.edu.cn/home/article/show/id/1068.html"
+parser = "static_list"
+enabled = true
+district = "白云区"
+longitude = 113.31
+latitude = 23.17
+
+[[sources]]
+school = "广东文艺职业学院"
+region = "广东"
+city = "广州"
+source_name = "广东文艺职业学院人事处-通知公告"
+source_type = "university_talent_site"
+list_url = "https://www.gdla.edu.cn/_s6/556/list.psp"
+parser = "static_list"
+enabled = true
+district = "番禺区"
+longitude = 113.37
+latitude = 22.98
+
+[[sources]]
+school = "广州华商职业学院"
+region = "广东"
+city = "广州"
+source_name = "广州华商职业学院人事与质量部-招聘公告"
+source_type = "university_talent_site"
+list_url = "https://rsc.gzhsvc.edu.cn"
+parser = "static_list"
+enabled = true
+district = "增城区"
+longitude = 113.82
+latitude = 23.25
+
+[[sources]]
+school = "广州华立科技职业学院"
+region = "广东"
+city = "广州"
+source_name = "广州华立科技职业学院人事处-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://www.gzhlxy.edu.cn/csrs/"
+parser = "static_list"
+enabled = true
+district = "增城区"
+longitude = 113.82
+latitude = 23.21
+
+[[sources]]
+school = "广州体育职业技术学院"
+region = "广东"
+city = "广州"
+source_name = "广州体育职业技术学院组织人事处-招聘及干部任免"
+source_type = "university_talent_site"
+list_url = "https://www.gztzy.edu.cn/zhsw1/xxgk/cwxxgk1/zpjgbrm.htm"
+parser = "static_list"
+enabled = true
+district = "天河区"
+longitude = 113.41
+latitude = 23.14
+
+# == 专科新增（2026-06 接入第五批：困难学校） ==
+
+[[sources]]
+school = "广州康大职业技术学院"
+region = "广东"
+city = "广州"
+source_name = "广州康大职业技术学院-通知公告"
+source_type = "university_talent_site"
+list_url = "https://www.kdvtc.edu.cn/tzgg/"
+parser = "static_list"
+enabled = true
+district = "黄埔区"
+longitude = 113.52
+latitude = 23.24
+
+[[sources]]
+school = "广东体育职业技术学院"
+region = "广东"
+city = "广州"
+source_name = "广东体育职业技术学院-通知公告"
+source_type = "university_talent_site"
+list_url = "https://gdtzy.edu.cn/tzgg/"
+parser = "static_list"
+enabled = true
+district = "天河区"
+longitude = 113.41
+latitude = 23.14
+
+[[sources]]
+school = "广东艺术职业学院"
+region = "广东"
+source_name = "广东艺术职业学院-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://www.gdddc.edu.cn/szjs/rczp.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广州幼儿师范高等专科学校"
+region = "广东"
+city = "广州"
+source_name = "广州幼儿师范高等专科学校-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://www.gzptc.edu.cn/szdw/rczp.htm"
+parser = "static_list"
+enabled = true
+district = "增城区"
+longitude = 113.82
+latitude = 23.29
+
+[[sources]]
+school = "广东女子职业技术学院"
+region = "广东"
+city = "广州"
+source_name = "广东女子职业技术学院人力资源部-招聘信息"
+source_type = "university_talent_site"
+list_url = "https://www.gdfs.edu.cn"
+parser = "static_list"
+enabled = false
+district = "番禺区"
+longitude = 113.37
+latitude = 22.99
+
+[[sources]]
+school = "广东司法警官职业学院"
+region = "广东"
+city = "广州"
+source_name = "广东司法警官职业学院-通知公告"
+source_type = "university_talent_site"
+list_url = "https://www.gdjpvc.edu.cn"
+parser = "static_list"
+enabled = true
+district = "天河区"
+longitude = 113.41
+latitude = 23.15
+
+[[sources]]
+school = "广州科技贸易职业学院"
+region = "广东"
+city = "广州"
+source_name = "广州科技贸易职业学院-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://www.gzkmu.edu.cn"
+parser = "static_list"
+enabled = false
+district = "番禺区"
+longitude = 113.39
+latitude = 23.02
+
+[[sources]]
+school = "广州民航职业技术学院"
+region = "广东"
+city = "广州"
+district = "白云区"
+longitude = 113.263
+latitude = 23.18
+source_name = "广州民航职业技术学院人才招聘系统"
+source_type = "university_talent_site"
+list_url = "https://hr.gcac.edu.cn/recruit_site/campus_notice/index.do"
+parser = "static_list"
+enabled = false
+
+[[sources]]
+school = "广东机电职业技术学院"
+region = "广东"
+city = "广州"
+source_name = "广东机电职业技术学院人才招聘系统"
+source_type = "university_talent_site"
+list_url = "https://rszp.gdmec.edu.cn/product/recruit/defalt/recruitNotice.jsp?FM_SYS_ID=rsxt2_user&page=4"
+parser = "static_list"
+enabled = false
+district = "白云区"
+longitude = 113.43
+latitude = 23.23
+
+[[sources]]
+school = "广东工贸职业技术学院"
+region = "广东"
+city = "广州"
+source_name = "广东工贸职业技术学院招聘系统"
+source_type = "university_talent_site"
+list_url = "https://zp.gdgm.edu.cn/rsfw/sys/zpglxt/extranet/index.do"
+parser = "static_list"
+enabled = false
+district = "天河区"
+longitude = 113.37
+latitude = 23.15

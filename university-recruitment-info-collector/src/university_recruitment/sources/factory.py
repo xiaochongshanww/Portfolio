@@ -5,13 +5,22 @@ from university_recruitment.sources.base import SourceAdapter
 from university_recruitment.sources.university_talent_sites import StaticTalentSiteAdapter
 
 
+def _build_location(config: SourceConfig) -> str | None:
+    if config.district:
+        return f"{config.city}-{config.district}" if config.city else config.district
+    return config.city or config.region
+
+
 def build_source_adapter(config: SourceConfig) -> SourceAdapter:
+    location = _build_location(config)
     if config.source_type == SourceType.UNIVERSITY_TALENT_SITE and config.parser == "static_list":
         return StaticTalentSiteAdapter(
             source_name=config.source_name,
             list_url=str(config.list_url),
             school=config.school,
-            location=config.city or config.region,
+            location=location,
+            longitude=config.longitude,
+            latitude=config.latitude,
             timeout=config.request_timeout_seconds,
             verify_ssl=config.verify_ssl,
             detail_limit=config.detail_limit,
@@ -23,7 +32,9 @@ def build_source_adapter(config: SourceConfig) -> SourceAdapter:
         return GaoxiaojobColumnAdapter(
             source_name=config.source_name,
             list_url=str(config.list_url),
-            location=config.city or config.region,
+            location=location,
+            longitude=config.longitude,
+            latitude=config.latitude,
             timeout=config.request_timeout_seconds,
             verify_ssl=config.verify_ssl,
             use_browser=config.parser == "gaoxiaojob_browser",

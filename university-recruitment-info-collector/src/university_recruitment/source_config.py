@@ -1,5 +1,10 @@
-import tomllib
+import sys
 from pathlib import Path
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 from pydantic import BaseModel, Field, HttpUrl
 
@@ -14,6 +19,9 @@ class SourceConfig(BaseModel):
     school: str = "聚合源"
     region: str | None = None
     city: str | None = None
+    district: str | None = None
+    longitude: float | None = None
+    latitude: float | None = None
     source_name: str
     source_type: SourceType
     list_url: HttpUrl | str

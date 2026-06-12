@@ -1,5 +1,6 @@
 import uvicorn
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from university_recruitment.llm import LlmMatcher
 from university_recruitment.matching import RuleMatcher
@@ -8,6 +9,13 @@ from university_recruitment.storage import JobStore
 
 
 app = FastAPI(title="University Recruitment Matcher", version="0.1.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 store = JobStore()
 rule_matcher = RuleMatcher()
 llm_matcher = LlmMatcher()

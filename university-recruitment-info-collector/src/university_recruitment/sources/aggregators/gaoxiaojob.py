@@ -7,6 +7,7 @@ from university_recruitment.models import RecruitmentJob, SourceType
 from university_recruitment.sources.base import SourceAdapter
 from university_recruitment.sources.detail_parser import ParsedDetail, parse_detail_html
 from university_recruitment.sources.field_extractor import (
+    extract_address,
     extract_department,
     extract_discipline,
     extract_education_requirement,
@@ -47,6 +48,8 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
         source_name: str,
         list_url: str,
         location: str | None = None,
+        longitude: float | None = None,
+        latitude: float | None = None,
         timeout: float = 20,
         verify_ssl: bool = True,
         use_browser: bool = False,
@@ -55,6 +58,8 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
         self.source_name = source_name
         self.list_url = list_url
         self.location = location
+        self.longitude = longitude
+        self.latitude = latitude
         self.timeout = timeout
         self.verify_ssl = verify_ssl
         self.use_browser = use_browser
@@ -154,6 +159,7 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
             detail = details.get(source_url)
             school = self._infer_school(title, link)
             description = detail.text if detail and detail.text else title
+            location = extract_address(description) or self.location
             jobs.append(
                 RecruitmentJob(
                     id=f"{self.source_name}-{index}",
@@ -161,7 +167,9 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
                     position=title,
                     department=extract_department(title, description, school),
                     discipline=extract_discipline(description),
-                    location=self.location,
+                    location=location,
+                    longitude=self.longitude,
+                    latitude=self.latitude,
                     education_requirement=extract_education_requirement(description),
                     job_type=extract_job_type(title, description),
                     deadline=detail.deadline if detail else None,

@@ -1,10 +1,10 @@
 from datetime import date, datetime
-from enum import StrEnum
+from enum import Enum
 
 from pydantic import BaseModel, Field, HttpUrl
 
 
-class SourceType(StrEnum):
+class SourceType(str, Enum):
     UNIVERSITY_TALENT_SITE = "university_talent_site"
     AGGREGATOR = "aggregator"
     WECHAT_ARTICLE = "wechat_article"
@@ -17,6 +17,8 @@ class RecruitmentJob(BaseModel):
     department: str | None = None
     discipline: str | None = None
     location: str | None = None
+    longitude: float | None = None
+    latitude: float | None = None
     education_requirement: str | None = None
     job_type: str | None = None
     deadline: date | None = None
