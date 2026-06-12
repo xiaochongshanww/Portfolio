@@ -1,0 +1,33 @@
+[project]
+name = "university-recruitment-info-collector"
+version = "0.1.0"
+description = "Collect and match university recruitment information."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "beautifulsoup4>=4.12.3",
+    "fastapi>=0.115.0",
+    "httpx>=0.27.0",
+    "playwright>=1.49.0",
+    "pydantic>=2.8.0",
+    "uvicorn>=0.30.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+browser = []
+
+[project.scripts]
+university-recruitment-api = "university_recruitment.user_portal.api:main"
+university-recruitment-collect = "university_recruitment.collect:main"
+university-recruitment-report = "university_recruitment.report:main"
+university-recruitment-seed = "university_recruitment.seed:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,529 @@
+[[sources]]
+school = "北京大学"
+region = "北京"
+city = "北京"
+source_name = "北京大学人事部-教学科研"
+source_type = "university_talent_site"
+list_url = "https://hr.pku.edu.cn/rczp/jxky/index.htm"
+parser = "static_list"
+enabled = false
+
+[[sources]]
+school = "复旦大学"
+region = "上海"
+city = "上海"
+source_name = "复旦大学人事处-教学科研"
+source_type = "university_talent_site"
+list_url = "https://hr.fudan.edu.cn/15364/list.htm"
+parser = "static_list"
+enabled = false
+
+[[sources]]
+school = "复旦大学"
+region = "上海"
+city = "上海"
+source_name = "复旦大学人事处-专任岗位"
+source_type = "university_talent_site"
+list_url = "https://hr.fudan.edu.cn/zrgw/list.htm"
+parser = "static_list"
+enabled = false
+
+[[sources]]
+school = "中国科学技术大学"
+region = "安徽"
+city = "合肥"
+source_name = "中国科学技术大学人才招聘网-最新招聘公告"
+source_type = "university_talent_site"
+list_url = "https://employment.ustc.edu.cn/cn/indexnewslist.aspx?signtype=51"
+parser = "static_list"
+enabled = false
+
+[[sources]]
+school = "南京大学"
+region = "江苏"
+city = "南京"
+source_name = "南京大学人力资源处-教学科研人才招聘"
+source_type = "university_talent_site"
+list_url = "https://hr.nju.edu.cn/6308/list1.htm"
+parser = "static_list"
+enabled = false
+verify_ssl = false
+
+[[sources]]
+school = "中山大学"
+region = "广东"
+city = "广州"
+source_name = "中山大学人才招聘网"
+source_type = "university_talent_site"
+list_url = "https://rcb.sysu.edu.cn/"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "华南理工大学"
+region = "广东"
+city = "广州"
+source_name = "华南理工大学人事处"
+source_type = "university_talent_site"
+list_url = "https://www2.scut.edu.cn/hr/_t287/main.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "暨南大学"
+region = "广东"
+city = "广州"
+source_name = "暨南大学人力资源开发与管理处-教学科研人才招聘"
+source_type = "university_talent_site"
+list_url = "https://hrdam.jnu.edu.cn/298/list.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广州大学"
+region = "广东"
+city = "广州"
+source_name = "广州大学-高层次人才招聘公告"
+source_type = "university_talent_site"
+list_url = "https://www.gzhu.edu.cn/rczp1/gccrczpgg.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+region = "广东"
+city = "广州"
+source_name = "高校人才网-广州站"
+source_type = "aggregator"
+list_url = "https://www.gaoxiaojob.com/column/46.html"
+parser = "gaoxiaojob_browser"
+enabled = false
+
+[[sources]]
+region = "广东"
+city = "广州"
+source_name = "高校人才网-广州高校栏目"
+source_type = "aggregator"
+list_url = "https://www.gaoxiaojob.com/column/494.html"
+parser = "gaoxiaojob_browser"
+enabled = true
+detail_limit = 5
+
+[[sources]]
+region = "广东"
+city = "广州"
+source_name = "高校人才网-广州高校招聘汇总"
+source_type = "aggregator"
+list_url = "https://www.gaoxiaojob.com/hotword/utsl891453"
+parser = "gaoxiaojob_browser"
+enabled = true
+detail_limit = 5
+
+[[sources]]
+school = "广州医科大学"
+region = "广东"
+city = "广州"
+source_name = "广州医科大学人事处-招聘公告"
+source_type = "university_talent_site"
+list_url = "https://rsc.gzhmu.edu.cn/index/zpgg.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广州中医药大学"
+region = "广东"
+city = "广州"
+source_name = "广州中医药大学-公开招聘"
+source_type = "university_talent_site"
+list_url = "https://www.gzucm.edu.cn/zpzb/gkzp.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广州中医药大学"
+region = "广东"
+city = "广州"
+source_name = "广州中医药大学人事部-人才引进"
+source_type = "university_talent_site"
+list_url = "https://rsc.gzucm.edu.cn/rcyj.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广东药科大学"
+region = "广东"
+city = "广州"
+source_name = "广东药科大学-高层次人才招聘"
+source_type = "university_talent_site"
+list_url = "https://gdphu.com/rczp/gccrczp.html"
+parser = "static_list"
+enabled = false
+
+[[sources]]
+school = "广东工业大学"
+region = "广东"
+city = "广州"
+source_name = "广东工业大学人事处-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://hr.gdut.edu.cn/rczp.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广东外语外贸大学"
+region = "广东"
+city = "广州"
+source_name = "广东外语外贸大学人力资源部-招聘信息"
+source_type = "university_talent_site"
+list_url = "https://rsc.gdufs.edu.cn/zpxx.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "南方医科大学"
+region = "广东"
+city = "广州"
+source_name = "南方医科大学人事处-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://portal.smu.edu.cn/renshi/rsgl/rczp.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广东外语外贸大学南国商学院"
+region = "广东"
+city = "广州"
+source_name = "广东外语外贸大学南国商学院-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://www.gwng.edu.cn/rsc/992/list.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "华南师范大学"
+region = "广东"
+city = "广州"
+source_name = "华南师范大学人才招聘网"
+source_type = "university_talent_site"
+list_url = "https://zp.scnu.edu.cn/"
+parser = "static_list"
+enabled = false
+
+[[sources]]
+school = "广州体育学院"
+region = "广东"
+city = "广州"
+source_name = "广州体育学院公开招聘网"
+source_type = "university_talent_site"
+list_url = "https://zp.gzsport.edu.cn/"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广州美术学院"
+region = "广东"
+city = "广州"
+source_name = "广州美术学院人才招聘网"
+source_type = "university_talent_site"
+list_url = "https://zp.gzarts.edu.cn/"
+parser = "static_list"
+enabled = false
+
+[[sources]]
+school = "广州美术学院"
+region = "广东"
+city = "广州"
+source_name = "广州美术学院人事处-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://rsc.gzarts.edu.cn/tzgg/rczp.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "星海音乐学院"
+region = "广东"
+city = "广州"
+source_name = "星海音乐学院人力资源部-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://rsc.xhcom.edu.cn/rczp.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广东财经大学"
+region = "广东"
+city = "广州"
+source_name = "广东财经大学人力资源处-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://rsc.gdufe.edu.cn/7198/list.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广东财经大学"
+region = "广东"
+city = "广州"
+source_name = "广东财经大学人力资源处-高层次人才引进"
+source_type = "university_talent_site"
+list_url = "https://rsc.gdufe.edu.cn/4712/list.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广东财经大学"
+region = "广东"
+city = "广州"
+source_name = "广东财经大学人力资源处-博士后招聘"
+source_type = "university_talent_site"
+list_url = "https://rsc.gdufe.edu.cn/bshzp/list.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广州航海学院"
+region = "广东"
+city = "广州"
+source_name = "广州航海学院人力资源部-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://rsc.gzmtu.edu.cn/rczp.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广东白云学院"
+region = "广东"
+city = "广州"
+source_name = "广东白云学院人事处-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://rlzy.baiyunu.edu.cn/rczpo.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广东培正学院"
+region = "广东"
+city = "广州"
+source_name = "广东培正学院人事处-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://pzrensc.peizheng.edu.cn/zpxx/index.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广东培正学院"
+region = "广东"
+city = "广州"
+source_name = "广东培正学院招聘系统"
+source_type = "university_talent_site"
+list_url = "https://pzrszp.peizheng.edu.cn/"
+parser = "static_list"
+enabled = false
+
+[[sources]]
+school = "广州城市理工学院"
+region = "广东"
+city = "广州"
+source_name = "广州城市理工学院人事处-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://rsc.gcu.edu.cn/rczp/list.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "仲恺农业工程学院"
+region = "广东"
+city = "广州"
+source_name = "仲恺农业工程学院人力资源部-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://rsc.zhku.edu.cn/rczp.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "仲恺农业工程学院"
+region = "广东"
+city = "广州"
+source_name = "仲恺农业工程学院招聘系统"
+source_type = "university_talent_site"
+list_url = "https://zp.zhku.edu.cn/"
+parser = "static_list"
+enabled = false
+
+[[sources]]
+school = "广东技术师范大学"
+region = "广东"
+city = "广州"
+source_name = "广东技术师范大学招聘系统"
+source_type = "university_talent_site"
+list_url = "https://rszp.gpnu.edu.cn/"
+parser = "static_list"
+enabled = false
+
+[[sources]]
+school = "广东金融学院"
+region = "广东"
+city = "广州"
+source_name = "广东金融学院人事处公告栏"
+source_type = "university_talent_site"
+list_url = "https://rsc.gduf.edu.cn/index/ggl.htm"
+parser = "static_list"
+enabled = false
+
+[[sources]]
+school = "广东轻工职业技术大学"
+region = "广东"
+city = "广州"
+source_name = "广东轻工职业技术大学人力资源部"
+source_type = "university_talent_site"
+list_url = "https://rsc.gdipu.edu.cn/"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广州职业技术大学"
+region = "广东"
+city = "广州"
+source_name = "广州职业技术大学人事处-招聘公告"
+source_type = "university_talent_site"
+list_url = "https://www.gzpyp.edu.cn/rs/rczp/zpgg"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广州软件学院"
+region = "广东"
+city = "广州"
+source_name = "广州软件学院人事处-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://www.gzus.edu.cn/rsc/rczp.htm"
+parser = "static_list"
+enabled = false
+
+[[sources]]
+school = "广州南方学院"
+region = "广东"
+city = "广州"
+source_name = "广州南方学院人事干部处-师资人才招聘"
+source_type = "university_talent_site"
+list_url = "https://rlzyb.nfu.edu.cn/rczp/szrczp.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广州华商学院"
+region = "广东"
+city = "广州"
+source_name = "广州华商学院人事处"
+source_type = "university_talent_site"
+list_url = "https://rsc.gzhs.edu.cn/"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "华南农业大学珠江学院"
+region = "广东"
+city = "广州"
+source_name = "华南农业大学珠江学院人事处-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://rsc.scauzj.edu.cn/rczp/D3902index_1.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广州科技职业技术大学"
+region = "广东"
+city = "广州"
+source_name = "广州科技职业技术大学人事处-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://www.gkd.edu.cn/rsc/channels/409.html"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广东第二师范学院"
+region = "广东"
+city = "广州"
+source_name = "广东第二师范学院人事处-招聘公告"
+source_type = "university_talent_site"
+list_url = "https://www.gdei.edu.cn/rsc/zpgg/list.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广州理工学院"
+region = "广东"
+city = "广州"
+source_name = "广州理工学院-招聘启事"
+source_type = "university_talent_site"
+list_url = "https://www.gzist.edu.cn/rcyj/zpqs.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广州华立学院"
+region = "广东"
+city = "广州"
+source_name = "广州华立学院人事处-招聘启事"
+source_type = "university_talent_site"
+list_url = "https://www.hualixy.edu.cn/rsc/rczp1/rczp"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广州应用科技学院"
+region = "广东"
+city = "广州"
+source_name = "广州应用科技学院人事处"
+source_type = "university_talent_site"
+list_url = "https://www.gzasc.edu.cn/rsc/"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广州商学院"
+region = "广东"
+city = "广州"
+source_name = "广州商学院人事处-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://hr.gcc.edu.cn/rczp/index.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广州工商学院"
+region = "广东"
+city = "广州"
+source_name = "广州工商学院人事处-人才招聘"
+source_type = "university_talent_site"
+list_url = "https://www.gzgs.edu.cn/rsc/rczp.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "广州新华学院"
+region = "广东"
+city = "广州"
+source_name = "广州新华学院人力资源管理处-教师招聘"
+source_type = "university_talent_site"
+list_url = "https://zdxhrsc.xhsysu.edu.cn/rczp/jszp.htm"
+parser = "static_list"
+enabled = true
+
+[[sources]]
+school = "香港科技大学（广州）"
+region = "广东"
+city = "广州"
+source_name = "香港科技大学（广州）加入我们"
+source_type = "university_talent_site"
+list_url = "https://www.hkust-gz.edu.cn/zh/join-us/?variant=zh-cn"
+parser = "static_list"
+enabled = false
+
+[[sources]]
+school = "香港科技大学（广州）"
+region = "广东"
+city = "广州"
+source_name = "香港科技大学（广州）招聘系统"
+source_type = "university_talent_site"
+list_url = "https://career.hkust-gz.edu.cn/"
+parser = "static_list"
+enabled = false
