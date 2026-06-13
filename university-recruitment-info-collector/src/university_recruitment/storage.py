@@ -195,6 +195,11 @@ class JobStore:
         with self.connect() as conn:
             for job in jobs:
                 row = self._job_to_row(job)
+                # ── Normalize incoming status from deadline ──
+                # The model default is always ACTIVE, but actual status
+                # must be derived from the deadline field.
+                row["status"] = self._resolve_incoming_status(row)
+
                 existing = conn.execute(
                     f"SELECT id, first_seen_at, {', '.join(_COMPARE_FIELDS)} "
                     "FROM recruitment_jobs WHERE id = ?",
@@ -238,9 +243,9 @@ class JobStore:
                         row["first_seen_at"] = now
 
                     # Only removed jobs count as "reactivation"
+                    # Status already normalized from deadline above
                     if was_removed:
                         row["removed_at"] = None
-                        row["status"] = job.status.value  # active or expired
                         row["last_seen_at"] = now
                         row["last_changed_at"] = now
                         row["collected_at"] = now
@@ -248,12 +253,8 @@ class JobStore:
                         updated += 1
                     elif self._job_fields_changed(existing, row, _COMPARE_FIELDS):
                         # Any field changed — full update
-                        # If expired job's deadline extended to future, restore active
-                        if existing["status"] == "expired" and (
-                            row["deadline"] is None
-                            or row["deadline"] >= date.today().isoformat()
-                        ):
-                            row["status"] = JobStatus.ACTIVE.value
+                        # Status is already normalized; deadline extension
+                        # from expired→active is naturally detected
                         row["last_seen_at"] = now
                         row["last_changed_at"] = now
                         row["collected_at"] = now
@@ -267,6 +268,19 @@ class JobStore:
                         )
                         unchanged += 1
         return {"inserted": inserted, "updated": updated, "unchanged": unchanged}
+
+    @staticmethod
+    def _resolve_incoming_status(row: dict[str, object]) -> str:
+        """Derive the correct job status from the deadline field.
+
+        The Pydantic model's default is always ACTIVE, but the real status
+        must be computed from the deadline value.  This is the sole source
+        of truth for incoming status during upsert.
+        """
+        deadline = row.get("deadline")
+        if deadline and isinstance(deadline, str) and deadline < date.today().isoformat():
+            return JobStatus.EXPIRED.value
+        return JobStatus.ACTIVE.value
 
     @staticmethod
     def _job_fields_changed(

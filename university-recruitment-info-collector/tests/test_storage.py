@@ -159,11 +159,15 @@ class TestJobStore:
     def test_expired_status_update(self, tmp_path):
         store = JobStore(tmp_path / "test.sqlite")
         store.init_db()
+        # New normalized logic: past deadline → status=expired on upsert
         job = make_job(id="exp", source_url="https://x.com/e",
-                       deadline=date(2020, 1, 1), status=JobStatus.ACTIVE)
+                       deadline=date(2020, 1, 1))
         store.upsert_jobs([job])
+        jobs, _ = store.list_jobs(include_expired=True)
+        assert jobs[0].status == JobStatus.EXPIRED
+        # update_expired_status is now a no-op for already-expired jobs
         count = store.update_expired_status()
-        assert count == 1
+        assert count == 0
 
     def test_collection_runs(self, tmp_path):
         store = JobStore(tmp_path / "test.sqlite")
@@ -453,4 +457,130 @@ class TestRemovedReactivationDetail:
         store.upsert_jobs([job])
         jobs, _ = store.list_jobs(include_expired=True)
         assert jobs[0].removed_at is None
+        assert jobs[0].status == JobStatus.ACTIVE
+
+
+class TestExpiredStatusFromDeadline:
+    """Tests for the _resolve_incoming_status normalization.
+
+    These simulate real adapter behavior: the Pydantic model defaults
+    to ACTIVE, and only deadline determines the actual status.
+    """
+
+    def test_expired_job_stays_expired_with_default_active_input(self, tmp_path):
+        """Most important regression: default ACTIVE must not overwrite expired."""
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        # First insert: past deadline → gets expired via normalization
+        job = make_job(deadline=date(2020, 1, 1))
+        counts = store.upsert_jobs([job])
+        assert counts["inserted"] == 1
+
+        # Verify it's expired in DB
+        jobs, _ = store.list_jobs(include_expired=True)
+        assert jobs[0].status == JobStatus.EXPIRED
+
+        # Capture last_changed_at
+        first_lc = jobs[0].last_changed_at
+
+        # Second upsert with same job (model default is ACTIVE, same past deadline)
+        job2 = make_job(
+            id=job.id, source_url=job.source_url,
+            deadline=date(2020, 1, 1),
+            content_hash=job.content_hash,
+        )
+        counts2 = store.upsert_jobs([job2])
+        # Must be unchanged — status normalized to EXPIRED, matches DB
+        assert counts2["unchanged"] == 1
+        assert counts2["updated"] == 0
+
+        jobs2, _ = store.list_jobs(include_expired=True)
+        assert jobs2[0].status == JobStatus.EXPIRED
+        # last_changed_at must NOT change
+        assert jobs2[0].last_changed_at == first_lc
+
+    def test_expired_deadline_extended_restores_active_via_normalization(self, tmp_path):
+        """Past deadline → extended to future: should become active."""
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        # Insert with past deadline
+        job = make_job(deadline=date(2020, 1, 1), content_hash="h1")
+        store.upsert_jobs([job])
+
+        # Now same job, updated deadline to future, same content_hash
+        job.deadline = date(2099, 12, 31)
+        counts = store.upsert_jobs([job])
+        assert counts["updated"] == 1
+
+        jobs, _ = store.list_jobs(include_expired=True)
+        assert jobs[0].status == JobStatus.ACTIVE
+        assert jobs[0].deadline == date(2099, 12, 31)
+
+    def test_active_job_deadline_becomes_past(self, tmp_path):
+        """Future deadline → past: should auto-expire."""
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        # Insert with future deadline
+        job = make_job(deadline=date(2099, 12, 31), content_hash="h1")
+        store.upsert_jobs([job])
+        assert store.list_jobs()[0][0].status == JobStatus.ACTIVE
+
+        # Same job, deadline changed to past
+        job.deadline = date(2020, 1, 1)
+        counts = store.upsert_jobs([job])
+        assert counts["updated"] == 1
+
+        jobs, _ = store.list_jobs(include_expired=True)
+        assert jobs[0].status == JobStatus.EXPIRED
+
+    def test_removed_reappears_expired_when_deadline_past(self, tmp_path):
+        """Removed job reappears with past deadline → status=expired."""
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        job = make_job(content_hash="h1")
+        store.upsert_jobs([job])
+        store.mark_removed("r1", job.source_name, set())
+
+        # Reappear with past deadline, default ACTIVE model status
+        job.deadline = date(2020, 1, 1)
+        job.content_hash = "h1"
+        store.upsert_jobs([job])
+
+        jobs, _ = store.list_jobs(include_expired=True)
+        assert jobs[0].status == JobStatus.EXPIRED
+        assert jobs[0].removed_at is None
+
+    def test_removed_reappears_active_when_deadline_future(self, tmp_path):
+        """Removed job reappears with future deadline → status=active."""
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        job = make_job(content_hash="h1")
+        store.upsert_jobs([job])
+        store.mark_removed("r1", job.source_name, set())
+
+        job.deadline = date(2099, 6, 15)
+        job.content_hash = "h1"
+        store.upsert_jobs([job])
+
+        jobs, _ = store.list_jobs(include_expired=True)
+        assert jobs[0].status == JobStatus.ACTIVE
+        assert jobs[0].removed_at is None
+
+    def test_no_deadline_stays_active(self, tmp_path):
+        """Job without deadline remains active on re-collection."""
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        job = make_job(deadline=None, content_hash="h1")
+        counts1 = store.upsert_jobs([job])
+        assert counts1["inserted"] == 1
+
+        # Re-collect same job
+        job2 = make_job(
+            id=job.id, source_url=job.source_url,
+            deadline=None, content_hash="h1",
+        )
+        counts2 = store.upsert_jobs([job2])
+        assert counts2["unchanged"] == 1
+
+        jobs, _ = store.list_jobs(include_expired=True)
         assert jobs[0].status == JobStatus.ACTIVE
