@@ -1,3 +1,4 @@
+import json
 from datetime import date, datetime, timezone
 
 import httpx
@@ -16,7 +17,9 @@ from university_recruitment.sources.field_extractor import (
 )
 from university_recruitment.sources.title_cleaner import clean_position_title
 from university_recruitment.llm.extractor import get_llm_extractor
-from university_recruitment.url_utils import content_hash, generate_job_id, normalize_url
+from university_recruitment.url_utils import (
+    build_position_job_id, content_hash, generate_job_id, normalize_url,
+)
 
 
 def _parse_llm_date(value: str | None) -> date | None:
@@ -192,45 +195,63 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
 
             normalized_position = None
             has_real_content = detail and detail.text and len(detail.text) > 60
-            if llm and llm.available and has_real_content:
-                # ── LLM PRIMARY EXTRACTION ──
-                try:
-                    llm_result = llm.extract(description)
-                except Exception:
-                    llm_result = {}
+            canonical_url = normalize_url(source_url)
+            now = datetime.now(timezone.utc)
 
-                llm_position = llm_result.get("clean_position")
-                position = clean_position_title(raw_title, school)
-                normalized_position = llm_position if (llm_position and len(llm_position) > 2) else None
-                department = (
-                    llm_result.get("department")
-                    or extract_department(position, description, school)
-                )
-                discipline = (
-                    llm_result.get("discipline")
-                    or extract_discipline(description)
-                )
-                education_requirement = (
-                    llm_result.get("education_requirement")
-                    or extract_education_requirement(description)
-                )
-                job_type = (
-                    llm_result.get("job_type")
-                    or extract_job_type(position, description)
-                )
-                location = (
-                    llm_result.get("location")
-                    or extract_address(description)
-                    or self.location
-                )
-                deadline = (
-                    _parse_llm_date(llm_result.get("deadline"))
-                    or (detail.deadline if detail else None)
-                )
-                published_at = (
-                    _parse_llm_date(llm_result.get("published_at"))
-                    or (detail.published_at if detail else None)
-                )
+            if llm and llm.available and has_real_content:
+                # ── LLM analyze_document ──
+                metadata = {
+                    "title": raw_title,
+                    "source_url": str(canonical_url),
+                    "school": school,
+                    "published_at_hint": str(detail.published_at) if detail and detail.published_at else "",
+                    "sections": detail.sections if detail else None,
+                    "tables": detail.tables if detail else None,
+                }
+                try:
+                    analysis = llm.analyze_document(description, metadata)
+                except Exception:
+                    analysis = {"document_type": "unknown", "positions": [], "warnings": [], "review_accepted": True}
+
+                doc_type = analysis.get("document_type", "unknown")
+                skippable = {"result_announcement", "interview_notice", "publicity_notice", "non_recruitment"}
+                if doc_type in skippable:
+                    continue
+
+                llm_positions = analysis.get("positions", [])
+
+                if llm_positions:
+                    for extracted in llm_positions:
+                        pos_id = build_position_job_id(canonical_url, extracted.get("position_raw", raw_title), extracted.get("department"))
+                        position = clean_position_title(extracted.get("position_raw", raw_title), school)
+
+                        dept = extracted.get("department")
+                        disc = extracted.get("discipline")
+                        if isinstance(disc, list):
+                            disc = disc[0] if disc else None
+
+                        edu = extracted.get("education_requirement")
+                        jt = extracted.get("job_type")
+                        loc = extracted.get("location") or self.location
+                        dl = _parse_llm_date(extracted.get("deadline")) or (detail.deadline if detail else None)
+                        pa = _parse_llm_date(analysis.get("published_at")) or (detail.published_at if detail else None) or extract_date_from_url(source_url)
+
+                        evidence = extracted.get("evidence", {})
+                        ev_json = json.dumps(evidence, ensure_ascii=False) if evidence else None
+
+                        jobs.append(self._build_extracted_job(pos_id, school, position, extracted.get("position_normalized"),
+                            dept, disc, edu, jt, loc, dl, pa, description, canonical_url, "llm_analyze_document",
+                            doc_type, analysis.get("confidence"), now))
+                else:
+                    # Fallback to legacy extract
+                    legacy = llm.extract(description) if hasattr(llm, "extract") else {}
+                    position = clean_position_title(raw_title, school)
+                    jobs.append(self._build_extracted_job(generate_job_id(canonical_url), school, position,
+                        legacy.get("clean_position"), legacy.get("department"), legacy.get("discipline"),
+                        legacy.get("education_requirement"), legacy.get("job_type"), legacy.get("location") or self.location,
+                        _parse_llm_date(legacy.get("deadline")) or (detail.deadline if detail else None) or extract_date_from_url(source_url) if not detail or not detail.published_at else detail.published_at,
+                        _parse_llm_date(legacy.get("published_at")) or (detail.published_at if detail else None) or extract_date_from_url(source_url),
+                        description, canonical_url, "llm_legacy", None, None, now))
             else:
                 # ── REGEX-ONLY EXTRACTION ──
                 normalized_position = None
@@ -242,41 +263,12 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
                 deadline = detail.deadline if detail else None
                 published_at = detail.published_at if detail else None
                 location = extract_address(description) or self.location
+                if not published_at:
+                    published_at = extract_date_from_url(source_url)
 
-            # Infer published_at from URL if still missing
-            if not published_at:
-                published_at = extract_date_from_url(source_url)
-
-            canonical_url = normalize_url(source_url)
-            job_id = generate_job_id(canonical_url)
-            ch = content_hash(description)
-            now = datetime.now(timezone.utc)
-            job_status = JobStatus.EXPIRED if (deadline and deadline < date.today()) else JobStatus.ACTIVE
-
-            jobs.append(
-                RecruitmentJob(
-                    id=job_id,
-                    school=school,
-                    position=position,
-                    normalized_position=normalized_position,
-                    department=department,
-                    discipline=discipline,
-                    location=location,
-                    longitude=self.longitude,
-                    latitude=self.latitude,
-                    education_requirement=education_requirement,
-                    job_type=job_type,
-                    deadline=deadline,
-                    source_type=SourceType.AGGREGATOR,
-                    source_name=self.source_name,
-                    source_url=canonical_url,
-                    published_at=published_at,
-                    collected_at=now,
-                    description=description,
-                    status=job_status,
-                    content_hash=ch,
-                )
-            )
+                jobs.append(self._build_extracted_job(generate_job_id(canonical_url), school, position,
+                    None, department, discipline, education_requirement, job_type, location,
+                    deadline, published_at, description, canonical_url, "regex", None, None, now))
         return self._deduplicate(jobs)
 
     def _build_detail_job(self, soup: BeautifulSoup, source_url: str, index: int) -> RecruitmentJob:
@@ -325,6 +317,47 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
                 if title:
                     return title
         return soup.title.get_text(" ", strip=True) if soup.title else "高校人才网招聘公告"
+
+    def _build_extracted_job(self, job_id, school, position, normalized_position,
+                             department, discipline, education_requirement, job_type,
+                             location, deadline, published_at, description,
+                             canonical_url, method, doc_type=None, confidence=None, now=None):
+        from datetime import datetime, timezone
+        from university_recruitment.models import JobStatus
+        from university_recruitment.quality.validators import (
+            build_extraction_warnings_json, calculate_job_quality,
+        )
+        now = now or datetime.now(timezone.utc)
+        job_status = JobStatus.EXPIRED if (deadline and deadline < date.today()) else JobStatus.ACTIVE
+        qscore = None
+        qstatus = None
+        try:
+            qscore, qstatus, _ = calculate_job_quality(RecruitmentJob(
+                id=job_id, school=school, position=position,
+                normalized_position=normalized_position,
+                department=department, discipline=discipline,
+                location=location, education_requirement=education_requirement,
+                job_type=job_type, deadline=deadline, published_at=published_at,
+                source_type=SourceType.AGGREGATOR, source_name=self.source_name,
+                source_url=canonical_url, description=description,
+            ), doc_type=doc_type)
+        except Exception:
+            pass
+        return RecruitmentJob(
+            id=job_id, school=school, position=position,
+            normalized_position=normalized_position,
+            department=department, discipline=discipline,
+            location=location, longitude=self.longitude, latitude=self.latitude,
+            education_requirement=education_requirement, job_type=job_type,
+            deadline=deadline, source_type=SourceType.AGGREGATOR,
+            source_name=self.source_name, source_url=canonical_url,
+            published_at=published_at, collected_at=now,
+            description=description, status=job_status,
+            content_hash=content_hash(description),
+            document_type=doc_type, extraction_method=method,
+            extraction_confidence=confidence,
+            quality_score=qscore, quality_status=qstatus,
+        )
 
     def _configured_school(self) -> str | None:
         if self.school and self.school != "聚合源":
