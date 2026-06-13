@@ -11,6 +11,7 @@ def collect_sources(
     selected_source: str | None = None,
     include_disabled: bool = False,
     dry_run: bool = False,
+    use_llm: bool = False,
 ) -> int:
     source_configs = load_sources(config_path, include_disabled=include_disabled)
     if selected_source:
@@ -31,7 +32,7 @@ def collect_sources(
     for source_config in source_configs:
         print(f"Collecting {source_config.source_name} ...")
         try:
-            adapter = build_source_adapter(source_config)
+            adapter = build_source_adapter(source_config, use_llm=use_llm)
             jobs = adapter.collect()
         except Exception as exc:
             print(f"  failed: {exc}")
@@ -47,7 +48,7 @@ def collect_sources(
         written = store.upsert_jobs(jobs)
         print(f"  collected {len(jobs)} jobs, upserted {written}")
 
-    print(f"Finished. total_collected={total_jobs}, dry_run={dry_run}")
+    print(f"Finished. total_collected={total_jobs}, dry_run={dry_run}, use_llm={use_llm}")
     return total_jobs
 
 
@@ -57,6 +58,7 @@ def main() -> None:
     parser.add_argument("--source", help="Filter by school or source name substring.")
     parser.add_argument("--include-disabled", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--use-llm", action="store_true", help="Use DeepSeek LLM to enhance field extraction.")
     args = parser.parse_args()
 
     collect_sources(
@@ -64,6 +66,7 @@ def main() -> None:
         selected_source=args.source,
         include_disabled=args.include_disabled,
         dry_run=args.dry_run,
+        use_llm=args.use_llm,
     )
 
 

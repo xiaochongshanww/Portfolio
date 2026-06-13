@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from bs4 import BeautifulSoup
 
@@ -9,8 +9,11 @@ from university_recruitment.sources.field_extractor import (
     extract_discipline,
     extract_education_requirement,
     extract_job_type,
+    extract_date_from_url,
 )
+from university_recruitment.sources.title_cleaner import clean_position_title
 from university_recruitment.sources.university_talent_sites.static_site import StaticTalentSiteAdapter
+from university_recruitment.llm.extractor import get_llm_extractor
 
 
 class BrowserTalentSiteAdapter(StaticTalentSiteAdapter):
@@ -33,37 +36,66 @@ class BrowserTalentSiteAdapter(StaticTalentSiteAdapter):
             page.goto(self.list_url, wait_until="networkidle", timeout=int(self.timeout * 1000))
             soup = BeautifulSoup(page.content(), "html.parser")
             browser.close()
+
+        # Try structured extraction first, fall back to text-only
         jobs = self._extract_jobs_from_soup(soup)
         if jobs:
             return jobs
         return self._extract_text_jobs_from_soup(soup)
 
     def _extract_text_jobs_from_soup(self, soup: BeautifulSoup) -> list[RecruitmentJob]:
+        """Fallback: extract jobs from plain text lines when no &lt;a&gt; links found."""
         jobs: list[RecruitmentJob] = []
+        llm = get_llm_extractor() if self.use_llm else None
+
         for index, line in enumerate(soup.get_text("\n", strip=True).splitlines(), start=1):
-            title = self._normalize_title(line)
-            if not self._looks_like_recruitment(title):
+            raw_title = self._normalize_title(line)
+            if not self._looks_like_recruitment(raw_title):
                 continue
-            description = title
+
+            position = clean_position_title(raw_title, self.school)
+            description = raw_title
+            department = extract_department(position, description, self.school)
+            discipline = extract_discipline(description)
+            education_requirement = extract_education_requirement(description)
+            job_type = extract_job_type(position, description)
             location = extract_address(description) or self.location
+
+            # LLM enhancement for text-only mode (very limited info)
+            if llm and llm.available:
+                try:
+                    enhanced = llm.extract(description, position)
+                    if enhanced.get("clean_position") and len(enhanced["clean_position"]) > 3:
+                        position = enhanced["clean_position"]
+                    if not department and enhanced.get("department"):
+                        department = enhanced["department"]
+                    if not discipline and enhanced.get("discipline"):
+                        discipline = enhanced["discipline"]
+                    if not education_requirement and enhanced.get("education_requirement"):
+                        education_requirement = enhanced["education_requirement"]
+                    if not job_type and enhanced.get("job_type"):
+                        job_type = enhanced["job_type"]
+                except Exception:
+                    pass
+
             jobs.append(
                 RecruitmentJob(
                     id=f"{self.source_name}-text-{index}",
                     school=self.school,
-                    position=title,
-                    department=extract_department(title, description, self.school),
-                    discipline=extract_discipline(description),
+                    position=position,
+                    department=department,
+                    discipline=discipline,
                     location=location,
                     longitude=self.longitude,
                     latitude=self.latitude,
-                    education_requirement=extract_education_requirement(description),
-                    job_type=extract_job_type(title, description),
+                    education_requirement=education_requirement,
+                    job_type=job_type,
                     deadline=None,
                     source_type=SourceType.UNIVERSITY_TALENT_SITE,
                     source_name=self.source_name,
                     source_url=f"{self.list_url.rstrip('/')}#text-{index}",
                     published_at=None,
-                    collected_at=datetime.utcnow(),
+                    collected_at=datetime.now(timezone.utc),
                     description=description,
                 )
             )

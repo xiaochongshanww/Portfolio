@@ -25,6 +25,7 @@ browser = []
 [project.scripts]
 university-recruitment-api = "university_recruitment.user_portal.api:main"
 university-recruitment-collect = "university_recruitment.collect:main"
+university-recruitment-enrich = "university_recruitment.enrich:main"
 university-recruitment-report = "university_recruitment.report:main"
 university-recruitment-seed = "university_recruitment.seed:main"
 

@@ -18,6 +18,10 @@ PROJECT_ROOT = find_project_root()
 DATA_DIR = PROJECT_ROOT / "data"
 DEFAULT_DB_PATH = DATA_DIR / "recruitment.sqlite"
 
-LLM_API_KEY: str | None = os.environ.get("LLM_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")
+LLM_API_KEY: str | None = os.environ.get(
+    "LLM_API_KEY"
+) or os.environ.get(
+    "ANTHROPIC_API_KEY"
+) or "sk-378e29cb7dd54caf9c711a225e0cbb43"
 LLM_MODEL: str = os.environ.get("LLM_MODEL", "deepseek-chat")
 LLM_BASE_URL: str = os.environ.get("LLM_BASE_URL", "https://api.deepseek.com")

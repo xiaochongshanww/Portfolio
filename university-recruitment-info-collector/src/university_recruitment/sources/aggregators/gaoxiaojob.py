@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime, timezone
 
 import httpx
 from bs4 import BeautifulSoup
@@ -12,7 +12,20 @@ from university_recruitment.sources.field_extractor import (
     extract_discipline,
     extract_education_requirement,
     extract_job_type,
+    extract_date_from_url,
 )
+from university_recruitment.sources.title_cleaner import clean_position_title
+from university_recruitment.llm.extractor import get_llm_extractor
+
+
+def _parse_llm_date(value: str | None) -> date | None:
+    """Safely parse a date string returned by LLM."""
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value.strip())
+    except (ValueError, TypeError):
+        return None
 
 
 KNOWN_GUANGZHOU_SCHOOLS = (
@@ -54,7 +67,8 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
         timeout: float = 20,
         verify_ssl: bool = True,
         use_browser: bool = False,
-        detail_limit: int = 5,
+        detail_limit: int = 0,
+        use_llm: bool = False,
     ) -> None:
         self.source_name = source_name
         self.list_url = list_url
@@ -65,7 +79,8 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
         self.timeout = timeout
         self.verify_ssl = verify_ssl
         self.use_browser = use_browser
-        self.detail_limit = detail_limit
+        self.detail_limit = detail_limit  # 0 = unlimited
+        self.use_llm = use_llm
 
     def collect(self) -> list[RecruitmentJob]:
         if self.use_browser:
@@ -140,8 +155,9 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
             if self._is_detail_link(href) and self._looks_like_recruitment(title):
                 detail_urls.append(str(httpx.URL(self.list_url).join(href)))
 
+        limit = self.detail_limit if self.detail_limit > 0 else len(detail_urls)
         details: dict[str, ParsedDetail] = {}
-        for detail_url in list(dict.fromkeys(detail_urls))[: self.detail_limit]:
+        for detail_url in list(dict.fromkeys(detail_urls))[:limit]:
             try:
                 page.goto(detail_url, wait_until="networkidle", timeout=int(self.timeout * 1000))
                 details[detail_url] = parse_detail_html(page.content())
@@ -156,65 +172,142 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
     ) -> list[RecruitmentJob]:
         jobs: list[RecruitmentJob] = []
         details = details or {}
+        llm = get_llm_extractor() if self.use_llm else None
+
         for index, link in enumerate(soup.find_all("a", href=True), start=1):
-            title = link.get_text(" ", strip=True)
+            raw_title = link.get_text(" ", strip=True)
             href = link["href"]
             if not self._is_detail_link(href):
                 continue
-            if not self._looks_like_recruitment(title):
+            if not self._looks_like_recruitment(raw_title):
                 continue
             source_url = str(httpx.URL(self.list_url).join(href))
             if "gaoxiaojob.com" not in source_url:
                 continue
+
             detail = details.get(source_url)
-            school = self._configured_school() or self._infer_school(title, link)
-            description = detail.text if detail and detail.text else title
-            location = extract_address(description) or self.location
+            school = self._configured_school() or self._infer_school(raw_title, link)
+            description = detail.text if detail and detail.text else raw_title
+
+            has_real_content = detail and detail.text and len(detail.text) > 60
+            if llm and llm.available and has_real_content:
+                # ── LLM PRIMARY EXTRACTION ──
+                try:
+                    llm_result = llm.extract(description)
+                except Exception:
+                    llm_result = {}
+
+                llm_position = llm_result.get("clean_position")
+                if llm_position and len(llm_position) > 2:
+                    position = llm_position
+                else:
+                    position = clean_position_title(raw_title, school)
+                department = (
+                    llm_result.get("department")
+                    or extract_department(position, description, school)
+                )
+                discipline = (
+                    llm_result.get("discipline")
+                    or extract_discipline(description)
+                )
+                education_requirement = (
+                    llm_result.get("education_requirement")
+                    or extract_education_requirement(description)
+                )
+                job_type = (
+                    llm_result.get("job_type")
+                    or extract_job_type(position, description)
+                )
+                location = (
+                    llm_result.get("location")
+                    or extract_address(description)
+                    or self.location
+                )
+                deadline = (
+                    _parse_llm_date(llm_result.get("deadline"))
+                    or (detail.deadline if detail else None)
+                )
+                published_at = (
+                    _parse_llm_date(llm_result.get("published_at"))
+                    or (detail.published_at if detail else None)
+                )
+            else:
+                # ── REGEX-ONLY EXTRACTION ──
+                position = clean_position_title(raw_title, school)
+                department = extract_department(position, description, school)
+                discipline = extract_discipline(description)
+                education_requirement = extract_education_requirement(description)
+                job_type = extract_job_type(position, description)
+                deadline = detail.deadline if detail else None
+                published_at = detail.published_at if detail else None
+                location = extract_address(description) or self.location
+
+            # Infer published_at from URL if still missing
+            if not published_at:
+                inferred = extract_date_from_url(source_url)
+                if inferred:
+                    published_at = date.fromisoformat(inferred)
+
             jobs.append(
                 RecruitmentJob(
                     id=f"{self.source_name}-{index}",
                     school=school,
-                    position=title,
-                    department=extract_department(title, description, school),
-                    discipline=extract_discipline(description),
+                    position=position,
+                    department=department,
+                    discipline=discipline,
                     location=location,
                     longitude=self.longitude,
                     latitude=self.latitude,
-                    education_requirement=extract_education_requirement(description),
-                    job_type=extract_job_type(title, description),
-                    deadline=detail.deadline if detail else None,
+                    education_requirement=education_requirement,
+                    job_type=job_type,
+                    deadline=deadline,
                     source_type=SourceType.AGGREGATOR,
                     source_name=self.source_name,
                     source_url=source_url,
-                    published_at=detail.published_at if detail else None,
-                    collected_at=datetime.utcnow(),
+                    published_at=published_at,
+                    collected_at=datetime.now(timezone.utc),
                     description=description,
                 )
             )
         return self._deduplicate(jobs)
 
     def _build_detail_job(self, soup: BeautifulSoup, source_url: str, index: int) -> RecruitmentJob:
-        title = self._extract_detail_title(soup)
+        raw_title = self._extract_detail_title(soup)
         detail = parse_detail_html(str(soup))
-        description = detail.text if detail and detail.text else title
-        school = self._configured_school() or self._infer_school(title)
+        description = detail.text if detail and detail.text else raw_title
+        school = self._configured_school() or self._infer_school(raw_title)
+
+        position = clean_position_title(raw_title, school)
+        department = extract_department(position, description, school)
+        discipline = extract_discipline(description)
+        education_requirement = extract_education_requirement(description)
+        job_type = extract_job_type(position, description)
+        location = extract_address(description) or self.location
+        published_at = detail.published_at if detail else None
+
+        if not published_at:
+            inferred = extract_date_from_url(source_url)
+            if inferred:
+                from datetime import date
+                published_at = date.fromisoformat(inferred)
+
         return RecruitmentJob(
             id=f"{self.source_name}-{index}",
             school=school,
-            position=title,
-            department=extract_department(title, description, school),
-            discipline=extract_discipline(description),
-            location=self.location,
+            position=position,
+            department=department,
+            discipline=discipline,
+            location=location,
             longitude=self.longitude,
             latitude=self.latitude,
-            education_requirement=extract_education_requirement(description),
-            job_type=extract_job_type(title, description),
+            education_requirement=education_requirement,
+            job_type=job_type,
             deadline=detail.deadline if detail else None,
             source_type=SourceType.AGGREGATOR,
             source_name=self.source_name,
             source_url=source_url,
-            published_at=detail.published_at if detail else None,
-            collected_at=datetime.utcnow(),
+            published_at=published_at,
+            collected_at=datetime.now(timezone.utc),
             description=description,
         )
 
@@ -256,6 +349,10 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
             "巡回",
         )
         if any(keyword in title for keyword in excluded_keywords):
+            return False
+        # Reject pure "XX年招聘公告/启事" with no specific position
+        import re
+        if re.match(r"^\d{4}\s*年?(招聘公告|招聘启事|公开招聘|公开招聘公告)$", title):
             return False
         keywords = ("招聘", "引进", "诚聘", "招募", "博士后", "教师")
         return any(keyword in title for keyword in keywords)

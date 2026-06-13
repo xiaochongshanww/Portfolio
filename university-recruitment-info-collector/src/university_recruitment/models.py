@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from enum import Enum
 
 from pydantic import BaseModel, Field, HttpUrl
@@ -26,7 +26,7 @@ class RecruitmentJob(BaseModel):
     source_name: str
     source_url: HttpUrl | str
     published_at: date | None = None
-    collected_at: datetime = Field(default_factory=datetime.utcnow)
+    collected_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     description: str = ""
 
 

@@ -1,20 +1,33 @@
 <template>
   <div>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-      <h3>匹配结果</h3>
+    <!-- Header Bar -->
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
       <div>
-        <el-tag v-if="useLlm" type="success" effect="dark">LLM 分析已开启</el-tag>
-        <el-tag v-else type="info" effect="dark">规则匹配模式</el-tag>
-        <el-button style="margin-left: 12px;" @click="goBack">重新填写</el-button>
+        <h2 class="text-2xl font-semibold text-gray-800">匹配结果</h2>
+        <p class="text-sm text-gray-400 mt-1">
+          共为你匹配到 {{ results.length }} 个岗位
+          <span v-if="results.length" class="ml-2">
+            最高分 <span class="text-green-500 font-semibold">{{ results[0]?.match_score }} 分</span>
+          </span>
+        </p>
+      </div>
+      <div class="flex items-center gap-3">
+        <el-tag v-if="useLlm" type="success" effect="dark" size="large">🤖 LLM 分析已开启</el-tag>
+        <el-tag v-else type="info" effect="dark" size="large">📋 规则匹配模式</el-tag>
+        <el-button @click="goBack">
+          <span class="flex items-center gap-1">← 重新填写</span>
+        </el-button>
       </div>
     </div>
 
-    <div v-if="loading" style="text-align: center; padding: 80px 0;">
+    <!-- Loading -->
+    <div v-if="loading" class="text-center py-20">
       <el-progress type="circle" :percentage="100" :stroke-width="6" :width="80" indeterminate />
-      <p style="margin-top: 16px; color: #909399;">正在匹配中，请稍候...</p>
+      <p class="mt-4 text-gray-400">正在匹配中，请稍候...</p>
     </div>
 
-    <div v-else-if="error" style="text-align: center; padding: 40px 0;">
+    <!-- Error -->
+    <div v-else-if="error" class="text-center py-16">
       <el-result icon="error" title="匹配失败" :sub-title="error">
         <template #extra>
           <el-button type="primary" @click="goBack">返回重试</el-button>
@@ -22,71 +35,94 @@
       </el-result>
     </div>
 
+    <!-- Results -->
     <template v-else>
-      <el-empty v-if="results.length === 0" description="暂无匹配结果" />
+      <el-empty v-if="results.length === 0" description="暂无匹配结果，试试调整筛选条件" />
 
-      <div v-for="item in results" :key="item.job.id" style="margin-bottom: 20px;">
-        <el-card shadow="hover">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-            <div>
-              <h4 style="margin: 0 0 4px;">
-                {{ item.job.school }}
-                <el-tag size="small" style="margin-left: 8px;">{{ item.job.position }}</el-tag>
-              </h4>
-              <p style="margin: 0; color: #909399; font-size: 13px;">
-                {{ [item.job.department, item.job.location, item.job.job_type].filter(Boolean).join(' | ') }}
-              </p>
+      <div class="space-y-4">
+        <div
+          v-for="item in results"
+          :key="item.job.id"
+          class="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+        >
+          <div class="p-6">
+            <!-- Top Row -->
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1 min-w-0">
+                <!-- School + Position -->
+                <div class="flex flex-wrap items-center gap-2 mb-2">
+                  <h3 class="text-lg font-semibold text-gray-900">{{ item.job.school }}</h3>
+                  <el-tag size="small" type="primary" effect="plain">{{ item.job.position }}</el-tag>
+                </div>
+                <!-- Meta -->
+                <p class="text-sm text-gray-400">
+                  {{ [item.job.department, item.job.location, item.job.job_type, item.job.education_requirement].filter(Boolean).join(' · ') }}
+                </p>
+                <!-- Deadline -->
+                <p v-if="item.job.deadline" class="text-xs text-gray-300 mt-1">
+                  ⏰ 截止日期：{{ item.job.deadline }}
+                </p>
+              </div>
+              <!-- Score -->
+              <el-progress
+                type="circle"
+                :percentage="item.match_score"
+                :width="80"
+                :stroke-width="8"
+                :color="scoreColor(item.match_score)"
+              />
             </div>
-            <el-progress
-              type="circle"
-              :percentage="item.match_score"
-              :width="70"
-              :stroke-width="8"
-              :color="scoreColor(item.match_score)"
-            />
-          </div>
 
-          <el-divider style="margin: 12px 0;" />
+            <el-divider class="!my-3" />
 
-          <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
-            <el-tag
-              v-for="reason in item.match_reasons"
-              :key="reason"
-              type="success"
-              size="small"
+            <!-- Tags -->
+            <div class="flex flex-wrap gap-2 mb-3">
+              <el-tag
+                v-for="reason in item.match_reasons"
+                :key="reason"
+                type="success"
+                size="small"
+                effect="plain"
+              >
+                ✅ {{ reason }}
+              </el-tag>
+              <el-tag
+                v-for="risk in item.potential_risks"
+                :key="risk"
+                type="warning"
+                size="small"
+                effect="plain"
+              >
+                ⚠️ {{ risk }}
+              </el-tag>
+            </div>
+
+            <!-- LLM Summary -->
+            <div
+              v-if="item.llm_summary"
+              class="bg-blue-50 border border-blue-100 rounded-lg p-4 mt-3 text-sm leading-relaxed text-gray-700"
             >
-              {{ reason }}
-            </el-tag>
-            <el-tag
-              v-for="risk in item.potential_risks"
-              :key="risk"
-              type="warning"
-              size="small"
-            >
-              {{ risk }}
-            </el-tag>
-          </div>
+              <p class="font-medium text-blue-800 mb-1">🤖 LLM 分析</p>
+              <p>{{ item.llm_summary }}</p>
+            </div>
 
-          <div v-if="item.llm_summary" style="background: #f5f7fa; border-radius: 6px; padding: 12px; margin-top: 8px; font-size: 14px; line-height: 1.6;">
-            <strong>LLM 分析：</strong>
-            <p style="margin: 4px 0 0;">{{ item.llm_summary }}</p>
+            <!-- Actions -->
+            <div class="flex items-center gap-3 mt-4 pt-3 border-t border-gray-50">
+              <el-button type="primary" link @click="openLink(item.job.source_url)" class="!text-base">
+                🔗 查看原文
+              </el-button>
+              <el-tag
+                v-for="action in item.suggested_actions"
+                :key="action"
+                type="info"
+                size="small"
+                effect="plain"
+              >
+                💡 {{ action }}
+              </el-tag>
+            </div>
           </div>
-
-          <div style="margin-top: 12px; display: flex; gap: 8px;">
-            <el-button type="primary" link @click="openLink(item.job.source_url)">
-              查看原文
-            </el-button>
-            <el-tag
-              v-for="action in item.suggested_actions"
-              :key="action"
-              type="info"
-              size="small"
-              effect="plain"
-            >
-              {{ action }}
-            </el-tag>
-          </div>
-        </el-card>
+        </div>
       </div>
     </template>
   </div>
@@ -106,9 +142,9 @@ const error = ref('')
 const useLlm = ref(false)
 
 function scoreColor(score) {
-  if (score >= 80) return '#67c23a'
-  if (score >= 60) return '#e6a23c'
-  return '#f56c6c'
+  if (score >= 80) return '#22c55e'
+  if (score >= 60) return '#eab308'
+  return '#ef4444'
 }
 
 function openLink(url) {

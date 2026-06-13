@@ -1,6 +1,6 @@
 """Tests for Pydantic models (models.py)."""
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 import pydantic
 import pytest
@@ -27,7 +27,7 @@ class TestRecruitmentJob:
         assert job.id == "j1"
         assert job.school == "测试大学"
         assert job.department is None
-        assert job.collected_at.date() == date.today()
+        assert job.collected_at.date() == datetime.now(timezone.utc).date()
         assert job.description == ""
 
     def test_full_construction(self, sample_job: RecruitmentJob) -> None:
@@ -48,7 +48,7 @@ class TestRecruitmentJob:
         assert job.deadline is None
 
     def test_collected_at_default(self) -> None:
-        before = datetime.utcnow()
+        before = datetime.now(timezone.utc)
         job = RecruitmentJob(
             id="j3",
             school="测试大学",
@@ -57,7 +57,7 @@ class TestRecruitmentJob:
             source_name="测试源",
             source_url="https://example.edu.cn",
         )
-        after = datetime.utcnow()
+        after = datetime.now(timezone.utc)
         assert before <= job.collected_at <= after
 
     def test_longitude_latitude(self) -> None:

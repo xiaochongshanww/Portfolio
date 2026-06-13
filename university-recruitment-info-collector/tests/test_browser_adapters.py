@@ -27,7 +27,8 @@ def test_browser_adapter_extracts_text_only_announcements() -> None:
     jobs = adapter._extract_text_jobs_from_soup(soup)
 
     assert len(jobs) == 1
-    assert jobs[0].position == "测试大学2026年公开招聘辅导员公告"
+    # Title cleaner strips school name "测试大学" from start
+    assert jobs[0].position == "2026年公开招聘辅导员公告"
     assert jobs[0].source_url == "https://example.edu.cn/recruit#text-3"
 
 

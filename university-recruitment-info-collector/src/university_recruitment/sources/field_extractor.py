@@ -15,11 +15,13 @@ EDUCATION_RULES = (
     "博士",
     "硕士研究生及以上",
     "硕士研究生",
+    "硕士及以上",
     "硕士",
     "本科及以上",
     "本科",
 )
 DISCIPLINE_LABELS = ("需求学科", "学科专业", "专业要求", "招聘专业", "相关专业", "专业方向")
+
 
 def extract_address(text: str) -> str | None:
     """Extract a detailed street address from job description text."""
@@ -34,7 +36,7 @@ ADDRESS_PATTERN = re.compile(
 )
 
 DEPARTMENT_PATTERN = re.compile(
-    r"([\u4e00-\u9fa5A-Za-z0-9（）()·]+(?:学院|学部|研究院|医院|中心|实验室|课题组|系|部))"
+    r"([一-龥A-Za-z0-9（）()·]+(?:学院|学部|研究院|医院|中心|实验室|课题组|系|部))"
 )
 
 
@@ -56,6 +58,11 @@ def _extract_job_type_from_text(text: str) -> str | None:
 
 
 def extract_education_requirement(text: str) -> str | None:
+    """Extract education requirement with priority ordering.
+
+    Searches in priority order so that "博士研究生" is matched before "博士",
+    and "硕士研究生及以上" before "硕士", etc.
+    """
     for education in EDUCATION_RULES:
         if education in text:
             return education
@@ -74,10 +81,52 @@ def extract_discipline(text: str) -> str | None:
 
 
 def extract_department(title: str, text: str, school: str) -> str | None:
-    for match in DEPARTMENT_PATTERN.finditer(title):
+    """Extract department name from title first, then from description body."""
+    # First, try the title
+    dept = _extract_department_from_text(title, school)
+    if dept:
+        return dept
+
+    # Fallback: search the first 1500 chars of description body
+    if text and text != title:
+        dept = _extract_department_from_text(text[:1500], school)
+        if dept:
+            return dept
+
+    return None
+
+
+def _extract_department_from_text(text: str, school: str) -> str | None:
+    """Search for department patterns in a text block."""
+    for match in DEPARTMENT_PATTERN.finditer(text):
         value = _clean_department(match.group(1), school)
         if value:
             return value
+    return None
+
+
+def extract_date_from_url(url: str) -> str | None:
+    """Try to infer published date from URL path patterns.
+
+    Supports patterns like:
+    - /2025/06/12/...
+    - /article/20250612/...
+    - ...content_20250612...
+    """
+    # Pattern: /YYYY/MM/DD/ or /YYYY-MM-DD/
+    match = re.search(r"/(20\d{2})[-/](\d{1,2})[-/](\d{1,2})[/.]", url)
+    if match:
+        y, m, d = int(match.group(1)), int(match.group(2)), int(match.group(3))
+        if 2020 <= y <= 2030 and 1 <= m <= 12 and 1 <= d <= 31:
+            return f"{y:04d}-{m:02d}-{d:02d}"
+
+    # Pattern: YYYYMMDD
+    match = re.search(r"(20\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])", url)
+    if match:
+        y, m, d = int(match.group(1)), int(match.group(2)), int(match.group(3))
+        if 2020 <= y <= 2030 and 1 <= m <= 12 and 1 <= d <= 31:
+            return f"{y:04d}-{m:02d}-{d:02d}"
+
     return None
 
 
