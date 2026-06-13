@@ -147,7 +147,7 @@ class JobStore:
         )
 
     def _migrate_v2_add_lifecycle_columns(self, conn: sqlite3.Connection) -> None:
-        logger.info("Running migration v2: lifecycle columns")
+        logger.info("Running migration v2: lifecycle + quality columns")
         existing = {
             row["name"]
             for row in conn.execute("PRAGMA table_info(recruitment_jobs)").fetchall()
@@ -160,6 +160,15 @@ class JobStore:
             "content_hash": "ALTER TABLE recruitment_jobs ADD COLUMN content_hash TEXT",
             "removed_at": "ALTER TABLE recruitment_jobs ADD COLUMN removed_at TEXT",
             "normalized_position": "ALTER TABLE recruitment_jobs ADD COLUMN normalized_position TEXT",
+            "document_type": "ALTER TABLE recruitment_jobs ADD COLUMN document_type TEXT",
+            "extraction_method": "ALTER TABLE recruitment_jobs ADD COLUMN extraction_method TEXT",
+            "extraction_confidence": "ALTER TABLE recruitment_jobs ADD COLUMN extraction_confidence REAL",
+            "quality_score": "ALTER TABLE recruitment_jobs ADD COLUMN quality_score INTEGER",
+            "quality_status": "ALTER TABLE recruitment_jobs ADD COLUMN quality_status TEXT NOT NULL DEFAULT 'needs_review'",
+            "extraction_warnings": "ALTER TABLE recruitment_jobs ADD COLUMN extraction_warnings TEXT",
+            "evidence_json": "ALTER TABLE recruitment_jobs ADD COLUMN evidence_json TEXT",
+            "notice_title": "ALTER TABLE recruitment_jobs ADD COLUMN notice_title TEXT",
+            "notice_url": "ALTER TABLE recruitment_jobs ADD COLUMN notice_url TEXT",
         }
         for col, stmt in migrations.items():
             if col not in existing:

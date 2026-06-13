@@ -62,7 +62,11 @@ LLM_MODEL: str = os.environ.get("LLM_MODEL", "deepseek-chat")
 LLM_BASE_URL: str = os.environ.get("LLM_BASE_URL", "https://api.deepseek.com")
 LLM_DAILY_LIMIT: int = _env_int("LLM_DAILY_LIMIT", 200)
 LLM_MAX_JOBS: int = _env_int("LLM_MAX_JOBS", 5)
-LLM_TIMEOUT_SECONDS: int = _env_int("LLM_TIMEOUT_SECONDS", 60)
+LLM_TIMEOUT_SECONDS: int = _env_int("LLM_TIMEOUT_SECONDS", 120)
+LLM_MAX_DOCUMENT_CHARS: int = _env_int("LLM_MAX_DOCUMENT_CHARS", 800_000)
+LLM_MAX_SECTION_CHARS: int = _env_int("LLM_MAX_SECTION_CHARS", 100_000)
+LLM_MAX_TABLE_ROWS: int = _env_int("LLM_MAX_TABLE_ROWS", 5_000)
+LLM_MAX_ATTACHMENT_CHARS: int = _env_int("LLM_MAX_ATTACHMENT_CHARS", 300_000)
 
 # --- API Security ---
 CORS_ALLOWED_ORIGINS: str = os.environ.get(

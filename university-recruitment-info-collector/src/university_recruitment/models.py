@@ -70,11 +70,35 @@ def education_satisfies(user_level: EducationLevel, required_level: EducationLev
     return user_level >= required_level
 
 
+class QualityStatus(str, Enum):
+    NORMAL = "normal"
+    NEEDS_REVIEW = "needs_review"
+    HIDDEN = "hidden"
+
+
+class DocumentType(str, Enum):
+    SINGLE_POSITION = "single_position"
+    MULTI_POSITION_NOTICE = "multi_position_notice"
+    GENERAL_TALENT_NOTICE = "general_talent_notice"
+    POSTDOC_NOTICE = "postdoc_notice"
+    RESULT_ANNOUNCEMENT = "result_announcement"
+    INTERVIEW_NOTICE = "interview_notice"
+    PUBLICITY_NOTICE = "publicity_notice"
+    NON_RECRUITMENT = "non_recruitment"
+    UNKNOWN = "unknown"
+
+
+SKIP_DOC_TYPES = frozenset({
+    DocumentType.RESULT_ANNOUNCEMENT, DocumentType.INTERVIEW_NOTICE,
+    DocumentType.PUBLICITY_NOTICE, DocumentType.NON_RECRUITMENT,
+})
+
+
 class RecruitmentJob(BaseModel):
     id: str
     school: str
     position: str
-    normalized_position: str | None = None  # LLM-cleaned title for matching; never overwrites position
+    normalized_position: str | None = None
     department: str | None = None
     discipline: str | None = None
     location: str | None = None
@@ -97,6 +121,17 @@ class RecruitmentJob(BaseModel):
     last_changed_at: datetime | None = None
     content_hash: str | None = None
     removed_at: datetime | None = None
+
+    # Extraction quality fields
+    document_type: str | None = None
+    extraction_method: str | None = None
+    extraction_confidence: float | None = None
+    quality_score: int | None = None
+    quality_status: str | None = None
+    extraction_warnings: str | None = None  # JSON list
+    evidence_json: str | None = None  # JSON dict
+    notice_title: str | None = None
+    notice_url: str | None = None
 
 
 class UserProfile(BaseModel):

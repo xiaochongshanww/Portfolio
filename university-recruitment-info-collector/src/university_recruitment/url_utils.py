@@ -51,16 +51,28 @@ normalize_url = canonicalize_url
 
 
 def build_job_id(source_url: str) -> str:
-    """Generate a stable job ID from a canonicalized URL.
-
-    Uses SHA-256 for collision resistance, with a human-readable prefix.
-    """
+    """Generate a stable job ID from a canonicalized URL."""
     canonical = canonicalize_url(source_url)
     digest = hashlib.sha256(canonical.encode()).hexdigest()
     return f"job-{digest[:24]}"
 
 
-# Backward-compatible alias
+def build_position_job_id(canonical_url: str, position_raw: str, department: str | None = None) -> str:
+    """Generate a stable job ID for a single position within a multi-position notice.
+
+    Different positions in the same notice get different IDs.
+    Same position in different orders still gets the same ID.
+    """
+    identity = "|".join([
+        canonicalize_url(canonical_url),
+        " ".join(position_raw.strip().lower().split()),
+        (department or "").strip().lower(),
+    ])
+    digest = hashlib.sha256(identity.encode()).hexdigest()
+    return f"pos-{digest[:24]}"
+
+
+# Backward-compatible aliases
 generate_job_id = build_job_id
 
 
