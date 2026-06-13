@@ -531,6 +531,7 @@ class JobStore:
         for key in (
             "successful_sources", "failed_sources", "total_collected",
             "total_inserted", "total_updated", "total_unchanged", "total_removed",
+            "error_summary",
         ):
             if key in counts:
                 fields.append(f"{key} = ?")
@@ -560,22 +561,18 @@ class JobStore:
             )
 
     def get_source_health(self) -> list[dict]:
-        """Get per-source health from the most recent collection run."""
+        """Get per-source health — each source's own most recent run."""
         with self.connect() as conn:
-            # Get latest run
-            latest_run = conn.execute(
-                "SELECT id FROM collection_runs ORDER BY started_at DESC LIMIT 1"
-            ).fetchone()
-            if not latest_run:
-                return []
-
             rows = conn.execute(
                 """SELECT source_name, status, collected_count, inserted_count,
-                          updated_count, error_message
-                   FROM collection_source_runs
-                   WHERE run_id = ?
-                   ORDER BY source_name""",
-                (latest_run["id"],),
+                          updated_count, error_message, started_at
+                   FROM collection_source_runs csr
+                   WHERE csr.started_at = (
+                       SELECT MAX(inner_csr.started_at)
+                       FROM collection_source_runs inner_csr
+                       WHERE inner_csr.source_name = csr.source_name
+                   )
+                   ORDER BY source_name"""
             ).fetchall()
             return [dict(r) for r in rows]
 

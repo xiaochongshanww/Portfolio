@@ -584,3 +584,63 @@ class TestExpiredStatusFromDeadline:
 
         jobs, _ = store.list_jobs(include_expired=True)
         assert jobs[0].status == JobStatus.ACTIVE
+
+
+class TestPerSourceHealth:
+    def test_per_source_latest_run_not_affected_by_partial_rerun(self, tmp_path):
+        """When only source A is re-run, source B's health still shows its own latest."""
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+
+        from university_recruitment.models import CollectionSourceRun, RunStatus
+        from datetime import datetime, timezone
+
+        now1 = datetime(2026, 6, 1, 10, 0, 0, tzinfo=timezone.utc)
+        now2 = datetime(2026, 6, 2, 10, 0, 0, tzinfo=timezone.utc)
+
+        # Run 1: both A and B succeed
+        store.create_run("run-1", None, 2)
+        store.upsert_source_run(CollectionSourceRun(
+            run_id="run-1", source_name="来源A", started_at=now1,
+            finished_at=now1, status=RunStatus.SUCCESS,
+            collected_count=10, inserted_count=10,
+        ))
+        store.upsert_source_run(CollectionSourceRun(
+            run_id="run-1", source_name="来源B", started_at=now1,
+            finished_at=now1, status=RunStatus.SUCCESS,
+            collected_count=5, inserted_count=5,
+        ))
+        store.finish_run("run-1", RunStatus.SUCCESS, successful_sources=2)
+
+        # Run 2: only source A runs, succeeds
+        store.create_run("run-2", "来源A", 1)
+        store.upsert_source_run(CollectionSourceRun(
+            run_id="run-2", source_name="来源A", started_at=now2,
+            finished_at=now2, status=RunStatus.SUCCESS,
+            collected_count=12, inserted_count=2,
+        ))
+        store.finish_run("run-2", RunStatus.SUCCESS, successful_sources=1,
+                         error_summary="")
+
+        # Get per-source health
+        health = {r["source_name"]: r for r in store.get_source_health()}
+
+        # Source A should show run-2 data (most recent)
+        assert health["来源A"]["collected_count"] == 12
+        # Source B should still show run-1 data (its own most recent)
+        assert "来源B" in health
+        assert health["来源B"]["collected_count"] == 5
+
+    def test_error_summary_saved_to_run(self, tmp_path):
+        """finish_run should persist error_summary."""
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        from university_recruitment.models import RunStatus
+
+        store.create_run("run-e", None, 3)
+        store.finish_run("run-e", RunStatus.PARTIAL_SUCCESS,
+                         successful_sources=2, failed_sources=1,
+                         error_summary="来源X: timeout; 来源Y: 403")
+        run = store.get_collection_run("run-e")
+        assert run is not None
+        assert "来源X" in (run.error_summary or "")

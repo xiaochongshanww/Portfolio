@@ -263,6 +263,8 @@ def collect_sources(
     elif successful == 0:
         run_status = RunStatus.FAILED
 
+    error_summary = "; ".join(errors[:5]) if errors else None
+
     if not dry_run:
         store.finish_run(
             run_id,
@@ -274,9 +276,9 @@ def collect_sources(
             total_updated=total_updated,
             total_unchanged=total_unchanged,
             total_removed=total_removed,
+            error_summary=error_summary,
         )
 
-    error_summary = "; ".join(errors[:5]) if errors else None
     print(f"Finished. run_id={run_id} total_collected={total_collected} "
           f"inserted={total_inserted} updated={total_updated} "
           f"unchanged={total_unchanged} removed={total_removed} "
