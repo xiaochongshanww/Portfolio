@@ -10,6 +10,9 @@ class ParsedDetail:
     text: str
     published_at: date | None = None
     deadline: date | None = None
+    title: str = ""
+    sections: list[dict] | None = None   # [{heading, text}]
+    tables: list[dict] | None = None     # [{headers, rows}]
 
 
 DATE_PATTERNS = (
@@ -24,15 +27,67 @@ def parse_detail_html(html: str) -> ParsedDetail:
     for tag in soup(["script", "style", "noscript", "svg"]):
         tag.decompose()
     text = _extract_main_text(soup)
+    title = soup.title.get_text(" ", strip=True) if soup.title else ""
     published_at = _extract_published_at(text)
     deadline = _extract_deadline(text)
     if published_at and deadline and deadline < published_at:
         deadline = None
+    sections = _extract_sections(soup)
+    tables = _extract_html_tables(soup)
     return ParsedDetail(
         text=text,
         published_at=published_at,
         deadline=deadline,
+        title=title,
+        sections=sections,
+        tables=tables,
     )
+
+
+def _extract_sections(soup: BeautifulSoup) -> list[dict]:
+    """Extract document sections based on heading tags (h1-h4)."""
+    sections = []
+    current_heading = ""
+    current_text: list[str] = []
+    for tag in soup.find_all(["h1", "h2", "h3", "h4", "p", "div", "span", "li"]):
+        if tag.name in ("h1", "h2", "h3", "h4"):
+            if current_text:
+                sections.append({"heading": current_heading, "text": "\n".join(current_text)})
+            current_heading = tag.get_text(" ", strip=True)[:120]
+            current_text = []
+        else:
+            t = tag.get_text(" ", strip=True)
+            if t and len(t) > 3:
+                current_text.append(t)
+    if current_text:
+        sections.append({"heading": current_heading, "text": "\n".join(current_text)})
+    return sections if sections else None
+
+
+def _extract_html_tables(soup: BeautifulSoup) -> list[dict] | None:
+    """Extract data tables from HTML."""
+    tables = []
+    for table in soup.find_all("table"):
+        headers = []
+        rows = []
+        for tr in table.find_all("tr"):
+            cells = [td.get_text(" ", strip=True) for td in tr.find_all(["td", "th"])]
+            if not cells:
+                continue
+            if tr.find("th") or (not headers and _looks_like_table_header(cells)):
+                headers = cells
+            else:
+                rows.append(cells)
+        if rows:
+            tables.append({"headers": headers, "rows": rows})
+    return tables if tables else None
+
+
+def _looks_like_table_header(cells: list[str]) -> bool:
+    """Heuristic: first row looks like a header if it has short label-like values."""
+    if not cells: return False
+    header_keywords = ("岗位", "部门", "专业", "学历", "人数", "要求", "学院", "单位", "名称", "条件")
+    return any(any(kw in c for kw in header_keywords) for c in cells)
 
 
 def _normalize_text(text: str) -> str:

@@ -106,8 +106,16 @@ class StaticTalentSiteAdapter(SourceAdapter):
             has_real_content = detail and detail.text and len(detail.text) > 60
             if llm and llm.available and has_real_content:
                 # ── LLM PRIMARY EXTRACTION ──
+                metadata = {
+                    "title": detail.title if detail else raw_title,
+                    "source_url": str(source_url),
+                    "school": self.school,
+                    "published_at_hint": str(detail.published_at) if detail and detail.published_at else "",
+                    "sections": detail.sections if detail else None,
+                    "tables": detail.tables if detail else None,
+                }
                 try:
-                    llm_result = llm.extract(description)
+                    llm_result = llm.extract(description) if not metadata.get("sections") and not metadata.get("tables") else llm.analyze_document(description, metadata)
                 except Exception:
                     llm_result = {}
 

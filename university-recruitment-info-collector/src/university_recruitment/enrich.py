@@ -20,7 +20,7 @@ def enrich_jobs(
     dry_run: bool = False,
 ) -> int:
     store = JobStore()
-    jobs = store.list_jobs(include_expired=True)
+    jobs, _ = store.list_jobs(include_expired=True, include_removed=True, limit=5000)
 
     if source_filter:
         jobs = [j for j in jobs if source_filter in j.school or source_filter in j.source_name]
