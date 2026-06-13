@@ -120,7 +120,6 @@ async function fetchJobs(page = 0) {
 }
 
 function handlePageChange(page) {
-  const offset = (page - 1) * pagination.value.limit
   fetchJobs(page - 1)
 }
 

@@ -368,3 +368,89 @@ class TestEmptyCollectionGuard:
         store.mark_removed("r1", "S", set())
         assert store.count_jobs_by_source("S") == 0
         assert store.count_jobs_by_source("S", include_removed=True) == 1
+
+
+class TestExpiredNotReactivation:
+    def test_expired_unchanged_stays_unchanged(self, tmp_path):
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        job = make_job(deadline=date(2020, 1, 1), status=JobStatus.EXPIRED, content_hash="h1")
+        store.upsert_jobs([job])
+        # Same content, same deadline
+        counts = store.upsert_jobs([job])
+        assert counts["unchanged"] == 1
+        assert counts["updated"] == 0
+        jobs, _ = store.list_jobs(include_expired=True)
+        assert jobs[0].status == JobStatus.EXPIRED
+
+    def test_expired_deadline_extended_restores_active(self, tmp_path):
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        job = make_job(deadline=date(2020, 1, 1), status=JobStatus.EXPIRED, content_hash="h1")
+        store.upsert_jobs([job])
+        # New future deadline
+        job.deadline = date(2099, 12, 31)
+        job.content_hash = "h2"
+        counts = store.upsert_jobs([job])
+        assert counts["updated"] == 1
+        jobs, _ = store.list_jobs(include_expired=True)
+        assert jobs[0].status == JobStatus.ACTIVE
+        assert jobs[0].deadline == date(2099, 12, 31)
+
+    def test_expired_content_changed_stays_expired(self, tmp_path):
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        job = make_job(deadline=date(2020, 1, 1), status=JobStatus.EXPIRED, content_hash="h1")
+        store.upsert_jobs([job])
+        # Change department but deadline still past
+        job.department = "物理系"
+        job.content_hash = "h2"
+        counts = store.upsert_jobs([job])
+        assert counts["updated"] == 1
+        jobs, _ = store.list_jobs(include_expired=True)
+        assert jobs[0].status == JobStatus.EXPIRED
+        assert jobs[0].department == "物理系"
+
+
+class TestFieldLevelChangeDetection:
+    def test_description_unchanged_deadline_changed_detected(self, tmp_path):
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        job = make_job(content_hash="h1", deadline=date(2027, 6, 1))
+        store.upsert_jobs([job])
+        # Same content_hash, different deadline
+        job.deadline = date(2028, 12, 31)
+        counts = store.upsert_jobs([job])
+        assert counts["updated"] == 1
+
+    def test_description_unchanged_department_changed_detected(self, tmp_path):
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        job = make_job(content_hash="h1", department="计算机学院")
+        store.upsert_jobs([job])
+        job.department = "物理学院"
+        counts = store.upsert_jobs([job])
+        assert counts["updated"] == 1
+
+    def test_all_fields_unchanged_is_unchanged(self, tmp_path):
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        job = make_job(content_hash="h1")
+        store.upsert_jobs([job])
+        counts = store.upsert_jobs([job])
+        assert counts["unchanged"] == 1
+
+
+class TestRemovedReactivationDetail:
+    def test_removed_reappear_clears_removed_at(self, tmp_path):
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        job = make_job(content_hash="h1")
+        store.upsert_jobs([job])
+        store.mark_removed("r1", job.source_name, set())
+        # Reappears with same content
+        job.content_hash = "h1"
+        store.upsert_jobs([job])
+        jobs, _ = store.list_jobs(include_expired=True)
+        assert jobs[0].removed_at is None
+        assert jobs[0].status == JobStatus.ACTIVE

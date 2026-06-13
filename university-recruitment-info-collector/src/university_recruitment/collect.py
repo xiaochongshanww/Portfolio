@@ -71,7 +71,7 @@ def _collect_source(
         logger.error("[%s] Unexpected error for %s: %s", run_id[:8], source_name, exc)
         return result
 
-    # Empty collection protection
+    # Empty collection protection — fail closed
     if len(jobs) == 0:
         try:
             store = JobStore()
@@ -83,9 +83,18 @@ def _collect_source(
                 )
                 result["finished_at"] = datetime.now(timezone.utc)
                 logger.warning("[%s] %s: %s", run_id[:8], source_name, result["error"])
-                return result  # Don't mark removed, this is a failure
+                return result
         except Exception as exc:
-            logger.warning("[%s] count_jobs_by_source failed for %s: %s", run_id[:8], source_name, exc)
+            result["error"] = (
+                f"empty-result safety check failed: "
+                f"{type(exc).__name__}: {exc!s}"
+            )[:500]
+            result["finished_at"] = datetime.now(timezone.utc)
+            logger.error(
+                "[%s] empty-result safety check failed for %s: %s",
+                run_id[:8], source_name, exc,
+            )
+            return result
 
     # Database upsert — wrapped to prevent exceptions from escaping
     if not dry_run and jobs:
@@ -108,7 +117,15 @@ def _collect_source(
             removed = store.mark_removed(run_id, source_name, result["active_ids"])
             result["removed"] = removed
         except Exception as exc:
-            logger.warning("[%s] mark_removed failed for %s: %s", run_id[:8], source_name, exc)
+            result["error"] = (
+                f"mark_removed: {type(exc).__name__}: {exc!s}"
+            )[:500]
+            result["finished_at"] = datetime.now(timezone.utc)
+            logger.error(
+                "[%s] mark_removed failed for %s: %s",
+                run_id[:8], source_name, exc,
+            )
+            return result
 
     result["status"] = "ok" if result["error"] is None else "failed"
     result["finished_at"] = datetime.now(timezone.utc)

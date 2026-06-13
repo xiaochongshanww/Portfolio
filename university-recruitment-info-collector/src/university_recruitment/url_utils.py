@@ -3,12 +3,6 @@
 import hashlib
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
-# Query parameters worth preserving in canonical URLs
-_PRESERVE_PARAMS = {
-    "id", "articleid", "article_id", "aid", "cid", "pid", "newsid",
-    "infoid", "contentid", "pageid", "postid", "recruitid",
-}
-
 # Tracking/noise parameters to always drop
 _TRACKING_PARAMS = {
     "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
@@ -18,13 +12,15 @@ _TRACKING_PARAMS = {
 
 
 def canonicalize_url(url: str) -> str:
-    """Produce a stable canonical form of a URL.
+    """Produce a stable canonical URL.
 
     - Lowercase scheme and hostname
     - Remove fragment
-    - Strip trailing slash from path (except root "/")
-    - Drop tracking/noise query parameters
-    - Sort remaining query parameters, keep only business-meaningful ones
+    - Remove default ports (80, 443)
+    - Strip trailing slash except root
+    - Preserve unknown query parameters
+    - Drop known tracking/noise parameters
+    - Sort query keys and repeated values
     """
     parsed = urlparse(str(url))
     scheme = parsed.scheme.lower()

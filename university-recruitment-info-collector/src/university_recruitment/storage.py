@@ -175,7 +175,7 @@ class JobStore:
         """Insert or update jobs. Returns counts of inserted/updated/unchanged.
 
         Handles: old-ID → new-ID migration, removed→active recovery,
-        expired recovery, and unchanged vs changed detection.
+        and field-level change detection (not just content_hash).
         """
         if not jobs:
             return {"inserted": 0, "updated": 0, "unchanged": 0}
@@ -185,18 +185,27 @@ class JobStore:
         updated = 0
         unchanged = 0
 
+        # Comparable fields beyond content_hash — must be in the SELECT
+        _COMPARE_FIELDS = (
+            "position", "normalized_position", "department", "discipline",
+            "location", "education_requirement", "job_type", "deadline",
+            "status", "source_url", "published_at", "content_hash",
+        )
+
         with self.connect() as conn:
             for job in jobs:
                 row = self._job_to_row(job)
                 existing = conn.execute(
-                    "SELECT id, content_hash, status, first_seen_at FROM recruitment_jobs WHERE id = ?",
+                    f"SELECT id, first_seen_at, {', '.join(_COMPARE_FIELDS)} "
+                    "FROM recruitment_jobs WHERE id = ?",
                     (row["id"],),
                 ).fetchone()
 
                 # Old-ID compat: if not found by new ID, check source_url
                 if existing is None:
                     existing = conn.execute(
-                        "SELECT id, content_hash, status, first_seen_at FROM recruitment_jobs WHERE source_url = ?",
+                        f"SELECT id, first_seen_at, {', '.join(_COMPARE_FIELDS)} "
+                        "FROM recruitment_jobs WHERE source_url = ?",
                         (row["source_url"],),
                     ).fetchone()
                     if existing:
@@ -207,12 +216,12 @@ class JobStore:
                         )
                         # Re-query with new ID
                         existing = conn.execute(
-                            "SELECT id, content_hash, status, first_seen_at FROM recruitment_jobs WHERE id = ?",
+                            f"SELECT id, first_seen_at, {', '.join(_COMPARE_FIELDS)} "
+                            "FROM recruitment_jobs WHERE id = ?",
                             (row["id"],),
                         ).fetchone()
 
                 was_removed = existing and existing["status"] == "removed"
-                was_expired = existing and existing["status"] == "expired"
 
                 if existing is None:
                     # Truly new job
@@ -228,35 +237,51 @@ class JobStore:
                     else:
                         row["first_seen_at"] = now
 
-                    old_hash = existing["content_hash"]
-                    new_hash = row["content_hash"]
-
-                    # Reactivation: removed or expired job reappears
-                    if was_removed or was_expired:
+                    # Only removed jobs count as "reactivation"
+                    if was_removed:
                         row["removed_at"] = None
-                        if was_removed:
-                            row["status"] = job.status.value  # active or expired
-                        # Always update on reactivation
+                        row["status"] = job.status.value  # active or expired
                         row["last_seen_at"] = now
                         row["last_changed_at"] = now
                         row["collected_at"] = now
                         conn.execute(self._update_sql(), row)
                         updated += 1
-                    elif old_hash == new_hash and new_hash is not None:
-                        # Content unchanged — just update last_seen
+                    elif self._job_fields_changed(existing, row, _COMPARE_FIELDS):
+                        # Any field changed — full update
+                        # If expired job's deadline extended to future, restore active
+                        if existing["status"] == "expired" and (
+                            row["deadline"] is None
+                            or row["deadline"] >= date.today().isoformat()
+                        ):
+                            row["status"] = JobStatus.ACTIVE.value
+                        row["last_seen_at"] = now
+                        row["last_changed_at"] = now
+                        row["collected_at"] = now
+                        conn.execute(self._update_sql(), row)
+                        updated += 1
+                    else:
+                        # No fields changed — just update last_seen
                         conn.execute(
-                            "UPDATE recruitment_jobs SET last_seen_at = ?, collected_at = ?, removed_at = NULL WHERE id = ?",
+                            "UPDATE recruitment_jobs SET last_seen_at = ?, collected_at = ? WHERE id = ?",
                             (now, now, row["id"]),
                         )
                         unchanged += 1
-                    else:
-                        # Content changed
-                        row["last_seen_at"] = now
-                        row["last_changed_at"] = now
-                        row["collected_at"] = now
-                        conn.execute(self._update_sql(), row)
-                        updated += 1
         return {"inserted": inserted, "updated": updated, "unchanged": unchanged}
+
+    @staticmethod
+    def _job_fields_changed(
+        existing: sqlite3.Row, row: dict, field_names: tuple[str, ...]
+    ) -> bool:
+        """Compare existing DB row with incoming data row for any changes."""
+        for field in field_names:
+            old_val = existing[field]
+            new_val = row.get(field)
+            # Normalize None vs empty string
+            if old_val is None and (new_val is None or new_val == ""):
+                continue
+            if (old_val or "") != (new_val or ""):
+                return True
+        return False
 
     def _insert_sql(self) -> str:
         return """
