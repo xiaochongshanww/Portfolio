@@ -1,6 +1,9 @@
+import logging
 from datetime import datetime, timezone
 
 from bs4 import BeautifulSoup
+
+logger = logging.getLogger(__name__)
 
 from university_recruitment.models import JobStatus, RecruitmentJob, SourceType
 from university_recruitment.sources.field_extractor import (
@@ -63,9 +66,9 @@ class BrowserTalentSiteAdapter(StaticTalentSiteAdapter):
             location = extract_address(description) or self.location
 
             # LLM enhancement for text-only mode (very limited info)
-            if llm and llm.available:
+            if llm and llm.available and len(description) >= 60:
                 try:
-                    enhanced = llm.extract(description, position)
+                    enhanced = llm.extract(description)
                     if enhanced.get("clean_position") and len(enhanced["clean_position"]) > 3:
                         position = enhanced["clean_position"]
                     if not department and enhanced.get("department"):
@@ -76,8 +79,11 @@ class BrowserTalentSiteAdapter(StaticTalentSiteAdapter):
                         education_requirement = enhanced["education_requirement"]
                     if not job_type and enhanced.get("job_type"):
                         job_type = enhanced["job_type"]
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning(
+                        "LLM extraction failed for text-only job %s/%s: %s",
+                        self.source_name, position[:40], type(exc).__name__,
+                    )
 
             source_url = f"{self.list_url.rstrip('/')}/text-{index}"
             canonical_url = normalize_url(source_url)

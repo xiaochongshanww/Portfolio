@@ -102,6 +102,7 @@ class StaticTalentSiteAdapter(SourceAdapter):
             description = detail.text if detail and detail.text else raw_title
 
             # Only use LLM when we have real detail content (>60 chars)
+            normalized_position = None  # set by LLM path below
             has_real_content = detail and detail.text and len(detail.text) > 60
             if llm and llm.available and has_real_content:
                 # ── LLM PRIMARY EXTRACTION ──
@@ -110,12 +111,11 @@ class StaticTalentSiteAdapter(SourceAdapter):
                 except Exception:
                     llm_result = {}
 
-                # Position: prefer LLM, fall back to regex cleaner
-                llm_position = llm_result.get("clean_position")
-                if llm_position and len(llm_position) > 2:
-                    position = llm_position
-                else:
-                    position = clean_position_title(raw_title, self.school)
+                # Position: keep regex-cleaned title; LLM clean_position → normalized_position
+                position = clean_position_title(raw_title, self.school)
+                normalized_position = (
+                    llm_result.get("clean_position") if llm_result.get("clean_position") else None
+                )
 
                 # Department: LLM first, regex fallback
                 department = (
@@ -168,11 +168,9 @@ class StaticTalentSiteAdapter(SourceAdapter):
                 published_at = detail.published_at if detail else None
                 location = extract_address(description) or self.location
 
-            # Infer published_at from URL if still missing
+            # Infer published_at from URL if still missing (applies to both paths)
             if not published_at:
-                inferred = extract_date_from_url(source_url)
-                if inferred:
-                    published_at = date.fromisoformat(inferred)
+                published_at = extract_date_from_url(source_url)
 
             canonical_url = normalize_url(source_url)
             job_id = generate_job_id(canonical_url)
@@ -189,6 +187,7 @@ class StaticTalentSiteAdapter(SourceAdapter):
                     id=job_id,
                     school=self.school,
                     position=position,
+                    normalized_position=normalized_position,
                     department=department,
                     discipline=discipline,
                     location=location,

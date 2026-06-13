@@ -14,8 +14,8 @@
         </p>
       </div>
       <div class="flex items-center gap-3">
-        <el-tag v-if="useLlm" type="success" effect="dark" size="large">🤖 AI 增强匹配</el-tag>
-        <el-tag v-else type="info" effect="dark" size="large">📋 规则匹配 + AI 语义重排</el-tag>
+        <el-tag v-if="useLlm" type="success" effect="dark" size="large">🤖 AI 增强分析</el-tag>
+        <el-tag v-else type="info" effect="dark" size="large">📋 先按规则匹配，再由 AI 生成匹配理由、风险和申请建议；AI 当前不改变基础规则分数。</el-tag>
         <el-button @click="goBack"><span class="flex items-center gap-1">← 重新填写</span></el-button>
       </div>
     </div>
@@ -103,6 +103,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { matchJobs } from '../api/index.js'
 
 const MATCH_DATA_KEY = 'university-recruitment-match-data'
@@ -121,7 +122,12 @@ function scoreColor(score) {
 }
 
 function openLink(url) {
-  window.open(url, '_blank', 'noopener,noreferrer')
+  const u = (url || '').toString().trim()
+  if (!u.startsWith('http://') && !u.startsWith('https://')) {
+    ElMessage.warning('不支持打开非 HTTP/HTTPS 链接')
+    return
+  }
+  window.open(u, '_blank', 'noopener,noreferrer')
 }
 
 function goBack() {

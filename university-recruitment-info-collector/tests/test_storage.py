@@ -197,3 +197,46 @@ class TestJobStore:
             for col in ("status", "first_seen_at", "last_seen_at",
                         "last_changed_at", "content_hash", "removed_at"):
                 assert col in cols, f"Column {col} missing after migration"
+
+
+class TestEnsureUtc:
+    def test_naive_datetime_converted_to_utc(self):
+        from datetime import datetime
+        from university_recruitment.storage import ensure_utc
+        naive = datetime(2026, 6, 1, 10, 0, 0)
+        result = ensure_utc(naive)
+        assert result.tzinfo is not None
+        assert result.hour == 10
+
+    def test_aware_datetime_preserved(self):
+        from datetime import datetime, timezone, timedelta
+        from university_recruitment.storage import ensure_utc
+        tz8 = timezone(timedelta(hours=8))
+        aware = datetime(2026, 6, 1, 18, 0, 0, tzinfo=tz8)
+        result = ensure_utc(aware)
+        assert result.tzinfo is not None
+        assert result.hour == 10  # 18 CST = 10 UTC
+
+    def test_mixed_datetimes_in_list(self):
+        from datetime import datetime, timezone
+        from university_recruitment.storage import ensure_utc
+        naive = datetime(2026, 6, 1, 10, 0, 0)
+        aware = datetime(2026, 6, 1, 12, 0, 0, tzinfo=timezone.utc)
+        results = [ensure_utc(d) for d in [naive, aware]]
+        latest = max(results)
+        assert latest.hour == 12
+
+    def test_old_naive_datetime_handled(self, tmp_path):
+        """Insert old-format naive datetime, verify it's read back with UTC."""
+        db = tmp_path / "test.sqlite"
+        store = JobStore(db)
+        store.init_db()
+        # Insert old-format datetime directly
+        with store.connect() as conn:
+            conn.execute(
+                "INSERT INTO recruitment_jobs (id, school, position, source_type, source_name, source_url, collected_at, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                ("old-1", "T", "P", "university_talent_site", "S", "https://x.com/o", "2026-06-01T10:00:00", "desc"),
+            )
+        jobs, _ = store.list_jobs(include_expired=True)
+        old = [j for j in jobs if j.id == "old-1"][0]
+        assert old.collected_at.tzinfo is not None  # Should be UTC-aware now

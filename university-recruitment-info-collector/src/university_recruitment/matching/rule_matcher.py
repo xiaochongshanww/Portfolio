@@ -40,8 +40,9 @@ class RuleMatcher:
         confidence = 100  # starts at 100, reduced for missing data
 
         searchable = self._join_text(
-            job.school, job.position, job.department, job.discipline,
-            job.location, job.education_requirement, job.job_type, job.description,
+            job.school, job.position, job.normalized_position, job.department,
+            job.discipline, job.location, job.education_requirement,
+            job.job_type, job.description,
         )
 
         # ── 1. Hard constraint: Deadline ──

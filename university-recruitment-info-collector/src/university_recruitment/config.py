@@ -55,13 +55,13 @@ APP_PORT: int = _env_int("APP_PORT", 8001)
 # --- LLM / DeepSeek ---
 LLM_API_KEY: str | None = (
     os.environ.get("LLM_API_KEY")
+    or os.environ.get("DEEPSEEK_API_KEY")
     or os.environ.get("ANTHROPIC_API_KEY")
-    or "sk-378e29cb7dd54caf9c711a225e0cbb43"
 )
 LLM_MODEL: str = os.environ.get("LLM_MODEL", "deepseek-chat")
 LLM_BASE_URL: str = os.environ.get("LLM_BASE_URL", "https://api.deepseek.com")
 LLM_DAILY_LIMIT: int = _env_int("LLM_DAILY_LIMIT", 200)
-LLM_MAX_JOBS: int = _env_int("LLM_MAX_JOBS", 20)
+LLM_MAX_JOBS: int = _env_int("LLM_MAX_JOBS", 5)
 LLM_TIMEOUT_SECONDS: int = _env_int("LLM_TIMEOUT_SECONDS", 60)
 
 # --- API Security ---

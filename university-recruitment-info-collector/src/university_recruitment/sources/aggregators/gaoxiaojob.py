@@ -245,9 +245,7 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
 
             # Infer published_at from URL if still missing
             if not published_at:
-                inferred = extract_date_from_url(source_url)
-                if inferred:
-                    published_at = date.fromisoformat(inferred)
+                published_at = extract_date_from_url(source_url)
 
             canonical_url = normalize_url(source_url)
             job_id = generate_job_id(canonical_url)
@@ -295,10 +293,7 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
         published_at = detail.published_at if detail else None
 
         if not published_at:
-            inferred = extract_date_from_url(source_url)
-            if inferred:
-                from datetime import date
-                published_at = date.fromisoformat(inferred)
+            published_at = extract_date_from_url(source_url)
 
         return RecruitmentJob(
             id=f"{self.source_name}-{index}",

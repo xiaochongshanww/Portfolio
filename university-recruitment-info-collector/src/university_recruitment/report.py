@@ -4,7 +4,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 from university_recruitment.source_config import DEFAULT_SOURCES_PATH, load_sources
-from university_recruitment.storage import JobStore
+from university_recruitment.storage import JobStore, ensure_utc
 
 
 def build_report(config_path: Path = DEFAULT_SOURCES_PATH, include_samples: bool = True) -> str:
@@ -224,10 +224,11 @@ def _disabled_source_health_lines(sources: list) -> list[str]:
 def _latest_collected_at(jobs: list) -> str:
     if not jobs:
         return "N/A"
-    latest = max(job.collected_at for job in jobs)
-    if isinstance(latest, datetime):
+    try:
+        latest = max(ensure_utc(job.collected_at) for job in jobs)
         return latest.isoformat(timespec="seconds")
-    return str(latest)
+    except Exception:
+        return "N/A"
 
 
 def _enabled_source_recommendation(source, jobs: list) -> str:

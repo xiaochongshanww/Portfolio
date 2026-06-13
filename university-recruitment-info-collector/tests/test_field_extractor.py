@@ -91,3 +91,37 @@ class TestExtractAddress:
         addr = extract_address(text)
         assert addr is not None
         assert "天河区" in addr
+
+from datetime import date
+
+
+class TestExtractDateFromUrl:
+    def test_slash_format_valid(self):
+        from university_recruitment.sources.field_extractor import extract_date_from_url
+        result = extract_date_from_url("https://example.edu.cn/2026/06/12/article.html")
+        assert result == date(2026, 6, 12)
+
+    def test_yyyymmdd_format_valid(self):
+        from university_recruitment.sources.field_extractor import extract_date_from_url
+        result = extract_date_from_url("https://example.edu.cn/article/20260612/detail")
+        assert result == date(2026, 6, 12)
+
+    def test_invalid_date_feb31_returns_none(self):
+        from university_recruitment.sources.field_extractor import extract_date_from_url
+        result = extract_date_from_url("https://example.edu.cn/2026/02/31/article.html")
+        assert result is None
+
+    def test_invalid_month_returns_none(self):
+        from university_recruitment.sources.field_extractor import extract_date_from_url
+        result = extract_date_from_url("https://example.edu.cn/20261301/article.html")
+        assert result is None
+
+    def test_non_date_numbers_not_matched(self):
+        from university_recruitment.sources.field_extractor import extract_date_from_url
+        result = extract_date_from_url("https://example.edu.cn/page/12345/article.html")
+        assert result is None
+
+    def test_dash_format_valid(self):
+        from university_recruitment.sources.field_extractor import extract_date_from_url
+        result = extract_date_from_url("https://example.edu.cn/2026-12-01-article")
+        assert result == date(2026, 12, 1)

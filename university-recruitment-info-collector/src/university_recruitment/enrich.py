@@ -72,10 +72,10 @@ def enrich_jobs(
                 job.location = result["location"]
                 changed = True
 
-        # Position: always prefer LLM cleaned version if it looks better
+        # Normalized position: LLM cleaned version for matching (never overwrite position)
         llm_position = result.get("clean_position")
-        if llm_position and len(llm_position) > 3:
-            job.position = llm_position
+        if llm_position and len(llm_position) > 3 and llm_position != job.position:
+            job.normalized_position = llm_position
             changed = True
 
         # Deadline: LLM can parse Chinese date formats

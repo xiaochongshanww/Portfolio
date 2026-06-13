@@ -105,27 +105,37 @@ def _extract_department_from_text(text: str, school: str) -> str | None:
     return None
 
 
-def extract_date_from_url(url: str) -> str | None:
+def extract_date_from_url(url: str) -> "date | None":
     """Try to infer published date from URL path patterns.
 
     Supports patterns like:
     - /2025/06/12/...
     - /article/20250612/...
     - ...content_20250612...
+
+    Uses real date() construction to validate, returns None for invalid dates.
     """
-    # Pattern: /YYYY/MM/DD/ or /YYYY-MM-DD/
-    match = re.search(r"/(20\d{2})[-/](\d{1,2})[-/](\d{1,2})[/.]", url)
+    from datetime import date as date_cls
+
+    # Pattern: /YYYY/MM/DD/ or /YYYY-MM-DD/ or /YYYY-MM-DD-suffix
+    match = re.search(r"/(20\d{2})[-/](\d{1,2})[-/](\d{1,2})(?:[/.\-]|$)", url)
     if match:
-        y, m, d = int(match.group(1)), int(match.group(2)), int(match.group(3))
-        if 2020 <= y <= 2030 and 1 <= m <= 12 and 1 <= d <= 31:
-            return f"{y:04d}-{m:02d}-{d:02d}"
+        try:
+            y, m, d = int(match.group(1)), int(match.group(2)), int(match.group(3))
+            if 2020 <= y <= 2030:
+                return date_cls(y, m, d)
+        except ValueError:
+            return None
 
     # Pattern: YYYYMMDD
     match = re.search(r"(20\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])", url)
     if match:
-        y, m, d = int(match.group(1)), int(match.group(2)), int(match.group(3))
-        if 2020 <= y <= 2030 and 1 <= m <= 12 and 1 <= d <= 31:
-            return f"{y:04d}-{m:02d}-{d:02d}"
+        try:
+            y, m, d = int(match.group(1)), int(match.group(2)), int(match.group(3))
+            if 2020 <= y <= 2030:
+                return date_cls(y, m, d)
+        except ValueError:
+            return None
 
     return None
 

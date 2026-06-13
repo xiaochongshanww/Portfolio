@@ -3,6 +3,17 @@ import sqlite3
 from datetime import date, datetime, timezone
 from pathlib import Path
 
+
+def ensure_utc(value: datetime) -> datetime:
+    """Normalize a datetime to UTC-aware.
+
+    Naive datetimes (from old SQLite data) are interpreted as UTC.
+    Already-aware datetimes are converted to UTC.
+    """
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
 from university_recruitment.config import DEFAULT_DB_PATH
 from university_recruitment.models import (
     CollectionRun,
@@ -43,6 +54,7 @@ class JobStore:
                 id TEXT PRIMARY KEY,
                 school TEXT NOT NULL,
                 position TEXT NOT NULL,
+                normalized_position TEXT,
                 department TEXT,
                 discipline TEXT,
                 location TEXT,
@@ -147,6 +159,7 @@ class JobStore:
             "last_changed_at": "ALTER TABLE recruitment_jobs ADD COLUMN last_changed_at TEXT",
             "content_hash": "ALTER TABLE recruitment_jobs ADD COLUMN content_hash TEXT",
             "removed_at": "ALTER TABLE recruitment_jobs ADD COLUMN removed_at TEXT",
+            "normalized_position": "ALTER TABLE recruitment_jobs ADD COLUMN normalized_position TEXT",
         }
         for col, stmt in migrations.items():
             if col not in existing:
@@ -468,6 +481,7 @@ class JobStore:
             "id": job.id,
             "school": job.school,
             "position": job.position,
+            "normalized_position": job.normalized_position,
             "department": job.department,
             "discipline": job.discipline,
             "location": job.location,
@@ -496,6 +510,7 @@ class JobStore:
             id=row["id"],
             school=row["school"],
             position=row["position"],
+            normalized_position=row["normalized_position"] if "normalized_position" in row.keys() else None,
             department=row["department"],
             discipline=row["discipline"],
             location=row["location"],
@@ -508,14 +523,14 @@ class JobStore:
             source_name=row["source_name"],
             source_url=row["source_url"],
             published_at=date.fromisoformat(row["published_at"]) if row["published_at"] else None,
-            collected_at=datetime.fromisoformat(row["collected_at"]),
+            collected_at=ensure_utc(datetime.fromisoformat(row["collected_at"])),
             description=row["description"] or "",
             status=JobStatus(row["status"]) if row["status"] else JobStatus.ACTIVE,
-            first_seen_at=datetime.fromisoformat(row["first_seen_at"]) if row["first_seen_at"] else None,
-            last_seen_at=datetime.fromisoformat(row["last_seen_at"]) if row["last_seen_at"] else None,
-            last_changed_at=datetime.fromisoformat(row["last_changed_at"]) if row["last_changed_at"] else None,
+            first_seen_at=ensure_utc(datetime.fromisoformat(row["first_seen_at"])) if row["first_seen_at"] else None,
+            last_seen_at=ensure_utc(datetime.fromisoformat(row["last_seen_at"])) if row["last_seen_at"] else None,
+            last_changed_at=ensure_utc(datetime.fromisoformat(row["last_changed_at"])) if row["last_changed_at"] else None,
             content_hash=row["content_hash"],
-            removed_at=datetime.fromisoformat(row["removed_at"]) if row["removed_at"] else None,
+            removed_at=ensure_utc(datetime.fromisoformat(row["removed_at"])) if row["removed_at"] else None,
         )
 
     @staticmethod

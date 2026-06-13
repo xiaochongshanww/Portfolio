@@ -11,10 +11,76 @@ from datetime import date
 from typing import Any
 
 from openai import OpenAI
+from pydantic import BaseModel, Field, field_validator
 
 from university_recruitment.config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
 
 logger = logging.getLogger(__name__)
+
+# Allowed enum values
+VALID_EDUCATION_REQUIREMENTS = frozenset({
+    "博士研究生", "博士", "硕士研究生及以上", "硕士研究生",
+    "硕士及以上", "硕士", "本科及以上", "本科",
+})
+VALID_JOB_TYPES = frozenset({
+    "教学科研岗", "科研岗", "博士后", "辅导员",
+    "行政教辅岗", "实验技术岗", "医疗卫生岗",
+})
+VALID_DEPARTMENT_SUFFIXES = (
+    "学院", "学部", "系", "部", "研究院", "医院", "中心", "实验室", "课题组",
+)
+REJECTED_DEPARTMENT_VALUES = frozenset({
+    "用人部门", "招聘单位", "各学院", "相关部门", "学校", "本校",
+    "用人部", "是直属教育部", "区）教师发展中心",
+})
+
+
+class LlmExtractedFields(BaseModel):
+    """Validated LLM extraction output."""
+    clean_position: str | None = None
+    department: str | None = None
+    discipline: str | None = None
+    education_requirement: str | None = None
+    job_type: str | None = None
+    location: str | None = None
+    deadline: date | None = None
+    published_at: date | None = None
+
+    @field_validator("education_requirement", mode="before")
+    @classmethod
+    def validate_education(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        v = str(v).strip()
+        if v in VALID_EDUCATION_REQUIREMENTS:
+            return v
+        logger.debug("Rejected invalid education_requirement from LLM: %s", v)
+        return None
+
+    @field_validator("job_type", mode="before")
+    @classmethod
+    def validate_job_type(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        v = str(v).strip()
+        if v in VALID_JOB_TYPES:
+            return v
+        logger.debug("Rejected invalid job_type from LLM: %s", v)
+        return None
+
+    @field_validator("department", mode="before")
+    @classmethod
+    def validate_department(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        v = str(v).strip()
+        if v in REJECTED_DEPARTMENT_VALUES:
+            logger.debug("Rejected blacklisted department from LLM: %s", v)
+            return None
+        if not any(v.endswith(suffix) for suffix in VALID_DEPARTMENT_SUFFIXES):
+            logger.debug("Rejected department without valid suffix from LLM: %s", v)
+            return None
+        return v
 
 EXTRACTION_PROMPT = """你是一个高校招聘信息解析专家。请从以下招聘公告原文中精准提取结构化字段。
 
@@ -97,44 +163,57 @@ class LlmFieldExtractor:
 
     @staticmethod
     def _parse_response(content: str) -> dict[str, str | None]:
+        """Parse LLM response, extracting JSON from Markdown if needed."""
         try:
             text = content.strip()
-            json_start = text.find("{")
+
+            # Try to extract JSON from Markdown code blocks
+            json_str = text
+            if "```" in text:
+                # Find JSON inside code blocks
+                import re
+                blocks = re.findall(r'```(?:json)?\s*\n?(.*?)```', text, re.DOTALL)
+                if blocks:
+                    json_str = blocks[0].strip()
+
+            # Find JSON object boundaries
+            json_start = json_str.find("{")
             if json_start == -1:
                 return {}
-            json_end = text.rfind("}")
-            text = text[json_start: json_end + 1]
-            text = text.replace("“", '"').replace("”", '"')
-            text = text.replace("‘", "'").replace("’", "'")
+            json_end = json_str.rfind("}")
+            json_str = json_str[json_start: json_end + 1]
+            json_str = json_str.replace(""", '"').replace(""", '"')
+            json_str = json_str.replace("'", "'").replace("'", "'")
 
-            result = json.loads(text)
+            result = json.loads(json_str)
             if not isinstance(result, dict):
                 return {}
 
-            fields = [
-                "clean_position", "department", "discipline",
-                "education_requirement", "job_type", "location",
-                "deadline", "published_at",
-            ]
-            parsed: dict[str, str | None] = {}
-            for f in fields:
-                val = result.get(f)
-                if val and isinstance(val, str) and val.strip() and val.strip().lower() != "null":
-                    parsed[f] = val.strip()
-                else:
-                    parsed[f] = None
-
-            # Validate date formats
+            # Handle date fields — convert string to date
             for date_field in ("deadline", "published_at"):
-                if parsed.get(date_field):
+                val = result.get(date_field)
+                if val and isinstance(val, str) and val.strip():
                     try:
-                        date.fromisoformat(parsed[date_field])
+                        result[date_field] = date.fromisoformat(val.strip())
                     except (ValueError, TypeError):
-                        parsed[date_field] = None
+                        result[date_field] = None
+                else:
+                    result[date_field] = None
 
-            return parsed
-        except (json.JSONDecodeError, ValueError) as exc:
-            logger.warning("Failed to parse LLM response: %s", exc)
+            # Validate through Pydantic model
+            validated = LlmExtractedFields(**result)
+            return {
+                "clean_position": validated.clean_position,
+                "department": validated.department,
+                "discipline": validated.discipline,
+                "education_requirement": validated.education_requirement,
+                "job_type": validated.job_type,
+                "location": validated.location,
+                "deadline": validated.deadline.isoformat() if validated.deadline else None,
+                "published_at": validated.published_at.isoformat() if validated.published_at else None,
+            }
+        except Exception as exc:
+            logger.warning("Failed to parse/validate LLM response: %s", exc)
             return {}
 
 

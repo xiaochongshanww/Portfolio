@@ -9,14 +9,22 @@ _PRESERVE_PARAMS = {
     "infoid", "contentid", "pageid", "postid", "recruitid",
 }
 
+# Tracking/noise parameters to always drop
+_TRACKING_PARAMS = {
+    "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
+    "spm", "from", "ref", "referrer", "source", "trackingid",
+    "sessionid", "timestamp", "_t", "t", "rand", "random", "nocache",
+}
 
-def normalize_url(url: str) -> str:
+
+def canonicalize_url(url: str) -> str:
     """Produce a stable canonical form of a URL.
 
-    - Lowercase scheme and host
+    - Lowercase scheme and hostname
     - Remove fragment
     - Strip trailing slash from path (except root "/")
-    - Sort query parameters, keep only business-meaningful ones
+    - Drop tracking/noise query parameters
+    - Sort remaining query parameters, keep only business-meaningful ones
     """
     parsed = urlparse(str(url))
     scheme = parsed.scheme.lower()
@@ -25,24 +33,40 @@ def normalize_url(url: str) -> str:
         netloc += f":{parsed.port}"
     path = parsed.path.rstrip("/") or "/"
 
-    # Keep only meaningful query parameters, sorted
+    # Filter and sort query parameters
     if parsed.query:
         qs = parse_qs(parsed.query, keep_blank_values=False)
-        filtered = {k: sorted(v) for k, v in qs.items() if k.lower() in _PRESERVE_PARAMS}
-        query = urlencode(filtered, doseq=True) if filtered else ""
+        cleaned = {}
+        for k, v in qs.items():
+            key_lower = k.lower()
+            if key_lower in _TRACKING_PARAMS:
+                continue
+            if key_lower in _PRESERVE_PARAMS:
+                cleaned[k] = sorted(v)
+        # Sort for stability regardless of original param order
+        query = urlencode(sorted(cleaned.items()), doseq=True) if cleaned else ""
     else:
         query = ""
 
     return urlunparse((scheme, netloc, path, "", query, ""))
 
 
-def generate_job_id(canonical_url: str) -> str:
-    """Generate a stable job ID from a canonical URL.
+# Backward-compatible alias
+normalize_url = canonicalize_url
+
+
+def build_job_id(source_url: str) -> str:
+    """Generate a stable job ID from a canonicalized URL.
 
     Uses SHA-256 for collision resistance, with a human-readable prefix.
     """
-    digest = hashlib.sha256(canonical_url.encode()).hexdigest()
+    canonical = canonicalize_url(source_url)
+    digest = hashlib.sha256(canonical.encode()).hexdigest()
     return f"job-{digest[:24]}"
+
+
+# Backward-compatible alias
+generate_job_id = build_job_id
 
 
 def content_hash(text: str) -> str:

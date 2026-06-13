@@ -74,6 +74,7 @@ class RecruitmentJob(BaseModel):
     id: str
     school: str
     position: str
+    normalized_position: str | None = None  # LLM-cleaned title for matching; never overwrites position
     department: str | None = None
     discipline: str | None = None
     location: str | None = None
