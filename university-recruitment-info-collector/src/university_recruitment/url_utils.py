@@ -35,14 +35,13 @@ def canonicalize_url(url: str) -> str:
 
     # Filter and sort query parameters
     if parsed.query:
-        qs = parse_qs(parsed.query, keep_blank_values=False)
+        qs = parse_qs(parsed.query, keep_blank_values=True)
         cleaned = {}
         for k, v in qs.items():
             key_lower = k.lower()
             if key_lower in _TRACKING_PARAMS:
                 continue
-            if key_lower in _PRESERVE_PARAMS:
-                cleaned[k] = sorted(v)
+            cleaned[k] = sorted(v)
         # Sort for stability regardless of original param order
         query = urlencode(sorted(cleaned.items()), doseq=True) if cleaned else ""
     else:

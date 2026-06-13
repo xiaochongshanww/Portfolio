@@ -172,7 +172,11 @@ class JobStore:
     # ── Job CRUD ────────────────────────────────────────
 
     def upsert_jobs(self, jobs: list[RecruitmentJob]) -> dict[str, int]:
-        """Insert or update jobs. Returns counts of inserted/updated/unchanged."""
+        """Insert or update jobs. Returns counts of inserted/updated/unchanged.
+
+        Handles: old-ID → new-ID migration, removed→active recovery,
+        expired recovery, and unchanged vs changed detection.
+        """
         if not jobs:
             return {"inserted": 0, "updated": 0, "unchanged": 0}
 
@@ -185,24 +189,63 @@ class JobStore:
             for job in jobs:
                 row = self._job_to_row(job)
                 existing = conn.execute(
-                    "SELECT id, content_hash, status FROM recruitment_jobs WHERE id = ?",
+                    "SELECT id, content_hash, status, first_seen_at FROM recruitment_jobs WHERE id = ?",
                     (row["id"],),
                 ).fetchone()
 
+                # Old-ID compat: if not found by new ID, check source_url
                 if existing is None:
-                    # New job
+                    existing = conn.execute(
+                        "SELECT id, content_hash, status, first_seen_at FROM recruitment_jobs WHERE source_url = ?",
+                        (row["source_url"],),
+                    ).fetchone()
+                    if existing:
+                        # Found by URL — migrate old ID to new stable ID
+                        conn.execute(
+                            "UPDATE recruitment_jobs SET id = ? WHERE id = ?",
+                            (row["id"], existing["id"]),
+                        )
+                        # Re-query with new ID
+                        existing = conn.execute(
+                            "SELECT id, content_hash, status, first_seen_at FROM recruitment_jobs WHERE id = ?",
+                            (row["id"],),
+                        ).fetchone()
+
+                was_removed = existing and existing["status"] == "removed"
+                was_expired = existing and existing["status"] == "expired"
+
+                if existing is None:
+                    # Truly new job
                     row["first_seen_at"] = now
                     row["last_seen_at"] = now
                     row["collected_at"] = now
                     conn.execute(self._insert_sql(), row)
                     inserted += 1
                 else:
+                    # Preserve first_seen_at
+                    if existing["first_seen_at"]:
+                        row["first_seen_at"] = existing["first_seen_at"]
+                    else:
+                        row["first_seen_at"] = now
+
                     old_hash = existing["content_hash"]
                     new_hash = row["content_hash"]
-                    if old_hash == new_hash and new_hash is not None:
+
+                    # Reactivation: removed or expired job reappears
+                    if was_removed or was_expired:
+                        row["removed_at"] = None
+                        if was_removed:
+                            row["status"] = job.status.value  # active or expired
+                        # Always update on reactivation
+                        row["last_seen_at"] = now
+                        row["last_changed_at"] = now
+                        row["collected_at"] = now
+                        conn.execute(self._update_sql(), row)
+                        updated += 1
+                    elif old_hash == new_hash and new_hash is not None:
                         # Content unchanged — just update last_seen
                         conn.execute(
-                            "UPDATE recruitment_jobs SET last_seen_at = ?, collected_at = ? WHERE id = ?",
+                            "UPDATE recruitment_jobs SET last_seen_at = ?, collected_at = ?, removed_at = NULL WHERE id = ?",
                             (now, now, row["id"]),
                         )
                         unchanged += 1
@@ -211,15 +254,6 @@ class JobStore:
                         row["last_seen_at"] = now
                         row["last_changed_at"] = now
                         row["collected_at"] = now
-                        # Keep original first_seen_at
-                        first_seen = conn.execute(
-                            "SELECT first_seen_at FROM recruitment_jobs WHERE id = ?",
-                            (row["id"],),
-                        ).fetchone()
-                        if first_seen and first_seen[0]:
-                            row["first_seen_at"] = first_seen[0]
-                        else:
-                            row["first_seen_at"] = now
                         conn.execute(self._update_sql(), row)
                         updated += 1
         return {"inserted": inserted, "updated": updated, "unchanged": unchanged}
@@ -227,13 +261,13 @@ class JobStore:
     def _insert_sql(self) -> str:
         return """
             INSERT INTO recruitment_jobs (
-                id, school, position, department, discipline, location,
+                id, school, position, normalized_position, department, discipline, location,
                 longitude, latitude, education_requirement, job_type, deadline,
                 source_type, source_name, source_url, published_at, collected_at,
                 description, status, first_seen_at, last_seen_at, last_changed_at,
                 content_hash, removed_at
             ) VALUES (
-                :id, :school, :position, :department, :discipline, :location,
+                :id, :school, :position, :normalized_position, :department, :discipline, :location,
                 :longitude, :latitude, :education_requirement, :job_type, :deadline,
                 :source_type, :source_name, :source_url, :published_at, :collected_at,
                 :description, :status, :first_seen_at, :last_seen_at, :last_changed_at,
@@ -246,6 +280,7 @@ class JobStore:
             UPDATE recruitment_jobs SET
                 school = :school,
                 position = :position,
+                normalized_position = :normalized_position,
                 department = :department,
                 discipline = :discipline,
                 location = :location,
@@ -263,9 +298,81 @@ class JobStore:
                 status = :status,
                 last_seen_at = :last_seen_at,
                 last_changed_at = :last_changed_at,
-                content_hash = :content_hash
+                content_hash = :content_hash,
+                removed_at = :removed_at
             WHERE id = :id
         """
+
+    def update_enriched_fields(self, job: RecruitmentJob) -> bool:
+        """Update only LLM-enriched fields. Returns True if any field changed.
+
+        Never overwrites: id, position, source_url, first_seen_at, collected_at.
+        """
+        now = datetime.now(timezone.utc).isoformat()
+        with self.connect() as conn:
+            existing = conn.execute(
+                """SELECT id, normalized_position, department, discipline,
+                          education_requirement, job_type, location, deadline
+                   FROM recruitment_jobs WHERE id = ?""",
+                (job.id,),
+            ).fetchone()
+            if not existing:
+                return False
+
+            changed = False
+            for field in ("normalized_position", "department", "discipline",
+                          "education_requirement", "job_type", "location"):
+                old_val = existing[field]
+                new_val = getattr(job, field, None)
+                if old_val != new_val and new_val is not None:
+                    changed = True
+
+            deadline_changed = False
+            old_deadline = existing["deadline"]
+            new_deadline = job.deadline.isoformat() if job.deadline else None
+            if old_deadline != new_deadline and job.deadline is not None:
+                deadline_changed = True
+
+            if not changed and not deadline_changed:
+                return False
+
+            conn.execute(
+                """UPDATE recruitment_jobs
+                   SET normalized_position = ?,
+                       department = ?,
+                       discipline = ?,
+                       education_requirement = ?,
+                       job_type = ?,
+                       location = ?,
+                       deadline = ?,
+                       last_changed_at = ?
+                   WHERE id = ?""",
+                (
+                    job.normalized_position,
+                    job.department,
+                    job.discipline,
+                    job.education_requirement,
+                    job.job_type,
+                    job.location,
+                    job.deadline.isoformat() if job.deadline else None,
+                    now,
+                    job.id,
+                ),
+            )
+            return True
+
+    def count_jobs_by_source(self, source_name: str, include_removed: bool = False) -> int:
+        """Count non-removed jobs for a given source."""
+        with self.connect() as conn:
+            if include_removed:
+                return conn.execute(
+                    "SELECT COUNT(*) FROM recruitment_jobs WHERE source_name = ?",
+                    (source_name,),
+                ).fetchone()[0]
+            return conn.execute(
+                "SELECT COUNT(*) FROM recruitment_jobs WHERE source_name = ? AND status != 'removed'",
+                (source_name,),
+            ).fetchone()[0]
 
     def list_jobs(
         self,

@@ -54,7 +54,7 @@
               <span class="flex items-center justify-center gap-1">🔍 规则匹配</span>
             </el-button>
             <el-button type="success" size="large" @click="submitMatch(true)" :loading="submitting" :disabled="submitting" class="flex-1">
-              <span class="flex items-center justify-center gap-1">🤖 AI 增强匹配</span>
+              <span class="flex items-center justify-center gap-1">🤖 AI 增强分析</span>
             </el-button>
           </div>
           <div class="flex items-center justify-between mt-3">

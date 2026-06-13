@@ -90,7 +90,7 @@ def enrich_jobs(
         if changed:
             enriched += 1
             if not dry_run:
-                store.upsert_jobs([job])
+                store.update_enriched_fields(job)
             print("✅ enriched")
         else:
             print("— skipped")

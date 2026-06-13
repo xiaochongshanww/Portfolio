@@ -58,6 +58,7 @@ class BrowserTalentSiteAdapter(StaticTalentSiteAdapter):
                 continue
 
             position = clean_position_title(raw_title, self.school)
+            normalized_position = None
             description = raw_title
             department = extract_department(position, description, self.school)
             discipline = extract_discipline(description)
@@ -70,7 +71,7 @@ class BrowserTalentSiteAdapter(StaticTalentSiteAdapter):
                 try:
                     enhanced = llm.extract(description)
                     if enhanced.get("clean_position") and len(enhanced["clean_position"]) > 3:
-                        position = enhanced["clean_position"]
+                        normalized_position = enhanced["clean_position"]
                     if not department and enhanced.get("department"):
                         department = enhanced["department"]
                     if not discipline and enhanced.get("discipline"):

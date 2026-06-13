@@ -240,3 +240,131 @@ class TestEnsureUtc:
         jobs, _ = store.list_jobs(include_expired=True)
         old = [j for j in jobs if j.id == "old-1"][0]
         assert old.collected_at.tzinfo is not None  # Should be UTC-aware now
+
+
+class TestNormalizedPosition:
+    def test_insert_and_read(self, tmp_path):
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        job = make_job(normalized_position="专任教师")
+        store.upsert_jobs([job])
+        jobs, _ = store.list_jobs(include_expired=True)
+        assert jobs[0].normalized_position == "专任教师"
+
+    def test_update_normalized_position(self, tmp_path):
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        job = make_job(normalized_position="博士后")
+        store.upsert_jobs([job])
+        job.normalized_position = "教学科研岗"
+        store.update_enriched_fields(job)
+        jobs, _ = store.list_jobs(include_expired=True)
+        assert jobs[0].normalized_position == "教学科研岗"
+
+    def test_position_never_overwritten(self, tmp_path):
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        job = make_job(position="原始标题2026年招聘", normalized_position="专任教师")
+        store.upsert_jobs([job])
+        jobs, _ = store.list_jobs(include_expired=True)
+        assert jobs[0].position == "原始标题2026年招聘"
+
+
+class TestOldIdMigration:
+    def test_old_id_migrated_to_stable_id(self, tmp_path):
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        with store.connect() as conn:
+            conn.execute(
+                "INSERT INTO recruitment_jobs (id, school, position, source_type, source_name, source_url, collected_at, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                ("旧来源-12", "测试大学", "教师", "university_talent_site", "测试源",
+                 "https://example.edu.cn/job/123", "2026-06-01T10:00:00", "desc"),
+            )
+        new_job = make_job(
+            id="job-abc123def456",
+            source_url="https://example.edu.cn/job/123",
+            position="教师",
+            content_hash="newhash",
+        )
+        store.upsert_jobs([new_job])
+        jobs, _ = store.list_jobs(include_expired=True)
+        assert len(jobs) == 1
+        assert jobs[0].id == "job-abc123def456"
+
+    def test_same_url_no_duplicate(self, tmp_path):
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        j1 = make_job(id="job-aaa", source_url="https://x.com/same", position="A", content_hash="h1")
+        j2 = make_job(id="job-bbb", source_url="https://x.com/same", position="B", content_hash="h2")
+        store.upsert_jobs([j1])
+        store.upsert_jobs([j2])
+        jobs, _ = store.list_jobs(include_expired=True)
+        assert len(jobs) == 1
+
+
+class TestRemovedRecovery:
+    def test_removed_job_reappears_active(self, tmp_path):
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        job = make_job()
+        store.upsert_jobs([job])
+        store.mark_removed("run-1", job.source_name, set())
+        job.content_hash = "samehash"
+        store.upsert_jobs([job])
+        jobs, _ = store.list_jobs(include_expired=True)
+        assert jobs[0].status == JobStatus.ACTIVE
+        assert jobs[0].removed_at is None
+
+    def test_expired_removed_reappears_expired(self, tmp_path):
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        job = make_job(deadline=date(2020, 1, 1), status=JobStatus.EXPIRED)
+        store.upsert_jobs([job])
+        store.mark_removed("run-1", job.source_name, set())
+        job.content_hash = "samehash"
+        store.upsert_jobs([job])
+        jobs, _ = store.list_jobs(include_expired=True)
+        assert jobs[0].status == JobStatus.EXPIRED
+        assert jobs[0].removed_at is None
+
+
+class TestEnrichUpdate:
+    def test_enrich_department_persisted(self, tmp_path):
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        job = make_job(department=None, discipline=None)
+        store.upsert_jobs([job])
+        job.department = "计算机学院"
+        job.discipline = "人工智能"
+        changed = store.update_enriched_fields(job)
+        assert changed is True
+        jobs, _ = store.list_jobs(include_expired=True)
+        assert jobs[0].department == "计算机学院"
+
+    def test_enrich_no_change_returns_false(self, tmp_path):
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        job = make_job(department="物理系")
+        store.upsert_jobs([job])
+        job.department = "物理系"
+        changed = store.update_enriched_fields(job)
+        assert changed is False
+
+
+class TestEmptyCollectionGuard:
+    def test_count_jobs_by_source(self, tmp_path):
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        for i in range(5):
+            store.upsert_jobs([make_job(id=f"j{i}", source_url=f"https://x.com/{i}", source_name="测试源")])
+        assert store.count_jobs_by_source("测试源") == 5
+        assert store.count_jobs_by_source("nonexistent") == 0
+
+    def test_removed_not_counted(self, tmp_path):
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        job = make_job(source_name="S")
+        store.upsert_jobs([job])
+        store.mark_removed("r1", "S", set())
+        assert store.count_jobs_by_source("S") == 0
+        assert store.count_jobs_by_source("S", include_removed=True) == 1

@@ -65,6 +65,7 @@ class HkustGzCareerAdapter(SourceAdapter):
                 continue
 
             position = clean_position_title(raw_position, self.school)
+            normalized_position = None
             description = f"{position} | {department} | Job ID: {job_id}"
 
             if llm and llm.available:
@@ -86,10 +87,10 @@ class HkustGzCareerAdapter(SourceAdapter):
                     llm_result.get("job_type")
                     or extract_job_type(position, description)
                 )
-                # LLM may suggest a better position title
+                # LLM clean_position → normalized_position (never overwrite position)
                 llm_position = llm_result.get("clean_position")
                 if llm_position and len(llm_position) > 3:
-                    position = llm_position
+                    normalized_position = llm_position
             else:
                 # ── REGEX-ONLY ──
                 discipline = extract_discipline(description)
@@ -107,6 +108,7 @@ class HkustGzCareerAdapter(SourceAdapter):
                     id=stable_id,
                     school=self.school,
                     position=position,
+                    normalized_position=normalized_position,
                     department=department,
                     discipline=discipline,
                     location=self.location,

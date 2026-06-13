@@ -43,32 +43,63 @@ def _collect_source(
     }
 
     logger.info("[%s] Collecting %s", run_id[:8], source_name)
-    for attempt in range(COLLECT_MAX_RETRIES + 1):
-        try:
-            adapter = build_source_adapter(source_config, use_llm=use_llm)
-            jobs = adapter.collect()
-            result["collected"] = len(jobs)
-            result["active_ids"] = {j.id for j in jobs}
-            break
-        except Exception as exc:
-            logger.warning(
-                "[%s] %s attempt %d failed: %s",
-                run_id[:8], source_name, attempt + 1, exc,
-            )
-            if attempt < COLLECT_MAX_RETRIES:
-                wait = 2 ** attempt
-                time.sleep(wait)
-            else:
-                result["error"] = str(exc)[:500]
-                result["finished_at"] = datetime.now(timezone.utc)
-                return result
+    jobs = []
+    try:
+        for attempt in range(COLLECT_MAX_RETRIES + 1):
+            try:
+                adapter = build_source_adapter(source_config, use_llm=use_llm)
+                jobs = adapter.collect()
+                result["collected"] = len(jobs)
+                result["active_ids"] = {j.id for j in jobs}
+                break
+            except Exception as exc:
+                logger.warning(
+                    "[%s] %s attempt %d failed: %s",
+                    run_id[:8], source_name, attempt + 1, exc,
+                )
+                if attempt < COLLECT_MAX_RETRIES:
+                    wait = 2 ** attempt
+                    time.sleep(wait)
+                else:
+                    result["error"] = f"{type(exc).__name__}: {exc!s}"[:500]
+                    result["finished_at"] = datetime.now(timezone.utc)
+                    return result
+    except Exception as exc:
+        # Outer safety net — catch anything that escapes
+        result["error"] = f"{type(exc).__name__}: {exc!s}"[:500]
+        result["finished_at"] = datetime.now(timezone.utc)
+        logger.error("[%s] Unexpected error for %s: %s", run_id[:8], source_name, exc)
+        return result
 
+    # Empty collection protection
+    if len(jobs) == 0:
+        try:
+            store = JobStore()
+            previous_count = store.count_jobs_by_source(source_name)
+            if previous_count > 0:
+                result["error"] = (
+                    f"collection returned 0 jobs while source has "
+                    f"{previous_count} existing jobs; skip mark_removed"
+                )
+                result["finished_at"] = datetime.now(timezone.utc)
+                logger.warning("[%s] %s: %s", run_id[:8], source_name, result["error"])
+                return result  # Don't mark removed, this is a failure
+        except Exception as exc:
+            logger.warning("[%s] count_jobs_by_source failed for %s: %s", run_id[:8], source_name, exc)
+
+    # Database upsert — wrapped to prevent exceptions from escaping
     if not dry_run and jobs:
-        store = JobStore()
-        counts = store.upsert_jobs(jobs)
-        result["inserted"] = counts.get("inserted", 0)
-        result["updated"] = counts.get("updated", 0)
-        result["unchanged"] = counts.get("unchanged", 0)
+        try:
+            store = JobStore()
+            counts = store.upsert_jobs(jobs)
+            result["inserted"] = counts.get("inserted", 0)
+            result["updated"] = counts.get("updated", 0)
+            result["unchanged"] = counts.get("unchanged", 0)
+        except Exception as exc:
+            result["error"] = f"db upsert: {type(exc).__name__}: {exc!s}"[:500]
+            result["finished_at"] = datetime.now(timezone.utc)
+            logger.error("[%s] upsert failed for %s: %s", run_id[:8], source_name, exc)
+            return result
 
     # Mark removed: only if collection succeeded (no error)
     if not dry_run and result["error"] is None:
@@ -130,7 +161,22 @@ def collect_sources(
                 for s in http_sources
             }
             for future in as_completed(futures):
-                r = future.result()
+                try:
+                    r = future.result()
+                except Exception as exc:
+                    src = futures[future]
+                    r = {
+                        "source_name": src.source_name,
+                        "started_at": datetime.now(timezone.utc),
+                        "finished_at": datetime.now(timezone.utc),
+                        "status": "failed",
+                        "collected": 0, "inserted": 0, "updated": 0,
+                        "unchanged": 0, "removed": 0,
+                        "error": f"unhandled: {type(exc).__name__}: {exc!s}"[:500],
+                        "active_ids": set(),
+                    }
+                    logger.error("[%s] Unhandled future error for %s: %s",
+                                 run_id[:8], src.source_name, exc)
                 total_collected += r["collected"]
                 total_inserted += r["inserted"]
                 total_updated += r["updated"]

@@ -3,7 +3,7 @@
 ## 已修复问题
 
 ### 1. API Key 硬编码泄露 (CRITICAL)
-- **问题**: `config.py` 中硬编码了 DeepSeek API Key `sk-378e29cb7dd54caf9c711a225e0cbb43`
+- **问题**: `config.py` 中硬编码了 DeepSeek API Key `<REVOKED_DEEPSEEK_KEY>`
 - **修复**: 删除所有硬编码 Key，`LLM_API_KEY` 仅从环境变量读取
 - **影响**: 旧 Key 已在代码和 Git 历史中暴露，**必须立即在 DeepSeek 后台吊销**
 - **处置**: 登录 https://platform.deepseek.com → API Keys → 删除/重新生成

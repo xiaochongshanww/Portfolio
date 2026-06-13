@@ -15,7 +15,7 @@
       </div>
       <div class="flex items-center gap-3">
         <el-tag v-if="useLlm" type="success" effect="dark" size="large">🤖 AI 增强分析</el-tag>
-        <el-tag v-else type="info" effect="dark" size="large">📋 先按规则匹配，再由 AI 生成匹配理由、风险和申请建议；AI 当前不改变基础规则分数。</el-tag>
+        <el-tag v-else type="info" effect="dark" size="large">📋 规则评分 + AI 语义评分共同组成最终分数；AI 同时生成匹配理由、风险和申请建议。</el-tag>
         <el-button @click="goBack"><span class="flex items-center gap-1">← 重新填写</span></el-button>
       </div>
     </div>

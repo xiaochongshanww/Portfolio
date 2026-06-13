@@ -190,6 +190,7 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
             school = self._configured_school() or self._infer_school(raw_title, link)
             description = detail.text if detail and detail.text else raw_title
 
+            normalized_position = None
             has_real_content = detail and detail.text and len(detail.text) > 60
             if llm and llm.available and has_real_content:
                 # ── LLM PRIMARY EXTRACTION ──
@@ -199,10 +200,8 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
                     llm_result = {}
 
                 llm_position = llm_result.get("clean_position")
-                if llm_position and len(llm_position) > 2:
-                    position = llm_position
-                else:
-                    position = clean_position_title(raw_title, school)
+                position = clean_position_title(raw_title, school)
+                normalized_position = llm_position if (llm_position and len(llm_position) > 2) else None
                 department = (
                     llm_result.get("department")
                     or extract_department(position, description, school)
@@ -234,6 +233,7 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
                 )
             else:
                 # ── REGEX-ONLY EXTRACTION ──
+                normalized_position = None
                 position = clean_position_title(raw_title, school)
                 department = extract_department(position, description, school)
                 discipline = extract_discipline(description)
@@ -258,6 +258,7 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
                     id=job_id,
                     school=school,
                     position=position,
+                    normalized_position=normalized_position,
                     department=department,
                     discipline=discipline,
                     location=location,
