@@ -313,13 +313,15 @@ class JobStore:
                 longitude, latitude, education_requirement, job_type, deadline,
                 source_type, source_name, source_url, published_at, collected_at,
                 description, status, first_seen_at, last_seen_at, last_changed_at,
-                content_hash, removed_at
+                content_hash, removed_at, quality_score, quality_status, extraction_method,
+                extraction_confidence, extraction_warnings, document_type, notice_title, notice_url
             ) VALUES (
                 :id, :school, :position, :normalized_position, :department, :discipline, :location,
                 :longitude, :latitude, :education_requirement, :job_type, :deadline,
                 :source_type, :source_name, :source_url, :published_at, :collected_at,
                 :description, :status, :first_seen_at, :last_seen_at, :last_changed_at,
-                :content_hash, :removed_at
+                :content_hash, :removed_at, :quality_score, :quality_status, :extraction_method,
+                :extraction_confidence, :extraction_warnings, :document_type, :notice_title, :notice_url
             )
         """
 
@@ -347,7 +349,15 @@ class JobStore:
                 last_seen_at = :last_seen_at,
                 last_changed_at = :last_changed_at,
                 content_hash = :content_hash,
-                removed_at = :removed_at
+                removed_at = :removed_at,
+                quality_score = :quality_score,
+                quality_status = :quality_status,
+                extraction_method = :extraction_method,
+                extraction_confidence = :extraction_confidence,
+                extraction_warnings = :extraction_warnings,
+                document_type = :document_type,
+                notice_title = :notice_title,
+                notice_url = :notice_url
             WHERE id = :id
         """
 
@@ -661,6 +671,14 @@ class JobStore:
             "last_changed_at": job.last_changed_at.isoformat() if job.last_changed_at else None,
             "content_hash": job.content_hash,
             "removed_at": job.removed_at.isoformat() if job.removed_at else None,
+            "quality_score": job.quality_score,
+            "quality_status": job.quality_status,
+            "extraction_method": job.extraction_method,
+            "extraction_confidence": job.extraction_confidence,
+            "extraction_warnings": job.extraction_warnings,
+            "document_type": job.document_type,
+            "notice_title": job.notice_title,
+            "notice_url": job.notice_url,
         }
 
     @staticmethod
@@ -690,6 +708,14 @@ class JobStore:
             last_changed_at=ensure_utc(datetime.fromisoformat(row["last_changed_at"])) if row["last_changed_at"] else None,
             content_hash=row["content_hash"],
             removed_at=ensure_utc(datetime.fromisoformat(row["removed_at"])) if row["removed_at"] else None,
+            quality_score=row["quality_score"] if "quality_score" in row.keys() else None,
+            quality_status=row["quality_status"] if "quality_status" in row.keys() else None,
+            extraction_method=row["extraction_method"] if "extraction_method" in row.keys() else None,
+            extraction_confidence=row["extraction_confidence"] if "extraction_confidence" in row.keys() else None,
+            extraction_warnings=row["extraction_warnings"] if "extraction_warnings" in row.keys() else None,
+            document_type=row["document_type"] if "document_type" in row.keys() else None,
+            notice_title=row["notice_title"] if "notice_title" in row.keys() else None,
+            notice_url=row["notice_url"] if "notice_url" in row.keys() else None,
         )
 
     @staticmethod
