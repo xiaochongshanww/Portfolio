@@ -17,7 +17,10 @@ from typing import Any
 from openai import OpenAI
 from pydantic import BaseModel, Field, field_validator
 
-from university_recruitment.config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
+from university_recruitment.config import (
+    LLM_API_KEY, LLM_BASE_URL, LLM_MAX_DOCUMENT_CHARS, LLM_MAX_SECTION_CHARS,
+    LLM_MAX_TABLE_ROWS, LLM_MODEL,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -397,10 +400,22 @@ class LlmFieldExtractor:
 
         # Stage C: Review
         review = self.review_extraction(text, positions, metadata)
-        warnings = review.get("issues", [])
+        analysis_result = {
+            "positions": positions,
+            "warnings": review.get("issues", []),
+            "document_type": doc_type_str,
+            "confidence": doc_type.get("confidence", 0.5),
+            "published_at": None,
+            "corrected_positions": review.get("corrected_positions", []),
+            "removed_indexes": review.get("remove_position_indexes", []),
+            "additional_positions": review.get("additional_positions", []),
+            "overall_quality": review.get("overall_quality", "acceptable"),
+        }
+        analysis_result = self.apply_review_corrections(analysis_result)
+        positions = analysis_result["positions"]
+        warnings = analysis_result["warnings"]
         warnings.extend(doc_type.get("reason", "").split("; "))
 
-        # Build backward-compatible single-position output
         single = positions[0] if positions else {}
         return {
             "clean_position": single.get("position_normalized"),
@@ -417,7 +432,60 @@ class LlmFieldExtractor:
             "warnings": warnings,
             "document_type": doc_type_str,
             "review_accepted": review.get("accepted", True),
+            "corrected_positions": review.get("corrected_positions", []),
+            "removed_indexes": review.get("remove_position_indexes", []),
+            "additional_positions": review.get("additional_positions", []),
+            "overall_quality": review.get("overall_quality", "acceptable"),
         }
+
+    # ── Stage C Application ─────────────────────────────
+
+    def apply_review_corrections(self, analysis: dict) -> dict:
+        """Apply Stage C corrections to the positions list in-place.
+
+        Supports: field corrections, position removal, position addition.
+        """
+        positions = analysis.get("positions", [])
+        corrected = analysis.get("corrected_positions", [])
+        removed = analysis.get("removed_indexes", [])
+        additional = analysis.get("additional_positions", [])
+        overall_quality = analysis.get("overall_quality", "acceptable")
+
+        warnings: list[str] = analysis.get("warnings", [])
+
+        # Apply field corrections
+        for correction in corrected:
+            idx = correction.get("index", -1)
+            if 0 <= idx < len(positions):
+                fields = correction.get("corrected_fields", {})
+                reason = correction.get("reason", "")
+                for field, new_val in fields.items():
+                    if field in positions[idx]:
+                        old_val = positions[idx].get(field)
+                        positions[idx][field] = new_val
+                        if reason:
+                            warnings.append(f"pos[{idx}].{field}: {reason} (was: {old_val})")
+
+        # Remove positions by index (reverse order to preserve indices)
+        for idx in sorted(removed, reverse=True):
+            if 0 <= idx < len(positions):
+                removed_pos = positions.pop(idx)
+                warnings.append(f"removed position [{idx}]: {removed_pos.get('position_raw', '')}")
+
+        # Add additional positions
+        for i, add_pos in enumerate(additional):
+            add_pos["_added_by"] = "stage_c_review"
+            positions.append(add_pos)
+            warnings.append(f"added position from Stage C: {add_pos.get('position_raw', '')}")
+
+        analysis["positions"] = positions
+        analysis["warnings"] = warnings
+        analysis["overall_quality"] = overall_quality
+
+        if overall_quality == "poor":
+            warnings.append("overall quality rated as poor by Stage C")
+
+        return analysis
 
     # ── Legacy API ─────────────────────────────────────
 
@@ -441,10 +509,12 @@ class LlmFieldExtractor:
 def _build_structured_input(text: str, metadata: dict | None = None) -> str:
     """Build structured input from flat text + optional metadata.
 
-    If metadata contains 'tables' or 'sections', format them.
-    Otherwise wrap the text with page-level metadata.
+    Uses config-controlled limits and logs warnings on truncation.
     """
     parts = []
+    total_est = 0
+    truncation_warnings: list[str] = []
+
     if metadata:
         parts.append(f"## 页面信息")
         parts.append(f"- 标题: {metadata.get('title', '')}")
@@ -457,15 +527,29 @@ def _build_structured_input(text: str, metadata: dict | None = None) -> str:
     sections = metadata.get("sections") if metadata else None
     if sections:
         parts.append("## 文档结构")
+        sec_count = 0
         for sec in sections:
-            heading = sec.get("heading", "")
-            content = sec.get("text", "")[:3000]
+            heading = getattr(sec, "heading", sec.get("heading", ""))
+            content = getattr(sec, "text", sec.get("text", ""))
+            if len(content) > LLM_MAX_SECTION_CHARS:
+                truncation_warnings.append(
+                    f"section '{heading[:30]}' truncated from {len(content)} to {LLM_MAX_SECTION_CHARS} chars"
+                )
+                content = content[:LLM_MAX_SECTION_CHARS]
             parts.append(f"### {heading}")
             parts.append(content)
             parts.append("")
+            sec_count += 1
+            if sec_count >= 100:
+                break
     else:
         parts.append("## 正文")
-        parts.append(text[:12000])
+        text_chars = min(len(text), LLM_MAX_DOCUMENT_CHARS)
+        if len(text) > LLM_MAX_DOCUMENT_CHARS:
+            truncation_warnings.append(
+                f"text truncated from {len(text)} to {LLM_MAX_DOCUMENT_CHARS} chars"
+            )
+        parts.append(text[:text_chars])
 
     # Tables from HTML
     tables = metadata.get("tables") if metadata else None
@@ -473,11 +557,21 @@ def _build_structured_input(text: str, metadata: dict | None = None) -> str:
         parts.append("## HTML表格")
         for i, tbl in enumerate(tables):
             hdrs = tbl.get("headers", [])
-            rows = tbl.get("rows", [])[:50]
+            rows = tbl.get("rows", [])[:LLM_MAX_TABLE_ROWS]
+            raw_row_count = len(tbl.get("rows", []))
+            if raw_row_count > LLM_MAX_TABLE_ROWS:
+                truncation_warnings.append(
+                    f"table {i+1} truncated from {raw_row_count} to {LLM_MAX_TABLE_ROWS} rows"
+                )
             parts.append(f"### 表格{i+1}: {' | '.join(hdrs)}")
-            for row in rows[:50]:
+            for row in rows:
                 parts.append(" | ".join(str(c) for c in row))
             parts.append("")
+
+    # Log warnings
+    if truncation_warnings:
+        for w in truncation_warnings:
+            logger.warning("Input trunction: %s", w)
 
     return "\n".join(parts)
 

@@ -17,7 +17,9 @@ from university_recruitment.sources.field_extractor import (
 )
 from university_recruitment.sources.title_cleaner import clean_position_title
 from university_recruitment.llm.extractor import get_llm_extractor
-from university_recruitment.url_utils import content_hash, generate_job_id, normalize_url
+from university_recruitment.url_utils import (
+    build_position_job_id, content_hash, generate_job_id, normalize_url,
+)
 
 
 def _parse_llm_date(value: str | None) -> date | None:
@@ -101,72 +103,136 @@ class StaticTalentSiteAdapter(SourceAdapter):
             detail = self._fetch_detail(source_url) if should_fetch_detail else None
             description = detail.text if detail and detail.text else raw_title
 
-            # Only use LLM when we have real detail content (>60 chars)
-            normalized_position = None  # set by LLM path below
+            # LLM or regex extraction
             has_real_content = detail and detail.text and len(detail.text) > 60
+            canonical_url = normalize_url(source_url)
+            now = datetime.now(timezone.utc)
+
             if llm and llm.available and has_real_content:
-                # ── LLM PRIMARY EXTRACTION ──
+                # ── LLM analyze_document ──
                 metadata = {
                     "title": detail.title if detail else raw_title,
-                    "source_url": str(source_url),
+                    "source_url": str(canonical_url),
                     "school": self.school,
                     "published_at_hint": str(detail.published_at) if detail and detail.published_at else "",
                     "sections": detail.sections if detail else None,
                     "tables": detail.tables if detail else None,
                 }
                 try:
-                    llm_result = llm.extract(description) if not metadata.get("sections") and not metadata.get("tables") else llm.analyze_document(description, metadata)
+                    analysis = llm.analyze_document(description, metadata)
                 except Exception:
-                    llm_result = {}
+                    analysis = {"document_type": "unknown", "positions": [],
+                                "warnings": [], "review_accepted": True}
 
-                # Position: keep regex-cleaned title; LLM clean_position → normalized_position
-                position = clean_position_title(raw_title, self.school)
-                normalized_position = (
-                    llm_result.get("clean_position") if llm_result.get("clean_position") else None
-                )
+                doc_type = analysis.get("document_type", "unknown")
+                doc_type_obj = doc_type
 
-                # Department: LLM first, regex fallback
-                department = (
-                    llm_result.get("department")
-                    or extract_department(position, description, self.school)
-                )
+                # Skip non-recruitment doc types entirely
+                from university_recruitment.models import SKIP_DOC_TYPES
+                skippable = {s.value for s in SKIP_DOC_TYPES}
+                if doc_type in skippable:
+                    continue
 
-                # Discipline: LLM first, regex fallback
-                discipline = (
-                    llm_result.get("discipline")
-                    or extract_discipline(description)
-                )
+                # Extract positions from analysis (may be multi-position)
+                llm_positions = analysis.get("positions", [])
+                review = analysis.get("review_accepted", True)
 
-                # Education: LLM first, regex fallback
-                education_requirement = (
-                    llm_result.get("education_requirement")
-                    or extract_education_requirement(description)
-                )
+                if llm_positions:
+                    # Multi-position: generate one job per position
+                    for pi, extracted in enumerate(llm_positions):
+                        position_raw = extracted.get("position_raw", raw_title)
+                        position = clean_position_title(position_raw, self.school)
+                        pos_id = build_position_job_id(canonical_url, position_raw, extracted.get("department"))
 
-                # Job type: LLM first, regex fallback
-                job_type = (
-                    llm_result.get("job_type")
-                    or extract_job_type(position, description)
-                )
+                        department = extracted.get("department")
+                        discipline = extracted.get("discipline")
+                        if isinstance(discipline, list):
+                            discipline = discipline[0] if discipline else None
 
-                # Location: LLM first, regex + config fallback
-                location = (
-                    llm_result.get("location")
-                    or extract_address(description)
-                    or self.location
-                )
+                        education_requirement = extracted.get("education_requirement")
+                        job_type = extracted.get("job_type")
+                        location = extracted.get("location") or self.location
+                        deadline = _parse_llm_date(extracted.get("deadline")) or (detail.deadline if detail else None)
+                        published_at = (
+                            _parse_llm_date(analysis.get("published_at"))
+                            or (detail.published_at if detail else None)
+                            or extract_date_from_url(source_url)
+                        )
 
-                # Dates: LLM can parse varied Chinese formats better than regex
-                deadline = (
-                    _parse_llm_date(llm_result.get("deadline"))
-                    or (detail.deadline if detail else None)
-                )
-                published_at = (
-                    _parse_llm_date(llm_result.get("published_at"))
-                    or (detail.published_at if detail else None)
-                )
+                        job_status = JobStatus.ACTIVE
+                        if deadline and deadline < date.today():
+                            job_status = JobStatus.EXPIRED
+
+                        # Quality score
+                        from university_recruitment.quality.validators import (
+                            build_extraction_warnings_json, calculate_job_quality,
+                        )
+                        # Build evidence JSON
+                        evidence = extracted.get("evidence", {})
+                        evidence_json = None
+                        if evidence:
+                            import json as _json
+                            evidence_json = _json.dumps(evidence, ensure_ascii=False)
+
+                        qscore, qstatus, qwarnings = calculate_job_quality(
+                            RecruitmentJob(
+                                id=pos_id, school=self.school, position=position,
+                                normalized_position=extracted.get("position_normalized"),
+                                department=department, discipline=discipline,
+                                location=location, education_requirement=education_requirement,
+                                job_type=job_type, deadline=deadline, published_at=published_at,
+                                source_type=SourceType.UNIVERSITY_TALENT_SITE,
+                                source_name=self.source_name, source_url=canonical_url,
+                                description=description,
+                            ),
+                            doc_type=doc_type,
+                        )
+
+                        jobs.append(RecruitmentJob(
+                            id=pos_id,
+                            school=self.school,
+                            position=position,
+                            normalized_position=extracted.get("position_normalized"),
+                            department=department,
+                            discipline=discipline,
+                            location=location,
+                            longitude=self.longitude,
+                            latitude=self.latitude,
+                            education_requirement=education_requirement,
+                            job_type=job_type,
+                            deadline=deadline,
+                            source_type=SourceType.UNIVERSITY_TALENT_SITE,
+                            source_name=self.source_name,
+                            source_url=canonical_url,
+                            published_at=published_at,
+                            collected_at=now,
+                            description=description,
+                            status=job_status,
+                            content_hash=content_hash(description),
+                            document_type=doc_type,
+                            extraction_method="llm_analyze_document",
+                            extraction_confidence=analysis.get("confidence"),
+                            quality_score=qscore,
+                            quality_status=qstatus,
+                            extraction_warnings=build_extraction_warnings_json(qwarnings),
+                            evidence_json=evidence_json,
+                            notice_title=detail.title if detail else raw_title,
+                            notice_url=canonical_url,
+                        ))
+                else:
+                    # No positions extracted — use legacy extract as fallback
+                    legacy = llm.extract(description) if hasattr(llm, "extract") else {}
+                    position = clean_position_title(raw_title, self.school)
+                    jobs.append(self._build_legacy_job(
+                        raw_title, position, (legacy.get("clean_position") if legacy.get("clean_position") else None),
+                        legacy.get("department"), legacy.get("discipline"), legacy.get("education_requirement"),
+                        legacy.get("job_type"), legacy.get("location") or self.location,
+                        _parse_llm_date(legacy.get("deadline")) or (detail.deadline if detail else None) or extract_date_from_url(source_url),
+                        _parse_llm_date(legacy.get("published_at")) or (detail.published_at if detail else None) or extract_date_from_url(source_url),
+                        description, canonical_url, "llm_legacy", now,
+                    ))
             else:
-                # ── REGEX-ONLY EXTRACTION (fast path) ──
+                # ── REGEX-ONLY (fast path) ──
                 position = clean_position_title(raw_title, self.school)
                 department = extract_department(position, description, self.school)
                 discipline = extract_discipline(description)
@@ -175,47 +241,58 @@ class StaticTalentSiteAdapter(SourceAdapter):
                 deadline = detail.deadline if detail else None
                 published_at = detail.published_at if detail else None
                 location = extract_address(description) or self.location
+                if not published_at:
+                    published_at = extract_date_from_url(source_url)
 
-            # Infer published_at from URL if still missing (applies to both paths)
-            if not published_at:
-                published_at = extract_date_from_url(source_url)
-
-            canonical_url = normalize_url(source_url)
-            job_id = generate_job_id(canonical_url)
-            ch = content_hash(description)
-            now = datetime.now(timezone.utc)
-
-            # Determine status
-            job_status = JobStatus.ACTIVE
-            if deadline and deadline < date.today():
-                job_status = JobStatus.EXPIRED
-
-            jobs.append(
-                RecruitmentJob(
-                    id=job_id,
-                    school=self.school,
-                    position=position,
-                    normalized_position=normalized_position,
-                    department=department,
-                    discipline=discipline,
-                    location=location,
-                    longitude=self.longitude,
-                    latitude=self.latitude,
-                    education_requirement=education_requirement,
-                    job_type=job_type,
-                    deadline=deadline,
-                    source_type=SourceType.UNIVERSITY_TALENT_SITE,
-                    source_name=self.source_name,
-                    source_url=canonical_url,
-                    published_at=published_at,
-                    collected_at=now,
-                    description=description,
-                    status=job_status,
-                    content_hash=ch,
-                )
-            )
+                jobs.append(self._build_legacy_job(
+                    raw_title, position, None, department, discipline,
+                    education_requirement, job_type, location,
+                    deadline, published_at, description, canonical_url,
+                    "regex", now,
+                ))
 
         return self._deduplicate(jobs)
+
+    def _build_legacy_job(self, raw_title, position, normalized_position,
+                          department, discipline, education_requirement,
+                          job_type, location, deadline, published_at,
+                          description, canonical_url, method, now):
+        job_status = JobStatus.ACTIVE
+        if deadline and deadline < date.today():
+            job_status = JobStatus.EXPIRED
+        job_id = generate_job_id(canonical_url)
+
+        from university_recruitment.quality.validators import (
+            build_extraction_warnings_json, calculate_job_quality,
+        )
+        qscore, qstatus, qwarnings = calculate_job_quality(
+            RecruitmentJob(
+                id=job_id, school=self.school, position=position,
+                normalized_position=normalized_position,
+                department=department, discipline=discipline,
+                location=location, education_requirement=education_requirement,
+                job_type=job_type, deadline=deadline, published_at=published_at,
+                source_type=SourceType.UNIVERSITY_TALENT_SITE,
+                source_name=self.source_name, source_url=canonical_url,
+                description=description, status=job_status,
+            ),
+        )
+        return RecruitmentJob(
+            id=job_id, school=self.school, position=position,
+            normalized_position=normalized_position,
+            department=department, discipline=discipline,
+            location=location, longitude=self.longitude, latitude=self.latitude,
+            education_requirement=education_requirement,
+            job_type=job_type, deadline=deadline,
+            source_type=SourceType.UNIVERSITY_TALENT_SITE,
+            source_name=self.source_name, source_url=canonical_url,
+            published_at=published_at, collected_at=now,
+            description=description, status=job_status,
+            content_hash=content_hash(description),
+            extraction_method=method,
+            quality_score=qscore, quality_status=qstatus,
+            extraction_warnings=build_extraction_warnings_json(qwarnings),
+        )
 
     def _fetch_detail(self, source_url: str):
         """Fetch detail page with retry and fallback User-Agent."""
