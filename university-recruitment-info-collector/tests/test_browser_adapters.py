@@ -27,9 +27,10 @@ def test_browser_adapter_extracts_text_only_announcements() -> None:
     jobs = adapter._extract_text_jobs_from_soup(soup)
 
     assert len(jobs) == 1
-    # Title cleaner strips school name "测试大学" from start
     assert jobs[0].position == "2026年公开招聘辅导员公告"
-    assert jobs[0].source_url == "https://example.edu.cn/recruit#text-3"
+    # Stable ID: hash-based, not index-based
+    assert jobs[0].id.startswith("job-")
+    assert jobs[0].source_url == "https://example.edu.cn/recruit/text-3"
 
 
 def test_hkust_gz_adapter_extracts_table_rows() -> None:
@@ -70,4 +71,6 @@ def test_hkust_gz_adapter_extracts_table_rows() -> None:
     assert jobs[0].school == "香港科技大学（广州）"
     assert jobs[0].position == "Technical Officer（NICE 光电工程师）"
     assert jobs[0].department == "Novel IC Exploration Facility (NICEF)"
-    assert jobs[0].source_url == "https://career.hkust-gz.edu.cn#job-5900"
+    # Stable ID format
+    assert jobs[0].id.startswith("job-")
+    assert jobs[0].source_url == "https://career.hkust-gz.edu.cn/job-5900"

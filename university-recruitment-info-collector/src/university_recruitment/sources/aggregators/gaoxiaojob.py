@@ -3,7 +3,7 @@ from datetime import date, datetime, timezone
 import httpx
 from bs4 import BeautifulSoup
 
-from university_recruitment.models import RecruitmentJob, SourceType
+from university_recruitment.models import JobStatus, RecruitmentJob, SourceType
 from university_recruitment.sources.base import SourceAdapter
 from university_recruitment.sources.detail_parser import ParsedDetail, parse_detail_html
 from university_recruitment.sources.field_extractor import (
@@ -16,6 +16,7 @@ from university_recruitment.sources.field_extractor import (
 )
 from university_recruitment.sources.title_cleaner import clean_position_title
 from university_recruitment.llm.extractor import get_llm_extractor
+from university_recruitment.url_utils import content_hash, generate_job_id, normalize_url
 
 
 def _parse_llm_date(value: str | None) -> date | None:
@@ -248,9 +249,15 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
                 if inferred:
                     published_at = date.fromisoformat(inferred)
 
+            canonical_url = normalize_url(source_url)
+            job_id = generate_job_id(canonical_url)
+            ch = content_hash(description)
+            now = datetime.now(timezone.utc)
+            job_status = JobStatus.EXPIRED if (deadline and deadline < date.today()) else JobStatus.ACTIVE
+
             jobs.append(
                 RecruitmentJob(
-                    id=f"{self.source_name}-{index}",
+                    id=job_id,
                     school=school,
                     position=position,
                     department=department,
@@ -263,10 +270,12 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
                     deadline=deadline,
                     source_type=SourceType.AGGREGATOR,
                     source_name=self.source_name,
-                    source_url=source_url,
+                    source_url=canonical_url,
                     published_at=published_at,
-                    collected_at=datetime.now(timezone.utc),
+                    collected_at=now,
                     description=description,
+                    status=job_status,
+                    content_hash=ch,
                 )
             )
         return self._deduplicate(jobs)

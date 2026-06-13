@@ -14,5 +14,12 @@ export function listJobs(includeExpired = false) {
 }
 
 export function matchJobs(user, limit = 10, useLlm = false) {
-  return api.post('/match', { user, limit, use_llm: useLlm })
+  return api.post('/match', {
+    user,
+    limit,
+    use_llm: useLlm,
+    result_limit: limit,
+    candidate_limit: 50,
+    include_hard_constraint_failures: false,
+  })
 }

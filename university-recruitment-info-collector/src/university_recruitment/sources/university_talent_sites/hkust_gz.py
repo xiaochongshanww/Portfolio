@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from bs4 import BeautifulSoup
 
-from university_recruitment.models import RecruitmentJob, SourceType
+from university_recruitment.models import JobStatus, RecruitmentJob, SourceType
 from university_recruitment.sources.base import SourceAdapter
 from university_recruitment.sources.field_extractor import (
     extract_discipline,
@@ -11,6 +11,7 @@ from university_recruitment.sources.field_extractor import (
 )
 from university_recruitment.sources.title_cleaner import clean_position_title
 from university_recruitment.llm.extractor import get_llm_extractor
+from university_recruitment.url_utils import content_hash, generate_job_id, normalize_url
 
 
 class HkustGzCareerAdapter(SourceAdapter):
@@ -95,9 +96,15 @@ class HkustGzCareerAdapter(SourceAdapter):
                 education_requirement = extract_education_requirement(description)
                 job_type = extract_job_type(position, description)
 
+            source_url = f"{self.list_url.rstrip('/')}/job-{job_id}"
+            canonical_url = normalize_url(source_url)
+            stable_id = generate_job_id(canonical_url)
+            ch = content_hash(description)
+            now = datetime.now(timezone.utc)
+
             jobs.append(
                 RecruitmentJob(
-                    id=f"{self.source_name}-{job_id}",
+                    id=stable_id,
                     school=self.school,
                     position=position,
                     department=department,
@@ -110,10 +117,12 @@ class HkustGzCareerAdapter(SourceAdapter):
                     deadline=None,
                     source_type=SourceType.UNIVERSITY_TALENT_SITE,
                     source_name=self.source_name,
-                    source_url=f"{self.list_url.rstrip('/')}#job-{job_id}",
+                    source_url=canonical_url,
                     published_at=None,
-                    collected_at=datetime.now(timezone.utc),
+                    collected_at=now,
                     description=description,
+                    status=JobStatus.ACTIVE,
+                    content_hash=ch,
                 )
             )
             if len(jobs) >= limit:

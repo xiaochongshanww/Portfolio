@@ -1,15 +1,31 @@
+"""LLM semantic reranker — batch processing of top rule-matched candidates."""
+
 import json
 import logging
 from typing import Any
 
 from openai import OpenAI
+from pydantic import BaseModel, Field, ValidationError
 
-from university_recruitment.config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
+from university_recruitment.config import (
+    LLM_API_KEY, LLM_BASE_URL, LLM_MAX_JOBS, LLM_MODEL, LLM_TIMEOUT_SECONDS,
+)
 from university_recruitment.models import MatchResult, UserProfile
 
 logger = logging.getLogger(__name__)
 
-ANALYSIS_PROMPT = """你是一个高校求职顾问，正在帮助一位用户分析招聘岗位与其背景的匹配度。
+
+class LlmJobScore(BaseModel):
+    """Validated LLM response for a single job."""
+    job_id: str
+    semantic_score: int = Field(default=50, ge=0, le=100)
+    match_reasons: list[str] = Field(default_factory=list)
+    potential_risks: list[str] = Field(default_factory=list)
+    suggested_actions: list[str] = Field(default_factory=list)
+    llm_summary: str = ""
+
+
+BATCH_PROMPT = """你是一个高校求职顾问。用户提供了个人背景，系统已用规则筛选出若干候选岗位。请对每个岗位进行语义分析。
 
 ## 用户信息
 - 最高学历：{education}
@@ -21,35 +37,32 @@ ANALYSIS_PROMPT = """你是一个高校求职顾问，正在帮助一位用户�
 - 岗位偏好：{job_preferences}
 - 限制条件：{constraints}
 
-## 招聘岗位信息
-- 学校：{school}
-- 岗位：{position}
-- 学院/部门：{department}
-- 学科方向：{discipline}
-- 工作地点：{location}
-- 学历要求：{education_requirement}
-- 岗位类型：{job_type}
-- 截止日期：{deadline}
-- 公告原文：{description}
+## 候选岗位
+{candidates_json}
 
 ## 分析要求
-请从以下维度分析该岗位与用户的匹配情况，以 JSON 格式输出（不要输出其他内容）：
+请以 JSON 数组格式输出（只输出 JSON，不要其他内容），对每个岗位给出：
 
 ```json
-{{
-    "match_reasons": ["匹配理由1", "匹配理由2", ...],
-    "potential_risks": ["潜在风险1", ...],
-    "suggested_actions": ["建议操作1", ...],
-    "llm_summary": "一段综合评估摘要（100-200字）"
-}}
+[
+  {{
+    "job_id": "与输入一致的 job_id",
+    "semantic_score": 0-100,
+    "match_reasons": ["匹配理由..."],
+    "potential_risks": ["潜在风险..."],
+    "suggested_actions": ["建议..."],
+    "llm_summary": "一段80-150字的综合评估摘要"
+  }}
+]
 ```
 
 分析要点：
 1. 用户研究方向与岗位学科方向的相关度
-2. 学校地理位置与用户期望地区的匹配度：评估通勤可行性、是否需要跨城搬迁、该地区生活成本与薪资水平的匹配
-3. 公告中隐含的额外要求（如年龄、职称、论文数量等）
+2. 地理位置匹配度、通勤与搬迁成本
+3. 公告中隐含的额外要求（年龄、职称、论文等）
 4. 用户条件与岗位要求的差距
-5. 针对性的申请建议和材料准备方向，**特别是基于地理位置的建议**（如：是否需要提前租房、该地区的交通便利程度、是否建议同时关注邻近城市的类似岗位等）
+5. 针对性申请建议
+6. semantic_score: 50=中性, 70+=较匹配, 85+=高度匹配, <40=不太匹配
 """
 
 
@@ -61,49 +74,87 @@ class LlmMatcher:
         self.client: OpenAI | None = None
         if self.api_key:
             try:
-                self.client = OpenAI(api_key=self.api_key, base_url=self.base_url)
-            except Exception as exc:
-                logger.warning("Failed to init LLM client: %s", exc)
-
-    def enrich(self, user: UserProfile, results: list[MatchResult]) -> list[MatchResult]:
-        if not self.client:
-            for result in results:
-                result.llm_summary = (
-                    "LLM 分析未启用：未设置 LLM_API_KEY 环境变量。"
-                    "当前结果来自规则匹配。"
+                self.client = OpenAI(
+                    api_key=self.api_key,
+                    base_url=self.base_url,
+                    timeout=LLM_TIMEOUT_SECONDS,
                 )
+            except Exception as exc:
+                logger.warning("LLM client init failed: %s", exc)
+
+    @property
+    def available(self) -> bool:
+        return self.client is not None
+
+    def enrich(
+        self, user: UserProfile, results: list[MatchResult]
+    ) -> list[MatchResult]:
+        """Batch LLM enrichment of rule-matched candidates.
+
+        Maximum LLM_MAX_JOBS candidates are sent in one batch request.
+        """
+        if not self.client or not results:
+            for r in results:
+                if not r.llm_summary:
+                    r.llm_summary = "LLM 未启用或无可分析岗位"
             return results
 
+        candidates = results[:LLM_MAX_JOBS]
+        try:
+            llm_scores = self._batch_analyze(user, candidates)
+        except Exception as exc:
+            logger.warning("LLM batch analysis failed: %s", exc)
+            for r in results:
+                if not r.llm_summary:
+                    r.llm_summary = "AI 分析暂不可用，当前结果来自规则匹配"
+            return results
+
+        # Merge LLM results
+        score_map: dict[str, LlmJobScore] = {s.job_id: s for s in llm_scores}
         for result in results:
-            try:
-                self._enrich_single(user, result)
-            except Exception as exc:
-                logger.warning("LLM analysis failed for job %s: %s", result.job.id, exc)
-                result.llm_summary = "LLM 分析暂不可用，当前结果来自规则匹配。"
+            llm_score = score_map.get(result.job.id)
+            if llm_score is None:
+                if not result.llm_summary:
+                    result.llm_summary = "LLM 未对该岗位返回分析"
+                continue
+
+            # Composite score: 70% rule + 30% semantic
+            result.match_score = int(
+                result.match_score * 0.7 + llm_score.semantic_score * 0.3
+            )
+            if llm_score.match_reasons:
+                result.match_reasons = llm_score.match_reasons
+            if llm_score.potential_risks:
+                result.potential_risks = (
+                    result.potential_risks + llm_score.potential_risks
+                )
+            if llm_score.suggested_actions:
+                result.suggested_actions = llm_score.suggested_actions
+            result.llm_summary = llm_score.llm_summary
+
         return results
 
-    def _enrich_single(self, user: UserProfile, result: MatchResult) -> None:
-        assert self.client is not None
-        prompt = self._build_prompt(user, result)
-        response = self.client.chat.completions.create(
-            model=self.model,
-            max_tokens=1024,
-            temperature=0.3,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        content = response.choices[0].message.content or ""
-        parsed = self._parse_response(content)
-        if parsed.get("match_reasons"):
-            result.match_reasons = parsed["match_reasons"]
-        if parsed.get("potential_risks"):
-            result.potential_risks = parsed["potential_risks"]
-        if parsed.get("suggested_actions"):
-            result.suggested_actions = parsed["suggested_actions"]
-        result.llm_summary = parsed.get("llm_summary")
+    def _batch_analyze(
+        self, user: UserProfile, candidates: list[MatchResult]
+    ) -> list[LlmJobScore]:
+        """Send all candidates in one LLM request."""
+        candidates_data = []
+        for r in candidates:
+            j = r.job
+            candidates_data.append({
+                "job_id": j.id,
+                "school": j.school,
+                "position": j.position,
+                "department": j.department or "未说明",
+                "discipline": j.discipline or "未说明",
+                "location": j.location or "未说明",
+                "education_requirement": j.education_requirement or "未说明",
+                "job_type": j.job_type or "未说明",
+                "deadline": j.deadline.isoformat() if j.deadline else "未说明",
+                "description": (j.description or "")[:1500],
+            })
 
-    def _build_prompt(self, user: UserProfile, result: MatchResult) -> str:
-        job = result.job
-        return ANALYSIS_PROMPT.format(
+        prompt = BATCH_PROMPT.format(
             education=user.education,
             major=user.major,
             research_direction=user.research_direction,
@@ -112,40 +163,45 @@ class LlmMatcher:
             target_school_types="、".join(user.target_school_types) if user.target_school_types else "不限",
             job_preferences="、".join(user.job_preferences) if user.job_preferences else "不限",
             constraints="、".join(user.constraints) if user.constraints else "无",
-            school=job.school,
-            position=job.position,
-            department=(job.department or "未说明"),
-            discipline=(job.discipline or "未说明"),
-            location=(job.location or "未说明"),
-            education_requirement=(job.education_requirement or "未说明"),
-            job_type=(job.job_type or "未说明"),
-            deadline=job.deadline.isoformat() if job.deadline else "未说明",
-            description=job.description[:2000] if job.description else "无",
+            candidates_json=json.dumps(candidates_data, ensure_ascii=False, indent=2),
         )
 
-    @staticmethod
-    def _parse_response(content: str) -> dict[str, Any]:
+        assert self.client is not None
+        response = self.client.chat.completions.create(
+            model=self.model,
+            max_tokens=2048,
+            temperature=0.3,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        content = response.choices[0].message.content or ""
+
+        # Parse and validate
         try:
-            text = content.strip()
+            items = self._parse_batch_response(content)
+            validated = []
+            for item in items:
+                try:
+                    validated.append(LlmJobScore(**item))
+                except ValidationError as exc:
+                    logger.warning("LLM response validation failed for job: %s", exc)
+            return validated
+        except Exception as exc:
+            logger.warning("Failed to parse LLM batch response: %s", exc)
+            return []
 
-            json_start = text.find("{")
-            if json_start == -1:
-                raise ValueError("No JSON object found in response")
-
-            json_end = text.rfind("}")
-            text = text[json_start : json_end + 1]
-
-            text = text.replace("“", '"').replace("”", '"')
-            text = text.replace("‘", "'").replace("’", "'")
-
-            result = json.loads(text)
-            if isinstance(result, dict):
-                return {
-                    "match_reasons": result.get("match_reasons", []),
-                    "potential_risks": result.get("potential_risks", []),
-                    "suggested_actions": result.get("suggested_actions", []),
-                    "llm_summary": result.get("llm_summary", ""),
-                }
-        except (json.JSONDecodeError, ValueError) as exc:
-            logger.warning("Failed to parse LLM response: %s", exc)
-        return {"llm_summary": content[:300]}
+    @staticmethod
+    def _parse_batch_response(content: str) -> list[dict[str, Any]]:
+        text = content.strip()
+        json_start = text.find("[")
+        if json_start == -1:
+            raise ValueError("No JSON array in LLM response")
+        json_end = text.rfind("]")
+        text = text[json_start: json_end + 1]
+        text = text.replace(""", '"').replace(""", '"')
+        text = text.replace("'", "'").replace("'", "'")
+        result = json.loads(text)
+        if isinstance(result, list):
+            return result
+        if isinstance(result, dict):
+            return [result]
+        raise ValueError(f"Unexpected LLM response type: {type(result)}")

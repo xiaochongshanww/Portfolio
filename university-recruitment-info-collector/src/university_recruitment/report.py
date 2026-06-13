@@ -8,7 +8,7 @@ from university_recruitment.storage import JobStore
 
 
 def build_report(config_path: Path = DEFAULT_SOURCES_PATH, include_samples: bool = True) -> str:
-    jobs = JobStore().list_jobs(include_expired=True)
+    jobs, _ = JobStore().list_jobs(include_expired=True, include_removed=True)
     sources = load_sources(config_path, include_disabled=True)
 
     lines: list[str] = []
@@ -32,7 +32,7 @@ def build_report(config_path: Path = DEFAULT_SOURCES_PATH, include_samples: bool
 
 
 def build_source_health_report(config_path: Path = DEFAULT_SOURCES_PATH) -> str:
-    jobs = JobStore().list_jobs(include_expired=True)
+    jobs, _ = JobStore().list_jobs(include_expired=True, include_removed=True)
     sources = load_sources(config_path, include_disabled=True)
     jobs_by_source = _jobs_by_source_name(jobs)
 

@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from bs4 import BeautifulSoup
 
-from university_recruitment.models import RecruitmentJob, SourceType
+from university_recruitment.models import JobStatus, RecruitmentJob, SourceType
 from university_recruitment.sources.field_extractor import (
     extract_address,
     extract_department,
@@ -14,6 +14,7 @@ from university_recruitment.sources.field_extractor import (
 from university_recruitment.sources.title_cleaner import clean_position_title
 from university_recruitment.sources.university_talent_sites.static_site import StaticTalentSiteAdapter
 from university_recruitment.llm.extractor import get_llm_extractor
+from university_recruitment.url_utils import content_hash, generate_job_id, normalize_url
 
 
 class BrowserTalentSiteAdapter(StaticTalentSiteAdapter):
@@ -78,9 +79,15 @@ class BrowserTalentSiteAdapter(StaticTalentSiteAdapter):
                 except Exception:
                     pass
 
+            source_url = f"{self.list_url.rstrip('/')}/text-{index}"
+            canonical_url = normalize_url(source_url)
+            job_id = generate_job_id(canonical_url)
+            ch = content_hash(description)
+            now = datetime.now(timezone.utc)
+
             jobs.append(
                 RecruitmentJob(
-                    id=f"{self.source_name}-text-{index}",
+                    id=job_id,
                     school=self.school,
                     position=position,
                     department=department,
@@ -93,10 +100,12 @@ class BrowserTalentSiteAdapter(StaticTalentSiteAdapter):
                     deadline=None,
                     source_type=SourceType.UNIVERSITY_TALENT_SITE,
                     source_name=self.source_name,
-                    source_url=f"{self.list_url.rstrip('/')}#text-{index}",
+                    source_url=canonical_url,
                     published_at=None,
-                    collected_at=datetime.now(timezone.utc),
+                    collected_at=now,
                     description=description,
+                    status=JobStatus.ACTIVE,
+                    content_hash=ch,
                 )
             )
         return self._deduplicate(jobs)
