@@ -432,6 +432,7 @@ class JobStore:
         location: str | None = None,
         limit: int = 100,
         offset: int = 0,
+        quality_filter: bool = True,
     ) -> tuple[list[RecruitmentJob], int]:
         """List jobs with filtering and pagination. Returns (jobs, total_count)."""
         conditions: list[str] = []
@@ -457,6 +458,12 @@ class JobStore:
         if location:
             conditions.append("location LIKE :location")
             params["location"] = f"%{location}%"
+
+        if quality_filter:
+            # Only filter when quality_status has been explicitly set
+            # Legacy records have quality_status='needs_review' (migration default)
+            # so we show everything except 'hidden'
+            conditions.append("(quality_status IS NULL OR quality_status NOT IN ('hidden'))")
 
         where = " AND ".join(conditions) if conditions else "1=1"
 

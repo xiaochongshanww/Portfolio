@@ -8,6 +8,7 @@
     <div class="flex flex-wrap items-center gap-3 mb-4">
       <el-input v-model="search" placeholder="搜索学校或岗位..." clearable class="!w-72" />
       <el-checkbox v-model="showExpired" @change="fetchJobs(0)">显示已过期</el-checkbox>
+      <el-checkbox v-model="showLowQuality" @change="fetchJobs(0)">显示低质量数据</el-checkbox>
       <el-button type="primary" @click="fetchJobs(0)" :loading="loading">
         🔄 刷新
       </el-button>
@@ -29,6 +30,14 @@
           </template>
         </el-table-column>
         <el-table-column prop="job_type" label="岗位类型" width="120" show-overflow-tooltip />
+        <el-table-column label="质量" width="90">
+          <template #default="{ row }">
+            <el-tag v-if="row.quality_status === 'normal'" size="small" type="success">正常</el-tag>
+            <el-tag v-else-if="row.quality_status === 'needs_review'" size="small" type="warning">待审查</el-tag>
+            <el-tag v-else-if="row.quality_status === 'hidden'" size="small" type="danger">隐藏</el-tag>
+            <span v-else class="text-gray-300">—</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="deadline" label="截止日期" width="120">
           <template #default="{ row }">
             <el-tag v-if="isExpired(row.deadline)" type="danger" size="small">已过期</el-tag>
@@ -67,6 +76,7 @@ const DEFAULT_PAGINATION = { total: 0, limit: 100, offset: 0, has_more: false }
 const jobs = ref([])
 const search = ref('')
 const showExpired = ref(false)
+const showLowQuality = ref(false)
 const loading = ref(false)
 const lastUpdated = ref('')
 const pagination = ref({ ...DEFAULT_PAGINATION })
@@ -104,7 +114,7 @@ async function fetchJobs(page = 0) {
   loading.value = true
   const offset = page * pagination.value.limit
   try {
-    const res = await listJobs(showExpired.value, pagination.value.limit, offset)
+    const res = await listJobs(showExpired.value, pagination.value.limit, offset, showLowQuality.value)
     const parsed = parseJobListResponse(res.data)
     jobs.value = parsed.jobs
     pagination.value = parsed.pagination

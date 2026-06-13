@@ -157,6 +157,13 @@ def list_jobs(
     offset: int = 0,
     _auth: None = Depends(verify_token),
 ) -> JobListResponse:
+    # Default: filter out hidden and needs_review unless explicitly requested
+    include_low_quality_param = request.query_params.get("include_low_quality", "false").lower()
+    if include_low_quality_param not in ("1", "true"):
+        quality_filter = True  # only normal
+    else:
+        quality_filter = False
+
     job_status = JobStatus(status) if status else None
     jobs, total = store.list_jobs(
         status=job_status,
@@ -167,6 +174,7 @@ def list_jobs(
         location=location,
         limit=min(limit, 200),
         offset=offset,
+        quality_filter=quality_filter,
     )
     return JobListResponse(
         jobs=jobs,
