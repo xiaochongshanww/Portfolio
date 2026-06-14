@@ -251,25 +251,50 @@ class LlmFieldExtractor:
         return resp.choices[0].message.content or ""
 
     def _parse_json(self, content: str) -> dict | list | None:
-        """Parse JSON from LLM response, handling Markdown wrappers."""
+        """Parse JSON from LLM response, handling Markdown wrappers.
+
+        Strategy:
+          1. Strip Markdown code fences
+          2. Try standard json.loads (fastest path)
+          3. Fall back to json_repair for truncated / malformed output
+        """
+        from json_repair import repair_json
+
         text = content.strip()
         if "```" in text:
             blocks = re.findall(r'```(?:json)?\s*\n?(.*?)```', text, re.DOTALL)
-            if blocks: text = blocks[0].strip()
+            if blocks:
+                text = blocks[0].strip()
         # Find outermost JSON structure
         if text.startswith("{"):
             end = text.rfind("}")
-            if end >= 0: text = text[:end + 1]
+            if end >= 0:
+                text = text[:end + 1]
         elif text.startswith("["):
             end = text.rfind("]")
-            if end >= 0: text = text[:end + 1]
-        text = text.replace(""", '"').replace(""", '"')
-        text = text.replace("'", "'").replace("'", "'")
+            if end >= 0:
+                text = text[:end + 1]
+        # Normalize curly/smart quotes
+        text = (
+            text
+            .replace("\u201c", '"').replace("\u201d", '"')
+            .replace("\u2018", "'").replace("\u2019", "'")
+            .replace("\uff02", '"')
+        )
+        # Fast path: valid JSON
         try:
             return json.loads(text)
         except json.JSONDecodeError as exc:
             logger.warning("JSON parse failed: %s", exc)
-            return None
+        # Repair path: fix truncated strings, missing commas, etc.
+        try:
+            repaired = repair_json(text, return_objects=True)
+            if repaired is not None and repaired != "" and repaired != [] and repaired != {}:
+                logger.debug("JSON repaired successfully")
+                return repaired  # type: ignore[return-value]
+        except Exception as repair_exc:
+            logger.warning("JSON repair also failed: %s", repair_exc)
+        return None
 
     # ── Stage A: Document Classification ─────────────
 

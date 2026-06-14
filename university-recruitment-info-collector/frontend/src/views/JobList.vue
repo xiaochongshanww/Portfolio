@@ -1,59 +1,104 @@
 <template>
-  <div>
-    <div class="mb-6">
-      <h2 class="text-2xl font-semibold text-gray-800">招聘岗位列表</h2>
-      <p class="text-sm text-gray-400 mt-1">共 {{ pagination.total }} 条岗位，实时同步自各高校招聘网站</p>
-    </div>
+  <div class="space-y-6">
+    <section class="glass-panel-strong p-6 sm:p-8">
+      <div class="grid gap-8 lg:grid-cols-[1.5fr_1fr] lg:items-end">
+        <div>
+          <p class="section-kicker">Live Recruiting Board</p>
+          <h2 class="hero-title mt-3 text-slate-950">广州高校岗位总览</h2>
+          <p class="mt-4 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">
+            将各高校招聘公告清洗为统一岗位数据，同时附带质量状态，便于快速筛选哪些岗位可以直接投递，哪些需要回原文复核。
+          </p>
+        </div>
 
-    <div class="flex flex-wrap items-center gap-3 mb-4">
-      <el-input v-model="search" placeholder="搜索学校或岗位..." clearable class="!w-72" />
-      <el-checkbox v-model="showExpired" @change="fetchJobs(0)">显示已过期</el-checkbox>
-      <el-checkbox v-model="showLowQuality" @change="fetchJobs(0)">显示低质量数据</el-checkbox>
-      <el-button type="primary" @click="fetchJobs(0)" :loading="loading">
-        🔄 刷新
-      </el-button>
-      <span class="text-xs text-gray-400 ml-auto">更新于 {{ lastUpdated || '—' }}</span>
-    </div>
+        <div class="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+          <div class="metric-card">
+            <p class="text-xs uppercase tracking-[0.18em] text-slate-400">总岗位</p>
+            <p class="mt-3 text-3xl font-semibold text-slate-950">{{ pagination.total }}</p>
+          </div>
+          <div class="metric-card">
+            <p class="text-xs uppercase tracking-[0.18em] text-slate-400">当前页正常</p>
+            <p class="mt-3 text-3xl font-semibold text-emerald-700">{{ normalCount }}</p>
+          </div>
+          <div class="metric-card">
+            <p class="text-xs uppercase tracking-[0.18em] text-slate-400">需人工复核</p>
+            <p class="mt-3 text-3xl font-semibold text-amber-600">{{ reviewCount }}</p>
+          </div>
+        </div>
+      </div>
+    </section>
 
-    <div class="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-      <el-table :data="filteredJobs" border stripe style="width: 100%" v-loading="loading"
+    <section class="glass-panel p-4 sm:p-5">
+      <div class="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto_auto_auto_auto] xl:items-center">
+        <el-input v-model="search" placeholder="搜索学校、岗位、学院或地点" clearable class="xl:min-w-[20rem]" />
+        <el-checkbox v-model="showExpired" @change="fetchJobs(0)">包含已过期</el-checkbox>
+        <el-checkbox v-model="showLowQuality" @change="fetchJobs(0)">包含低质量数据</el-checkbox>
+        <div class="rounded-full bg-slate-100 px-4 py-2 text-sm text-slate-500">
+          当前展示 {{ filteredJobs.length }} / {{ jobs.length }}
+        </div>
+        <div class="flex items-center gap-3 xl:justify-end">
+          <span class="text-xs text-slate-400">更新于 {{ lastUpdated || '—' }}</span>
+          <el-button type="primary" @click="fetchJobs(0)" :loading="loading">刷新数据</el-button>
+        </div>
+      </div>
+    </section>
+
+    <section class="glass-panel-strong overflow-hidden p-3 sm:p-4">
+      <el-table
+        :data="filteredJobs"
+        border
+        stripe
+        style="width: 100%"
+        v-loading="loading"
         empty-text="暂无岗位数据"
-        :header-cell-style="{ background: '#f8fafc', color: '#475569', fontWeight: 600 }">
-        <el-table-column prop="school" label="学校" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="position" label="岗位" min-width="220" show-overflow-tooltip />
-        <el-table-column prop="department" label="学院/部门" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="location" label="地点" width="90" />
-        <el-table-column prop="education_requirement" label="学历要求" width="100">
+        :header-cell-style="{ background: 'rgba(248,250,252,0.84)', color: '#334155', fontWeight: 700 }"
+      >
+        <el-table-column prop="school" label="学校" min-width="170" show-overflow-tooltip />
+        <el-table-column label="岗位信息" min-width="260">
           <template #default="{ row }">
-            <el-tag v-if="row.education_requirement" size="small" type="info" effect="plain">{{ row.education_requirement }}</el-tag>
-            <span v-else class="text-gray-300">—</span>
+            <div class="space-y-1">
+              <div class="font-semibold text-slate-900">{{ row.position }}</div>
+              <div class="text-xs text-slate-500">{{ row.department || '未标注学院/部门' }}</div>
+            </div>
           </template>
         </el-table-column>
-        <el-table-column prop="job_type" label="岗位类型" width="120" show-overflow-tooltip />
-        <el-table-column label="质量" width="90">
+        <el-table-column label="条件" min-width="170">
           <template #default="{ row }">
-            <el-tag v-if="row.quality_status === 'normal'" size="small" type="success">正常</el-tag>
-            <el-tag v-else-if="row.quality_status === 'needs_review'" size="small" type="warning">待审查</el-tag>
-            <el-tag v-else-if="row.quality_status === 'hidden'" size="small" type="danger">隐藏</el-tag>
-            <span v-else class="text-gray-300">—</span>
+            <div class="flex flex-wrap gap-1.5">
+              <el-tag v-if="row.education_requirement" size="small" type="info" effect="plain">{{ row.education_requirement }}</el-tag>
+              <el-tag v-if="row.job_type" size="small" type="success" effect="plain">{{ row.job_type }}</el-tag>
+              <span v-if="!row.education_requirement && !row.job_type" class="text-slate-300">—</span>
+            </div>
           </template>
         </el-table-column>
-        <el-table-column prop="deadline" label="截止日期" width="120">
+        <el-table-column prop="location" label="地点" width="110" />
+        <el-table-column label="质量" width="150">
           <template #default="{ row }">
-            <el-tag v-if="isExpired(row.deadline)" type="danger" size="small">已过期</el-tag>
-            <span v-else class="text-gray-600">{{ row.deadline || '未说明' }}</span>
+            <div class="space-y-1">
+              <el-tag :type="qualityTagType(row.quality_status)" size="small" effect="plain">
+                {{ qualityLabel(row.quality_status) }}
+              </el-tag>
+              <div class="text-xs text-slate-400">分数 {{ row.quality_score ?? '—' }}</div>
+            </div>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="100" fixed="right">
+        <el-table-column prop="deadline" label="截止日期" width="130">
+          <template #default="{ row }">
+            <div v-if="isExpired(row.deadline)" class="space-y-1">
+              <el-tag type="danger" size="small">已过期</el-tag>
+              <div class="text-xs text-slate-400">{{ row.deadline || '未说明' }}</div>
+            </div>
+            <span v-else class="text-slate-600">{{ row.deadline || '长期/未说明' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="120" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link @click="openLink(row.source_url)">查看原文</el-button>
           </template>
         </el-table-column>
       </el-table>
-    </div>
+    </section>
 
-    <!-- Pagination -->
-    <div class="flex justify-center mt-4" v-if="pagination.total > pagination.limit">
+    <div class="flex justify-center" v-if="pagination.total > pagination.limit">
       <el-pagination
         background
         layout="prev, pager, next"
@@ -93,12 +138,34 @@ const filteredJobs = computed(() => {
   const arr = Array.isArray(jobs.value) ? jobs.value : []
   if (!search.value) return arr
   const q = search.value.toLowerCase()
-  return arr.filter(j => j.school?.toLowerCase().includes(q) || j.position?.toLowerCase().includes(q))
+  return arr.filter(j =>
+    j.school?.toLowerCase().includes(q)
+    || j.position?.toLowerCase().includes(q)
+    || j.department?.toLowerCase().includes(q)
+    || j.location?.toLowerCase().includes(q)
+  )
 })
+
+const normalCount = computed(() => jobs.value.filter(j => j.quality_status === 'normal').length)
+const reviewCount = computed(() => jobs.value.filter(j => j.quality_status === 'needs_review').length)
 
 function isExpired(deadline) {
   if (!deadline) return false
   return new Date(deadline) < new Date()
+}
+
+function qualityTagType(status) {
+  if (status === 'normal') return 'success'
+  if (status === 'needs_review') return 'warning'
+  if (status === 'hidden') return 'danger'
+  return 'info'
+}
+
+function qualityLabel(status) {
+  if (status === 'normal') return '质量正常'
+  if (status === 'needs_review') return '待复核'
+  if (status === 'hidden') return '已隐藏'
+  return '未知'
 }
 
 function openLink(url) {

@@ -192,14 +192,25 @@ class LlmMatcher:
     @staticmethod
     def _parse_batch_response(content: str) -> list[dict[str, Any]]:
         text = content.strip()
+        # Find the outermost JSON array bounds
         json_start = text.find("[")
         if json_start == -1:
             raise ValueError("No JSON array in LLM response")
         json_end = text.rfind("]")
+        if json_end == -1 or json_end <= json_start:
+            raise ValueError("Malformed JSON array in LLM response")
         text = text[json_start: json_end + 1]
-        text = text.replace(""", '"').replace(""", '"')
-        text = text.replace("'", "'").replace("'", "'")
-        result = json.loads(text)
+        # Normalize curly/smart quotes that LLMs sometimes emit
+        text = (
+            text
+            .replace("\u201c", '"').replace("\u201d", '"')  # "" → "
+            .replace("\u2018", "'").replace("\u2019", "'")  # '' → '
+            .replace("\uff02", '"')                          # ＂ → "
+        )
+        try:
+            result = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"JSON decode failed: {exc}") from exc
         if isinstance(result, list):
             return result
         if isinstance(result, dict):

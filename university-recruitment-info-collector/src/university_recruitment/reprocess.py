@@ -17,6 +17,9 @@ from university_recruitment.models import JobStatus, QualityStatus, SKIP_DOC_TYP
 from university_recruitment.quality.validators import (
     build_extraction_warnings_json, calculate_job_quality,
 )
+from university_recruitment.sources.attachment_parser import (
+    prepare_llm_input_text,
+)
 from university_recruitment.storage import JobStore
 
 
@@ -25,11 +28,25 @@ def reprocess_jobs(
     only_low_quality: bool = False,
     only_notice_like: bool = False,
     dry_run: bool = False,
-    limit: int = 510,
+    limit: int = 5000,
     export_before: bool = False,
 ) -> dict:
     store = JobStore()
-    all_jobs, _ = store.list_jobs(include_expired=True, include_removed=True, limit=limit)
+    # Paginate to bypass the per-call cap in list_jobs
+    all_jobs: list = []
+    offset = 0
+    page_size = 200
+    while True:
+        page, total = store.list_jobs(
+            include_expired=True, include_removed=True,
+            limit=page_size, offset=offset, quality_filter=False,
+        )
+        all_jobs.extend(page)
+        offset += len(page)
+        if offset >= total or len(page) < page_size or (limit and offset >= limit):
+            break
+    if limit:
+        all_jobs = all_jobs[:limit]
 
     if source_filter:
         all_jobs = [j for j in all_jobs if source_filter in j.school or source_filter in j.source_name]
@@ -59,8 +76,19 @@ def reprocess_jobs(
     }
 
     for job in all_jobs:
-        if len(job.description) < 60:
-            stats.get("warnings", []).append(f"skipped {job.id}: description too short")
+        analysis_text, used_attachment_text, aug_warnings = prepare_llm_input_text(
+            body_text=job.description or "",
+            notice_url=str(job.source_url),
+        )
+        if len((analysis_text or "").strip()) < 60:
+            if aug_warnings:
+                stats.get("warnings", []).append(
+                    f"skipped {job.id}: description too short and attachment text unavailable"
+                )
+                for warning in aug_warnings:
+                    stats.get("warnings", []).append(f"{job.id}: {warning}")
+            else:
+                stats.get("warnings", []).append(f"skipped {job.id}: description too short")
             continue
 
         print(f"  [{job.school}] {job.position[:50]}...", end=" ", flush=True)
@@ -71,7 +99,7 @@ def reprocess_jobs(
                 "school": job.school,
                 "published_at_hint": str(job.published_at) if job.published_at else "",
             }
-            analysis = llm.analyze_document(job.description, metadata)
+            analysis = llm.analyze_document(analysis_text, metadata)
             doc_type = analysis.get("document_type", "unknown")
             llm_positions = analysis.get("positions", [])
 
@@ -109,7 +137,12 @@ def reprocess_jobs(
                     disc = disc[0] if disc else None
 
                 deadline_str = extracted.get("deadline")
-                deadline = datetime.fromisoformat(deadline_str).date() if deadline_str else job.deadline
+                deadline = job.deadline
+                if deadline_str:
+                    try:
+                        deadline = datetime.fromisoformat(deadline_str).date()
+                    except (ValueError, TypeError):
+                        pass  # Keep original deadline if LLM returns non-date string
 
                 new_jobs.append(RecruitmentJob(
                     id=pos_id, school=job.school,
@@ -124,10 +157,10 @@ def reprocess_jobs(
                     source_name=job.source_name,
                     source_url=job.source_url,
                     published_at=job.published_at,
-                    description=job.description,
+                    description=analysis_text,
                     status=JobStatus.EXPIRED if deadline and deadline < datetime.now(timezone.utc).date() else JobStatus.ACTIVE,
                     document_type=doc_type,
-                    extraction_method="llm_reprocess",
+                    extraction_method=("llm_reprocess_attachment" if used_attachment_text else "llm_reprocess"),
                     extraction_confidence=analysis.get("confidence"),
                     content_hash=job.content_hash,
                     notice_title=job.notice_title or job.position,
@@ -149,7 +182,13 @@ def reprocess_jobs(
             # Write with upsert
             store.upsert_jobs(new_jobs)
             stats["reprocessed"] += len(new_jobs)
-            print(f"✅ {len(new_jobs)} positions, quality={qstatus}, score={qscore}")
+            if new_jobs:
+                qstatus = new_jobs[-1].quality_status
+                qscore = new_jobs[-1].quality_score
+                print(f"✅ {len(new_jobs)} positions, quality={qstatus}, score={qscore}")
+            else:
+                stats["llm_failed"] += 1
+                print("❌ no positions extracted")
 
         except Exception as exc:
             stats["llm_failed"] += 1

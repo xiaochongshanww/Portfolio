@@ -29,6 +29,11 @@ logger = logging.getLogger(__name__)
 CURRENT_SCHEMA_VERSION = 2
 
 
+def _row_get(row: sqlite3.Row, key: str, default: object = None) -> object:
+    """Safely fetch a column from a sqlite3.Row, returning default if absent."""
+    return row[key] if key in row.keys() else default
+
+
 class JobStore:
     def __init__(self, db_path: Path = DEFAULT_DB_PATH) -> None:
         self.db_path = db_path
@@ -403,7 +408,14 @@ class JobStore:
                        job_type = ?,
                        location = ?,
                        deadline = ?,
-                       last_changed_at = ?
+                       last_changed_at = ?,
+                       quality_score = ?,
+                       quality_status = ?,
+                       extraction_warnings = ?,
+                       document_type = ?,
+                       extraction_method = ?,
+                       extraction_confidence = ?,
+                       evidence_json = ?
                    WHERE id = ?""",
                 (
                     job.normalized_position,
@@ -414,6 +426,13 @@ class JobStore:
                     job.location,
                     job.deadline.isoformat() if job.deadline else None,
                     now,
+                    job.quality_score,
+                    job.quality_status if job.quality_status is not None else "needs_review",
+                    job.extraction_warnings,
+                    job.document_type,
+                    job.extraction_method,
+                    job.extraction_confidence,
+                    job.evidence_json,
                     job.id,
                 ),
             )
@@ -504,14 +523,22 @@ class JobStore:
         """
         now = datetime.now(timezone.utc).isoformat()
         with self.connect() as conn:
-            cursor = conn.execute(
-                """UPDATE recruitment_jobs
-                   SET status = 'removed', removed_at = ?
-                   WHERE source_name = ? AND status != 'removed' AND id NOT IN ({})""".format(
-                    ",".join("?" for _ in active_ids) if active_ids else "1=1"
-                ),
-                [now, source_name] + (list(active_ids) if active_ids else []),
-            )
+            if active_ids:
+                placeholders = ",".join("?" for _ in active_ids)
+                cursor = conn.execute(
+                    f"""UPDATE recruitment_jobs
+                       SET status = 'removed', removed_at = ?
+                       WHERE source_name = ? AND status != 'removed' AND id NOT IN ({placeholders})""",
+                    [now, source_name, *active_ids],
+                )
+            else:
+                # No active IDs means all jobs from this source should be marked removed
+                cursor = conn.execute(
+                    """UPDATE recruitment_jobs
+                       SET status = 'removed', removed_at = ?
+                       WHERE source_name = ? AND status != 'removed'""",
+                    [now, source_name],
+                )
             return cursor.rowcount
 
     def update_expired_status(self) -> int:
@@ -672,7 +699,7 @@ class JobStore:
             "content_hash": job.content_hash,
             "removed_at": job.removed_at.isoformat() if job.removed_at else None,
             "quality_score": job.quality_score,
-            "quality_status": job.quality_status,
+            "quality_status": job.quality_status if job.quality_status is not None else "needs_review",
             "extraction_method": job.extraction_method,
             "extraction_confidence": job.extraction_confidence,
             "extraction_warnings": job.extraction_warnings,
@@ -687,7 +714,7 @@ class JobStore:
             id=row["id"],
             school=row["school"],
             position=row["position"],
-            normalized_position=row["normalized_position"] if "normalized_position" in row.keys() else None,
+            normalized_position=_row_get(row, "normalized_position"),
             department=row["department"],
             discipline=row["discipline"],
             location=row["location"],
@@ -708,14 +735,14 @@ class JobStore:
             last_changed_at=ensure_utc(datetime.fromisoformat(row["last_changed_at"])) if row["last_changed_at"] else None,
             content_hash=row["content_hash"],
             removed_at=ensure_utc(datetime.fromisoformat(row["removed_at"])) if row["removed_at"] else None,
-            quality_score=row["quality_score"] if "quality_score" in row.keys() else None,
-            quality_status=row["quality_status"] if "quality_status" in row.keys() else None,
-            extraction_method=row["extraction_method"] if "extraction_method" in row.keys() else None,
-            extraction_confidence=row["extraction_confidence"] if "extraction_confidence" in row.keys() else None,
-            extraction_warnings=row["extraction_warnings"] if "extraction_warnings" in row.keys() else None,
-            document_type=row["document_type"] if "document_type" in row.keys() else None,
-            notice_title=row["notice_title"] if "notice_title" in row.keys() else None,
-            notice_url=row["notice_url"] if "notice_url" in row.keys() else None,
+            quality_score=_row_get(row, "quality_score"),
+            quality_status=_row_get(row, "quality_status"),
+            extraction_method=_row_get(row, "extraction_method"),
+            extraction_confidence=_row_get(row, "extraction_confidence"),
+            extraction_warnings=_row_get(row, "extraction_warnings"),
+            document_type=_row_get(row, "document_type"),
+            notice_title=_row_get(row, "notice_title"),
+            notice_url=_row_get(row, "notice_url"),
         )
 
     @staticmethod

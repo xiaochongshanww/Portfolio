@@ -1,31 +1,29 @@
 <template>
-  <div>
-    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
-      <div>
-        <h2 class="text-2xl font-semibold text-gray-800">匹配结果</h2>
-        <p class="text-sm text-gray-400 mt-1">
-          共为你匹配到 {{ results.length }} 个岗位
-          <span v-if="results.length" class="ml-2">
-            最高分 <span class="text-green-500 font-semibold">{{ results[0]?.match_score }} 分</span>
-          </span>
-          <span v-if="totalCandidates" class="ml-2 text-gray-300">
-            (候选 {{ totalCandidates }}，硬性过滤 {{ hardFiltered }})
-          </span>
-        </p>
+  <div class="space-y-6">
+    <section class="glass-panel-strong p-6 sm:p-8">
+      <div class="grid gap-8 xl:grid-cols-[1.2fr_0.8fr] xl:items-end">
+        <div>
+          <p class="section-kicker">Match Studio</p>
+          <h2 class="hero-title mt-3 text-slate-950">岗位匹配结果</h2>
+          <p class="mt-4 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">
+            将结构化规则筛选与 AI 语义重排组合起来，帮助你在候选岗位中更快识别高契合机会、潜在风险以及需要回原文核对的低质量数据。
+          </p>
+        </div>
+
+        <div class="flex flex-col items-start gap-3 xl:items-end">
+          <el-tag v-if="useLlm" type="success" effect="dark" size="large">规则评分 + AI 语义评分</el-tag>
+          <el-tag v-else type="info" effect="dark" size="large">仅使用规则评分</el-tag>
+          <el-button @click="goBack" class="!rounded-full">重新填写画像</el-button>
+        </div>
       </div>
-      <div class="flex items-center gap-3">
-        <el-tag v-if="useLlm" type="success" effect="dark" size="large">🤖 规则评分 + AI 语义评分</el-tag>
-        <el-tag v-else type="info" effect="dark" size="large">📋 仅使用规则评分</el-tag>
-        <el-button @click="goBack"><span class="flex items-center gap-1">← 重新填写</span></el-button>
-      </div>
+    </section>
+
+    <div v-if="loading" class="glass-panel-strong py-20 text-center">
+      <el-progress type="circle" :percentage="100" :stroke-width="6" :width="88" indeterminate />
+      <p class="mt-5 text-sm text-slate-500">正在生成匹配结果，请稍候...</p>
     </div>
 
-    <div v-if="loading" class="text-center py-20">
-      <el-progress type="circle" :percentage="100" :stroke-width="6" :width="80" indeterminate />
-      <p class="mt-4 text-gray-400">正在匹配中，请稍候...</p>
-    </div>
-
-    <div v-else-if="error" class="text-center py-16">
+    <div v-else-if="error" class="glass-panel-strong py-16">
       <el-result icon="error" title="匹配失败" :sub-title="error">
         <template #extra>
           <el-button type="primary" @click="goBack">返回重试</el-button>
@@ -34,74 +32,138 @@
     </div>
 
     <template v-else>
-      <el-empty v-if="results.length === 0" description="暂无匹配结果，试试调整筛选条件" />
-      <div class="space-y-4">
-        <div v-for="item in results" :key="item.job.id"
-          class="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-          <div class="p-6">
-            <div class="flex items-start justify-between gap-4">
-              <div class="flex-1 min-w-0">
-                <div class="flex flex-wrap items-center gap-2 mb-2">
-                  <h3 class="text-lg font-semibold text-gray-900">{{ item.job.school }}</h3>
-                  <el-tag size="small" type="primary" effect="plain">{{ item.job.position }}</el-tag>
-                  <el-tag v-if="!item.hard_constraint_passed" size="small" type="danger">硬性条件未通过</el-tag>
-                </div>
-                <p class="text-sm text-gray-400">
-                  {{ [item.job.department, item.job.location, item.job.job_type, item.job.education_requirement].filter(Boolean).join(' · ') }}
-                </p>
-                <p v-if="item.job.deadline" class="text-xs text-gray-300 mt-1">
-                  ⏰ 截止日期：{{ item.job.deadline }}
-                </p>
-              </div>
-              <div class="text-center">
-                <el-progress type="circle" :percentage="item.match_score" :width="80" :stroke-width="8"
-                  :color="scoreColor(item.match_score)" />
-                <p class="text-xs text-gray-400 mt-1">置信度 {{ item.confidence_score }}%</p>
-              </div>
-            </div>
+      <el-empty v-if="results.length === 0" description="暂无匹配结果，试试调整筛选条件" class="glass-panel-strong py-16" />
 
-            <el-divider class="!my-3" />
+      <template v-else>
+        <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div class="metric-card">
+            <p class="text-xs uppercase tracking-[0.18em] text-slate-400">已返回岗位</p>
+            <p class="mt-3 text-3xl font-semibold text-slate-950">{{ results.length }}</p>
+          </div>
+          <div class="metric-card">
+            <p class="text-xs uppercase tracking-[0.18em] text-slate-400">最高匹配分</p>
+            <p class="mt-3 text-3xl font-semibold text-emerald-700">{{ topScore }}</p>
+          </div>
+          <div class="metric-card">
+            <p class="text-xs uppercase tracking-[0.18em] text-slate-400">硬性通过</p>
+            <p class="mt-3 text-3xl font-semibold text-slate-950">{{ passCount }}</p>
+          </div>
+          <div class="metric-card">
+            <p class="text-xs uppercase tracking-[0.18em] text-slate-400">低质量数据</p>
+            <p class="mt-3 text-3xl font-semibold text-amber-600">{{ lowQualityCount }}</p>
+          </div>
+        </section>
 
-            <!-- Hard constraint failures -->
-            <div v-if="item.hard_constraint_failures.length" class="mb-2">
-              <el-tag v-for="f in item.hard_constraint_failures" :key="f" type="danger" size="small" effect="plain" class="mr-1 mb-1">
-                ❌ {{ f }}
-              </el-tag>
-            </div>
-
-            <!-- Match reasons & risks -->
-            <div class="flex flex-wrap gap-2 mb-3">
-              <el-tag v-for="reason in item.match_reasons" :key="reason" type="success" size="small" effect="plain">
-                ✅ {{ reason }}
-              </el-tag>
-              <el-tag v-for="risk in item.potential_risks" :key="risk" type="warning" size="small" effect="plain">
-                ⚠️ {{ risk }}
-              </el-tag>
-            </div>
-
-            <div v-if="item.llm_summary"
-              class="bg-blue-50 border border-blue-100 rounded-lg p-4 mt-3 text-sm leading-relaxed text-gray-700">
-              <p class="font-medium text-blue-800 mb-1">🤖 AI 分析</p>
-              <p>{{ item.llm_summary }}</p>
-            </div>
-
-            <div class="flex items-center gap-3 mt-4 pt-3 border-t border-gray-50">
-              <el-button type="primary" link @click="openLink(item.job.source_url)" class="!text-base">
-                🔗 查看原文
-              </el-button>
-              <el-tag v-for="action in item.suggested_actions" :key="action" type="info" size="small" effect="plain">
-                💡 {{ action }}
-              </el-tag>
+        <section class="glass-panel p-5">
+          <div class="grid gap-3 xl:grid-cols-[auto_auto_auto_auto_1fr] xl:items-center">
+            <el-select v-model="sortBy" class="xl:min-w-[10rem]">
+              <el-option label="按匹配分" value="score" />
+              <el-option label="按置信度" value="confidence" />
+              <el-option label="按截止日期" value="deadline" />
+            </el-select>
+            <el-select v-model="minScore" class="xl:min-w-[9rem]">
+              <el-option :value="0" label="全部分数" />
+              <el-option :value="60" label="60 分以上" />
+              <el-option :value="70" label="70 分以上" />
+              <el-option :value="80" label="80 分以上" />
+            </el-select>
+            <el-checkbox v-model="onlyHardPassed">仅看硬性通过</el-checkbox>
+            <el-checkbox v-model="hideLowQuality">隐藏低质量岗位</el-checkbox>
+            <div class="text-sm text-slate-500 xl:text-right">
+              候选 {{ totalCandidates }}，硬性过滤 {{ hardFiltered }}，当前展示 {{ displayedResults.length }}
             </div>
           </div>
-        </div>
-      </div>
+        </section>
+
+        <section class="space-y-4">
+          <article
+            v-for="item in displayedResults"
+            :key="item.job.id"
+            class="glass-panel-strong overflow-hidden p-6 transition-transform duration-200 hover:-translate-y-1"
+          >
+            <div class="grid gap-6 xl:grid-cols-[1fr_108px]">
+              <div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">{{ item.job.school }}</span>
+                  <span class="rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700">{{ item.job.position }}</span>
+                  <el-tag v-if="!item.hard_constraint_passed" size="small" type="danger">硬性未通过</el-tag>
+                  <el-tag v-if="item.job.quality_status" :type="qualityTagType(item.job.quality_status)" size="small" effect="plain">
+                    {{ qualityLabel(item.job.quality_status) }}
+                  </el-tag>
+                </div>
+
+                <div class="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-500">
+                  <span>{{ item.job.department || '未标注部门' }}</span>
+                  <span>{{ item.job.location || '未标注地点' }}</span>
+                  <span>{{ item.job.job_type || '未标注岗位类型' }}</span>
+                  <span>{{ item.job.education_requirement || '未标注学历要求' }}</span>
+                </div>
+
+                <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  <div class="rounded-2xl bg-slate-50 px-4 py-3">
+                    <p class="text-xs uppercase tracking-[0.18em] text-slate-400">截止日期</p>
+                    <p class="mt-2 text-sm font-semibold text-slate-800">{{ item.job.deadline || '长期/未说明' }}</p>
+                  </div>
+                  <div class="rounded-2xl bg-slate-50 px-4 py-3">
+                    <p class="text-xs uppercase tracking-[0.18em] text-slate-400">数据质量</p>
+                    <p class="mt-2 text-sm font-semibold text-slate-800">{{ item.job.quality_score ?? '—' }}</p>
+                  </div>
+                  <div class="rounded-2xl bg-slate-50 px-4 py-3">
+                    <p class="text-xs uppercase tracking-[0.18em] text-slate-400">结果置信度</p>
+                    <p class="mt-2 text-sm font-semibold text-slate-800">{{ item.confidence_score }}%</p>
+                  </div>
+                </div>
+
+                <div v-if="item.hard_constraint_failures.length" class="mt-4 flex flex-wrap gap-2">
+                  <el-tag v-for="f in item.hard_constraint_failures" :key="f" type="danger" size="small" effect="plain">
+                    {{ f }}
+                  </el-tag>
+                </div>
+
+                <div class="mt-4 flex flex-wrap gap-2">
+                  <el-tag v-for="reason in item.match_reasons" :key="reason" type="success" size="small" effect="plain">
+                    {{ reason }}
+                  </el-tag>
+                  <el-tag v-for="risk in item.potential_risks" :key="risk" type="warning" size="small" effect="plain">
+                    {{ risk }}
+                  </el-tag>
+                </div>
+
+                <div v-if="item.llm_summary" class="mt-5 rounded-2xl border border-sky-100 bg-sky-50 p-4 text-sm leading-6 text-slate-700">
+                  <p class="font-semibold text-sky-800">AI 分析</p>
+                  <p class="mt-2">{{ item.llm_summary }}</p>
+                </div>
+
+                <div v-if="item.job.extraction_warnings && item.job.quality_status === 'needs_review'" class="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
+                  <p class="font-semibold">数据提醒</p>
+                  <p class="mt-2">{{ formatWarnings(item.job.extraction_warnings) }}</p>
+                </div>
+
+                <div class="mt-5 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+                  <el-button type="primary" link @click="openLink(item.job.source_url)">查看原文</el-button>
+                  <span v-for="action in item.suggested_actions" :key="action" class="rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">
+                    {{ action }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="flex flex-col items-center justify-start gap-3 rounded-[26px] bg-slate-950 px-4 py-5 text-white">
+                <span class="text-xs uppercase tracking-[0.24em] text-slate-400">Match</span>
+                <div class="text-4xl font-semibold">{{ item.match_score }}</div>
+                <div class="h-2 w-full overflow-hidden rounded-full bg-white/10">
+                  <div class="h-full rounded-full bg-emerald-400 transition-all duration-300" :style="{ width: `${item.match_score}%` }"></div>
+                </div>
+              </div>
+            </div>
+          </article>
+        </section>
+      </template>
     </template>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { matchJobs } from '../api/index.js'
@@ -114,11 +176,81 @@ const error = ref('')
 const useLlm = ref(false)
 const totalCandidates = ref(0)
 const hardFiltered = ref(0)
+const sortBy = ref('score')
+const minScore = ref(0)
+const onlyHardPassed = ref(true)
+const hideLowQuality = ref(false)
+const requestOptions = ref({
+  resultLimit: 10,
+  candidateLimit: 50,
+  includeHardConstraintFailures: false,
+})
+
+const displayedResults = computed(() => {
+  let arr = [...results.value]
+  if (onlyHardPassed.value) {
+    arr = arr.filter(item => item.hard_constraint_passed)
+  }
+  if (hideLowQuality.value) {
+    arr = arr.filter(item => item.job?.quality_status !== 'needs_review' && item.job?.quality_status !== 'hidden')
+  }
+  if (minScore.value > 0) {
+    arr = arr.filter(item => Number(item.match_score || 0) >= minScore.value)
+  }
+  arr.sort((a, b) => {
+    if (sortBy.value === 'confidence') {
+      return Number(b.confidence_score || 0) - Number(a.confidence_score || 0)
+    }
+    if (sortBy.value === 'deadline') {
+      const ad = a.job?.deadline ? new Date(a.job.deadline).getTime() : Number.MAX_SAFE_INTEGER
+      const bd = b.job?.deadline ? new Date(b.job.deadline).getTime() : Number.MAX_SAFE_INTEGER
+      return ad - bd
+    }
+    return Number(b.match_score || 0) - Number(a.match_score || 0)
+  })
+  return arr
+})
+
+const topScore = computed(() => displayedResults.value[0]?.match_score || 0)
+const averageScore = computed(() => {
+  if (!results.value.length) return 0
+  const total = results.value.reduce((sum, item) => sum + Number(item.match_score || 0), 0)
+  return Math.round(total / results.value.length)
+})
+const passCount = computed(() => results.value.filter(item => item.hard_constraint_passed).length)
+const lowQualityCount = computed(() => results.value.filter(item => {
+  const status = item.job?.quality_status
+  return status === 'needs_review' || status === 'hidden'
+}).length)
 
 function scoreColor(score) {
   if (score >= 80) return '#22c55e'
   if (score >= 60) return '#eab308'
   return '#ef4444'
+}
+
+function qualityTagType(status) {
+  if (status === 'normal') return 'success'
+  if (status === 'needs_review') return 'warning'
+  if (status === 'hidden') return 'danger'
+  return 'info'
+}
+
+function qualityLabel(status) {
+  if (status === 'normal') return '质量正常'
+  if (status === 'needs_review') return '待人工复核'
+  if (status === 'hidden') return '低可信数据'
+  return '质量未知'
+}
+
+function formatWarnings(raw) {
+  if (!raw) return '该岗位存在字段抽取不完整或可信度不足。'
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.join('；') : String(raw)
+  } catch {
+    return String(raw)
+  }
 }
 
 function openLink(url) {
@@ -142,9 +274,17 @@ onMounted(async () => {
       loading.value = false
       return
     }
-    const { user, useLlm: llm } = JSON.parse(raw)
+    const { user, useLlm: llm, options } = JSON.parse(raw)
     useLlm.value = llm
-    const res = await matchJobs(user, 10, llm)
+    requestOptions.value = {
+      ...requestOptions.value,
+      ...(options || {}),
+    }
+    onlyHardPassed.value = !requestOptions.value.includeHardConstraintFailures
+    const res = await matchJobs(user, {
+      ...requestOptions.value,
+      useLlm: llm,
+    })
     results.value = res.data.results || []
     totalCandidates.value = res.data.total_candidates || 0
     hardFiltered.value = res.data.hard_filtered_out || 0

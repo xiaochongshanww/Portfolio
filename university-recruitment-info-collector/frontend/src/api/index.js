@@ -17,13 +17,20 @@ export function listJobs(includeExpired = false, limit = 100, offset = 0, includ
   return api.get('/jobs', { params })
 }
 
-export function matchJobs(user, limit = 10, useLlm = false) {
+export function matchJobs(user, options = {}) {
+  const {
+    resultLimit = 10,
+    useLlm = false,
+    candidateLimit = 50,
+    includeHardConstraintFailures = false,
+  } = options
+
   return api.post('/match', {
     user,
-    limit,
+    limit: resultLimit,
     use_llm: useLlm,
-    result_limit: limit,
-    candidate_limit: 50,
-    include_hard_constraint_failures: false,
+    result_limit: resultLimit,
+    candidate_limit: candidateLimit,
+    include_hard_constraint_failures: includeHardConstraintFailures,
   })
 }

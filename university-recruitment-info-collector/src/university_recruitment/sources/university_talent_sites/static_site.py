@@ -15,6 +15,7 @@ from university_recruitment.sources.field_extractor import (
     extract_job_type,
     extract_date_from_url,
 )
+from university_recruitment.sources.attachment_parser import prepare_llm_input_text
 from university_recruitment.sources.title_cleaner import clean_position_title
 from university_recruitment.llm.extractor import get_llm_extractor
 from university_recruitment.url_utils import (
@@ -56,21 +57,24 @@ class StaticTalentSiteAdapter(SourceAdapter):
         self.verify_ssl = verify_ssl
         self.detail_limit = detail_limit  # 0 = unlimited
         self.use_llm = use_llm
+        self._init_profile_stats()
+        self._set_profile("detail_limit", detail_limit)
 
     def collect(self) -> list[RecruitmentJob]:
-        response = httpx.get(
-            self.list_url,
-            follow_redirects=True,
-            timeout=self.timeout,
-            verify=self.verify_ssl,
-            headers={
-                "User-Agent": (
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/126.0 Safari/537.36"
-                )
-            },
-        )
+        with self._timed_profile_block("list_requests", "list_seconds"):
+            response = httpx.get(
+                self.list_url,
+                follow_redirects=True,
+                timeout=self.timeout,
+                verify=self.verify_ssl,
+                headers={
+                    "User-Agent": (
+                        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/126.0 Safari/537.36"
+                    )
+                },
+            )
         response.raise_for_status()
         response.encoding = response.encoding or response.apparent_encoding
         soup = BeautifulSoup(response.text, "html.parser")
@@ -91,9 +95,11 @@ class StaticTalentSiteAdapter(SourceAdapter):
             if source_url.lower().endswith(".pdf"):
                 continue
             candidates.append((index, raw_title, source_url))
+        self._set_profile("candidates_seen", len(candidates))
 
         # Determine detail fetch limit (0 = unlimited)
         detail_limit = self.detail_limit if self.detail_limit > 0 else len(candidates)
+        self._set_profile("detail_limit", detail_limit)
 
         # Initialize LLM extractor if enabled
         llm = get_llm_extractor() if self.use_llm else None
@@ -102,9 +108,13 @@ class StaticTalentSiteAdapter(SourceAdapter):
             should_fetch_detail = len(jobs) < detail_limit
             detail = self._fetch_detail(source_url) if should_fetch_detail else None
             description = detail.text if detail and detail.text else raw_title
+            analysis_text, used_attachment_text, _ = prepare_llm_input_text(
+                body_text=description,
+                notice_url=str(source_url),
+            )
 
             # LLM or regex extraction
-            has_real_content = detail and detail.text and len(detail.text) > 60
+            has_real_content = len(analysis_text) > 60
             canonical_url = normalize_url(source_url)
             now = datetime.now(timezone.utc)
 
@@ -119,7 +129,7 @@ class StaticTalentSiteAdapter(SourceAdapter):
                     "tables": detail.tables if detail else None,
                 }
                 try:
-                    analysis = llm.analyze_document(description, metadata)
+                    analysis = llm.analyze_document(analysis_text, metadata)
                 except Exception:
                     analysis = {"document_type": "unknown", "positions": [],
                                 "warnings": [], "review_accepted": True}
@@ -183,7 +193,7 @@ class StaticTalentSiteAdapter(SourceAdapter):
                                 job_type=job_type, deadline=deadline, published_at=published_at,
                                 source_type=SourceType.UNIVERSITY_TALENT_SITE,
                                 source_name=self.source_name, source_url=canonical_url,
-                                description=description,
+                                description=analysis_text,
                             ),
                             doc_type=doc_type,
                         )
@@ -206,11 +216,11 @@ class StaticTalentSiteAdapter(SourceAdapter):
                             source_url=canonical_url,
                             published_at=published_at,
                             collected_at=now,
-                            description=description,
+                            description=analysis_text,
                             status=job_status,
-                            content_hash=content_hash(description),
+                            content_hash=content_hash(analysis_text),
                             document_type=doc_type,
-                            extraction_method="llm_analyze_document",
+                            extraction_method=("llm_analyze_document_attachment" if used_attachment_text else "llm_analyze_document"),
                             extraction_confidence=analysis.get("confidence"),
                             quality_score=qscore,
                             quality_status=qstatus,
@@ -229,7 +239,7 @@ class StaticTalentSiteAdapter(SourceAdapter):
                         legacy.get("job_type"), legacy.get("location") or self.location,
                         _parse_llm_date(legacy.get("deadline")) or (detail.deadline if detail else None) or extract_date_from_url(source_url),
                         _parse_llm_date(legacy.get("published_at")) or (detail.published_at if detail else None) or extract_date_from_url(source_url),
-                        description, canonical_url, "llm_legacy", now,
+                        analysis_text, canonical_url, ("llm_legacy_attachment" if used_attachment_text else "llm_legacy"), now,
                     ))
             else:
                 # ── REGEX-ONLY (fast path) ──
@@ -316,20 +326,25 @@ class StaticTalentSiteAdapter(SourceAdapter):
         last_error = None
         for attempt, ua in enumerate(user_agents):
             try:
-                response = httpx.get(
-                    source_url,
-                    follow_redirects=True,
-                    timeout=self.timeout + attempt * 10,
-                    verify=self.verify_ssl,
-                    headers={"User-Agent": ua},
-                )
+                with self._timed_profile_block("detail_requests", "detail_seconds"):
+                    response = httpx.get(
+                        source_url,
+                        follow_redirects=True,
+                        timeout=self.timeout + attempt * 10,
+                        verify=self.verify_ssl,
+                        headers={"User-Agent": ua},
+                    )
                 response.raise_for_status()
                 response.encoding = response.encoding or response.apparent_encoding
+                self._record_profile("detail_success", 1)
                 return parse_detail_html(response.text)
             except Exception as exc:
                 last_error = exc
+                self._record_profile("detail_failures", 1)
                 continue
         # All retries failed — log once at debug level
+        if last_error is not None:
+            self._append_profile_note(f"detail_failed:{type(last_error).__name__}")
         return None
 
     @staticmethod

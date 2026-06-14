@@ -58,7 +58,7 @@ LLM_API_KEY: str | None = (
     or os.environ.get("DEEPSEEK_API_KEY")
     or os.environ.get("ANTHROPIC_API_KEY")
 )
-LLM_MODEL: str = os.environ.get("LLM_MODEL", "deepseek-chat")
+LLM_MODEL: str = os.environ.get("LLM_MODEL", "deepseek-v4-flash")
 LLM_BASE_URL: str = os.environ.get("LLM_BASE_URL", "https://api.deepseek.com")
 LLM_DAILY_LIMIT: int = _env_int("LLM_DAILY_LIMIT", 200)
 LLM_MAX_JOBS: int = _env_int("LLM_MAX_JOBS", 5)

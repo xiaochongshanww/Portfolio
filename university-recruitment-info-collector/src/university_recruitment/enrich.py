@@ -9,15 +9,17 @@ Usage:
 
 import argparse
 import json as json_mod
-from datetime import date
+from datetime import date, datetime, timezone
 
 from university_recruitment.llm.extractor import get_llm_extractor
-from university_recruitment.models import SKIP_DOC_TYPES, QualityStatus
+from university_recruitment.models import JobStatus, RecruitmentJob, SKIP_DOC_TYPES, SourceType, QualityStatus
 from university_recruitment.quality.validators import (
     build_extraction_warnings_json, calculate_job_quality,
 )
+from university_recruitment.sources.attachment_parser import prepare_llm_input_text
 from university_recruitment.storage import JobStore
-from university_recruitment.url_utils import build_position_job_id
+from university_recruitment.url_utils import build_position_job_id, content_hash
+from university_recruitment.sources.title_cleaner import clean_position_title
 
 
 def enrich_jobs(
@@ -26,7 +28,12 @@ def enrich_jobs(
     dry_run: bool = False,
 ) -> int:
     store = JobStore()
-    jobs, _ = store.list_jobs(include_expired=True, include_removed=True, limit=5000)
+    jobs, _ = store.list_jobs(
+        include_expired=True,
+        include_removed=True,
+        limit=5000,
+        quality_filter=False,
+    )
 
     if source_filter:
         jobs = [j for j in jobs if source_filter in j.school or source_filter in j.source_name]
@@ -47,7 +54,11 @@ def enrich_jobs(
 
     enriched = 0
     for job in jobs:
-        if len(job.description) < 60:
+        analysis_text, used_attachment_text, _ = prepare_llm_input_text(
+            body_text=job.description,
+            notice_url=str(job.source_url),
+        )
+        if len(analysis_text) < 60:
             continue
 
         print(f"  [{job.school}] {job.position[:50]}...", end=" ", flush=True)
@@ -58,7 +69,7 @@ def enrich_jobs(
                 "school": job.school,
                 "published_at_hint": str(job.published_at) if job.published_at else "",
             }
-            analysis = llm.analyze_document(job.description, metadata)
+            analysis = llm.analyze_document(analysis_text, metadata)
         except Exception as exc:
             print(f"LLM error: {exc}")
             continue
@@ -75,6 +86,7 @@ def enrich_jobs(
             continue
 
         changed = False
+        new_split_jobs: list[RecruitmentJob] = []
 
         # Use first position for backward-compatible single-job enrichment
         for pi, extracted in enumerate(llm_positions):
@@ -93,8 +105,16 @@ def enrich_jobs(
             loc = extracted.get("location") or job.location
             np = extracted.get("position_normalized")
             deadline_str = extracted.get("deadline")
+            deadline_val = None
+            if deadline_str:
+                try:
+                    deadline_val = date.fromisoformat(deadline_str)
+                except (ValueError, TypeError):
+                    pass
 
-            # For the first/enriched position, update the current job
+            evidence = extracted.get("evidence", {})
+            evidence_json = json_mod.dumps(evidence, ensure_ascii=False) if evidence else None
+
             if pi == 0:
                 # Only fill missing fields (don't overwrite existing good data)
                 if not job.department and dept:
@@ -116,31 +136,79 @@ def enrich_jobs(
                 if np and len(np) > 3 and np != job.position:
                     job.normalized_position = np
                     changed = True
-                if deadline_str and not job.deadline:
-                    try:
-                        job.deadline = date.fromisoformat(deadline_str)
-                        changed = True
-                    except (ValueError, TypeError):
-                        pass
+                if deadline_val and not job.deadline:
+                    job.deadline = deadline_val
+                    changed = True
+                if evidence_json:
+                    job.evidence_json = evidence_json
+                    changed = True
+                if used_attachment_text and analysis_text != job.description:
+                    job.description = analysis_text
+                    changed = True
 
-                # Quality score
-                if changed and not dry_run:
-                    qscore, qstatus, qwarnings = calculate_job_quality(job, doc_type=doc_type)
-                    job.quality_score = qscore
-                    job.quality_status = qstatus
-                    job.extraction_warnings = build_extraction_warnings_json(qwarnings)
-                    job.document_type = doc_type
-                    job.extraction_method = "llm_enrich"
-                    job.extraction_confidence = analysis.get("confidence")
+                # Always update quality fields when we have LLM analysis
+                qscore, qstatus, qwarnings = calculate_job_quality(job, doc_type=doc_type)
+                job.quality_score = qscore
+                job.quality_status = qstatus
+                job.extraction_warnings = build_extraction_warnings_json(qwarnings)
+                job.document_type = doc_type
+                job.extraction_method = "llm_enrich"
+                job.extraction_confidence = analysis.get("confidence")
+                changed = True  # quality fields always written when LLM runs
 
-            # For additional positions (multi-position notice), create new jobs
-            # This is handled by reprocess command for now
+            else:
+                # Additional positions from a multi-position notice → create new job records
+                position_raw = extracted.get("position_raw", job.position)
+                position = clean_position_title(position_raw, job.school)
+                job_status = JobStatus.ACTIVE
+                if deadline_val and deadline_val < date.today():
+                    job_status = JobStatus.EXPIRED
+
+                new_job = RecruitmentJob(
+                    id=pos_id,
+                    school=job.school,
+                    position=position,
+                    normalized_position=np,
+                    department=dept,
+                    discipline=disc,
+                    location=loc,
+                    longitude=job.longitude,
+                    latitude=job.latitude,
+                    education_requirement=edu,
+                    job_type=jt,
+                    deadline=deadline_val,
+                    source_type=job.source_type,
+                    source_name=job.source_name,
+                    source_url=job.source_url,
+                    published_at=job.published_at,
+                    collected_at=datetime.now(timezone.utc),
+                    description=analysis_text,
+                    status=job_status,
+                    content_hash=content_hash(analysis_text),
+                    document_type=doc_type,
+                    extraction_method="llm_enrich_split",
+                    extraction_confidence=analysis.get("confidence"),
+                    notice_title=job.notice_title,
+                    notice_url=job.notice_url,
+                    evidence_json=evidence_json,
+                )
+                qscore, qstatus, qwarnings = calculate_job_quality(new_job, doc_type=doc_type)
+                new_job.quality_score = qscore
+                new_job.quality_status = qstatus
+                new_job.extraction_warnings = build_extraction_warnings_json(qwarnings)
+                new_split_jobs.append(new_job)
 
         if changed:
             enriched += 1
             if not dry_run:
                 store.update_enriched_fields(job)
-            print(f"✅ enriched")
+            split_count = len(new_split_jobs)
+            if split_count:
+                if not dry_run:
+                    store.upsert_jobs(new_split_jobs)
+                print(f"✅ enriched +{split_count} split")
+            else:
+                print(f"✅ enriched")
         else:
             print("— skipped")
 

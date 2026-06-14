@@ -15,6 +15,7 @@ from university_recruitment.sources.field_extractor import (
     extract_job_type,
     extract_date_from_url,
 )
+from university_recruitment.sources.attachment_parser import prepare_llm_input_text
 from university_recruitment.sources.title_cleaner import clean_position_title
 from university_recruitment.llm.extractor import get_llm_extractor
 from university_recruitment.url_utils import (
@@ -85,6 +86,8 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
         self.use_browser = use_browser
         self.detail_limit = detail_limit  # 0 = unlimited
         self.use_llm = use_llm
+        self._init_profile_stats()
+        self._set_profile("detail_limit", detail_limit)
 
     def collect(self) -> list[RecruitmentJob]:
         if self.use_browser:
@@ -92,22 +95,23 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
         return self._collect_with_http()
 
     def _collect_with_http(self) -> list[RecruitmentJob]:
-        response = httpx.get(
-            self.list_url,
-            follow_redirects=True,
-            timeout=self.timeout,
-            verify=self.verify_ssl,
-            headers={
-                "User-Agent": (
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/126.0 Safari/537.36"
-                ),
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-                "Referer": "https://www.gaoxiaojob.com/",
-            },
-        )
+        with self._timed_profile_block("list_requests", "list_seconds"):
+            response = httpx.get(
+                self.list_url,
+                follow_redirects=True,
+                timeout=self.timeout,
+                verify=self.verify_ssl,
+                headers={
+                    "User-Agent": (
+                        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/126.0 Safari/537.36"
+                    ),
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+                    "Referer": "https://www.gaoxiaojob.com/",
+                },
+            )
         if response.status_code == 403:
             raise RuntimeError(
                 "高校人才网当前拒绝普通 HTTP 采集，需要后续接入浏览器采集或站点 API 适配"
@@ -136,9 +140,10 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
                 ),
                 locale="zh-CN",
             )
-            page.goto(self.list_url, wait_until="networkidle", timeout=int(self.timeout * 1000))
-            html = page.content()
-            current_url = page.url
+            with self._timed_profile_block("list_requests", "list_seconds"):
+                page.goto(self.list_url, wait_until="networkidle", timeout=int(self.timeout * 1000))
+                html = page.content()
+                current_url = page.url
             if self._is_detail_link(str(httpx.URL(current_url).path)):
                 soup = BeautifulSoup(html, "html.parser")
                 jobs = [self._build_detail_job(soup, current_url, 1)]
@@ -160,12 +165,17 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
                 detail_urls.append(str(httpx.URL(self.list_url).join(href)))
 
         limit = self.detail_limit if self.detail_limit > 0 else len(detail_urls)
+        self._set_profile("candidates_seen", len(detail_urls))
+        self._set_profile("detail_limit", limit)
         details: dict[str, ParsedDetail] = {}
         for detail_url in list(dict.fromkeys(detail_urls))[:limit]:
             try:
-                page.goto(detail_url, wait_until="networkidle", timeout=int(self.timeout * 1000))
-                details[detail_url] = parse_detail_html(page.content())
+                with self._timed_profile_block("detail_requests", "detail_seconds"):
+                    page.goto(detail_url, wait_until="networkidle", timeout=int(self.timeout * 1000))
+                    details[detail_url] = parse_detail_html(page.content())
+                self._record_profile("detail_success", 1)
             except Exception:
+                self._record_profile("detail_failures", 1)
                 continue
         return details
 
@@ -192,9 +202,13 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
             detail = details.get(source_url)
             school = self._configured_school() or self._infer_school(raw_title, link)
             description = detail.text if detail and detail.text else raw_title
+            analysis_text, used_attachment_text, _ = prepare_llm_input_text(
+                body_text=description,
+                notice_url=str(source_url),
+            )
 
             normalized_position = None
-            has_real_content = detail and detail.text and len(detail.text) > 60
+            has_real_content = len(analysis_text) > 60
             canonical_url = normalize_url(source_url)
             now = datetime.now(timezone.utc)
 
@@ -209,7 +223,7 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
                     "tables": detail.tables if detail else None,
                 }
                 try:
-                    analysis = llm.analyze_document(description, metadata)
+                    analysis = llm.analyze_document(analysis_text, metadata)
                 except Exception:
                     analysis = {"document_type": "unknown", "positions": [], "warnings": [], "review_accepted": True}
 
@@ -240,18 +254,18 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
                         ev_json = json.dumps(evidence, ensure_ascii=False) if evidence else None
 
                         jobs.append(self._build_extracted_job(pos_id, school, position, extracted.get("position_normalized"),
-                            dept, disc, edu, jt, loc, dl, pa, description, canonical_url, "llm_analyze_document",
+                            dept, disc, edu, jt, loc, dl, pa, analysis_text, canonical_url, ("llm_analyze_document_attachment" if used_attachment_text else "llm_analyze_document"),
                             doc_type, analysis.get("confidence"), now))
                 else:
                     # Fallback to legacy extract
-                    legacy = llm.extract(description) if hasattr(llm, "extract") else {}
+                    legacy = llm.extract(analysis_text) if hasattr(llm, "extract") else {}
                     position = clean_position_title(raw_title, school)
                     jobs.append(self._build_extracted_job(generate_job_id(canonical_url), school, position,
                         legacy.get("clean_position"), legacy.get("department"), legacy.get("discipline"),
                         legacy.get("education_requirement"), legacy.get("job_type"), legacy.get("location") or self.location,
                         _parse_llm_date(legacy.get("deadline")) or (detail.deadline if detail else None) or extract_date_from_url(source_url) if not detail or not detail.published_at else detail.published_at,
                         _parse_llm_date(legacy.get("published_at")) or (detail.published_at if detail else None) or extract_date_from_url(source_url),
-                        description, canonical_url, "llm_legacy", None, None, now))
+                        analysis_text, canonical_url, ("llm_legacy_attachment" if used_attachment_text else "llm_legacy"), None, None, now))
             else:
                 # ── REGEX-ONLY EXTRACTION ──
                 normalized_position = None

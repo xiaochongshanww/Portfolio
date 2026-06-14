@@ -3,10 +3,16 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .ruff_cache/
+.coverage*
+.DS_Store
+.claude/
 build/
 *.egg-info/
 data/*.db
 data/*.sqlite
+data/*.sqlite-shm
+data/*.sqlite-wal
+data/*.log
 data/raw/*
 data/processed/*
 data/exports/*
@@ -16,6 +22,8 @@ data/exports/*
 
 frontend/node_modules/
 frontend/dist/
+frontend/data/*.sqlite
+frontend/data/exports/*
 node_modules/
 
 # Environment

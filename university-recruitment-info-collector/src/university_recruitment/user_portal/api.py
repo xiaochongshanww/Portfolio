@@ -1,4 +1,5 @@
 import logging
+import threading
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -27,6 +28,7 @@ logger = logging.getLogger(__name__)
 _rate_limit_store: dict[str, list[float]] = {}
 _llm_counter: dict[str, int] = {}
 _llm_day: str = ""
+_rate_limit_lock = threading.Lock()
 
 
 def _clean_rate_store() -> None:
@@ -44,13 +46,14 @@ def _check_rate_limit(key: str) -> bool:
         return True
     now = time.time()
     window = RATE_LIMIT_WINDOW_SECONDS
-    if key not in _rate_limit_store:
-        _rate_limit_store[key] = []
-    _rate_limit_store[key] = [t for t in _rate_limit_store[key] if t > now - window]
-    if len(_rate_limit_store[key]) >= RATE_LIMIT_REQUESTS:
-        return False
-    _rate_limit_store[key].append(now)
-    return True
+    with _rate_limit_lock:
+        if key not in _rate_limit_store:
+            _rate_limit_store[key] = []
+        _rate_limit_store[key] = [t for t in _rate_limit_store[key] if t > now - window]
+        if len(_rate_limit_store[key]) >= RATE_LIMIT_REQUESTS:
+            return False
+        _rate_limit_store[key].append(now)
+        return True
 
 
 def _check_llm_limit() -> bool:
@@ -58,14 +61,15 @@ def _check_llm_limit() -> bool:
     global _llm_day, _llm_counter
     from datetime import date
     today = date.today().isoformat()
-    if _llm_day != today:
-        _llm_day = today
-        _llm_counter = {}
-    count = _llm_counter.get("calls", 0)
-    if count >= LLM_DAILY_LIMIT:
-        return False
-    _llm_counter["calls"] = count + 1
-    return True
+    with _rate_limit_lock:
+        if _llm_day != today:
+            _llm_day = today
+            _llm_counter = {}
+        count = _llm_counter.get("calls", 0)
+        if count >= LLM_DAILY_LIMIT:
+            return False
+        _llm_counter["calls"] = count + 1
+        return True
 
 
 # ── Auth ──────────────────────────────────────────────

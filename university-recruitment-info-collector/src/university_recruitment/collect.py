@@ -7,10 +7,11 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
+from time import perf_counter
 
 from university_recruitment.config import (
     BROWSER_CONCURRENCY, COLLECT_MAX_RETRIES, COLLECT_TIMEOUT_SECONDS,
-    DETAIL_CONCURRENCY, HTTP_CONCURRENCY,
+    DETAIL_CONCURRENCY, HTTP_CONCURRENCY, LOG_LEVEL,
 )
 from university_recruitment.models import RunStatus
 from university_recruitment.source_config import DEFAULT_SOURCES_PATH, load_sources
@@ -18,6 +19,49 @@ from university_recruitment.sources.factory import build_source_adapter
 from university_recruitment.storage import JobStore
 
 logger = logging.getLogger(__name__)
+
+
+def _setup_logging() -> None:
+    level_name = str(LOG_LEVEL or "INFO").upper()
+    level = getattr(logging, level_name, logging.INFO)
+    root = logging.getLogger()
+    if root.handlers:
+        root.setLevel(level)
+        for handler in root.handlers:
+            handler.setLevel(level)
+        return
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
+
+
+def _format_profile_summary(result: dict) -> str:
+    profile = result.get("profile_stats")
+    if not isinstance(profile, dict):
+        profile = {}
+    notes = profile.get("notes") or []
+    parts = [
+        f"elapsed={result.get('elapsed_seconds', 0.0):.2f}s",
+        f"collect={result.get('collect_seconds', 0.0):.2f}s",
+        f"upsert={result.get('upsert_seconds', 0.0):.2f}s",
+        f"mark_removed={result.get('mark_removed_seconds', 0.0):.2f}s",
+        f"attempts={result.get('attempt_count', 0)}",
+        f"parser={result.get('parser', '-')}",
+        f"candidates={profile.get('candidates_seen', 0)}",
+        f"list={profile.get('list_requests', 0)}req/{profile.get('list_seconds', 0.0):.2f}s",
+        f"detail={profile.get('detail_requests', 0)}req/{profile.get('detail_seconds', 0.0):.2f}s",
+        f"detail_ok={profile.get('detail_success', 0)}",
+        f"detail_fail={profile.get('detail_failures', 0)}",
+        f"limit={profile.get('detail_limit')}",
+        f"jobs={result.get('collected', 0)}",
+        f"inserted={result.get('inserted', 0)}",
+        f"updated={result.get('updated', 0)}",
+        f"unchanged={result.get('unchanged', 0)}",
+    ]
+    if notes:
+        parts.append(f"notes={','.join(str(n) for n in notes[:3])}")
+    return " ".join(parts)
 
 
 def _collect_source(
@@ -32,6 +76,7 @@ def _collect_source(
     result = {
         "source_name": source_name,
         "started_at": started,
+        "parser": source_config.parser,
         "status": "failed",
         "collected": 0,
         "inserted": 0,
@@ -40,17 +85,32 @@ def _collect_source(
         "removed": 0,
         "error": None,
         "active_ids": set(),
+        "attempt_count": 0,
+        "collect_seconds": 0.0,
+        "upsert_seconds": 0.0,
+        "mark_removed_seconds": 0.0,
+        "elapsed_seconds": 0.0,
+        "profile_stats": {},
     }
 
     logger.info("[%s] Collecting %s", run_id[:8], source_name)
     jobs = []
+    overall_started_at = perf_counter()
     try:
         for attempt in range(COLLECT_MAX_RETRIES + 1):
             try:
                 adapter = build_source_adapter(source_config, use_llm=use_llm)
+                result["attempt_count"] = attempt + 1
+                collect_started_at = perf_counter()
                 jobs = adapter.collect()
+                result["collect_seconds"] = perf_counter() - collect_started_at
                 result["collected"] = len(jobs)
                 result["active_ids"] = {j.id for j in jobs}
+                get_profile_stats = getattr(adapter, "get_profile_stats", None)
+                if callable(get_profile_stats):
+                    profile_stats = get_profile_stats()
+                    if isinstance(profile_stats, dict):
+                        result["profile_stats"] = profile_stats
                 break
             except Exception as exc:
                 logger.warning(
@@ -63,12 +123,16 @@ def _collect_source(
                 else:
                     result["error"] = f"{type(exc).__name__}: {exc!s}"[:500]
                     result["finished_at"] = datetime.now(timezone.utc)
+                    result["elapsed_seconds"] = perf_counter() - overall_started_at
+                    logger.warning("[%s] Source profile %s -> %s", run_id[:8], source_name, _format_profile_summary(result))
                     return result
     except Exception as exc:
         # Outer safety net — catch anything that escapes
         result["error"] = f"{type(exc).__name__}: {exc!s}"[:500]
         result["finished_at"] = datetime.now(timezone.utc)
+        result["elapsed_seconds"] = perf_counter() - overall_started_at
         logger.error("[%s] Unexpected error for %s: %s", run_id[:8], source_name, exc)
+        logger.warning("[%s] Source profile %s -> %s", run_id[:8], source_name, _format_profile_summary(result))
         return result
 
     # Empty collection protection — fail closed
@@ -83,6 +147,8 @@ def _collect_source(
                 )
                 result["finished_at"] = datetime.now(timezone.utc)
                 logger.warning("[%s] %s: %s", run_id[:8], source_name, result["error"])
+                result["elapsed_seconds"] = perf_counter() - overall_started_at
+                logger.warning("[%s] Source profile %s -> %s", run_id[:8], source_name, _format_profile_summary(result))
                 return result
         except Exception as exc:
             result["error"] = (
@@ -94,41 +160,53 @@ def _collect_source(
                 "[%s] empty-result safety check failed for %s: %s",
                 run_id[:8], source_name, exc,
             )
+            result["elapsed_seconds"] = perf_counter() - overall_started_at
+            logger.warning("[%s] Source profile %s -> %s", run_id[:8], source_name, _format_profile_summary(result))
             return result
 
     # Database upsert — wrapped to prevent exceptions from escaping
     if not dry_run and jobs:
         try:
             store = JobStore()
+            upsert_started_at = perf_counter()
             counts = store.upsert_jobs(jobs)
+            result["upsert_seconds"] = perf_counter() - upsert_started_at
             result["inserted"] = counts.get("inserted", 0)
             result["updated"] = counts.get("updated", 0)
             result["unchanged"] = counts.get("unchanged", 0)
         except Exception as exc:
             result["error"] = f"db upsert: {type(exc).__name__}: {exc!s}"[:500]
             result["finished_at"] = datetime.now(timezone.utc)
+            result["elapsed_seconds"] = perf_counter() - overall_started_at
             logger.error("[%s] upsert failed for %s: %s", run_id[:8], source_name, exc)
+            logger.warning("[%s] Source profile %s -> %s", run_id[:8], source_name, _format_profile_summary(result))
             return result
 
     # Mark removed: only if collection succeeded (no error)
     if not dry_run and result["error"] is None:
         try:
             store = JobStore()
+            mark_removed_started_at = perf_counter()
             removed = store.mark_removed(run_id, source_name, result["active_ids"])
+            result["mark_removed_seconds"] = perf_counter() - mark_removed_started_at
             result["removed"] = removed
         except Exception as exc:
             result["error"] = (
                 f"mark_removed: {type(exc).__name__}: {exc!s}"
             )[:500]
             result["finished_at"] = datetime.now(timezone.utc)
+            result["elapsed_seconds"] = perf_counter() - overall_started_at
             logger.error(
                 "[%s] mark_removed failed for %s: %s",
                 run_id[:8], source_name, exc,
             )
+            logger.warning("[%s] Source profile %s -> %s", run_id[:8], source_name, _format_profile_summary(result))
             return result
 
     result["status"] = "ok" if result["error"] is None else "failed"
     result["finished_at"] = datetime.now(timezone.utc)
+    result["elapsed_seconds"] = perf_counter() - overall_started_at
+    logger.info("[%s] Source profile %s -> %s", run_id[:8], source_name, _format_profile_summary(result))
     return result
 
 
@@ -150,6 +228,7 @@ def collect_sources(
         ]
 
     run_id = f"run-{uuid.uuid4().hex[:16]}"
+    run_started_at = perf_counter()
     store = JobStore()
     if not dry_run:
         store.init_db()
@@ -279,6 +358,21 @@ def collect_sources(
             error_summary=error_summary,
         )
 
+    logger.info(
+        "[%s] Collection run summary: elapsed=%.2fs successful=%d failed=%d collected=%d inserted=%d updated=%d unchanged=%d removed=%d http_sources=%d browser_sources=%d",
+        run_id[:8],
+        perf_counter() - run_started_at,
+        successful,
+        failed,
+        total_collected,
+        total_inserted,
+        total_updated,
+        total_unchanged,
+        total_removed,
+        len(http_sources),
+        len(browser_sources),
+    )
+
     print(f"Finished. run_id={run_id} total_collected={total_collected} "
           f"inserted={total_inserted} updated={total_updated} "
           f"unchanged={total_unchanged} removed={total_removed} "
@@ -290,6 +384,7 @@ def collect_sources(
 
 
 def main() -> None:
+    _setup_logging()
     parser = argparse.ArgumentParser(description="Collect university recruitment jobs.")
     parser.add_argument("--config", type=Path, default=DEFAULT_SOURCES_PATH)
     parser.add_argument("--source", help="Filter by school or source name substring.")
