@@ -257,7 +257,7 @@ def calculate_job_quality(job: RecruitmentJob, doc_type: str | None = None) -> t
     if is_specific:
         score += 20
     else:
-        score -= 30
+        score -= 15
         warnings.append(f"position looks like notice title: {reason}")
 
     # Normalized position
@@ -332,9 +332,9 @@ def calculate_job_quality(job: RecruitmentJob, doc_type: str | None = None) -> t
     # Final score
     final = max(0, min(score, 100))
 
-    if final >= 75:
+    if final >= 60:
         status = QualityStatus.NORMAL.value
-    elif final >= 45:
+    elif final >= 30:
         status = QualityStatus.NEEDS_REVIEW.value
     else:
         status = QualityStatus.HIDDEN.value

@@ -375,7 +375,8 @@ class JobStore:
         with self.connect() as conn:
             existing = conn.execute(
                 """SELECT id, normalized_position, department, discipline,
-                          education_requirement, job_type, location, deadline
+                          education_requirement, job_type, location, deadline,
+                          evidence_json
                    FROM recruitment_jobs WHERE id = ?""",
                 (job.id,),
             ).fetchone()
@@ -384,7 +385,8 @@ class JobStore:
 
             changed = False
             for field in ("normalized_position", "department", "discipline",
-                          "education_requirement", "job_type", "location"):
+                          "education_requirement", "job_type", "location",
+                          "evidence_json"):
                 old_val = existing[field]
                 new_val = getattr(job, field, None)
                 if old_val != new_val and new_val is not None:
