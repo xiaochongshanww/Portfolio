@@ -30,10 +30,16 @@
     <section class="glass-panel p-4 sm:p-5">
       <div class="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto_auto_auto_auto] xl:items-center">
         <el-input v-model="search" placeholder="搜索学校、岗位、学院或地点" clearable class="xl:min-w-[20rem]" />
+        <el-select v-model="filterSchool" clearable placeholder="所有学校" class="xl:w-44" @change="fetchJobs(0)">
+          <el-option v-for="s in schoolOptions" :key="s" :label="s" :value="s" />
+        </el-select>
+        <el-select v-model="filterLocation" clearable placeholder="所有地点" class="xl:w-44" @change="fetchJobs(0)">
+          <el-option v-for="l in locationOptions" :key="l" :label="l" :value="l" />
+        </el-select>
         <el-checkbox v-model="showExpired" @change="fetchJobs(0)">包含已过期</el-checkbox>
         <el-checkbox v-model="showLowQuality" @change="fetchJobs(0)">包含低质量数据</el-checkbox>
         <div class="rounded-full bg-slate-100 px-4 py-2 text-sm text-slate-500">
-          当前展示 {{ filteredJobs.length }} / {{ jobs.length }}
+          当前展示 {{ filteredJobs.length }} / {{ allJobsCount }}
         </div>
         <div class="flex items-center gap-3 xl:justify-end">
           <span class="text-xs text-slate-400">更新于 {{ lastUpdated || '—' }}</span>
@@ -119,6 +125,7 @@ import { listJobs } from '../api/index.js'
 const DEFAULT_PAGINATION = { total: 0, limit: 100, offset: 0, has_more: false }
 
 const jobs = ref([])
+const allJobs = ref([])
 const search = ref('')
 const showExpired = ref(false)
 const showLowQuality = ref(false)
@@ -126,6 +133,10 @@ const loading = ref(false)
 const lastUpdated = ref('')
 const pagination = ref({ ...DEFAULT_PAGINATION })
 const currentPage = ref(1)
+const filterSchool = ref('')
+const filterLocation = ref('')
+const schoolOptions = ref([])
+const locationOptions = ref([])
 
 function parseJobListResponse(data) {
   return {
@@ -133,6 +144,8 @@ function parseJobListResponse(data) {
     pagination: data?.pagination || { ...DEFAULT_PAGINATION },
   }
 }
+
+const allJobsCount = computed(() => allJobs.value.length)
 
 const filteredJobs = computed(() => {
   const arr = Array.isArray(jobs.value) ? jobs.value : []
@@ -181,12 +194,24 @@ async function fetchJobs(page = 0) {
   loading.value = true
   const offset = page * pagination.value.limit
   try {
-    const res = await listJobs(showExpired.value, pagination.value.limit, offset, showLowQuality.value)
+    const filters = {}
+    if (filterSchool.value) filters.school = filterSchool.value
+    if (filterLocation.value) filters.location = filterLocation.value
+    const res = await listJobs(showExpired.value, pagination.value.limit, offset, showLowQuality.value, filters)
     const parsed = parseJobListResponse(res.data)
     jobs.value = parsed.jobs
     pagination.value = parsed.pagination
     currentPage.value = Math.floor(offset / Math.max(1, pagination.value.limit)) + 1
     lastUpdated.value = new Date().toLocaleTimeString('zh-CN')
+
+    // Build filter options from full dataset
+    if (page === 0 && !filterSchool.value && !filterLocation.value) {
+      const fullRes = await listJobs(showExpired.value, 1000, 0, showLowQuality.value)
+      const fullParsed = parseJobListResponse(fullRes.data)
+      allJobs.value = fullParsed.jobs
+      schoolOptions.value = [...new Set(fullParsed.jobs.map(j => j.school).filter(Boolean))].sort()
+      locationOptions.value = [...new Set(fullParsed.jobs.map(j => j.location).filter(Boolean))].sort()
+    }
   } catch (e) {
     ElMessage.error('加载岗位列表失败，请稍后重试')
     jobs.value = []

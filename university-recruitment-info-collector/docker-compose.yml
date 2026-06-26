@@ -1,0 +1,25 @@
+services:
+  api:
+    build: .
+    container_name: univ-recruit-api
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    environment:
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8001
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+
+  collect:
+    build: .
+    container_name: univ-recruit-collect
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    profiles:
+      - cron
+    command: ["python3", "-m", "university_recruitment.collect"]

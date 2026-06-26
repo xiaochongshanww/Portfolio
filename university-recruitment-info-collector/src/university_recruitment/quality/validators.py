@@ -257,7 +257,7 @@ def calculate_job_quality(job: RecruitmentJob, doc_type: str | None = None) -> t
     if is_specific:
         score += 20
     else:
-        score -= 15
+        score -= 5  # reduced from -15: many real recruitment postings use notice titles
         warnings.append(f"position looks like notice title: {reason}")
 
     # Normalized position
@@ -272,10 +272,8 @@ def calculate_job_quality(job: RecruitmentJob, doc_type: str | None = None) -> t
             if len(dept_warnings) == 0:
                 score += 5  # bonus for clean dept
         else:
-            score -= 25
+            score -= 10  # reduced from -25
             warnings.extend(dept_warnings)
-    else:
-        score -= 5
 
     # Discipline
     if job.discipline:
@@ -283,10 +281,8 @@ def calculate_job_quality(job: RecruitmentJob, doc_type: str | None = None) -> t
         if disc_val:
             score += 10
         else:
-            score -= 20
+            score -= 10  # reduced from -20
             warnings.extend(disc_warnings)
-    else:
-        score -= 5
 
     # Education
     if job.education_requirement:
@@ -299,7 +295,7 @@ def calculate_job_quality(job: RecruitmentJob, doc_type: str | None = None) -> t
 
     # Job type
     if job.job_type:
-        score += 10
+        score += 8
 
     # Location
     if job.location:
@@ -319,6 +315,10 @@ def calculate_job_quality(job: RecruitmentJob, doc_type: str | None = None) -> t
     if job.published_at:
         score += 3
 
+    # School name is always present
+    if job.school:
+        score += 5
+
     # Evidence
     if job.evidence_json:
         score += 5
@@ -332,9 +332,9 @@ def calculate_job_quality(job: RecruitmentJob, doc_type: str | None = None) -> t
     # Final score
     final = max(0, min(score, 100))
 
-    if final >= 60:
+    if final >= 35:
         status = QualityStatus.NORMAL.value
-    elif final >= 30:
+    elif final >= 5:
         status = QualityStatus.NEEDS_REVIEW.value
     else:
         status = QualityStatus.HIDDEN.value

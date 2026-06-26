@@ -9,11 +9,13 @@ export function health() {
   return api.get('/health')
 }
 
-export function listJobs(includeExpired = false, limit = 100, offset = 0, includeLowQuality = false) {
+export function listJobs(includeExpired = false, limit = 100, offset = 0, includeLowQuality = false, filters = {}) {
   const params = { include_expired: includeExpired, limit, offset }
   if (includeLowQuality) {
     params.include_low_quality = 'true'
   }
+  if (filters.school) params.school = filters.school
+  if (filters.location) params.location = filters.location
   return api.get('/jobs', { params })
 }
 
