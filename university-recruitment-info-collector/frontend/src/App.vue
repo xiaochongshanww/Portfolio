@@ -28,6 +28,9 @@
             <router-link to="/profile" class="nav-pill" :class="{ 'nav-pill-active': route.path === '/profile' || route.path === '/match' }">
               画像与匹配
             </router-link>
+            <router-link to="/favorites" class="nav-pill" :class="{ 'nav-pill-active': route.path === '/favorites' }">
+              我的收藏
+            </router-link>
           </nav>
         </div>
       </div>

@@ -18,9 +18,10 @@ from university_recruitment.config import (
 from university_recruitment.llm import LlmMatcher
 from university_recruitment.matching import RuleMatcher
 from university_recruitment.models import (
-    JobListResponse, JobStatus, MatchRequest, MatchResponse, PaginationMeta,
+    FavoriteJob, JobListResponse, JobStatus, MatchRequest, MatchResponse, PaginationMeta,
+    UserProfile, UserProfileTemplate,
 )
-from university_recruitment.storage import JobStore
+from university_recruitment.storage import JobStore, ProfileStore
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +91,7 @@ def verify_token(request: Request) -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     store.init_db()
+    profile_store.init_db()
     yield
 
 
@@ -115,6 +117,7 @@ app.add_middleware(
 )
 
 store = JobStore()
+profile_store = ProfileStore()
 rule_matcher = RuleMatcher()
 llm_matcher = LlmMatcher()
 
@@ -263,6 +266,73 @@ def source_health(
     _auth: None = Depends(verify_token),
 ) -> list[dict[str, Any]]:
     return store.get_source_health()
+
+
+# ── Profile endpoints ─────────────────────────
+
+@app.get("/profiles", response_model=list[UserProfileTemplate])
+def list_profiles():
+    return profile_store.list_profiles()
+
+
+@app.post("/profiles", response_model=UserProfileTemplate)
+def save_profile(profile: UserProfileTemplate):
+    import uuid as _uuid
+    if not profile.id:
+        profile.id = str(_uuid.uuid4())[:8]
+    from datetime import datetime, timezone
+    profile.updated_at = datetime.now(timezone.utc)
+    return profile_store.save_profile(profile)
+
+
+@app.get("/profiles/{profile_id}", response_model=UserProfileTemplate)
+def get_profile(profile_id: str):
+    p = profile_store.get_profile(profile_id)
+    if not p:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    return p
+
+
+@app.delete("/profiles/{profile_id}")
+def delete_profile(profile_id: str):
+    if not profile_store.delete_profile(profile_id):
+        raise HTTPException(status_code=404, detail="Profile not found")
+    return {"ok": True}
+
+
+# ── Favorite endpoints ────────────────────────
+
+@app.post("/favorites/{job_id}", response_model=FavoriteJob)
+def add_favorite(job_id: str, request: Request):
+    jobs, _ = store.list_jobs(limit=1, include_expired=True, include_removed=True, quality_filter=False)
+    job = next((j for j in jobs if j.id == job_id), None)
+    if not job:
+        # Fetch by id directly
+        conn = profile_store.connect()
+        row = conn.execute("SELECT * FROM recruitment_jobs WHERE id = ?", (job_id,)).fetchone()
+        conn.close()
+        if not row:
+            raise HTTPException(status_code=404, detail="Job not found")
+        from university_recruitment.storage import ensure_utc
+        job = store._row_to_job(row)
+    return profile_store.add_favorite(job)
+
+
+@app.delete("/favorites/{job_id}")
+def remove_favorite(job_id: str):
+    if not profile_store.remove_favorite(job_id):
+        raise HTTPException(status_code=404, detail="Favorite not found")
+    return {"ok": True}
+
+
+@app.get("/favorites", response_model=list[FavoriteJob])
+def list_favorites():
+    return profile_store.list_favorites()
+
+
+@app.get("/favorites/{job_id}")
+def check_favorite(job_id: str):
+    return {"favorited": profile_store.is_favorited(job_id)}
 
 
 def main() -> None:

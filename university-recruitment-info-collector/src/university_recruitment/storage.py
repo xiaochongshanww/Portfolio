@@ -1,4 +1,6 @@
+import json
 import logging
+import uuid
 import sqlite3
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -18,10 +20,12 @@ from university_recruitment.config import DEFAULT_DB_PATH
 from university_recruitment.models import (
     CollectionRun,
     CollectionSourceRun,
+    FavoriteJob,
     JobStatus,
     RecruitmentJob,
     RunStatus,
     SourceType,
+    UserProfileTemplate,
 )
 
 logger = logging.getLogger(__name__)
@@ -780,4 +784,148 @@ class JobStore:
             unchanged_count=row["unchanged_count"],
             removed_count=row["removed_count"],
             error_message=row["error_message"],
+        )
+
+
+class ProfileStore:
+    def __init__(self, db_path: Path = DEFAULT_DB_PATH) -> None:
+        self.db_path = db_path
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    def connect(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def init_db(self) -> None:
+        with self.connect() as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS user_profiles (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    education TEXT NOT NULL,
+                    major TEXT NOT NULL,
+                    research_direction TEXT NOT NULL,
+                    keywords TEXT NOT NULL DEFAULT '[]',
+                    target_locations TEXT NOT NULL DEFAULT '[]',
+                    target_school_types TEXT NOT NULL DEFAULT '[]',
+                    job_preferences TEXT NOT NULL DEFAULT '[]',
+                    constraints TEXT NOT NULL DEFAULT '[]',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS favorite_jobs (
+                    job_id TEXT PRIMARY KEY,
+                    school TEXT NOT NULL,
+                    position TEXT NOT NULL,
+                    department TEXT,
+                    location TEXT,
+                    source_url TEXT NOT NULL,
+                    saved_at TEXT NOT NULL,
+                    notes TEXT NOT NULL DEFAULT ''
+                )
+            """)
+
+    def save_profile(self, profile: UserProfileTemplate) -> UserProfileTemplate:
+        with self.connect() as conn:
+            conn.execute(
+                """INSERT OR REPLACE INTO user_profiles
+                   (id, name, education, major, research_direction, keywords,
+                    target_locations, target_school_types, job_preferences,
+                    constraints, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    profile.id, profile.name, profile.education, profile.major,
+                    profile.research_direction, json.dumps(profile.keywords, ensure_ascii=False),
+                    json.dumps(profile.target_locations, ensure_ascii=False),
+                    json.dumps(profile.target_school_types, ensure_ascii=False),
+                    json.dumps(profile.job_preferences, ensure_ascii=False),
+                    json.dumps(profile.constraints, ensure_ascii=False),
+                    profile.created_at.isoformat(), profile.updated_at.isoformat(),
+                ),
+            )
+        return profile
+
+    def list_profiles(self) -> list[UserProfileTemplate]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM user_profiles ORDER BY updated_at DESC"
+            ).fetchall()
+        return [self._row_to_profile(r) for r in rows]
+
+    def get_profile(self, profile_id: str) -> UserProfileTemplate | None:
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM user_profiles WHERE id = ?", (profile_id,)
+            ).fetchone()
+        return self._row_to_profile(row) if row else None
+
+    def delete_profile(self, profile_id: str) -> bool:
+        with self.connect() as conn:
+            cur = conn.execute("DELETE FROM user_profiles WHERE id = ?", (profile_id,))
+            return cur.rowcount > 0
+
+    def add_favorite(self, job: RecruitmentJob) -> FavoriteJob:
+        fav = FavoriteJob(
+            job_id=job.id,
+            school=job.school,
+            position=job.position,
+            department=job.department,
+            location=job.location,
+            source_url=str(job.source_url),
+        )
+        with self.connect() as conn:
+            conn.execute(
+                """INSERT OR REPLACE INTO favorite_jobs
+                   (job_id, school, position, department, location, source_url, saved_at, notes)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (fav.job_id, fav.school, fav.position, fav.department,
+                 fav.location, fav.source_url, fav.saved_at.isoformat(), fav.notes),
+            )
+        return fav
+
+    def remove_favorite(self, job_id: str) -> bool:
+        with self.connect() as conn:
+            cur = conn.execute("DELETE FROM favorite_jobs WHERE job_id = ?", (job_id,))
+            return cur.rowcount > 0
+
+    def list_favorites(self) -> list[FavoriteJob]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM favorite_jobs ORDER BY saved_at DESC"
+            ).fetchall()
+        return [self._row_to_favorite(r) for r in rows]
+
+    def is_favorited(self, job_id: str) -> bool:
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT 1 FROM favorite_jobs WHERE job_id = ?", (job_id,)
+            ).fetchone()
+            return row is not None
+
+    @staticmethod
+    def _row_to_profile(row: sqlite3.Row) -> UserProfileTemplate:
+        return UserProfileTemplate(
+            id=row["id"], name=row["name"],
+            education=row["education"], major=row["major"],
+            research_direction=row["research_direction"],
+            keywords=json.loads(row["keywords"]),
+            target_locations=json.loads(row["target_locations"]),
+            target_school_types=json.loads(row["target_school_types"]),
+            job_preferences=json.loads(row["job_preferences"]),
+            constraints=json.loads(row["constraints"]),
+            created_at=datetime.fromisoformat(row["created_at"]),
+            updated_at=datetime.fromisoformat(row["updated_at"]),
+        )
+
+    @staticmethod
+    def _row_to_favorite(row: sqlite3.Row) -> FavoriteJob:
+        return FavoriteJob(
+            job_id=row["job_id"], school=row["school"],
+            position=row["position"], department=row["department"],
+            location=row["location"], source_url=row["source_url"],
+            saved_at=datetime.fromisoformat(row["saved_at"]),
+            notes=row["notes"],
         )

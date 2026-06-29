@@ -27,6 +27,19 @@
       </div>
     </section>
 
+    <section class="glass-panel-strong p-4 sm:p-5">
+      <div class="flex flex-wrap items-center gap-3">
+        <el-select v-model="selectedProfileId" clearable placeholder="已保存的画像模板" class="min-w-[15rem]" @change="loadProfileFromServer">
+          <el-option v-for="p in profiles" :key="p.id" :label="p.name" :value="p.id" />
+        </el-select>
+        <el-button type="primary" plain @click="saveCurrentProfile" :disabled="!form.education || !form.major">
+          + 保存为新模板
+        </el-button>
+        <el-button v-if="selectedProfileId" text type="danger" @click="deleteCurrentProfile">删除</el-button>
+        <span class="text-xs text-slate-400 ml-auto">可保存多套画像快速切换</span>
+      </div>
+    </section>
+
     <section class="grid gap-6 xl:grid-cols-[1.35fr_0.65fr] xl:items-start">
       <div class="glass-panel-strong p-6 sm:p-8">
         <el-form :model="form" label-position="top" size="large" class="grid gap-5 md:grid-cols-2">
@@ -145,6 +158,9 @@
 import { ref, reactive, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import axios from 'axios'
+
+const API = axios.create({ baseURL: '/api', timeout: 10000 })
 
 const STORAGE_KEY = 'university-recruitment-profile'
 const MATCH_DATA_KEY = 'university-recruitment-match-data'
@@ -199,6 +215,64 @@ function clearProfile() {
   }).catch(() => {})
 }
 
+const profiles = ref([])
+const selectedProfileId = ref('')
+
+async function fetchProfiles() {
+  try {
+    const res = await API.get('/profiles')
+    profiles.value = res.data || []
+  } catch { /* ignore */ }
+}
+
+function loadProfileFromServer(id) {
+  if (!id) return
+  const p = profiles.value.find(x => x.id === id)
+  if (!p) return
+  Object.assign(form, {
+    education: p.education || '',
+    major: p.major || '',
+    research_direction: p.research_direction || '',
+    keywords: p.keywords || [],
+    target_locations: p.target_locations || [],
+    target_school_types: p.target_school_types || [],
+    job_preferences: p.job_preferences || [],
+    constraints: p.constraints || [],
+    result_limit: form.result_limit,
+    candidate_limit: form.candidate_limit,
+    include_hard_constraint_failures: form.include_hard_constraint_failures,
+  })
+  ElMessage.success(`已加载「${p.name}」`)
+}
+
+async function saveCurrentProfile() {
+  if (!form.education || !form.major) {
+    ElMessage.warning('请先填写学历和专业')
+    return
+  }
+  try {
+    const { result_limit, candidate_limit, include_hard_constraint_failures, ...profile } = form
+    const name = prompt('画像名称（用于识别）：', `画像_${form.major}`)
+    if (!name) return
+    await API.post('/profiles', { id: '', name, ...profile })
+    ElMessage.success('画像已保存')
+    await fetchProfiles()
+  } catch (e) {
+    ElMessage.error('保存失败')
+  }
+}
+
+async function deleteCurrentProfile() {
+  if (!selectedProfileId.value) return
+  try {
+    await ElMessageBox.confirm('确定要删除该画像吗？', '删除确认', { type: 'warning' })
+    await API.delete(`/profiles/${selectedProfileId.value}`)
+    selectedProfileId.value = ''
+    await fetchProfiles()
+    ElMessage.success('已删除')
+  } catch {}
+}
+
 function submitMatch(useLlm) {
   if (!form.education || !form.major) {
     ElMessage.warning('请填写最高学历和专业')
@@ -223,4 +297,6 @@ function submitMatch(useLlm) {
   }))
   router.push({ name: 'match' })
 }
+
+onMounted(() => { fetchProfiles() })
 </script>

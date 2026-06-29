@@ -54,6 +54,15 @@
           </div>
         </section>
 
+        <section v-if="previousMatch" class="glass-panel p-4 border border-emerald-100 bg-emerald-50/30">
+          <div class="flex flex-wrap items-center gap-4 text-sm">
+            <span class="font-semibold text-emerald-800">与上轮对比</span>
+            <span>上次: {{ previousMatch.totalCandidates }} 个候选 · {{ previousMatch.useLlm ? 'AI增强' : '规则匹配' }} · {{ formatTime(previousMatch.timestamp) }}</span>
+            <span class="text-emerald-700">最高分差: <strong>{{ topScore - (previousMatch.results[0]?.match_score || 0) > 0 ? '+' : '' }}{{ topScore - (previousMatch.results[0]?.match_score || 0) }}</strong></span>
+            <el-button text size="small" @click="previousMatch = null">关闭</el-button>
+          </div>
+        </section>
+
         <section class="glass-panel p-5">
           <div class="grid gap-3 xl:grid-cols-[auto_auto_auto_auto_1fr] xl:items-center">
             <el-select v-model="sortBy" class="xl:min-w-[10rem]">
@@ -169,6 +178,7 @@ import { ElMessage } from 'element-plus'
 import { matchJobs } from '../api/index.js'
 
 const MATCH_DATA_KEY = 'university-recruitment-match-data'
+const MATCH_HISTORY_KEY = 'university-recruitment-match-history'
 const router = useRouter()
 const results = ref([])
 const loading = ref(true)
@@ -180,11 +190,41 @@ const sortBy = ref('score')
 const minScore = ref(0)
 const onlyHardPassed = ref(true)
 const hideLowQuality = ref(false)
+const previousMatch = ref(null)
 const requestOptions = ref({
   resultLimit: 10,
   candidateLimit: 50,
   includeHardConstraintFailures: false,
 })
+
+function loadMatchHistory() {
+  try {
+    const raw = localStorage.getItem(MATCH_HISTORY_KEY)
+    if (raw) {
+      const data = JSON.parse(raw)
+      if (data.results && data.results.length > 0) {
+        previousMatch.value = data
+      }
+    }
+  } catch {}
+}
+
+function saveMatchHistory(currentResults, llmUsed) {
+  try {
+    const history = {
+      timestamp: new Date().toISOString(),
+      useLlm: llmUsed,
+      totalCandidates: totalCandidates.value,
+      results: currentResults.map(r => ({
+        job_id: r.job?.id,
+        school: r.job?.school,
+        position: r.job?.position,
+        match_score: r.match_score,
+      })),
+    }
+    localStorage.setItem(MATCH_HISTORY_KEY, JSON.stringify(history))
+  } catch {}
+}
 
 const displayedResults = computed(() => {
   let arr = [...results.value]
@@ -262,6 +302,11 @@ function openLink(url) {
   window.open(u, '_blank', 'noopener,noreferrer')
 }
 
+function formatTime(iso) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
 function goBack() {
   router.push({ name: 'profile' })
 }
@@ -288,6 +333,7 @@ onMounted(async () => {
     results.value = res.data.results || []
     totalCandidates.value = res.data.total_candidates || 0
     hardFiltered.value = res.data.hard_filtered_out || 0
+    saveMatchHistory(results.value, llm)
   } catch (e) {
     console.error('Match failed:', e)
     error.value = '匹配请求失败，请稍后重试'
@@ -296,4 +342,6 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+loadMatchHistory()
 </script>

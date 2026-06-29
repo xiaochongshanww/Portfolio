@@ -145,6 +145,32 @@ class UserProfile(BaseModel):
     constraints: list[str] = Field(default_factory=list)
 
 
+class UserProfileTemplate(BaseModel):
+    id: str
+    name: str
+    education: str
+    major: str
+    research_direction: str
+    keywords: list[str] = Field(default_factory=list)
+    target_locations: list[str] = Field(default_factory=list)
+    target_school_types: list[str] = Field(default_factory=list)
+    job_preferences: list[str] = Field(default_factory=list)
+    constraints: list[str] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class FavoriteJob(BaseModel):
+    job_id: str
+    school: str
+    position: str
+    department: str | None = None
+    location: str | None = None
+    source_url: str
+    saved_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    notes: str = ""
+
+
 class MatchResult(BaseModel):
     job: RecruitmentJob
     match_score: int = Field(ge=0, le=100)

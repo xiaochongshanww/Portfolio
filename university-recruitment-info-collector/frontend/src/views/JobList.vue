@@ -55,7 +55,15 @@
         stripe
         style="width: 100%"
         v-loading="loading"
-        empty-text="暂无岗位数据"
+        highlight-current-row
+      >
+        <template #empty>
+          <div class="py-12 text-center">
+            <p class="text-lg font-semibold text-slate-400">暂无岗位数据</p>
+            <p class="mt-2 text-sm text-slate-300">试试清除筛选条件，或等待数据采集完成后刷新</p>
+          </div>
+        </template>
+        @row-click="openDetail"
         :header-cell-style="{ background: 'rgba(248,250,252,0.84)', color: '#334155', fontWeight: 700 }"
       >
         <el-table-column prop="school" label="学校" min-width="170" show-overflow-tooltip />
@@ -96,9 +104,14 @@
             <span v-else class="text-slate-600">{{ row.deadline || '长期/未说明' }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
+        <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link @click="openLink(row.source_url)">查看原文</el-button>
+            <div class="flex items-center gap-1">
+              <el-button text :type="isFav(row.id) ? 'warning' : 'default'" @click.stop="toggleFav(row)" :title="isFav(row.id) ? '取消收藏' : '收藏'">
+                {{ isFav(row.id) ? '★' : '☆' }}
+              </el-button>
+              <el-button type="primary" link @click="openLink(row.source_url)">原文</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -114,6 +127,8 @@
         @current-change="handlePageChange"
       />
     </div>
+
+    <JobDetail v-model="detailVisible" :job="detailJob" @fav-changed="fetchFavs" />
   </div>
 </template>
 
@@ -121,6 +136,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { listJobs } from '../api/index.js'
+import JobDetail from './JobDetail.vue'
+import axios from 'axios'
+
+const FAV_API = axios.create({ baseURL: '/api', timeout: 5000 })
 
 const DEFAULT_PAGINATION = { total: 0, limit: 100, offset: 0, has_more: false }
 
@@ -225,5 +244,38 @@ function handlePageChange(page) {
   fetchJobs(page - 1)
 }
 
-onMounted(() => fetchJobs(0))
+const detailVisible = ref(false)
+const detailJob = ref(null)
+
+function openDetail(row) {
+  detailJob.value = row
+  detailVisible.value = true
+}
+
+const favoriteIds = ref(new Set())
+
+async function fetchFavs() {
+  try {
+    const res = await FAV_API.get('/favorites')
+    favoriteIds.value = new Set((res.data || []).map(f => f.job_id))
+  } catch {}
+}
+
+function isFav(jobId) { return favoriteIds.value.has(jobId) }
+
+async function toggleFav(job) {
+  try {
+    if (isFav(job.id)) {
+      await FAV_API.delete(`/favorites/${job.id}`)
+      favoriteIds.value.delete(job.id)
+      ElMessage.success('已取消收藏')
+    } else {
+      await FAV_API.post(`/favorites/${job.id}`)
+      favoriteIds.value.add(job.id)
+      ElMessage.success('已收藏')
+    }
+  } catch { ElMessage.error('操作失败') }
+}
+
+onMounted(() => { fetchJobs(0); fetchFavs() })
 </script>
