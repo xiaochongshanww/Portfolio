@@ -48,73 +48,46 @@
       </div>
     </section>
 
-    <section class="glass-panel-strong overflow-hidden p-3 sm:p-4">
-      <el-table
-        :data="filteredJobs"
-        border
-        stripe
-        style="width: 100%"
-        v-loading="loading"
-        highlight-current-row
-      >
-        <template #empty>
-          <div class="py-12 text-center">
-            <p class="text-lg font-semibold text-slate-400">暂无岗位数据</p>
-            <p class="mt-2 text-sm text-slate-300">试试清除筛选条件，或等待数据采集完成后刷新</p>
+    <section class="glass-panel-strong p-4 sm:p-5" v-loading="loading">
+      <div v-if="filteredJobs.length === 0" class="py-12 text-center">
+        <p class="text-lg font-semibold text-slate-400">暂无岗位数据</p>
+        <p class="mt-2 text-sm text-slate-300">试试清除筛选条件，或等待数据采集完成后刷新</p>
+      </div>
+
+      <div v-else class="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
+        <article
+          v-for="job in filteredJobs"
+          :key="job.id"
+          class="job-card cursor-pointer rounded-xl border border-slate-200 bg-white p-4 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+          @click="openDetail(job)"
+        >
+          <div class="flex items-start justify-between gap-2">
+            <span class="truncate rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{{ job.school }}</span>
+            <el-button text :type="isFav(job.id) ? 'warning' : 'default'" size="small" @click.stop="toggleFav(job)" :title="isFav(job.id) ? '取消收藏' : '收藏'">
+              {{ isFav(job.id) ? '★' : '☆' }}
+            </el-button>
           </div>
-        </template>
-        @row-click="openDetail"
-        :header-cell-style="{ background: 'rgba(248,250,252,0.84)', color: '#334155', fontWeight: 700 }"
-      >
-        <el-table-column prop="school" label="学校" min-width="170" show-overflow-tooltip />
-        <el-table-column label="岗位信息" min-width="260">
-          <template #default="{ row }">
-            <div class="space-y-1">
-              <div class="font-semibold text-slate-900">{{ row.position }}</div>
-              <div class="text-xs text-slate-500">{{ row.department || '未标注学院/部门' }}</div>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column label="条件" min-width="170">
-          <template #default="{ row }">
-            <div class="flex flex-wrap gap-1.5">
-              <el-tag v-if="row.education_requirement" size="small" type="info" effect="plain">{{ row.education_requirement }}</el-tag>
-              <el-tag v-if="row.job_type" size="small" type="success" effect="plain">{{ row.job_type }}</el-tag>
-              <span v-if="!row.education_requirement && !row.job_type" class="text-slate-300">—</span>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="location" label="地点" width="110" />
-        <el-table-column label="质量" width="150">
-          <template #default="{ row }">
-            <div class="space-y-1">
-              <el-tag :type="qualityTagType(row.quality_status)" size="small" effect="plain">
-                {{ qualityLabel(row.quality_status) }}
-              </el-tag>
-              <div class="text-xs text-slate-400">分数 {{ row.quality_score ?? '—' }}</div>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="deadline" label="截止日期" width="130">
-          <template #default="{ row }">
-            <div v-if="isExpired(row.deadline)" class="space-y-1">
-              <el-tag type="danger" size="small">已过期</el-tag>
-              <div class="text-xs text-slate-400">{{ row.deadline || '未说明' }}</div>
-            </div>
-            <span v-else class="text-slate-600">{{ row.deadline || '长期/未说明' }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
-          <template #default="{ row }">
-            <div class="flex items-center gap-1">
-              <el-button text :type="isFav(row.id) ? 'warning' : 'default'" @click.stop="toggleFav(row)" :title="isFav(row.id) ? '取消收藏' : '收藏'">
-                {{ isFav(row.id) ? '★' : '☆' }}
-              </el-button>
-              <el-button type="primary" link @click="openLink(row.source_url)">原文</el-button>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
+
+          <h3 class="mt-3 font-semibold text-slate-900 line-clamp-2">{{ job.position }}</h3>
+          <p v-if="job.department" class="mt-0.5 text-xs text-slate-400 truncate">{{ job.department }}</p>
+
+          <div class="mt-3 flex flex-wrap gap-1.5">
+            <el-tag v-if="job.education_requirement" size="small" type="info" effect="plain">{{ job.education_requirement }}</el-tag>
+            <el-tag v-if="job.job_type" size="small" type="success" effect="plain">{{ job.job_type }}</el-tag>
+            <el-tag v-if="job.quality_status" :type="qualityTagType(job.quality_status)" size="small" effect="plain">{{ qualityLabel(job.quality_status) }}</el-tag>
+          </div>
+
+          <div class="mt-4 flex items-center justify-between text-xs text-slate-400">
+            <span>{{ job.location || '未标注地点' }}</span>
+            <span :class="{ 'text-red-500': isExpired(job.deadline) }">{{ job.deadline || '长期' }}</span>
+          </div>
+
+          <div class="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
+            <el-button text size="small" type="primary" @click.stop="openLink(job.source_url)">查看原文</el-button>
+            <el-tag v-if="job.quality_score != null" size="small" effect="plain" type="default">质量 {{ job.quality_score }}</el-tag>
+          </div>
+        </article>
+      </div>
     </section>
 
     <div class="flex justify-center" v-if="pagination.total > pagination.limit">
