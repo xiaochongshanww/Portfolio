@@ -185,6 +185,9 @@ def validate_education(value: str | None) -> str | None:
     if value is None:
         return None
     v = value.strip()
+    # Reject attachment references rather than actual requirements
+    if any(kw in v for kw in ("附件", "待定", "详见附", "见附")):
+        return None
     # Sort by length descending so "硕士研究生及以上" matches first
     for valid in sorted(_VALID_EDUCATIONS, key=len, reverse=True):
         if v == valid or valid in v:

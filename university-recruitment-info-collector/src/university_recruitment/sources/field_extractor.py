@@ -63,6 +63,11 @@ def extract_education_requirement(text: str) -> str | None:
     Searches in priority order so that "博士研究生" is matched before "博士",
     and "硕士研究生及以上" before "硕士", etc.
     """
+    if not text:
+        return None
+    # Reject field values that reference attachments instead of actual requirements
+    if any(kw in text for kw in ("附件", "待定", "详见附", "见附", "详见附件")):
+        return None
     for education in EDUCATION_RULES:
         if education in text:
             return education
