@@ -15,6 +15,13 @@ def _doc_stems(source_file: str) -> list[str]:
     return list(dict.fromkeys(stems))
 
 
+def _candidate_stems(doc: str) -> list[str]:
+    stems = [doc]
+    if doc.endswith((".pdf", ".json")):
+        stems.append(Path(doc).stem)
+    return list(dict.fromkeys(stems))
+
+
 def load_approved_corrections(source_file: str, corrections_dir: Path = CORRECTIONS_DIR) -> list[dict[str, Any]]:
     approved_dir = corrections_dir / "approved"
     corrections: list[dict[str, Any]] = []
@@ -87,7 +94,7 @@ def apply_approved_corrections(
 def load_candidate_corrections(source_file: str, corrections_dir: Path = CORRECTIONS_DIR) -> list[dict[str, Any]]:
     candidates_dir = corrections_dir / "candidates"
     corrections: list[dict[str, Any]] = []
-    for stem in _doc_stems(source_file):
+    for stem in _candidate_stems(source_file):
         path = candidates_dir / f"{stem}.json"
         if path.exists():
             payload = json.loads(path.read_text(encoding="utf-8"))
@@ -142,7 +149,8 @@ def promote_approved_candidates(
 
     approved_dir = corrections_dir / "approved"
     approved_dir.mkdir(parents=True, exist_ok=True)
-    approved_path = approved_dir / f"{Path(source_file).stem}.json"
+    approved_stem = Path(source_file).stem if source_file.endswith(".pdf") else source_file
+    approved_path = approved_dir / f"{approved_stem}.json"
     existing = []
     if approved_path.exists():
         payload = json.loads(approved_path.read_text(encoding="utf-8"))
@@ -191,9 +199,14 @@ def list_candidate_files(corrections_dir: Path = CORRECTIONS_DIR) -> list[dict[s
 
 
 def read_candidate_file(doc: str, corrections_dir: Path = CORRECTIONS_DIR) -> dict[str, Any]:
-    path = corrections_dir / "candidates" / f"{Path(doc).stem}.json"
-    if not path.exists():
-        return {"doc": Path(doc).stem, "source_file": doc, "corrections": []}
+    path = None
+    for stem in _candidate_stems(doc):
+        candidate = corrections_dir / "candidates" / f"{stem}.json"
+        if candidate.exists():
+            path = candidate
+            break
+    if not path:
+        return {"doc": doc, "source_file": doc, "corrections": []}
     payload = json.loads(path.read_text(encoding="utf-8"))
     if isinstance(payload, list):
         return {"doc": path.stem, "source_file": doc, "corrections": payload}
@@ -210,9 +223,14 @@ def update_candidate_status(
 ) -> dict[str, Any]:
     if status not in {"pending", "approved", "rejected"}:
         raise ValueError("status must be pending, approved, or rejected")
-    path = corrections_dir / "candidates" / f"{Path(doc).stem}.json"
-    if not path.exists():
-        raise FileNotFoundError(f"candidate file not found: {path}")
+    path = None
+    for stem in _candidate_stems(doc):
+        candidate = corrections_dir / "candidates" / f"{stem}.json"
+        if candidate.exists():
+            path = candidate
+            break
+    if not path:
+        raise FileNotFoundError(f"candidate file not found: {doc}")
     payload = json.loads(path.read_text(encoding="utf-8"))
     corrections = payload.get("corrections", payload.get("candidates", [])) if isinstance(payload, dict) else payload
     updated = False
@@ -229,4 +247,4 @@ def update_candidate_status(
     else:
         payload = corrections
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    return {"doc": Path(doc).stem, "candidate_id": candidate_id, "review_status": status}
+    return {"doc": path.stem, "candidate_id": candidate_id, "review_status": status}

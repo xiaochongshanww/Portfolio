@@ -1,0 +1,58 @@
+{
+  "schema_version": "0.1",
+  "source": {
+    "code": "GB 50009-2012",
+    "name": "建筑结构荷载规范",
+    "source_file": "GB 50009-2012_.建筑结构荷载规范.pdf",
+    "clause_number": "5.3.2",
+    "table_id": "5.3.2",
+    "table_name": "屋面直升机停机坪局部荷载标准值及作用面积",
+    "pages": [35]
+  },
+  "columns": [
+    {"key": "helicopter_type", "label": "直升机类型"},
+    {"key": "max_takeoff_weight", "label": "最大起飞重量", "unit": "t"},
+    {"key": "local_load_standard_value", "label": "局部荷载标准值", "unit": "kN"},
+    {"key": "action_area", "label": "作用面积"},
+    {"key": "condition", "label": "适用条件"},
+    {"key": "aliases", "label": "检索别名"}
+  ],
+  "rows": [
+    {
+      "helicopter_type": "轻型",
+      "max_takeoff_weight": 2,
+      "local_load_standard_value": 20,
+      "action_area": "0.20m×0.20m",
+      "condition": "最大起飞重量为2t的轻型直升机，屋面停机坪局部荷载标准值取20kN，作用面积为0.20m×0.20m。",
+      "aliases": ["轻型直升机", "轻型停机坪", "2t直升机", "2吨直升机", "局部荷载20kN", "0.20m×0.20m"]
+    },
+    {
+      "helicopter_type": "中型",
+      "max_takeoff_weight": 4,
+      "local_load_standard_value": 40,
+      "action_area": "0.25m×0.25m",
+      "condition": "最大起飞重量为4t的中型直升机，屋面停机坪局部荷载标准值取40kN，作用面积为0.25m×0.25m。",
+      "aliases": ["中型直升机", "中型停机坪", "4t直升机", "4吨直升机", "局部荷载40kN", "0.25m×0.25m"]
+    },
+    {
+      "helicopter_type": "重型",
+      "max_takeoff_weight": 6,
+      "local_load_standard_value": 60,
+      "action_area": "0.30m×0.30m",
+      "condition": "最大起飞重量为6t的重型直升机，屋面停机坪局部荷载标准值取60kN，作用面积为0.30m×0.30m。",
+      "aliases": ["重型直升机", "重型停机坪", "6t直升机", "6吨直升机", "局部荷载60kN", "0.30m×0.30m"]
+    }
+  ],
+  "table_aliases": [
+    "表5.3.2",
+    "屋面直升机停机坪局部荷载标准值",
+    "屋面直升机停机坪作用面积",
+    "直升机停机坪局部荷载",
+    "直升机停机坪荷载",
+    "停机坪局部荷载标准值"
+  ],
+  "notes": [
+    "屋面直升机停机坪的等效均布荷载标准值不应低于5.0kN/m²。",
+    "屋面直升机停机坪活荷载的组合值系数应取0.7，频遇值系数应取0.6，准永久值系数应取0。"
+  ]
+}

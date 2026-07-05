@@ -35,7 +35,7 @@ class Settings:
     zhipuai_api_key: str = field(default_factory=lambda: os.getenv("ZHIPUAI_API_KEY", ""))
     mimo_api_key: str = field(default_factory=lambda: os.getenv("MIMO_API_KEY", ""))
     mimo_base_url: str = field(default_factory=lambda: os.getenv("MIMO_BASE_URL", "https://api.xiaomimimo.com/v1"))
-    mimo_model: str = field(default_factory=lambda: os.getenv("MIMO_MODEL", "mimo-v2-omni"))
+    mimo_model: str = field(default_factory=lambda: os.getenv("MIMO_MODEL", "mimo-v2.5"))
     llm_timeout_seconds: int = field(default_factory=lambda: int(os.getenv("LLM_TIMEOUT_SECONDS", "180")))
 
     rag_top_k: int = field(default_factory=lambda: int(os.getenv("RAG_TOP_K", "12")))
@@ -55,7 +55,8 @@ class Settings:
     db_dir: Path = field(default_factory=lambda: Path(_env_or_default("DB_DIR", "db")))
     img_dir: Path = field(default_factory=lambda: Path(_env_or_default("IMG_DIR", str(PROJECT_ROOT / "data" / "images"))))
     img_base_url: str = field(default_factory=lambda: os.getenv("IMG_BASE_URL", "/images"))
-    static_dir: Path = field(default_factory=lambda: Path(_env_or_default("STATIC_DIR", str(PROJECT_ROOT / "src" / "static"))))
+    public_asset_base_url: str = field(default_factory=lambda: os.getenv("PUBLIC_ASSET_BASE_URL", "").rstrip("/"))
+    static_dir: Path = field(default_factory=lambda: Path(_env_or_default("STATIC_DIR", str(PROJECT_ROOT / "frontend" / "dist"))))
 
     cors_origins: list[str] = field(
         default_factory=lambda: _split_csv(os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8080"))

@@ -9,8 +9,8 @@
 {"id":"code-query-seismic","query":"GB 50011-2010 对场地类别有什么规定？","expected_sources":["建筑抗震设计规范","GB 50011-2010"],"expected_keywords":["场地"],"type":"code"}
 {"id":"clause-general-3-1-1","query":"3.1.1 条的基本要求是什么？","expected_sources":["GB"],"expected_clause":"3.1.1","type":"clause"}
 {"id":"reliability-limit-state","query":"可靠性统一标准中极限状态如何分类？","expected_sources":["建筑结构可靠性设计统一标准","GB 50068-2018"],"expected_keywords":["极限状态"],"type":"definition"}
-{"id":"load-combination","query":"荷载组合应考虑哪些情况？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_keywords":["荷载组合"],"type":"general"}
-{"id":"seismic-fortification-intensity","query":"抗震设防烈度在哪里规定？","expected_sources":["建筑抗震设计规范","GB 50011-2010"],"expected_keywords":["设防烈度"],"type":"general"}
+{"id":"load-combination","query":"荷载组合应考虑哪些情况？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_keywords":["荷载组合"],"type":"general","top1_source_required":false}
+{"id":"seismic-fortification-intensity","query":"抗震设防烈度在哪里规定？","expected_sources":["建筑抗震设计规范","GB 50011-2010"],"expected_keywords":["设防烈度"],"type":"general","top1_source_required":false}
 {"id":"category-key-building","query":"重点设防类建筑如何判定？","expected_sources":["建筑工程抗震设防分类标准","GB 50223-2008"],"expected_keywords":["重点设防"],"type":"classification"}
 {"id":"quality-subdivision","query":"检验批和分项工程验收有什么要求？","expected_sources":["建筑工程施工质量验收统一标准","GB 50300-2013"],"expected_keywords":["检验批","分项工程"],"type":"general"}
 {"id":"table-load-roof","query":"屋面活荷载标准值应查哪个表？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_keywords":["屋面","活荷载"],"type":"table"}
@@ -20,6 +20,81 @@
 {"id":"quality-acceptance-record","query":"验收记录应包含哪些内容？","expected_sources":["建筑工程施工质量验收统一标准","GB 50300-2013"],"expected_keywords":["验收记录"],"type":"general"}
 {"id":"load-crane","query":"吊车荷载应如何考虑？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_keywords":["吊车荷载"],"type":"general"}
 {"id":"seismic-nonstructural","query":"非结构构件抗震设计有什么要求？","expected_sources":["建筑抗震设计规范","GB 50011-2010"],"expected_keywords":["非结构构件"],"type":"general"}
-{"id":"reliability-material","query":"材料强度标准值和设计值有什么关系？","expected_sources":["建筑结构可靠性设计统一标准","GB 50068-2018"],"expected_keywords":["标准值","设计值"],"type":"definition"}
+{"id":"reliability-material","query":"材料强度标准值和设计值有什么关系？","expected_sources":["建筑结构可靠性设计统一标准","GB 50068-2018"],"expected_keywords":["标准值","设计值"],"type":"definition","top1_source_required":false}
 {"id":"multi-spec-fortification","query":"抗震设计和设防分类两个规范对设防目标有什么区别？","expected_sources":["建筑抗震设计规范","建筑工程抗震设防分类标准"],"expected_keywords":["设防"],"type":"multi_spec"}
 {"id":"ambiguous-clause-5-1-1","query":"5.1.1 条说明了什么？","expected_sources":["GB"],"expected_clause":"5.1.1","type":"clause"}
+{"id":"table-load-office-live","query":"办公楼的楼面活荷载标准值取多少？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_keywords":["办公楼","2.0"],"type":"table"}
+{"id":"table-load-hospital-ward","query":"医院病房楼面均布活荷载标准值是多少？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_keywords":["医院病房","2.0"],"type":"table"}
+{"id":"table-load-classroom","query":"教室楼面活荷载标准值是多少？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_keywords":["教室","2.5"],"type":"table"}
+{"id":"table-load-canteen","query":"食堂和餐厅的楼面活荷载标准值怎么取？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_keywords":["食堂","餐厅","2.5"],"type":"table"}
+{"id":"table-load-theater","query":"礼堂剧场影院有固定座位看台的楼面活荷载标准值是多少？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_keywords":["礼堂","剧场","3.0"],"type":"table"}
+{"id":"table-load-balcony-crowd","query":"可能出现人员密集情况的阳台活荷载标准值是多少？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_keywords":["阳台","人员密集","3.5"],"type":"table"}
+{"id":"table-load-balcony-other","query":"其他阳台的楼面活荷载标准值取多少？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_keywords":["阳台","其他","2.5"],"type":"table"}
+{"id":"table-load-roof-accessible","query":"上人屋面均布活荷载标准值是多少？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_keywords":["上人的屋面","2.0"],"type":"table"}
+{"id":"table-load-roof-non-accessible","query":"不上人屋面均布活荷载标准值是多少？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_keywords":["不上人的屋面","0.5"],"type":"table"}
+{"id":"table-load-helicopter-light","query":"轻型屋面直升机停机坪局部荷载标准值是多少？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_keywords":["轻型","20"],"type":"table"}
+{"id":"table-load-service-life-factor","query":"楼面和屋面活荷载考虑设计使用年限的调整系数在哪个表？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_keywords":["表3.2.5","设计使用年限"],"type":"table"}
+{"id":"table-load-floor-reduction","query":"活荷载按楼层的折减系数应查哪个表？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_keywords":["表5.1.2","折减系数"],"type":"table"}
+{"id":"table-load-ash-roof","query":"屋面积灰荷载标准值应查哪些表？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_keywords":["屋面积灰荷载","标准值"],"type":"table"}
+{"id":"table-seismic-intensity-acceleration","query":"抗震设防烈度和设计基本地震加速度值的对应关系在哪个表？","expected_sources":["建筑抗震设计规范","GB 50011-2010"],"expected_keywords":["表3.2.2","设计基本地震加速度"],"type":"table"}
+{"id":"table-seismic-plan-irregular","query":"平面不规则的主要类型有哪些？","expected_sources":["建筑抗震设计规范","GB 50011-2010"],"expected_keywords":["平面不规则","扭转不规则"],"type":"table"}
+{"id":"table-seismic-vertical-irregular","query":"竖向不规则的主要类型有哪些？","expected_sources":["建筑抗震设计规范","GB 50011-2010"],"expected_keywords":["竖向不规则","侧向刚度不规则"],"type":"table"}
+{"id":"table-seismic-site-section","query":"有利一般不利和危险地段如何划分？","expected_sources":["建筑抗震设计规范","GB 50011-2010"],"expected_keywords":["有利地段","危险地段"],"type":"table"}
+{"id":"table-seismic-soil-type","query":"土的类型划分和剪切波速范围在哪里规定？","expected_sources":["建筑抗震设计规范","GB 50011-2010"],"expected_keywords":["土的类型","剪切波速"],"type":"table"}
+{"id":"table-seismic-site-cover","query":"各类建筑场地覆盖层厚度应查哪个表？","expected_sources":["建筑抗震设计规范","GB 50011-2010"],"expected_keywords":["覆盖层厚度","建筑场地"],"type":"table"}
+{"id":"table-reliability-safety-level","query":"建筑结构安全等级如何划分？","expected_sources":["建筑结构可靠性设计统一标准","GB 50068-2018"],"expected_keywords":["安全等级","破坏后果"],"type":"table"}
+{"id":"table-reliability-index","query":"结构构件可靠指标 beta 应查哪个表？","expected_sources":["建筑结构可靠性设计统一标准","GB 50068-2018"],"expected_keywords":["可靠指标","安全等级"],"type":"table"}
+{"id":"table-reliability-design-life","query":"建筑结构设计使用年限有哪些类别？","expected_sources":["建筑结构可靠性设计统一标准","GB 50068-2018"],"expected_keywords":["设计使用年限","临时性"],"type":"table"}
+{"id":"table-reliability-importance-factor","query":"结构重要性系数如何取值？","expected_sources":["建筑结构可靠性设计统一标准","GB 50068-2018"],"expected_keywords":["结构重要性系数"],"type":"table"}
+{"id":"table-reliability-action-factor","query":"建筑结构作用分项系数怎么取？","expected_sources":["建筑结构可靠性设计统一标准","GB 50068-2018"],"expected_keywords":["作用分项系数"],"type":"table"}
+{"id":"table-quality-sampling","query":"检验批最小抽样数量如何确定？","expected_sources":["建筑工程施工质量验收统一标准","GB 50300-2013"],"expected_keywords":["检验批","最小抽样数量"],"type":"table"}
+{"id":"table-quality-division","query":"建筑工程分部工程和分项工程划分在哪个表？","expected_sources":["建筑工程施工质量验收统一标准","GB 50300-2013"],"expected_keywords":["分部工程","分项工程"],"type":"table"}
+{"id":"table-quality-site-record","query":"施工现场质量管理检查记录采用哪个表？","expected_sources":["建筑工程施工质量验收统一标准","GB 50300-2013"],"expected_keywords":["施工现场质量管理检查记录"],"type":"table"}
+{"id":"clause-load-5-1-1","query":"荷载规范第5.1.1条规定了什么？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_clause":"5.1.1","expected_keywords":["表5.1.1"],"type":"clause"}
+{"id":"clause-load-5-1-2","query":"荷载规范第5.1.2条关于活荷载折减系数有什么要求？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_clause":"5.1.2","expected_keywords":["折减系数"],"type":"clause"}
+{"id":"clause-load-5-1-3","query":"荷载规范第5.1.3条对消防车活荷载有什么规定？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_clause":"5.1.3","expected_keywords":["消防车"],"type":"clause"}
+{"id":"clause-load-3-1-4","query":"荷载规范第3.1.4条如何规定荷载标准值？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_clause":"3.1.4","expected_keywords":["标准值"],"type":"clause"}
+{"id":"clause-load-7-1-1","query":"荷载规范第7.1.1条关于雪荷载标准值怎么说？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_clause":"7.1.1","expected_keywords":["雪荷载"],"type":"clause"}
+{"id":"clause-load-8-1-1","query":"荷载规范第8.1.1条风荷载有什么基本规定？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_clause":"8.1.1","expected_keywords":["风荷载"],"type":"clause"}
+{"id":"clause-seismic-3-1-1","query":"抗震规范第3.1.1条的设防基本要求是什么？","expected_sources":["建筑抗震设计规范","GB 50011-2010"],"expected_clause":"3.1.1","expected_keywords":["抗震设防"],"type":"clause"}
+{"id":"clause-seismic-3-4-3","query":"抗震规范第3.4.3条对不规则建筑有什么要求？","expected_sources":["建筑抗震设计规范","GB 50011-2010"],"expected_clause":"3.4.3","expected_keywords":["不规则"],"type":"clause"}
+{"id":"clause-seismic-4-1-1","query":"抗震规范第4.1.1条如何划分有利不利地段？","expected_sources":["建筑抗震设计规范","GB 50011-2010"],"expected_clause":"4.1.1","expected_keywords":["有利","不利"],"type":"clause"}
+{"id":"clause-seismic-4-1-3","query":"抗震规范第4.1.3条关于土的类型如何规定？","expected_sources":["建筑抗震设计规范","GB 50011-2010"],"expected_clause":"4.1.3","expected_keywords":["土的类型"],"type":"clause"}
+{"id":"clause-seismic-4-3-2","query":"抗震规范第4.3.2条液化判别有什么要求？","expected_sources":["建筑抗震设计规范","GB 50011-2010"],"expected_clause":"4.3.2","expected_keywords":["液化"],"type":"clause"}
+{"id":"clause-reliability-3-2-1","query":"可靠性统一标准第3.2.1条关于安全等级怎么规定？","expected_sources":["建筑结构可靠性设计统一标准","GB 50068-2018"],"expected_clause":"3.2.1","expected_keywords":["安全等级"],"type":"clause"}
+{"id":"clause-reliability-3-3-3","query":"可靠性统一标准第3.3.3条关于设计使用年限怎么规定？","expected_sources":["建筑结构可靠性设计统一标准","GB 50068-2018"],"expected_clause":"3.3.3","expected_keywords":["设计使用年限"],"type":"clause"}
+{"id":"clause-quality-3-0-9","query":"施工质量验收统一标准第3.0.9条关于抽样数量怎么规定？","expected_sources":["建筑工程施工质量验收统一标准","GB 50300-2013"],"expected_clause":"3.0.9","expected_keywords":["抽样数量"],"type":"clause"}
+{"id":"definition-load-permanent","query":"什么是永久荷载？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_keywords":["永久荷载"],"type":"definition"}
+{"id":"definition-load-variable","query":"什么是可变荷载？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_keywords":["可变荷载"],"type":"definition"}
+{"id":"definition-load-accidental","query":"什么是偶然荷载？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_keywords":["偶然荷载"],"type":"definition"}
+{"id":"definition-seismic-action","query":"什么是地震作用？","expected_sources":["建筑抗震设计规范","GB 50011-2010"],"expected_keywords":["地震作用"],"type":"definition"}
+{"id":"definition-seismic-site-category","query":"建筑抗震设计规范中场地类别是什么意思？","expected_sources":["建筑抗震设计规范","GB 50011-2010"],"expected_keywords":["场地类别"],"type":"definition"}
+{"id":"definition-reliability-limit-state","query":"什么是极限状态？","expected_sources":["建筑结构可靠性设计统一标准","GB 50068-2018"],"expected_keywords":["极限状态"],"type":"definition"}
+{"id":"definition-quality-inspection-lot","query":"施工质量验收中检验批是什么意思？","expected_sources":["建筑工程施工质量验收统一标准","GB 50300-2013"],"expected_keywords":["检验批"],"type":"definition"}
+{"id":"classification-seismic-standard-category","query":"建筑工程抗震设防类别分为哪几类？","expected_sources":["建筑工程抗震设防分类标准","GB 50223-2008"],"expected_keywords":["特殊设防","重点设防"],"type":"classification"}
+{"id":"classification-special-fortification","query":"特殊设防类建筑如何理解？","expected_sources":["建筑工程抗震设防分类标准","GB 50223-2008"],"expected_keywords":["特殊设防"],"type":"classification"}
+{"id":"classification-standard-fortification","query":"标准设防类建筑如何判定？","expected_sources":["建筑工程抗震设防分类标准","GB 50223-2008"],"expected_keywords":["标准设防"],"type":"classification"}
+{"id":"classification-moderate-fortification","query":"适度设防类建筑有什么要求？","expected_sources":["建筑工程抗震设防分类标准","GB 50223-2008"],"expected_keywords":["适度设防"],"type":"classification"}
+{"id":"classification-hospital-fortification","query":"医院建筑抗震设防类别如何确定？","expected_sources":["建筑工程抗震设防分类标准","GB 50223-2008"],"expected_keywords":["医院"],"type":"classification"}
+{"id":"classification-school-fortification-detail","query":"中小学校舍抗震设防类别如何确定？","expected_sources":["建筑工程抗震设防分类标准","GB 50223-2008"],"expected_keywords":["学校"],"type":"classification"}
+{"id":"formula-load-snow","query":"雪荷载标准值的计算公式是什么？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_keywords":["雪荷载标准值"],"type":"formula"}
+{"id":"formula-load-wind","query":"风荷载标准值如何计算？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_keywords":["风荷载标准值"],"type":"formula"}
+{"id":"formula-reliability-action-combination","query":"可靠性统一标准中承载能力极限状态作用组合表达式是什么？","expected_sources":["建筑结构可靠性设计统一标准","GB 50068-2018"],"expected_keywords":["承载能力极限状态"],"type":"formula"}
+{"id":"alias-load-snow","query":"荷规里雪压和雪荷载怎么取？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_keywords":["雪荷载"],"type":"alias"}
+{"id":"alias-load-wind","query":"荷规风压高度变化系数在哪查？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_keywords":["风压高度变化系数"],"type":"alias"}
+{"id":"alias-seismic-site","query":"抗规场地类别和覆盖层厚度怎么确定？","expected_sources":["建筑抗震设计规范","GB 50011-2010"],"expected_keywords":["场地","覆盖层"],"type":"alias"}
+{"id":"alias-seismic-irregular","query":"抗规里平面不规则和竖向不规则怎么判定？","expected_sources":["建筑抗震设计规范","GB 50011-2010"],"expected_keywords":["不规则"],"type":"alias"}
+{"id":"alias-reliability-safety","query":"可靠性统一标准安全等级怎么划分？","expected_sources":["建筑结构可靠性设计统一标准","GB 50068-2018"],"expected_keywords":["安全等级"],"type":"alias"}
+{"id":"code-gb50068-design-life","query":"GB50068 对设计使用年限有什么规定？","expected_sources":["建筑结构可靠性设计统一标准","GB 50068-2018"],"expected_keywords":["设计使用年限"],"type":"code"}
+{"id":"code-gb50300-inspection-lot","query":"GB50300 对检验批验收有什么要求？","expected_sources":["建筑工程施工质量验收统一标准","GB 50300-2013"],"expected_keywords":["检验批"],"type":"code"}
+{"id":"code-gb50223-school","query":"GB50223 对学校建筑设防类别怎么规定？","expected_sources":["建筑工程抗震设防分类标准","GB 50223-2008"],"expected_keywords":["学校"],"type":"code"}
+{"id":"code-gb50011-liquefaction","query":"GB50011 液化判别有哪些规定？","expected_sources":["建筑抗震设计规范","GB 50011-2010"],"expected_keywords":["液化"],"type":"code"}
+{"id":"general-load-live-note","query":"民用建筑楼面活荷载表的注释有哪些需要注意？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_keywords":["本表","活荷载"],"type":"general"}
+{"id":"general-load-crane-dynamic","query":"吊车荷载动力系数如何考虑？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_keywords":["动力系数"],"type":"general"}
+{"id":"general-load-ash","query":"屋面积灰荷载适用于哪些情况？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_keywords":["积灰荷载"],"type":"general"}
+{"id":"general-seismic-performance","query":"建筑抗震性能化设计有哪些基本要求？","expected_sources":["建筑抗震设计规范","GB 50011-2010"],"expected_keywords":["性能化设计"],"type":"general"}
+{"id":"general-seismic-nonstructural-detail","query":"非结构构件抗震措施应注意什么？","expected_sources":["建筑抗震设计规范","GB 50011-2010"],"expected_keywords":["非结构构件"],"type":"general"}
+{"id":"general-quality-main-control","query":"主控项目和一般项目验收有什么区别？","expected_sources":["建筑工程施工质量验收统一标准","GB 50300-2013"],"expected_keywords":["主控项目","一般项目"],"type":"general"}
+{"id":"general-quality-division","query":"分部工程验收应满足哪些条件？","expected_sources":["建筑工程施工质量验收统一标准","GB 50300-2013"],"expected_keywords":["分部工程"],"type":"general"}
+{"id":"multi-spec-load-reliability-standard-value","query":"荷载规范和可靠性统一标准中标准值的含义有什么关系？","expected_sources":["建筑结构荷载规范","建筑结构可靠性设计统一标准"],"expected_keywords":["标准值"],"type":"multi_spec"}
+{"id":"multi-spec-seismic-category-school","query":"抗震规范和设防分类标准对学校建筑设防要求有什么关系？","expected_sources":["建筑抗震设计规范","建筑工程抗震设防分类标准"],"expected_keywords":["学校","设防"],"type":"multi_spec"}

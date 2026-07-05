@@ -9,7 +9,7 @@ from .errors import ErrorCode, error_response
 from .metrics import metrics
 from .rate_limit import rate_limiter
 from .request_context import new_request_id, set_request_id
-from .security import is_authorized
+from .security import is_authorized, is_trusted_local_request
 
 
 def _client_ip(request: Request) -> str:
@@ -38,14 +38,14 @@ class ServiceMiddleware(BaseHTTPMiddleware):
                 response = error_response(413, ErrorCode.INVALID_REQUEST, "请求体过大")
                 return response
 
-            if not rate_limiter.allow(f"{client_ip}:{path}"):
-                error_code = ErrorCode.RATE_LIMITED
-                response = error_response(429, ErrorCode.RATE_LIMITED, "请求过于频繁")
-                return response
-
             if not is_authorized(request):
                 error_code = ErrorCode.UNAUTHORIZED
                 response = error_response(401, ErrorCode.UNAUTHORIZED, "缺少或无效的 API Key")
+                return response
+
+            if not is_trusted_local_request(request) and not rate_limiter.allow(f"{client_ip}:{path}"):
+                error_code = ErrorCode.RATE_LIMITED
+                response = error_response(429, ErrorCode.RATE_LIMITED, "请求过于频繁")
                 return response
 
             response = await call_next(request)

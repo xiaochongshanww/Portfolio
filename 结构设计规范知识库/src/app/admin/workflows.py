@@ -1,0 +1,232 @@
+from pathlib import Path
+from typing import Any
+
+from src.evaluation.runner import DEFAULT_EVAL_PATH, STRUCTURED_EVAL_PATH, render_evaluation_markdown, run_evaluation
+from src.evaluation.answer_runner import (
+    ANSWER_EVAL_PATH,
+    render_answer_evaluation_markdown,
+    run_answer_evaluation,
+)
+from src.app.core.config import settings
+from src.app.retrieval.hybrid_search import retrieval_state
+from src.pipeline import builder
+from src.pipeline.active_db import write_active_db
+from src.pipeline.manifest import write_manifest
+from src.pipeline.paths import ACTIVE_DB_PATH, AUDIT_DIR, DB_VERSIONS_DIR, MANIFEST_PATH, RAW_DIR
+from src.pipeline.audit.structuring_ai import generate_structuring_suggestion
+from src.pipeline.audit.structuring_ai import read_structuring_suggestion
+from src.pipeline.audit.manual_structuring import (
+    build_manual_structuring_draft,
+    list_manual_structuring_files,
+    read_manual_structuring_file,
+)
+
+from .models import Job
+from .storage import JobStore
+
+
+def _set_step(job: Job, store: JobStore, step: str, message: str, **progress: Any) -> None:
+    job.step = step
+    job.progress = {"message": message, **progress}
+    store.save(job)
+    store.append_log(job.job_id, "info", message, step=step, progress=job.progress)
+
+
+def dry_run_workflow(job: Job, store: JobStore) -> dict[str, Any]:
+    source = Path(job.params.get("source", RAW_DIR))
+    parser_backend = str(job.params.get("parser_backend", builder.DEFAULT_PARSER_BACKEND))
+    _set_step(job, store, "dry_run", "检查待处理 PDF")
+    return builder.dry_run(source, parser_backend=parser_backend)
+
+
+def rebuild_workflow(job: Job, store: JobStore) -> dict[str, Any]:
+    source = Path(job.params.get("source", RAW_DIR))
+    parser_backend = str(job.params.get("parser_backend", builder.DEFAULT_PARSER_BACKEND))
+    apply_corrections = bool(job.params.get("apply_corrections", True))
+    _set_step(job, store, "rebuild", "开始重建知识库", source=str(source), parser_backend=parser_backend)
+    version_dir = DB_VERSIONS_DIR / job.job_id
+    db_dir = version_dir / "db"
+    manifest_path = version_dir / "manifest.json"
+    _set_step(job, store, "build_version", "构建到临时版本目录", db_dir=str(db_dir))
+    manifest = builder.rebuild(
+        source,
+        parser_backend=parser_backend,
+        apply_corrections=apply_corrections,
+        db_dir=db_dir,
+        manifest_path=manifest_path,
+    )
+    _set_step(job, store, "activate_version", "切换 active 知识库版本", db_dir=str(db_dir))
+    write_active_db(
+        {
+            "active_db_dir": str(db_dir),
+            "manifest": str(manifest_path),
+            "job_id": job.job_id,
+            "data_version_hash": manifest.get("data_version_hash", ""),
+            "chunk_count": manifest.get("chunk_count", 0),
+            "activated_at": manifest.get("built_at", ""),
+        },
+        ACTIVE_DB_PATH,
+    )
+    write_manifest(MANIFEST_PATH, manifest)
+    _set_step(job, store, "reload", "重载在线检索状态", db_dir=str(db_dir))
+    retrieval_state.reload(db_dir)
+    return {
+        "manifest": str(MANIFEST_PATH),
+        "version_manifest": str(manifest_path),
+        "active_db": str(db_dir),
+        "document_count": manifest.get("document_count", 0),
+        "chunk_count": manifest.get("chunk_count", 0),
+        "image_count": manifest.get("image_count", 0),
+        "data_version_hash": manifest.get("data_version_hash", ""),
+        "applied_correction_count": manifest.get("correction_status", {}).get("applied_count", 0),
+    }
+
+
+def audit_workflow(job: Job, store: JobStore) -> dict[str, Any]:
+    _set_step(job, store, "audit", "开始规则审计")
+    report = builder.audit()
+    return {
+        "report_path": report.get("report_path", ""),
+        "document_count": report.get("document_count", 0),
+        "finding_count": report.get("finding_count", 0),
+        "high_risk_count": report.get("high_risk_count", 0),
+    }
+
+
+def review_workflow(job: Job, store: JobStore) -> dict[str, Any]:
+    doc = str(job.params.get("doc", ""))
+    pages = str(job.params.get("pages", ""))
+    _set_step(job, store, "review", "开始 AI 校对", doc=doc, pages=pages)
+    return builder.review(doc, pages=pages)
+
+
+def structuring_suggestion_workflow(job: Job, store: JobStore) -> dict[str, Any]:
+    doc = str(job.params.get("doc", ""))
+    item_id = str(job.params.get("item_id", ""))
+    _set_step(job, store, "render", "渲染复杂表来源页面", doc=doc, item_id=item_id)
+    _set_step(job, store, "generate", "调用多模态模型生成结构化建议", doc=doc, item_id=item_id)
+    result = generate_structuring_suggestion(doc, item_id)
+    _set_step(
+        job,
+        store,
+        "save_suggestion",
+        "结构化建议已保存，等待人工应用",
+        row_count=result.get("row_count", 0),
+        confidence=result.get("confidence", 0),
+    )
+    return result
+
+
+def structuring_suggestion_batch_workflow(job: Job, store: JobStore) -> dict[str, Any]:
+    force = bool(job.params.get("force", False))
+    requested_docs = {str(value) for value in job.params.get("documents", []) if str(value)}
+    tasks: list[tuple[str, str]] = []
+    for summary in list_manual_structuring_files():
+        doc = str(summary["doc"])
+        if requested_docs and doc not in requested_docs:
+            continue
+        detail = read_manual_structuring_file(doc)
+        seen: set[str] = set()
+        for item in detail.get("items", []):
+            owner_id = str(item.get("group_primary_item_id") or item.get("id"))
+            if owner_id in seen or item.get("review_status", "pending") != "pending":
+                continue
+            seen.add(owner_id)
+            tasks.append((doc, owner_id))
+
+    completed = 0
+    skipped = 0
+    failures: list[dict[str, str]] = []
+    outputs: list[dict[str, Any]] = []
+    for index, (doc, item_id) in enumerate(tasks, start=1):
+        _set_step(
+            job,
+            store,
+            "batch_generate",
+            f"生成结构化建议 {index}/{len(tasks)}",
+            completed=completed,
+            skipped=skipped,
+            failed=len(failures),
+            doc=doc,
+            item_id=item_id,
+        )
+        try:
+            build_manual_structuring_draft(doc, item_id)
+            if not force:
+                try:
+                    existing = read_structuring_suggestion(doc, item_id)
+                    if not existing.get("stale"):
+                        skipped += 1
+                        continue
+                except FileNotFoundError:
+                    pass
+            result = generate_structuring_suggestion(doc, item_id)
+            outputs.append({"doc": doc, "item_id": item_id, **result})
+            completed += 1
+        except Exception as exc:
+            failures.append({"doc": doc, "item_id": item_id, "error": str(exc)})
+            store.append_log(job.job_id, "error", str(exc), doc=doc, item_id=item_id)
+    return {
+        "task_count": len(tasks),
+        "completed_count": completed,
+        "skipped_count": skipped,
+        "failed_count": len(failures),
+        "failures": failures,
+        "suggestions": outputs,
+    }
+
+
+def evaluate_workflow(job: Job, store: JobStore) -> dict[str, Any]:
+    top_k = int(job.params.get("top_k", 5))
+    eval_file = Path(job.params.get("file", DEFAULT_EVAL_PATH))
+    _set_step(job, store, "evaluate", "开始检索评估", top_k=top_k)
+    result = run_evaluation(eval_file, top_k=top_k)
+    out_dir = AUDIT_DIR / "reports"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    is_structured = eval_file.resolve() == STRUCTURED_EVAL_PATH.resolve()
+    stem = "evaluation_structured_latest" if is_structured else "evaluation_latest"
+    out_path = out_dir / f"{stem}.json"
+    markdown_path = out_dir / f"{stem}.md"
+    import json
+
+    out_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+    markdown_path.write_text(
+        render_evaluation_markdown(result, "结构化检索专项评估" if is_structured else "检索评估报告"),
+        encoding="utf-8",
+    )
+    return {**result, "report_path": str(out_path), "markdown_report_path": str(markdown_path)}
+
+
+def answer_evaluate_workflow(job: Job, store: JobStore) -> dict[str, Any]:
+    eval_file = Path(job.params.get("file", ANSWER_EVAL_PATH))
+    api_base = str(job.params.get("api_base") or "http://127.0.0.1:8000")
+    api_key = settings.api_keys[0] if settings.api_keys else ""
+
+    def update_progress(completed: int, total: int, result: dict[str, Any]) -> None:
+        _set_step(
+            job,
+            store,
+            "answer_evaluate",
+            f"回答级盲测 {completed}/{total}",
+            completed=completed,
+            total=total,
+            latest_case=result.get("id"),
+            latest_passed=result.get("passed"),
+        )
+
+    _set_step(job, store, "answer_evaluate", "开始回答级盲测", file=str(eval_file))
+    result = run_answer_evaluation(
+        api_base=api_base,
+        api_key=api_key,
+        path=eval_file,
+        progress_callback=update_progress,
+    )
+    out_dir = AUDIT_DIR / "reports"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / "evaluation_answer_latest.json"
+    markdown_path = out_dir / "evaluation_answer_latest.md"
+    import json
+
+    out_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+    markdown_path.write_text(render_answer_evaluation_markdown(result), encoding="utf-8")
+    return {**result, "report_path": str(out_path), "markdown_report_path": str(markdown_path)}

@@ -1,0 +1,76 @@
+{
+  "schema_version": "0.1",
+  "source": {
+    "code": "GB 50009-2012",
+    "name": "建筑结构荷载规范",
+    "source_file": "GB 50009-2012_.建筑结构荷载规范.pdf",
+    "clause_number": "5.1.2",
+    "table_id": "5.1.2",
+    "table_name": "活荷载按楼层的折减系数",
+    "pages": [33]
+  },
+  "columns": [
+    {"key": "supported_levels", "label": "墙、柱、基础计算截面以上的层数"},
+    {"key": "reduction_factor", "label": "计算截面以上各楼层活荷载总和的折减系数"},
+    {"key": "beam_factor_when_area_over_25m2", "label": "楼面梁从属面积超过25m²时采用的括号内系数"},
+    {"key": "condition", "label": "适用条件"},
+    {"key": "aliases", "label": "检索别名"}
+  ],
+  "rows": [
+    {
+      "supported_levels": "1",
+      "reduction_factor": 1.0,
+      "beam_factor_when_area_over_25m2": 0.9,
+      "condition": "墙、柱、基础计算截面以上的层数为1；楼面梁从属面积超过25m²时采用括号内系数0.90。",
+      "aliases": ["1层", "一层", "单层", "墙柱基础1层", "楼面梁从属面积超过25m2"]
+    },
+    {
+      "supported_levels": "2~3",
+      "reduction_factor": 0.85,
+      "beam_factor_when_area_over_25m2": null,
+      "condition": "墙、柱、基础计算截面以上的层数为2~3。",
+      "aliases": ["2层", "3层", "二层", "三层", "2~3层", "2-3层"]
+    },
+    {
+      "supported_levels": "4~5",
+      "reduction_factor": 0.7,
+      "beam_factor_when_area_over_25m2": null,
+      "condition": "墙、柱、基础计算截面以上的层数为4~5。",
+      "aliases": ["4层", "5层", "四层", "五层", "4~5层", "4-5层"]
+    },
+    {
+      "supported_levels": "6~8",
+      "reduction_factor": 0.65,
+      "beam_factor_when_area_over_25m2": null,
+      "condition": "墙、柱、基础计算截面以上的层数为6~8。",
+      "aliases": ["6层", "7层", "8层", "六层", "七层", "八层", "6~8层", "6-8层"]
+    },
+    {
+      "supported_levels": "9~20",
+      "reduction_factor": 0.6,
+      "beam_factor_when_area_over_25m2": null,
+      "condition": "墙、柱、基础计算截面以上的层数为9~20。",
+      "aliases": ["9层", "20层", "九层", "二十层", "9~20层", "9-20层"]
+    },
+    {
+      "supported_levels": ">20",
+      "reduction_factor": 0.55,
+      "beam_factor_when_area_over_25m2": null,
+      "condition": "墙、柱、基础计算截面以上的层数大于20。",
+      "aliases": ["大于20层", "超过20层", "20层以上", ">20层"]
+    }
+  ],
+  "table_aliases": [
+    "活荷载按楼层的折减系数",
+    "楼层折减系数",
+    "活荷载折减系数",
+    "墙柱基础折减系数",
+    "墙、柱、基础折减系数",
+    "表5.1.2"
+  ],
+  "notes": [
+    "当楼面梁的从属面积超过25m²时，应采用括号内的系数。",
+    "本表用于设计墙、柱和基础时，表5.1.1中楼面活荷载标准值按楼层进行折减的取值。",
+    "结构化数据来自当前知识库中表5.1.2解析结果，并保留原表数值。"
+  ]
+}

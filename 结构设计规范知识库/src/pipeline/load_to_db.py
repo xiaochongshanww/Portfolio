@@ -30,6 +30,11 @@ def _metadata_for_chroma(chunk: dict[str, Any]) -> dict[str, Any]:
         "title": chunk["title"],
         "clause_number": chunk["clause_number"],
         "chunk_type": chunk["chunk_type"],
+        "section_type": chunk.get("section_type", "body"),
+        "authority_level": int(chunk.get("authority_level", 50)),
+        "is_table": bool(chunk.get("is_table", False)),
+        "table_id": chunk.get("table_id", ""),
+        "table_name": chunk.get("table_name", ""),
         "pages": ",".join(str(page) for page in chunk["pages"]),
         "images": ",".join(chunk["images"])[:500],
         "chunk_id": chunk["chunk_id"],
@@ -74,4 +79,31 @@ def load_chunks_to_db(chunks_by_file: dict[str, list[dict[str, Any]]], db_dir: P
                 raise PipelineError(f"{source_file} 批次 {index // 10 + 1} 入库失败: {exc}") from exc
 
     logging.info("入库完成: %s 条, 集合总条目: %s", total, collection.count())
+    try:
+        db._system.stop()
+    except Exception:
+        logging.warning("ChromaDB flush/stop 未显式完成", exc_info=True)
+    _repair_incomplete_hnsw_index(db_dir)
     return total
+
+
+def _repair_incomplete_hnsw_index(db_dir: Path) -> None:
+    """Work around intermittent Chroma/HNSW persistence issues on Windows."""
+    repaired = False
+    for metadata_path in db_dir.glob("*/index_metadata.pickle"):
+        segment_dir = metadata_path.parent
+        if not (segment_dir / "data_level0.bin").exists():
+            metadata_path.unlink(missing_ok=True)
+            repaired = True
+            logging.warning("删除不完整 Chroma HNSW 元数据以触发索引回填: %s", metadata_path)
+    if not repaired:
+        return
+    try:
+        import chromadb
+
+        db = chromadb.PersistentClient(path=str(db_dir))
+        collection = db.get_or_create_collection(name=settings.collection_name)
+        logging.info("Chroma HNSW 索引回填完成: %s 条", collection.count())
+        db._system.stop()
+    except Exception:
+        logging.warning("Chroma HNSW 索引回填未完成", exc_info=True)

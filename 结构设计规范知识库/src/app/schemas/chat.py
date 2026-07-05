@@ -17,4 +17,5 @@ class ChatCompletionRequest(BaseModel):
     temperature: Optional[float] = 0.7
     max_tokens: Optional[int] = None
     top_p: Optional[float] = 1.0
+    include_rag_trace: bool = False
 

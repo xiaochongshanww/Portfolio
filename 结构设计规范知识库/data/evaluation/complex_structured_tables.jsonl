@@ -1,0 +1,12 @@
+{"id":"structured-live-load-office","query":"办公楼楼面活荷载标准值取多少","type":"structured_table","expected_table_id":"5.1.1","keyword_required":false,"top1_source_required":false}
+{"id":"structured-live-load-fire-engine","query":"6m×6m无梁楼盖消防车活荷载标准值","type":"structured_table","expected_table_id":"5.1.1","keyword_required":false,"top1_source_required":false}
+{"id":"structured-live-load-reduction","query":"墙柱基础计算截面以上9到20层时活荷载折减系数","type":"structured_table","expected_table_id":"5.1.2","keyword_required":false,"top1_source_required":false}
+{"id":"structured-design-life","query":"设计使用年限100年楼面屋面活荷载调整系数","type":"structured_table","expected_table_id":"3.2.5","keyword_required":false,"top1_source_required":false}
+{"id":"structured-roof-non-accessible","query":"不上人屋面均布活荷载标准值","type":"structured_table","expected_table_id":"5.3.1","keyword_required":false,"top1_source_required":false}
+{"id":"structured-roof-garden","query":"屋顶花园活荷载标准值","type":"structured_table","expected_table_id":"5.3.1","keyword_required":false,"top1_source_required":false}
+{"id":"structured-helicopter","query":"轻型屋面直升机停机坪局部荷载标准值和作用面积","type":"structured_table","expected_table_id":"5.3.2","keyword_required":false,"top1_source_required":false}
+{"id":"structured-snow-formula","query":"雪荷载标准值计算公式","type":"structured_table","expected_table_id":"7.1.1","keyword_required":false,"top1_source_required":false}
+{"id":"structured-wind-main-formula","query":"主要受力结构风荷载标准值计算公式","type":"structured_table","expected_table_id":"8.1.1","keyword_required":false,"top1_source_required":false}
+{"id":"structured-wind-cladding-formula","query":"围护结构风荷载标准值计算公式","type":"structured_table","expected_table_id":"8.1.1","keyword_required":false,"top1_source_required":false}
+{"id":"structured-wind-height-b","query":"B类地面粗糙度100m风压高度变化系数","type":"structured_table","expected_table_id":"8.2.1","keyword_required":false,"top1_source_required":false}
+{"id":"structured-table-number","query":"建筑结构荷载规范表5.1.2规定了什么","type":"structured_table","expected_table_id":"5.1.2","keyword_required":false,"top1_source_required":false}

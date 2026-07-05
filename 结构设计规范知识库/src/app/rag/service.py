@@ -1,17 +1,36 @@
 import logging
+import re
 from typing import Any
+from urllib.parse import quote
 
 from ..core.config import settings
 from ..core.errors import ErrorCode, error_payload
 from ..retrieval.hybrid_search import retrieval_state
 from ..schemas.chat import ChatCompletionRequest
-from .images import load_page_images
+from .images import load_images_by_name, load_page_images, page_image_filenames
 from .prompt import SYSTEM_PROMPT
 from .context import format_result_context
+from .structured_tables import find_structured_table_matches, format_structured_table_context
 
 
 def _parse_pages(pages_str: str) -> list[int]:
     return [int(page) for page in pages_str.split(",") if page.strip().isdigit()]
+
+
+def _parse_images(images_value: Any) -> list[str]:
+    if isinstance(images_value, list):
+        return [str(image).strip() for image in images_value if str(image).strip()]
+    if isinstance(images_value, str):
+        return [image.strip() for image in images_value.split(",") if image.strip()]
+    return []
+
+
+def _image_url(filename: str) -> str:
+    return f"{settings.public_asset_base_url}{settings.img_base_url.rstrip('/')}/{quote(filename)}"
+
+
+def _page_image_url(source: str, page: int) -> str:
+    return f"{settings.public_asset_base_url}/page-images/{quote(source)}/{page}"
 
 
 def _enhance_query(request: ChatCompletionRequest) -> str:
@@ -23,7 +42,9 @@ def _enhance_query(request: ChatCompletionRequest) -> str:
     return f"{history[-1]} {current_query}" if history else current_query
 
 
-async def build_mimo_payload(request: ChatCompletionRequest) -> tuple[dict[str, Any], list[str]] | dict[str, Any]:
+async def build_mimo_payload(
+    request: ChatCompletionRequest,
+) -> tuple[dict[str, Any], list[str], dict[str, Any]] | dict[str, Any]:
     if not retrieval_state.ready:
         return error_payload(ErrorCode.KNOWLEDGE_BASE_NOT_READY, "知识库尚未就绪") | {"status_code": 503}
 
@@ -32,19 +53,29 @@ async def build_mimo_payload(request: ChatCompletionRequest) -> tuple[dict[str, 
     logging.info("检索: %s", enhanced_query[:120])
 
     results = retrieval_state.hybrid_search(enhanced_query, settings.rag_top_k)
+    structured_matches = find_structured_table_matches(enhanced_query, limit=3)
     if not results:
         return error_payload(ErrorCode.NO_RETRIEVAL_RESULTS, "知识库中未找到相关条目") | {"status_code": 404}
 
-    logging.info("检索到 %s 条", len(results))
+    logging.info("检索到 %s 条，结构化表格 %s 条", len(results), len(structured_matches))
 
     imgs_to_send: list[str] = []
     seen_imgs: set[str] = set()
     context_parts: list[str] = []
 
+    for match in structured_matches:
+        context_parts.append(format_structured_table_context(match))
+
     for result in results:
         meta = result.meta
         context_parts.append(format_result_context(result))
         distance = result.meta.get("_distance", 0.1 if result.clause_match else 0.45 if result.bm25_score else 1.0)
+        if distance < settings.rag_min_score:
+            for image in load_images_by_name(_parse_images(meta.get("images", ""))):
+                if image not in seen_imgs:
+                    seen_imgs.add(image)
+                    imgs_to_send.append(image)
+
         if distance < settings.rag_min_score and meta.get("pages"):
             pages_str = meta.get("pages", "")
             source = meta.get("source", "")
@@ -57,15 +88,25 @@ async def build_mimo_payload(request: ChatCompletionRequest) -> tuple[dict[str, 
     logging.info("图片 %s 页, 文本 %s 段", len(imgs_to_send), len(context_parts))
 
     image_list = []
+    offered_image_urls: list[str] = []
     for result in results:
         meta = result.meta
+        for filename in _parse_images(meta.get("images", "")):
+            url = _image_url(filename)
+            image_list.append(f"- 相关截图：请原样引用 `![相关截图]({url})`")
+            offered_image_urls.append(url)
+
         source = meta.get("source", "")
         pages_str = meta.get("pages", "")
         if pages_str and source:
-            name_part = source.rsplit(".", 1)[0]
             for page in _parse_pages(pages_str):
-                filename = f"{name_part}_p{page:04d}.png"
-                image_list.append(f"- 第{page}页: `{filename}` -> ![]({settings.img_base_url}/{filename})")
+                url = _page_image_url(source, page)
+                image_list.append(f"- 第{page}页：请原样引用 `![第{page}页]({url})`")
+                offered_image_urls.append(url)
+            for filename in page_image_filenames(source, _parse_pages(pages_str)):
+                url = _image_url(filename)
+                image_list.append(f"- 页面截图：请原样引用 `![页面截图]({url})`")
+                offered_image_urls.append(url)
 
     context = "\n\n---\n\n".join(context_parts[:20])
     user_text = f"""用户问题：
@@ -96,4 +137,44 @@ async def build_mimo_payload(request: ChatCompletionRequest) -> tuple[dict[str, 
         "temperature": request.temperature,
         "top_p": request.top_p,
     }
-    return payload, imgs_to_send
+    trace_sources = [
+        {
+            "source_file": match.table.get("source", {}).get("source_file", ""),
+            "code": match.table.get("source", {}).get("code", ""),
+            "name": match.table.get("source", {}).get("name", ""),
+            "clause_number": match.table.get("source", {}).get("clause_number", ""),
+            "matched_clause_number": "",
+            "table_id": match.table.get("source", {}).get("table_id", ""),
+            "table_name": match.table.get("source", {}).get("table_name", ""),
+            "pages": match.table.get("source", {}).get("pages", []),
+            "section_type": "structured_table",
+        }
+        for match in structured_matches
+    ]
+    trace_sources.extend(
+        {
+            "source_file": result.meta.get("source_file") or result.meta.get("source", ""),
+            "code": result.meta.get("code", ""),
+            "name": result.meta.get("name", ""),
+            "clause_number": result.meta.get("clause_number", ""),
+            "matched_clause_number": result.meta.get("matched_clause_number", ""),
+            "table_id": result.meta.get("table_id", ""),
+            "table_name": result.meta.get("table_name", ""),
+            "pages": _parse_pages(str(result.meta.get("pages", ""))),
+            "section_type": result.meta.get("section_type", ""),
+        }
+        for result in results
+    )
+    evidence_text = "\n".join(
+        [result.text for result in results]
+        + [format_structured_table_context(match) for match in structured_matches]
+    )
+    trace = {
+        "query": enhanced_query,
+        "sources": trace_sources,
+        "image_urls": list(dict.fromkeys(offered_image_urls)),
+        "mentioned_codes": sorted(set(re.findall(r"\bGB\s*\d{5}(?:[-—]\d{4})?\b", evidence_text, re.I))),
+        "mentioned_clauses": sorted(set(re.findall(r"(?<!\d)(\d+(?:\.\d+){2})(?!\d)", evidence_text))),
+        "mentioned_tables": sorted(set(re.findall(r"表\s*(\d+(?:\.\d+){1,2})", evidence_text))),
+    }
+    return payload, imgs_to_send, trace

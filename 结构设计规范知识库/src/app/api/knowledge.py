@@ -3,8 +3,8 @@ from fastapi import APIRouter, HTTPException
 
 from src.evaluation.runner import DEFAULT_EVAL_PATH, load_cases
 from src.pipeline.audit.corrections import list_candidate_files, promote_approved_candidates, read_candidate_file, update_candidate_status
-from src.pipeline.manifest import read_manifest
-from src.pipeline.paths import CORRECTIONS_DIR, MANIFEST_PATH
+from src.pipeline.active_db import read_active_manifest
+from src.pipeline.paths import CORRECTIONS_DIR
 
 router = APIRouter()
 
@@ -15,7 +15,7 @@ class CandidateStatusUpdate(BaseModel):
 
 @router.get("/knowledge/documents")
 async def knowledge_documents():
-    manifest = read_manifest(MANIFEST_PATH)
+    manifest = read_active_manifest()
     if not manifest:
         return {
             "built": False,

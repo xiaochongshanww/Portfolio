@@ -27,14 +27,14 @@ def list_pdf_files(source_dir: Path) -> list[Path]:
 DEFAULT_PARSER_BACKEND = os.environ.get("PDF_PARSER_BACKEND", "mineru")
 
 
-def clean_generated_outputs() -> None:
-    for path in [PROCESSED_DIR, IMAGES_DIR, MINERU_DIR, AUDIT_DIR, DB_DIR]:
+def clean_generated_outputs(*, db_dir: Path = DB_DIR, manifest_path: Path = MANIFEST_PATH) -> None:
+    for path in [PROCESSED_DIR, IMAGES_DIR, MINERU_DIR, AUDIT_DIR, db_dir]:
         if path.exists():
             shutil.rmtree(path)
-    for path in [PROCESSED_DIR, IMAGES_DIR, MINERU_DIR, AUDIT_DIR, DB_DIR, CORRECTIONS_DIR / "candidates", CORRECTIONS_DIR / "approved"]:
+    for path in [PROCESSED_DIR, IMAGES_DIR, MINERU_DIR, AUDIT_DIR, db_dir, CORRECTIONS_DIR / "candidates", CORRECTIONS_DIR / "approved"]:
         path.mkdir(parents=True, exist_ok=True)
-    if MANIFEST_PATH.exists():
-        MANIFEST_PATH.unlink()
+    if manifest_path.exists():
+        manifest_path.unlink()
 
 
 def dry_run(source_dir: Path = RAW_DIR, *, parser_backend: str = DEFAULT_PARSER_BACKEND) -> dict[str, Any]:
@@ -60,6 +60,8 @@ def rebuild(
     dry_run_only: bool = False,
     parser_backend: str = DEFAULT_PARSER_BACKEND,
     apply_corrections: bool = True,
+    db_dir: Path = DB_DIR,
+    manifest_path: Path = MANIFEST_PATH,
 ) -> dict[str, Any]:
     configure_pipeline_logging()
     source_dir = source_dir.resolve()
@@ -73,7 +75,7 @@ def rebuild(
         raise BuildPreflightError("ZHIPUAI_API_KEY 未设置，无法执行全量构建和向量化入库")
     validate_parser_backend(parser_backend)
 
-    clean_generated_outputs()
+    clean_generated_outputs(db_dir=db_dir, manifest_path=manifest_path)
 
     from .load_to_db import load_chunks_to_db
     from .process_documents import process_pdfs
@@ -88,7 +90,7 @@ def rebuild(
         apply_corrections=apply_corrections,
     )
     chunks_by_file = {source_file: result["chunks"] for source_file, result in processed_by_file.items()}
-    total_loaded = load_chunks_to_db(chunks_by_file, DB_DIR)
+    total_loaded = load_chunks_to_db(chunks_by_file, db_dir)
     chunk_counts = {source_file: len(chunks) for source_file, chunks in chunks_by_file.items()}
     image_count = len([path for path in IMAGES_DIR.glob("*") if path.is_file()])
     manifest = build_manifest(
@@ -111,13 +113,14 @@ def rebuild(
             "mode": "rebuild",
             "parser_backend": parser_backend,
             "mineru_output_dir": str(MINERU_DIR),
+            "db_dir": str(db_dir),
             "mineru_args": os.environ.get("MINERU_ARGS", ""),
             "apply_corrections": apply_corrections,
             "corrections_dir": str(CORRECTIONS_DIR),
             "loaded_chunks": total_loaded,
         },
     )
-    write_manifest(MANIFEST_PATH, manifest)
+    write_manifest(manifest_path, manifest)
     return manifest
 
 

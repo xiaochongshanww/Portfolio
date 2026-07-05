@@ -64,7 +64,7 @@ python -m src.pipeline rebuild --source data/raw --no-corrections
 ```bash
 export MIMO_API_KEY="..."
 export MIMO_BASE_URL="https://api.xiaomimimo.com/v1"
-export MIMO_MODEL="mimo-v2-omni"
+export MIMO_MODEL="mimo-v2.5"
 ```
 
 可用 `AI_REVIEW_MODEL` 单独覆盖校对模型。

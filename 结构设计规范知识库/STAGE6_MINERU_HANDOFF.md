@@ -62,8 +62,8 @@ export ZHIPUAI_API_KEY="..."
 # 需要 AI 校对时配置
 export MIMO_API_KEY="..."
 export MIMO_BASE_URL="https://api.xiaomimimo.com/v1"
-export MIMO_MODEL="mimo-v2-omni"
-export AI_REVIEW_MODEL="mimo-v2-omni"
+export MIMO_MODEL="mimo-v2.5"
+export AI_REVIEW_MODEL="mimo-v2.5"
 ```
 
 ## 执行步骤

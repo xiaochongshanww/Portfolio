@@ -1,0 +1,26 @@
+{
+  "schema_version": "0.1",
+  "rules": [
+    {
+      "id": "complex_snow_distribution",
+      "label": "屋面积雪分布系数复杂图表",
+      "severity": "high",
+      "terms": ["屋面积雪分布系数", "表7.2.1", "续表7.2.1"],
+      "reason": "该类表格通常包含屋面示意图、分区系数和合并单元格，OCR结果不宜直接固化为结构化事实。"
+    },
+    {
+      "id": "complex_wind_shape_factor",
+      "label": "风荷载体型系数复杂图表",
+      "severity": "high",
+      "terms": ["风荷载体型系数", "局部体型系数", "表8.3.1", "表8.3.3"],
+      "reason": "该类表格图文混排明显，含体型示意图和分区系数，需要人工按图核验后结构化。"
+    },
+    {
+      "id": "complex_roof_ash_load",
+      "label": "屋面积灰荷载复杂表",
+      "severity": "medium",
+      "terms": ["屋面积灰荷载", "表5.4.1-1", "表5.4.1-2", "高炉邻近建筑"],
+      "reason": "该类表格存在跨行跨列、条件列和表注联动，需要人工确认列含义与适用条件。"
+    }
+  ]
+}

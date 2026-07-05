@@ -1,0 +1,159 @@
+{
+  "source_file": "GB 50011-2010_建筑抗震设计规范_2016年版",
+  "updated_at": 1781440676,
+  "corrections": [
+    {
+      "id": "approved-gb50011-page80-table-6-3-7-1",
+      "action": "replace_text",
+      "target": {
+        "element_index": 636,
+        "field": "text"
+      },
+      "value": "表6.3.7-1 柱截面纵向钢筋的最小总配筋率 (百分率)\n类别\t抗震等级\n\t一\t二\t三\t四\n中柱和边柱\t0.9(1.0)\t0.7(0.8)\t0.6(0.7)\t0.5(0.6)\n角柱、框支柱\t1.1\t0.9\t0.8\t0.7"
+    },
+    {
+      "id": "approved-gb50011-page80-table-6-3-7-2",
+      "action": "replace_text",
+      "target": {
+        "element_index": 640,
+        "field": "text"
+      },
+      "value": "表6.3.7-2柱箍筋加密区的箍筋最大间距和最小直径\n抗震等级\t箍筋最大间距 (采用较小值，mm)\t箍筋最小直径 (mm)\n一\t6d，100\t10\n二\t8d，100\t8\n三\t8d，150 (柱根100)\t8\n四\t8d，150 (柱根100)\t6 (柱根8)\n注：1 d为柱纵筋最小直径；2柱根指底层柱下端箍筋加密区。"
+    },
+    {
+      "id": "approved-gb50011-page81-400mm-text",
+      "action": "replace_text",
+      "target": {
+        "element_index": 645,
+        "field": "text"
+      },
+      "value": "2截面边长大于 400mm 的柱，纵向钢筋间距不宜大于 200mm。"
+    },
+    {
+      "id": "approved-gb50011-page81-formula-6-3-9-2",
+      "action": "replace_text",
+      "target": {
+        "element_index": 655,
+        "field": "text"
+      },
+      "value": "$$ \\rho _ { \\mathrm { v } } \\geq \\lambda _ { \\mathrm { v } } f _ { \\mathrm { c } } / f _ { \\mathrm { yv } } $$"
+    },
+    {
+      "id": "approved-gb50011-page82-table-6-3-9",
+      "action": "replace_text",
+      "target": {
+        "element_index": 658,
+        "field": "text"
+      },
+      "value": "表6.3.9柱箍筋加密区的箍筋最小配箍特征值\n<html><body><table><tr><td rowspan=\"2\">抗震等级</td><td rowspan=\"2\">箍筋形式</td><td colspan=\"9\">柱轴压比</td></tr><tr><td>≤0.3</td><td>0.4</td><td>0.5</td><td>0.6</td><td>0.7</td><td>0.8</td><td>0.9</td><td>1.0</td><td>1.05</td></tr><tr><td rowspan=\"2\">一</td><td>普通箍、复合箍</td><td>0.10</td><td>0.11</td><td>0.13</td><td>0.15</td><td>0.17</td><td>0.20</td><td>0.23</td><td>—</td><td>—</td></tr><tr><td>螺旋箍、复合或连续复合矩形螺旋箍</td><td>0.08</td><td>0.09</td><td>0.11</td><td>0.13</td><td>0.15</td><td>0.18</td><td>0.21</td><td>—</td><td>—</td></tr><tr><td rowspan=\"2\">二</td><td>普通箍、复合箍</td><td>0.08</td><td>0.09</td><td>0.11</td><td>0.13</td><td>0.15</td><td>0.17</td><td>0.19</td><td>0.22</td><td>0.24</td></tr><tr><td>螺旋箍、复合或连续复合矩形螺旋箍</td><td>0.06</td><td>0.07</td><td>0.09</td><td>0.11</td><td>0.13</td><td>0.15</td><td>0.17</td><td>0.20</td><td>0.22</td></tr><tr><td rowspan=\"2\">三、四</td><td>普通箍、复合箍</td><td>0.06</td><td>0.07</td><td>0.09</td><td>0.11</td><td>0.13</td><td>0.15</td><td>0.17</td><td>0.20</td><td>0.22</td></tr><tr><td>螺旋箍、复合或连续复合矩形螺旋箍</td><td>0.05</td><td>0.06</td><td>0.07</td><td>0.09</td><td>0.11</td><td>0.13</td><td>0.15</td><td>0.18</td><td>0.20</td></tr></table></body></html>"
+    },
+    {
+      "id": "approved-1",
+      "action": "replace_text",
+      "target": {
+        "element_index": 636,
+        "field": "text"
+      },
+      "value": "表 6.3.7-1 柱截面纵向钢筋的最小总配筋率（百分率）\n\n| 类别 | 抗震等级一 | 抗震等级二 | 抗震等级三 | 抗震等级四 |\n|---|---:|---:|---:|---:|\n| 中柱和边柱 | 0.9(1.0) | 0.7(0.8) | 0.6(0.7) | 0.5(0.6) |\n| 角柱、框支柱 | 1.1 | 0.9 | 0.8 | 0.7 |"
+    },
+    {
+      "id": "approved-2",
+      "action": "replace_text",
+      "target": {
+        "element_index": 640,
+        "field": "text"
+      },
+      "value": "表 6.3.7-1 柱截面纵向钢筋的最小总配筋率（百分率）\n\n| 类别 | 抗震等级一 | 抗震等级二 | 抗震等级三 | 抗震等级四 |\n|---|---:|---:|---:|---:|\n| 中柱和边柱 | 0.9(1.0) | 0.7(0.8) | 0.6(0.7) | 0.5(0.6) |\n| 角柱、框支柱 | 1.1 | 0.9 | 0.8 | 0.7 |"
+    },
+    {
+      "id": "approved-3",
+      "action": "replace_text",
+      "target": {
+        "element_index": 640,
+        "field": "text"
+      },
+      "value": "表 6.3.7-2 柱箍筋加密区的箍筋最大间距和最小直径\n\n| 抗震等级 | 箍筋最大间距（采用较小值，mm） | 箍筋最小直径（mm） |\n|---|---:|---:|\n| 一 | 6d，100 | 10 |\n| 二 | 8d，100 | 8 |\n| 三 | 8d，150（柱根 100） | 8 |\n| 四 | 8d，150（柱根 100） | 6（柱根 8） |\n\n注：\n1 d 为柱纵筋最小直径；\n2 柱根指底层柱下端箍筋加密区。"
+    },
+    {
+      "id": "approved-ocr_error_645",
+      "action": "replace_text",
+      "target": {
+        "element_index": 645,
+        "field": "text"
+      },
+      "value": "2  截面边长大于 400mm 的柱，纵向钢筋间距不宜大于 200mm。"
+    },
+    {
+      "id": "1",
+      "source_file": "GB 50011-2010_建筑抗震设计规范_2016年版.pdf",
+      "page": 80,
+      "issue_type": "ocr_error",
+      "severity": "medium",
+      "confidence": 1.0,
+      "action": "replace_text",
+      "target": {
+        "element_index": 636,
+        "field": "text"
+      },
+      "value": "表6.3.7-1 柱截面纵向钢筋的最小总配筋率 (百分率)\n类别\t抗震等级\n\t一\t二\t三\t四\n中柱和边柱\t0.9(1.0)\t0.7(0.8)\t0.6(0.7)\t0.5(0.6)\n角柱、框支柱\t1.1\t0.9\t0.8\t0.7",
+      "evidence": {
+        "reason": "截图清晰显示，表6.3.7-1第一行‘抗震等级’下的列标题依次为‘一、二、三、四’。MinerU解析结果中该行被错误识别为‘二、二、三、四’，导致第一列标题错误。"
+      },
+      "review_status": "approved"
+    },
+    {
+      "id": "2",
+      "source_file": "GB 50011-2010_建筑抗震设计规范_2016年版.pdf",
+      "page": 80,
+      "issue_type": "table_misaligned",
+      "severity": "high",
+      "confidence": 1.0,
+      "action": "replace_text",
+      "target": {
+        "element_index": 640,
+        "field": "text"
+      },
+      "value": "表6.3.7-2柱箍筋加密区的箍筋最大间距和最小直径\n注：1 d为柱纵筋最小直径；2柱根指底层柱下端箍筋加密区。\n抗震等级\t箍筋最大间距 (采用较小值，mm)\t箍筋最小直径 (mm)\n一\t6d，100\t10\n二\t8d，100\t8\n三\t8d，150 (柱根100)\t8\n四\t8d，150 (柱根100)\t6 (柱根8)",
+      "evidence": {
+        "reason": "MinerU解析的表格结构发生严重错行。表格将‘一、二、三、四’四个抗震等级行错误合并为‘1 二’和‘三 四’两行，并且行内数据不匹配。截图清晰显示‘一’对应的间距为‘6d, 100’，直径为‘10’，而解析结果错误地将‘8d, 100’和‘8’对应到合并行中。"
+      },
+      "review_status": "approved"
+    },
+    {
+      "id": "3",
+      "source_file": "GB 50011-2010_建筑抗震设计规范_2016年版.pdf",
+      "page": 80,
+      "issue_type": "ocr_error",
+      "severity": "medium",
+      "confidence": 1.0,
+      "action": "replace_text",
+      "target": {
+        "element_index": 640,
+        "field": "text"
+      },
+      "value": "注：1 d为柱纵筋最小直径；2柱根指底层柱下端箍筋加密区。",
+      "evidence": {
+        "reason": "在MinerU解析的表6.3.7-2中，注释部分被错误地放置在表标题和表格主体之间，格式不规范。截图显示注释位于整个表格下方，且字体与正文一致。解析结果中注释的LaTeX格式(`$\\textbf{\\em d}$`)可能源于OCR混淆，但更严重的是其位置错误。"
+      },
+      "review_status": "approved"
+    },
+    {
+      "id": "ocr_error_645",
+      "source_file": "GB 50011-2010_建筑抗震设计规范_2016年版.pdf",
+      "page": 81,
+      "issue_type": "ocr_error",
+      "severity": "low",
+      "confidence": 0.8,
+      "action": "replace_text",
+      "target": {
+        "element_index": 645,
+        "field": "text"
+      },
+      "value": "2截面边长大于 400mm 的柱，纵向钢筋间距不宜大于 200mm。",
+      "evidence": {
+        "reason": "截图中数字为连续 '400mm'，而解析为 '4 0 0 \\mathrm { m m }' 有空格，OCR识别错误。"
+      },
+      "review_status": "approved"
+    }
+  ]
+}

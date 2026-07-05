@@ -1,0 +1,292 @@
+{
+  "schema_version": "0.1",
+  "source": {
+    "code": "GB 50009-2012",
+    "name": "建筑结构荷载规范",
+    "source_file": "GB 50009-2012_.建筑结构荷载规范.pdf",
+    "clause_number": "5.1.1",
+    "table_id": "5.1.1",
+    "table_name": "民用建筑楼面均布活荷载标准值及其组合值、频遇值和准永久值系数",
+    "pages": [30, 31, 32]
+  },
+  "columns": [
+    {"key": "item_no", "label": "项次"},
+    {"key": "category", "label": "类别"},
+    {"key": "standard_value", "label": "标准值", "unit": "kN/m²"},
+    {"key": "combination_factor", "label": "组合值系数"},
+    {"key": "frequent_factor", "label": "频遇值系数"},
+    {"key": "quasi_permanent_factor", "label": "准永久值系数"},
+    {"key": "condition", "label": "适用条件"},
+    {"key": "aliases", "label": "检索别名"}
+  ],
+  "rows": [
+    {
+      "item_no": "1(1)",
+      "category": "住宅、宿舍、旅馆、办公楼、医院病房、托儿所、幼儿园",
+      "standard_value": 2.0,
+      "combination_factor": 0.7,
+      "frequent_factor": 0.5,
+      "quasi_permanent_factor": 0.4,
+      "condition": "一般使用条件",
+      "aliases": ["住宅", "宿舍", "旅馆", "办公楼", "办公室", "医院病房", "托儿所", "幼儿园"]
+    },
+    {
+      "item_no": "1(2)",
+      "category": "试验室、阅览室、会议室、医院门诊室",
+      "standard_value": 2.0,
+      "combination_factor": 0.7,
+      "frequent_factor": 0.6,
+      "quasi_permanent_factor": 0.5,
+      "condition": "一般使用条件",
+      "aliases": ["试验室", "实验室", "阅览室", "会议室", "医院门诊室", "门诊室"]
+    },
+    {
+      "item_no": "2",
+      "category": "教室、食堂、餐厅、一般资料档案室",
+      "standard_value": 2.5,
+      "combination_factor": 0.7,
+      "frequent_factor": 0.6,
+      "quasi_permanent_factor": 0.5,
+      "condition": "一般使用条件",
+      "aliases": ["教室", "食堂", "餐厅", "一般资料档案室", "资料室", "档案室"]
+    },
+    {
+      "item_no": "3(1)",
+      "category": "礼堂、剧场、影院、有固定座位的看台",
+      "standard_value": 3.0,
+      "combination_factor": 0.7,
+      "frequent_factor": 0.5,
+      "quasi_permanent_factor": 0.3,
+      "condition": "有固定座位",
+      "aliases": ["礼堂", "剧场", "影院", "固定座位看台", "有固定座位的看台"]
+    },
+    {
+      "item_no": "3(2)",
+      "category": "公共洗衣房",
+      "standard_value": 3.0,
+      "combination_factor": 0.7,
+      "frequent_factor": 0.6,
+      "quasi_permanent_factor": 0.5,
+      "condition": "一般使用条件",
+      "aliases": ["公共洗衣房", "洗衣房"]
+    },
+    {
+      "item_no": "4(1)",
+      "category": "商店、展览厅、车站、港口、机场大厅及其旅客等候室",
+      "standard_value": 3.5,
+      "combination_factor": 0.7,
+      "frequent_factor": 0.6,
+      "quasi_permanent_factor": 0.5,
+      "condition": "人员可能较密集",
+      "aliases": ["商店", "展览厅", "车站", "港口", "机场大厅", "旅客等候室"]
+    },
+    {
+      "item_no": "4(2)",
+      "category": "无固定座位的看台",
+      "standard_value": 3.5,
+      "combination_factor": 0.7,
+      "frequent_factor": 0.5,
+      "quasi_permanent_factor": 0.3,
+      "condition": "无固定座位",
+      "aliases": ["无固定座位的看台", "无固定座位看台"]
+    },
+    {
+      "item_no": "5(1)",
+      "category": "健身房、演出舞台",
+      "standard_value": 4.0,
+      "combination_factor": 0.7,
+      "frequent_factor": 0.6,
+      "quasi_permanent_factor": 0.5,
+      "condition": "活动性质较剧烈",
+      "aliases": ["健身房", "演出舞台", "舞台"]
+    },
+    {
+      "item_no": "5(2)",
+      "category": "运动场、舞厅",
+      "standard_value": 4.0,
+      "combination_factor": 0.7,
+      "frequent_factor": 0.6,
+      "quasi_permanent_factor": 0.3,
+      "condition": "活动性质较剧烈",
+      "aliases": ["运动场", "舞厅"]
+    },
+    {
+      "item_no": "6(1)",
+      "category": "书库、档案库、贮藏室",
+      "standard_value": 5.0,
+      "combination_factor": 0.9,
+      "frequent_factor": 0.9,
+      "quasi_permanent_factor": 0.8,
+      "condition": "储存物品",
+      "aliases": ["书库", "档案库", "贮藏室", "仓库"]
+    },
+    {
+      "item_no": "6(2)",
+      "category": "密集柜书库",
+      "standard_value": 12.0,
+      "combination_factor": 0.9,
+      "frequent_factor": 0.9,
+      "quasi_permanent_factor": 0.8,
+      "condition": "密集柜书库",
+      "aliases": ["密集柜书库", "密集书库"]
+    },
+    {
+      "item_no": "7",
+      "category": "通风机房、电梯机房",
+      "standard_value": 7.0,
+      "combination_factor": 0.9,
+      "frequent_factor": 0.9,
+      "quasi_permanent_factor": 0.8,
+      "condition": "机房设备用房",
+      "aliases": ["通风机房", "电梯机房", "机房"]
+    },
+    {
+      "item_no": "8(1)-客车",
+      "category": "汽车通道及客车停车库",
+      "standard_value": 4.0,
+      "combination_factor": 0.7,
+      "frequent_factor": 0.7,
+      "quasi_permanent_factor": 0.6,
+      "condition": "单向板楼盖（板跨不小于2m）和双向板楼盖（板跨不小于3m×3m）的客车荷载",
+      "aliases": ["汽车通道", "客车停车库", "停车库客车", "客车荷载", "单向板楼盖客车", "双向板楼盖客车"]
+    },
+    {
+      "item_no": "8(1)-消防车",
+      "category": "汽车通道及客车停车库",
+      "standard_value": 35.0,
+      "combination_factor": 0.7,
+      "frequent_factor": 0.5,
+      "quasi_permanent_factor": 0.0,
+      "condition": "单向板楼盖（板跨不小于2m）和双向板楼盖（板跨不小于3m×3m）的消防车荷载",
+      "aliases": ["消防车", "消防车荷载", "消防车活荷载", "单向板楼盖消防车", "3m×3m消防车"]
+    },
+    {
+      "item_no": "8(2)-客车",
+      "category": "汽车通道及客车停车库",
+      "standard_value": 2.5,
+      "combination_factor": 0.7,
+      "frequent_factor": 0.7,
+      "quasi_permanent_factor": 0.6,
+      "condition": "双向板楼盖（板跨不小于6m×6m）和无梁楼盖（柱网不小于6m×6m）的客车荷载",
+      "aliases": ["客车停车库", "停车库客车", "客车荷载", "6m×6m客车", "无梁楼盖客车"]
+    },
+    {
+      "item_no": "8(2)-消防车",
+      "category": "汽车通道及客车停车库",
+      "standard_value": 20.0,
+      "combination_factor": 0.7,
+      "frequent_factor": 0.5,
+      "quasi_permanent_factor": 0.0,
+      "condition": "双向板楼盖（板跨不小于6m×6m）和无梁楼盖（柱网不小于6m×6m）的消防车荷载",
+      "aliases": ["消防车", "消防车荷载", "消防车活荷载", "6m×6m消防车", "无梁楼盖消防车"]
+    },
+    {
+      "item_no": "9(1)",
+      "category": "厨房",
+      "standard_value": 4.0,
+      "combination_factor": 0.7,
+      "frequent_factor": 0.7,
+      "quasi_permanent_factor": 0.7,
+      "condition": "餐厅厨房",
+      "aliases": ["厨房", "餐厅厨房", "厨房餐厅"]
+    },
+    {
+      "item_no": "9(2)",
+      "category": "厨房",
+      "standard_value": 2.0,
+      "combination_factor": 0.7,
+      "frequent_factor": 0.6,
+      "quasi_permanent_factor": 0.5,
+      "condition": "其他厨房",
+      "aliases": ["厨房", "其他厨房"]
+    },
+    {
+      "item_no": "10",
+      "category": "浴室、卫生间、盥洗室",
+      "standard_value": 2.5,
+      "combination_factor": 0.7,
+      "frequent_factor": 0.6,
+      "quasi_permanent_factor": 0.5,
+      "condition": "浴室、卫生间、盥洗室",
+      "aliases": ["浴室", "卫生间", "盥洗室", "洗手间"]
+    },
+    {
+      "item_no": "11(1)",
+      "category": "走廊、门厅",
+      "standard_value": 2.0,
+      "combination_factor": 0.7,
+      "frequent_factor": 0.5,
+      "quasi_permanent_factor": 0.4,
+      "condition": "宿舍、旅馆、医院病房、托儿所、幼儿园、住宅的走廊、门厅",
+      "aliases": ["走廊", "门厅", "住宅走廊", "宿舍走廊", "旅馆走廊", "医院病房走廊", "托儿所走廊", "幼儿园走廊"]
+    },
+    {
+      "item_no": "11(2)",
+      "category": "走廊、门厅",
+      "standard_value": 2.5,
+      "combination_factor": 0.7,
+      "frequent_factor": 0.6,
+      "quasi_permanent_factor": 0.5,
+      "condition": "办公楼、餐厅、医院门诊部的走廊、门厅",
+      "aliases": ["走廊", "门厅", "办公楼走廊", "餐厅走廊", "医院门诊部走廊", "门诊部走廊"]
+    },
+    {
+      "item_no": "11(3)",
+      "category": "走廊、门厅",
+      "standard_value": 3.5,
+      "combination_factor": 0.7,
+      "frequent_factor": 0.5,
+      "quasi_permanent_factor": 0.3,
+      "condition": "教学楼及其他可能出现人员密集的情况的走廊、门厅",
+      "aliases": ["走廊", "门厅", "教学楼走廊", "人员密集走廊", "人员密集门厅"]
+    },
+    {
+      "item_no": "12(1)",
+      "category": "楼梯",
+      "standard_value": 2.0,
+      "combination_factor": 0.7,
+      "frequent_factor": 0.5,
+      "quasi_permanent_factor": 0.4,
+      "condition": "多层住宅楼梯",
+      "aliases": ["楼梯", "多层住宅楼梯", "住宅楼梯"]
+    },
+    {
+      "item_no": "12(2)",
+      "category": "楼梯",
+      "standard_value": 3.5,
+      "combination_factor": 0.7,
+      "frequent_factor": 0.5,
+      "quasi_permanent_factor": 0.3,
+      "condition": "其他楼梯",
+      "aliases": ["楼梯", "其他楼梯", "非住宅楼梯"]
+    },
+    {
+      "item_no": "13(1)",
+      "category": "阳台",
+      "standard_value": 3.5,
+      "combination_factor": 0.7,
+      "frequent_factor": 0.6,
+      "quasi_permanent_factor": 0.5,
+      "condition": "可能出现人员密集的情况",
+      "aliases": ["阳台", "人员密集阳台", "可能出现人员密集情况的阳台"]
+    },
+    {
+      "item_no": "13(2)",
+      "category": "阳台",
+      "standard_value": 2.5,
+      "combination_factor": 0.7,
+      "frequent_factor": 0.6,
+      "quasi_permanent_factor": 0.5,
+      "condition": "其他",
+      "aliases": ["阳台", "其他阳台"]
+    }
+  ],
+  "notes": [
+    "本表所给各项活荷载适用于一般使用条件；使用荷载较大、情况特殊或有专门要求时，应按实际情况采用。",
+    "第6项书库活荷载当书架高度大于2m时，尚应按每米书架高度不小于2.5kN/m²确定。",
+    "第8项中的客车活荷载仅适用于停放载人少于9人的客车；消防车活荷载适用于满载总重为300kN的大型车辆。",
+    "第8项消防车活荷载，当双向板楼盖板跨介于3m×3m至6m×6m之间时，应按跨度线性插值确定。",
+    "第12项楼梯活荷载，对预制楼梯踏步平板，尚应按1.5kN集中荷载验算。",
+    "aliases 用于检索归一化，不改变规范原文类别。"
+  ]
+}

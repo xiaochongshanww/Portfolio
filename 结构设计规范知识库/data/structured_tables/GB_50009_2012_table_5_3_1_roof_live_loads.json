@@ -1,0 +1,79 @@
+{
+  "schema_version": "0.1",
+  "source": {
+    "code": "GB 50009-2012",
+    "name": "建筑结构荷载规范",
+    "source_file": "GB 50009-2012_.建筑结构荷载规范.pdf",
+    "clause_number": "5.3.1",
+    "table_id": "5.3.1",
+    "table_name": "屋面均布活荷载标准值及其组合值系数、频遇值系数和准永久值系数",
+    "pages": [34]
+  },
+  "columns": [
+    {"key": "item_no", "label": "项次"},
+    {"key": "category", "label": "类别"},
+    {"key": "standard_value", "label": "标准值", "unit": "kN/m²"},
+    {"key": "combination_factor", "label": "组合值系数 ψc"},
+    {"key": "frequent_factor", "label": "频遇值系数 ψf"},
+    {"key": "quasi_permanent_factor", "label": "准永久值系数 ψq"},
+    {"key": "condition", "label": "适用条件"},
+    {"key": "aliases", "label": "检索别名"}
+  ],
+  "rows": [
+    {
+      "item_no": "1",
+      "category": "不上人的屋面",
+      "standard_value": 0.5,
+      "combination_factor": 0.7,
+      "frequent_factor": 0.5,
+      "quasi_permanent_factor": 0.0,
+      "condition": "不上人的屋面均布活荷载标准值取0.5kN/m²。",
+      "aliases": ["不上人的屋面", "不上人屋面", "非上人屋面", "不上人屋面活荷载", "不上人屋面均布活荷载"]
+    },
+    {
+      "item_no": "2",
+      "category": "上人的屋面",
+      "standard_value": 2.0,
+      "combination_factor": 0.7,
+      "frequent_factor": 0.5,
+      "quasi_permanent_factor": 0.4,
+      "condition": "上人的屋面均布活荷载标准值取2.0kN/m²。",
+      "aliases": ["上人的屋面", "上人屋面", "可上人屋面", "上人屋面活荷载", "上人屋面均布活荷载"]
+    },
+    {
+      "item_no": "3",
+      "category": "屋顶花园",
+      "standard_value": 3.0,
+      "combination_factor": 0.7,
+      "frequent_factor": 0.6,
+      "quasi_permanent_factor": 0.5,
+      "condition": "屋顶花园均布活荷载标准值取3.0kN/m²。",
+      "aliases": ["屋顶花园", "屋顶花园活荷载", "屋顶花园均布活荷载"]
+    },
+    {
+      "item_no": "4",
+      "category": "屋顶运动场地",
+      "standard_value": 3.0,
+      "combination_factor": 0.7,
+      "frequent_factor": 0.6,
+      "quasi_permanent_factor": 0.4,
+      "condition": "屋顶运动场地均布活荷载标准值取3.0kN/m²。",
+      "aliases": ["屋顶运动场地", "屋顶运动场", "屋面运动场地", "屋顶运动场地活荷载"]
+    }
+  ],
+  "table_aliases": [
+    "表5.3.1",
+    "屋面均布活荷载标准值",
+    "屋面活荷载标准值",
+    "屋面均布活荷载",
+    "屋面组合值系数",
+    "屋面频遇值系数",
+    "屋面准永久值系数"
+  ],
+  "notes": [
+    "不上人的屋面，当施工或维修荷载较大时，应按实际情况采用；对不同类型结构按有关设计规范的规定采用，但不得低于0.3kN/m²。",
+    "上人的屋面，当兼作其他用途时，应按相应楼面活荷载采用。",
+    "积水荷载应按屋面排水设计、防水构造和积水可能深度确定。",
+    "屋顶花园活荷载不包括花圃土石等材料自重。"
+  ]
+}

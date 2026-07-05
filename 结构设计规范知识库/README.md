@@ -121,6 +121,7 @@ python src/main.py
 - [产品化实施方案](./PRODUCTIZATION_PLAN.md)：从可运行原型升级为成熟产品的阶段路线、验收标准和近期执行清单。
 - [RAG 技术方案演进记录](./RAG_OPTIMIZATION.md)：检索、多模态、PDF 解析和质量优化过程中的决策记录。
 - [AI 校对修正层实施方案](./AI_CORRECTION_PLAN.md)：MinerU 解析后的规则审计、AI 候选和人工批准修正流程。
+- [知识库维护与质量运营](./OPERATIONS.md)：复杂表审核、发布保护、评估和日常运维的标准工作流。
 - [阶段六 MinerU 环境执行交接文档](./STAGE6_MINERU_HANDOFF.md)：在另一台具备 MinerU 的环境中继续构建、验收和带回结果的操作手册。
 
 ## 🧱 当前工程结构
@@ -170,7 +171,7 @@ export PDF_PARSER_BACKEND=mineru
 export MINERU_BIN=mineru
 export MINERU_ARGS=""
 export MIMO_API_KEY="..."
-export AI_REVIEW_MODEL="mimo-v2-omni"
+export AI_REVIEW_MODEL="mimo-v2.5"
 ```
 
 构建产物：
@@ -260,6 +261,14 @@ python -m src.evaluation run --top-k 5
 
 输出会包含 source hit、clause hit、keyword hit 和失败样例。若知识库尚未构建或检索服务未初始化，会返回明确错误。
 
+完整的无人值守质量验证可通过以下命令执行：
+
+```powershell
+python scripts/verify_quality.py
+```
+
+该入口会运行后端测试、前端生产构建、常规评估、结构化专项评估、24条回答级盲测和自动质量门禁。报告保存在 `data/audit/reports/`；详细口径见 [无人工参与质量自动化计划](./AUTOMATION_QUALITY_PLAN.md)、[回答质量计划](./ANSWER_QUALITY_PLAN.md)、[回答盲测集阅读版](./ANSWER_EVALUATION_SET.md) 与 [运维文档](./OPERATIONS.md)。
+
 ## 🛡️ 服务成熟化
 
 阶段四增加了服务健康、就绪、鉴权、限流和基础观测能力。
@@ -303,23 +312,63 @@ X-API-Key: <API_KEY>
 
 ## 🖥️ 产品控制台
 
-项目内置静态控制台位于 `/static/index.html`，根路径 `/` 会自动跳转到该页面。
+项目控制台已重构为 Vue 3 + Tailwind CSS 前端工程，源码位于 `frontend/`。后端默认挂载 `frontend/dist` 到 `/static`，根路径 `/` 会自动跳转到 `/static/index.html`。
 
-阶段五采用分工模式：
+本地开发：
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+生产构建：
+
+```bash
+cd frontend
+npm run build
+```
+
+控制台采用分工模式：
 
 - Open WebUI：主聊天入口，适合日常多会话问答。
-- 项目控制台：知识库状态、文档清单、评估集状态、轻量问答测试、来源图片预览。
+- 项目控制台：知识库状态、文档清单、构建任务、审计、评估、AI 校对、人工批准修正和轻量问答测试。
 
-控制台读取以下只读接口：
+控制台主要页面：
+
+- 概览：查看服务就绪、chunk、图片、文档清单和运行指标。
+- 构建任务：从网页触发 Dry Run、重建、规则审计、AI 校对候选生成和评估任务，并查看任务日志。
+- 校对工作台：全屏三栏布局，左侧选择文档和候选，中间查看原 PDF 页面，右侧对比解析文本、AI 证据并编辑最终修正文。
+- 评估：查看评估集分布和最近评估报告。
+- 问答验证：用于快速检查 RAG API 链路，日常多轮聊天仍建议使用 Open WebUI。
+
+控制台通过 `/admin/*` 后台接口封装原命令行流程。构建、审计、评估和 AI 校对会创建单机后台任务，任务状态写入 `data/jobs/*.json`，过程日志写入 `data/jobs/*.jsonl`。
+
+常用后台接口：
 
 ```text
 GET /ready
 GET /metrics
 GET /knowledge/documents
 GET /evaluation/status
+GET /admin/status
+GET /admin/jobs
+GET /admin/jobs/{job_id}
+GET /admin/jobs/{job_id}/logs
+POST /admin/jobs/dry-run
+POST /admin/jobs/rebuild
+POST /admin/jobs/audit
+POST /admin/jobs/evaluate
+POST /admin/jobs/review
+GET /admin/corrections/candidates
+GET /admin/corrections/candidates/{doc}
+POST /admin/corrections/approved/{doc}
+GET /admin/elements/{doc}/{element_index}
 ```
 
-如果开启 `API_AUTH_ENABLED=true`，控制台中的轻量问答和图片访问需要填写 API Key；Key 只保存在当前浏览器的 localStorage。
+校对工作台不要求人工直接编辑 JSON。推荐流程是：查看候选、对照当前解析元素、在“最终修正文”中写入完整可替换文本或 Markdown 表格、保存为 approved correction，再执行重建。`value` 为 `needs_correction`、包含“需人工校对”或只是描述“更正某项”的候选不应直接保存为 approved。
+
+如果开启 `API_AUTH_ENABLED=true`，控制台中的轻量问答、图片访问、`/corrections/*` 和 `/admin/*` 需要填写 API Key；Key 只保存在当前浏览器的 localStorage。
 
 ## 📁 项目结构
 

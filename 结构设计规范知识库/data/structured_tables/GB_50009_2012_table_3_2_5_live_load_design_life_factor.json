@@ -1,0 +1,52 @@
+{
+  "schema_version": "0.1",
+  "source": {
+    "code": "GB 50009-2012",
+    "name": "建筑结构荷载规范",
+    "source_file": "GB 50009-2012_.建筑结构荷载规范.pdf",
+    "clause_number": "3.2.5",
+    "table_id": "3.2.5",
+    "table_name": "楼面和屋面活荷载考虑设计使用年限的调整系数 γL",
+    "pages": [27]
+  },
+  "columns": [
+    {"key": "design_working_life_years", "label": "结构设计使用年限", "unit": "年"},
+    {"key": "adjustment_factor_gamma_l", "label": "调整系数 γL"},
+    {"key": "condition", "label": "适用条件"},
+    {"key": "aliases", "label": "检索别名"}
+  ],
+  "rows": [
+    {
+      "design_working_life_years": 5,
+      "adjustment_factor_gamma_l": 0.9,
+      "condition": "结构设计使用年限为5年时，楼面和屋面活荷载调整系数γL取0.9。",
+      "aliases": ["5年", "五年", "设计使用年限5年", "使用年限5年", "调整系数0.9", "γL 0.9"]
+    },
+    {
+      "design_working_life_years": 50,
+      "adjustment_factor_gamma_l": 1.0,
+      "condition": "结构设计使用年限为50年时，楼面和屋面活荷载调整系数γL取1.0。",
+      "aliases": ["50年", "五十年", "设计使用年限50年", "使用年限50年", "调整系数1.0", "γL 1.0"]
+    },
+    {
+      "design_working_life_years": 100,
+      "adjustment_factor_gamma_l": 1.1,
+      "condition": "结构设计使用年限为100年时，楼面和屋面活荷载调整系数γL取1.1。",
+      "aliases": ["100年", "一百年", "设计使用年限100年", "使用年限100年", "调整系数1.1", "γL 1.1"]
+    }
+  ],
+  "table_aliases": [
+    "表3.2.5",
+    "楼面和屋面活荷载考虑设计使用年限的调整系数",
+    "设计使用年限调整系数",
+    "活荷载设计使用年限调整系数",
+    "楼面屋面活荷载调整系数",
+    "γL",
+    "gamma_L"
+  ],
+  "notes": [
+    "当设计使用年限不为表中数值时，调整系数γL可按线性内插确定。",
+    "对于荷载标准值可控制的活荷载，设计使用年限调整系数γL取1.0。",
+    "对雪荷载和风荷载，应取重现期为设计使用年限，按本规范第E.3.3条的规定确定基本雪压和基本风压，或按有关规范的规定采用。"
+  ]
+}

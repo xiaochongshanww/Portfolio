@@ -1,3 +1,5 @@
+from ipaddress import ip_address
+
 from fastapi import Request
 
 from .config import settings
@@ -7,7 +9,11 @@ PUBLIC_PATHS = {"/", "/health", "/ready", "/metrics", "/models", "/v1/models"}
 
 
 def is_protected_path(path: str) -> bool:
-    return path.endswith("/chat/completions") or path.startswith("/images/") or path.startswith("/corrections/")
+    return (
+        path.endswith("/chat/completions")
+        or path.startswith("/corrections/")
+        or path.startswith("/admin/")
+    )
 
 
 def extract_api_key(request: Request) -> str:
@@ -24,3 +30,13 @@ def is_authorized(request: Request) -> bool:
         return True
     key = extract_api_key(request)
     return bool(key and key in settings.api_keys)
+
+
+def is_trusted_local_request(request: Request) -> bool:
+    if request.headers.get("forwarded") or request.headers.get("x-forwarded-for"):
+        return False
+    host = request.client.host if request.client else ""
+    try:
+        return ip_address(host).is_loopback
+    except ValueError:
+        return False

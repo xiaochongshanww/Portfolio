@@ -1,0 +1,62 @@
+{
+  "schema_version": "0.1",
+  "source": {
+    "code": "GB 50009-2012",
+    "name": "建筑结构荷载规范",
+    "source_file": "GB 50009-2012_.建筑结构荷载规范.pdf",
+    "clause_number": "8.2.1",
+    "table_id": "8.2.1",
+    "table_name": "风压高度变化系数 μz",
+    "pages": [48, 49]
+  },
+  "columns": [
+    {"key": "height", "label": "离地面或海平面高度", "unit": "m"},
+    {"key": "roughness_a", "label": "A类地面粗糙度 μz"},
+    {"key": "roughness_b", "label": "B类地面粗糙度 μz"},
+    {"key": "roughness_c", "label": "C类地面粗糙度 μz"},
+    {"key": "roughness_d", "label": "D类地面粗糙度 μz"},
+    {"key": "condition", "label": "适用条件"},
+    {"key": "aliases", "label": "检索别名"}
+  ],
+  "rows": [
+    {"height": "5", "roughness_a": 1.09, "roughness_b": 1.00, "roughness_c": 0.65, "roughness_d": 0.51, "condition": "离地面或海平面高度5m。", "aliases": ["5m", "5米", "高度5m"]},
+    {"height": "10", "roughness_a": 1.28, "roughness_b": 1.00, "roughness_c": 0.65, "roughness_d": 0.51, "condition": "离地面或海平面高度10m。", "aliases": ["10m", "10米", "高度10m"]},
+    {"height": "15", "roughness_a": 1.42, "roughness_b": 1.13, "roughness_c": 0.65, "roughness_d": 0.51, "condition": "离地面或海平面高度15m。", "aliases": ["15m", "15米", "高度15m"]},
+    {"height": "20", "roughness_a": 1.52, "roughness_b": 1.23, "roughness_c": 0.74, "roughness_d": 0.51, "condition": "离地面或海平面高度20m。", "aliases": ["20m", "20米", "高度20m"]},
+    {"height": "30", "roughness_a": 1.67, "roughness_b": 1.39, "roughness_c": 0.88, "roughness_d": 0.51, "condition": "离地面或海平面高度30m。", "aliases": ["30m", "30米", "高度30m"]},
+    {"height": "40", "roughness_a": 1.79, "roughness_b": 1.52, "roughness_c": 1.00, "roughness_d": 0.60, "condition": "离地面或海平面高度40m。", "aliases": ["40m", "40米", "高度40m"]},
+    {"height": "50", "roughness_a": 1.89, "roughness_b": 1.62, "roughness_c": 1.10, "roughness_d": 0.69, "condition": "离地面或海平面高度50m。", "aliases": ["50m", "50米", "高度50m"]},
+    {"height": "60", "roughness_a": 1.97, "roughness_b": 1.71, "roughness_c": 1.20, "roughness_d": 0.77, "condition": "离地面或海平面高度60m。", "aliases": ["60m", "60米", "高度60m"]},
+    {"height": "70", "roughness_a": 2.05, "roughness_b": 1.79, "roughness_c": 1.28, "roughness_d": 0.84, "condition": "离地面或海平面高度70m。", "aliases": ["70m", "70米", "高度70m"]},
+    {"height": "80", "roughness_a": 2.12, "roughness_b": 1.87, "roughness_c": 1.36, "roughness_d": 0.91, "condition": "离地面或海平面高度80m。", "aliases": ["80m", "80米", "高度80m"]},
+    {"height": "90", "roughness_a": 2.18, "roughness_b": 1.93, "roughness_c": 1.43, "roughness_d": 0.98, "condition": "离地面或海平面高度90m。", "aliases": ["90m", "90米", "高度90m"]},
+    {"height": "100", "roughness_a": 2.23, "roughness_b": 2.00, "roughness_c": 1.50, "roughness_d": 1.04, "condition": "离地面或海平面高度100m。", "aliases": ["100m", "100米", "高度100m"]},
+    {"height": "150", "roughness_a": 2.46, "roughness_b": 2.25, "roughness_c": 1.79, "roughness_d": 1.33, "condition": "离地面或海平面高度150m。", "aliases": ["150m", "150米", "高度150m"]},
+    {"height": "200", "roughness_a": 2.64, "roughness_b": 2.46, "roughness_c": 2.03, "roughness_d": 1.58, "condition": "离地面或海平面高度200m。", "aliases": ["200m", "200米", "高度200m"]},
+    {"height": "250", "roughness_a": 2.78, "roughness_b": 2.63, "roughness_c": 2.24, "roughness_d": 1.81, "condition": "离地面或海平面高度250m。", "aliases": ["250m", "250米", "高度250m"]},
+    {"height": "300", "roughness_a": 2.91, "roughness_b": 2.77, "roughness_c": 2.43, "roughness_d": 2.02, "condition": "离地面或海平面高度300m。", "aliases": ["300m", "300米", "高度300m"]},
+    {"height": "350", "roughness_a": 2.91, "roughness_b": 2.91, "roughness_c": 2.60, "roughness_d": 2.22, "condition": "离地面或海平面高度350m。", "aliases": ["350m", "350米", "高度350m"]},
+    {"height": "400", "roughness_a": 2.91, "roughness_b": 2.91, "roughness_c": 2.76, "roughness_d": 2.40, "condition": "离地面或海平面高度400m。", "aliases": ["400m", "400米", "高度400m"]},
+    {"height": "450", "roughness_a": 2.91, "roughness_b": 2.91, "roughness_c": 2.91, "roughness_d": 2.58, "condition": "离地面或海平面高度450m。", "aliases": ["450m", "450米", "高度450m"]},
+    {"height": "500", "roughness_a": 2.91, "roughness_b": 2.91, "roughness_c": 2.91, "roughness_d": 2.74, "condition": "离地面或海平面高度500m。", "aliases": ["500m", "500米", "高度500m"]},
+    {"height": "≥550", "roughness_a": 2.91, "roughness_b": 2.91, "roughness_c": 2.91, "roughness_d": 2.91, "condition": "离地面或海平面高度大于等于550m。", "aliases": ["≥550m", "550m", "550米", "大于等于550m", "不小于550m"]}
+  ],
+  "table_aliases": [
+    "表8.2.1",
+    "风压高度变化系数",
+    "风压高度变化系数μz",
+    "地面粗糙度类别",
+    "A类地面粗糙度",
+    "B类地面粗糙度",
+    "C类地面粗糙度",
+    "D类地面粗糙度",
+    "μz",
+    "mu_z"
+  ],
+  "notes": [
+    "A类指近海海面和海岛、海岸、湖岸及沙漠地区。",
+    "B类指田野、乡村、丛林、丘陵以及房屋比较稀疏的乡镇。",
+    "C类指有密集建筑群的城市市区。",
+    "D类指有密集建筑群且房屋较高的城市市区。"
+  ]
+}

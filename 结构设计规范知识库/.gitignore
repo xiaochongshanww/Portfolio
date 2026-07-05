@@ -28,11 +28,24 @@ Thumbs.db
 /data/chunks/
 /data/images/
 /data/mineru/
+/data/mineru_output/
 /data/audit/
 /data/corrections/candidates/
+/data/jobs/
+/data/manual_structuring/drafts/
+/data/manual_structuring/queue/
+/data/manual_structuring/suggestions/
+/data/db_versions/
+/data/active_db.json
 /data/manifest.json
 /db/
 /logs/
+
+# Local runtime and frontend build artifacts
+/.runtime_*
+/.tools/
+/frontend/node_modules/
+/frontend/dist/
 
 # Note: The raw PDF data in /data/raw/ is not ignored by default.
 # If your source PDFs are very large or private, you should add /data/raw/ to this file.

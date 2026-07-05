@@ -1,0 +1,186 @@
+{
+  "source_file": "GB 50009-2012_.建筑结构荷载规范",
+  "updated_at": 1781440309,
+  "corrections": [
+    {
+      "id": "approved-gb50009-page40-split-note-6-2-2",
+      "action": "replace_text",
+      "target": {
+        "element_index": 228,
+        "field": "text"
+      },
+      "value": "注：当情况特殊时，应按实际情况考虑。\n6.2.2计算排架时，多台吊车的竖向荷载和水平荷载的标准值，应乘以表6.2.2中规定的折减系数。"
+    },
+    {
+      "id": "approved-gb50009-page40-crane-duty-plain-text",
+      "action": "replace_text",
+      "target": {
+        "element_index": 231,
+        "field": "text"
+      },
+      "value": "6.3.1当计算吊车梁及其连接的承载力时，吊车竖向荷载应乘以动力系数。对悬挂吊车（包括电动葫芦）及工作级别A1～A5的软钩吊车，动力系数可取1.05；对工作级别为A6～A8的软钩吊车、硬钩吊车和其他特种吊车，动力系数可取为1.1。"
+    },
+    {
+      "id": "approved-gb50009-page41-table-6-4-1-headers",
+      "action": "replace_text",
+      "target": {
+        "element_index": 234,
+        "field": "text"
+      },
+      "value": "表6.4.1吊车荷载的组合值系数、频遇值系数及准永久值系数\n<html><body><table><tr><td colspan=\"2\">吊车工作级别</td><td>组合值系数ψ<sub>c</sub></td><td>频遇值系数ψ<sub>f</sub></td><td>准永久值系数ψ<sub>q</sub></td></tr><tr><td rowspan=\"3\">软钩吊车</td><td>工作级别A1～A3</td><td>0.70</td><td>0.60</td><td>0.50</td></tr><tr><td>工作级别A4、A5</td><td>0.70</td><td>0.70</td><td>0.60</td></tr><tr><td>工作级别A6、A7</td><td>0.70</td><td>0.70</td><td>0.70</td></tr><tr><td colspan=\"2\">硬钩吊车及工作级别A8的软钩吊车</td><td>0.95</td><td>0.95</td><td>0.95</td></tr></table></body></html>"
+    },
+    {
+      "id": "approved-gb50009-page42-snow-load-symbols",
+      "action": "replace_text",
+      "target": {
+        "element_index": 240,
+        "field": "text"
+      },
+      "value": "式中：$s_k$ —雪荷载标准值 $(kN/m^2)$；$\\mu_r$ —屋面积雪分布系数；$s_0$ —基本雪压 $(kN/m^2)$。"
+    },
+    {
+      "id": "approved-issue_001",
+      "action": "replace_text",
+      "target": {
+        "element_index": 228,
+        "field": "text"
+      },
+      "value": "注：当情况特殊时，应按实际情况考虑。\n\n6.2.2计算排架时，多台吊车的竖向荷载和水平荷载的标准值，应乘以表6.2.2中规定的折减系数。"
+    },
+    {
+      "id": "approved-248_row1_category",
+      "action": "replace_text",
+      "target": {
+        "element_index": 248,
+        "field": "text"
+      },
+      "value": "更正第1项类别：将“单”改为“单跨单坡屋面”"
+    },
+    {
+      "id": "approved-248_row3_category",
+      "action": "replace_text",
+      "target": {
+        "element_index": 248,
+        "field": "text"
+      },
+      "value": "更正第3项类别：将“携面”改为“拱形屋面”"
+    },
+    {
+      "id": "approved-248_formula_row3",
+      "action": "replace_text",
+      "target": {
+        "element_index": 248,
+        "field": "text"
+      },
+      "value": "更正公式：将“μ=1(8)”改为“μ=l/(8f)”"
+    },
+    {
+      "id": "approved-248_row4_values",
+      "action": "replace_text",
+      "target": {
+        "element_index": 248,
+        "field": "text"
+      },
+      "value": "更正第4项数值：将“1.0 1.1 0.8 a”改为“均匀分布：1.0；不均匀分布：1.1, 0.8, 1.1”"
+    },
+    {
+      "id": "approved-c2",
+      "action": "replace_text",
+      "target": {
+        "element_index": 251,
+        "field": "text"
+      },
+      "value": "注：\n1 第2项单跨双坡屋面仅当坡度 $\\alpha$ 在 20°～30° 范围时，可采用不均匀分布情况；\n2 第4、5项只适用于坡度 $\\alpha$ 不大于 25° 的一般工业厂房屋面；\n3 第7项双跨双坡或拱形屋面，当 $\\alpha$ 不大于 25° 或 $f/l$ 不大于 0.1 时，只采用均匀分布情况；\n4 多跨屋面的积雪分布系数，可参照第7项的规定采用。"
+    },
+    {
+      "id": "issue_001",
+      "source_file": "GB 50009-2012_.建筑结构荷载规范.pdf",
+      "page": 40,
+      "issue_type": "split_merge",
+      "severity": "low",
+      "confidence": 0.95,
+      "action": "replace_text",
+      "target": {
+        "element_index": 228,
+        "field": "text"
+      },
+      "value": "注：当情况特殊时，应按实际情况考虑。\n6.2.2计算排架时，多台吊车的竖向荷载和水平荷载的标准值，应乘以表6.2.2中规定的折减系数。",
+      "evidence": {
+        "reason": "页面截图显示，'注：当情况特殊时，应按实际情况考虑。'与'6.2.2 计算排架时...'为两个独立的段落，有明确的换行分隔。当前解析结果将两者合并为一行，属于错误的合并（merge）问题。"
+      },
+      "review_status": "approved"
+    },
+    {
+      "id": "248_row1_category",
+      "source_file": "GB 50009-2012_.建筑结构荷载规范.pdf",
+      "page": 43,
+      "issue_type": "table_misaligned",
+      "severity": "high",
+      "confidence": 0.9,
+      "action": "replace_text",
+      "target": {
+        "element_index": 248,
+        "field": "text"
+      },
+      "value": "更正第1项类别：将“单”改为“单跨单坡屋面”",
+      "evidence": {
+        "reason": "页面截图显示第1项类别为“单跨单坡屋面”；元素HTML中为“单”，类别不完整。"
+      },
+      "review_status": "approved"
+    },
+    {
+      "id": "248_row3_category",
+      "source_file": "GB 50009-2012_.建筑结构荷载规范.pdf",
+      "page": 43,
+      "issue_type": "table_misaligned",
+      "severity": "high",
+      "confidence": 0.9,
+      "action": "replace_text",
+      "target": {
+        "element_index": 248,
+        "field": "text"
+      },
+      "value": "更正第3项类别：将“携面”改为“拱形屋面”",
+      "evidence": {
+        "reason": "页面截图显示第3项类别为“拱形屋面”；元素HTML中为“携面”，类别错误。"
+      },
+      "review_status": "approved"
+    },
+    {
+      "id": "248_formula_row3",
+      "source_file": "GB 50009-2012_.建筑结构荷载规范.pdf",
+      "page": 43,
+      "issue_type": "formula_error",
+      "severity": "medium",
+      "confidence": 0.8,
+      "action": "replace_text",
+      "target": {
+        "element_index": 248,
+        "field": "text"
+      },
+      "value": "更正公式：将“μ=1(8)”改为“μ=l/(8f)”",
+      "evidence": {
+        "reason": "页面截图显示公式为“μ=l/(8f)”；元素HTML中为“μ=1(8)”，公式符号错误。"
+      },
+      "review_status": "approved"
+    },
+    {
+      "id": "248_row4_values",
+      "source_file": "GB 50009-2012_.建筑结构荷载规范.pdf",
+      "page": 43,
+      "issue_type": "table_misaligned",
+      "severity": "medium",
+      "confidence": 0.8,
+      "action": "replace_text",
+      "target": {
+        "element_index": 248,
+        "field": "text"
+      },
+      "value": "更正第4项数值：将“1.0 1.1 0.8 a”改为“均匀分布：1.0；不均匀分布：1.1, 0.8, 1.1”",
+      "evidence": {
+        "reason": "页面截图显示第4项均匀分布为1.0，不均匀分布为1.1, 0.8, 1.1；元素HTML中为“1.0 1.1 0.8 a”，数值错误。"
+      },
+      "review_status": "approved"
+    }
+  ]
+}
