@@ -116,6 +116,33 @@ def test_unit_check_accepts_latex_text_notation():
     assert result["checks"]["units"] is True
 
 
+def test_formula_check_normalizes_latex_formatting_and_greek_symbols():
+    answer = (
+        "【结论】$w_{\\mathrm{k}} = \\beta_{\\mathrm{z}} "
+        "\\mu_{\\mathrm{s}} \\mu_{\\mathrm{z}} w_{0}$。"
+        "【依据】GB 50009-2012 第8.1.1条。"
+        "【说明】单位为 $\\text{kN/m}^2$。"
+    )
+    case = _case(
+        type="formula",
+        expected_all=[],
+        expected_any_groups=[
+            ["w_k", "w_{k}"],
+            ["β_z", "\\beta_z"],
+            ["μ_s", "\\mu_s"],
+            ["μ_z", "\\mu_z"],
+            ["w_0", "w_{0}"],
+        ],
+        expected_citations=["GB 50009-2012", "8.1.1"],
+        requires_image=False,
+    )
+
+    result = evaluate_answer(case, answer)
+
+    assert result["checks"]["facts_any"] is True
+    assert result["passed"] is True
+
+
 def test_markdown_image_parser_rejects_unsupported_route():
     images = extract_markdown_images("![图](https://example.com/fake.png)")
     assert images[0]["url"] == "https://example.com/fake.png"

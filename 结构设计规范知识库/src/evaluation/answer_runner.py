@@ -28,6 +28,19 @@ REFUSAL_TERMS = (
     "没有直接规定",
 )
 IMAGE_PATTERN = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)\)")
+SYMBOLIC_TERM_PATTERN = re.compile(r"[\\_{}α-ωΑ-Ω]")
+LATEX_FORMAT_COMMAND_PATTERN = re.compile(r"\\(?:mathrm|mathbf|text|operatorname|rm|tt)")
+GREEK_SYMBOL_NAMES = {
+    "α": "alpha",
+    "β": "beta",
+    "γ": "gamma",
+    "δ": "delta",
+    "μ": "mu",
+    "σ": "sigma",
+    "φ": "phi",
+    "ψ": "psi",
+    "ω": "omega",
+}
 
 
 @dataclass(frozen=True)
@@ -165,6 +178,15 @@ def _contains_term(answer: str, term: str) -> bool:
             abs(float(value) - expected) < 1e-9
             for value in re.findall(r"(?<![\d.])-?\d+(?:\.\d+)?(?![\d.])", answer)
         )
+    if SYMBOLIC_TERM_PATTERN.search(term):
+        def normalize_symbolic(value: str) -> str:
+            normalized = LATEX_FORMAT_COMMAND_PATTERN.sub("", value)
+            for symbol, name in GREEK_SYMBOL_NAMES.items():
+                normalized = normalized.replace(symbol, name)
+            normalized = normalized.replace("\\", "")
+            return re.sub(r"[\s{}]", "", normalized).lower()
+
+        return normalize_symbolic(term) in normalize_symbolic(answer)
     return term in answer
 
 
