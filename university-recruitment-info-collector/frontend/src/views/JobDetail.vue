@@ -1,5 +1,5 @@
 <template>
-  <el-dialog v-model="visible" :title="job?.school || '岗位详情'" width="700px" top="5vh" destroy-on-close>
+  <el-dialog v-model="visible" :title="job?.school || '岗位详情'" width="90%" top="3vh" class="max-w-[700px] mx-auto" destroy-on-close :style="{ maxHeight: '80vh', overflowY: 'auto' }">
     <template v-if="job">
       <div class="space-y-5">
         <!-- Header -->
@@ -36,16 +36,10 @@
           </div>
         </div>
 
-        <!-- Coordinates -->
-        <div v-if="job.longitude" class="rounded-xl bg-slate-50 p-3">
-          <p class="text-xs uppercase tracking-wide text-slate-400">GPS 坐标</p>
-          <p class="mt-1 text-sm text-slate-600">{{ job.latitude?.toFixed(4) }}, {{ job.longitude?.toFixed(4) }}</p>
-        </div>
-
         <!-- Description -->
         <div v-if="job.description">
           <p class="text-xs uppercase tracking-wide text-slate-400 mb-2">公告内容摘要</p>
-          <p class="text-sm leading-6 text-slate-600 bg-slate-50 rounded-xl p-3 max-h-40 overflow-y-auto">{{ job.description }}</p>
+          <p class="text-sm leading-6 text-slate-600 bg-slate-50 rounded-xl p-3">{{ job.description }}</p>
         </div>
 
         <!-- Source info -->

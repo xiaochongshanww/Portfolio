@@ -74,6 +74,7 @@
           <div class="mt-3 flex flex-wrap gap-1.5">
             <el-tag v-if="job.education_requirement" size="small" type="info" effect="plain">{{ job.education_requirement }}</el-tag>
             <el-tag v-if="job.job_type" size="small" type="success" effect="plain">{{ job.job_type }}</el-tag>
+            <el-tag v-if="job.discipline" size="small" type="primary" effect="plain" class="truncate max-w-[200px]">{{ job.discipline }}</el-tag>
             <el-tag v-if="job.quality_status" :type="qualityTagType(job.quality_status)" size="small" effect="plain">{{ qualityLabel(job.quality_status) }}</el-tag>
           </div>
 
@@ -196,13 +197,15 @@ async function fetchJobs(page = 0) {
     currentPage.value = Math.floor(offset / Math.max(1, pagination.value.limit)) + 1
     lastUpdated.value = new Date().toLocaleTimeString('zh-CN')
 
-    // Build filter options from full dataset
+    // Build filter options from dedicated endpoint
     if (page === 0 && !filterSchool.value && !filterLocation.value) {
-      const fullRes = await listJobs(showExpired.value, 1000, 0, showLowQuality.value)
-      const fullParsed = parseJobListResponse(fullRes.data)
-      allJobs.value = fullParsed.jobs
-      schoolOptions.value = [...new Set(fullParsed.jobs.map(j => j.school).filter(Boolean))].sort()
-      locationOptions.value = [...new Set(fullParsed.jobs.map(j => j.location).filter(Boolean))].sort()
+      try {
+        const filtersRes = await axios.get('/api/jobs/filters')
+        const fd = filtersRes.data || {}
+        schoolOptions.value = fd.schools || []
+        locationOptions.value = fd.locations || []
+      } catch {}
+      allJobs.value = jobs.value || []
     }
   } catch (e) {
     ElMessage.error('加载岗位列表失败，请稍后重试')

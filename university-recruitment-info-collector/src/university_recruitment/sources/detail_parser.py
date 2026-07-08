@@ -64,14 +64,26 @@ def parse_detail_html(html: str) -> ParsedDetail:
     for tag in soup(["script", "style", "noscript", "svg"]):
         tag.decompose()
     title = soup.title.get_text(" ", strip=True) if soup.title else ""
-    text = _extract_main_text(soup)
-    published_at = _extract_published_at(text)
-    deadline = _extract_deadline(text)
+    raw_text = _extract_main_text(soup)
+    published_at = _extract_published_at(raw_text)
+    deadline = _extract_deadline(raw_text)
     if published_at and deadline and deadline < published_at:
         deadline = None
     sections = _extract_sections(soup)
     tables = _extract_html_tables(soup)
     attachments = _extract_attachments(soup)
+    # Use structured sections as description when available (cleaner than raw text)
+    if sections:
+        section_texts = [s.text for s in sections if s.text]
+        if section_texts:
+            text = "\n\n".join(section_texts)
+            lines = _drop_noise_lines(text.splitlines())
+            lines = _trim_tail(lines)
+            text = "\n".join(lines)
+        else:
+            text = raw_text
+    else:
+        text = raw_text
     return ParsedDetail(
         text=text,
         title=title,

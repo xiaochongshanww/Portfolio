@@ -194,6 +194,15 @@ def list_jobs(
     )
 
 
+@app.get("/jobs/filters")
+def job_filters():
+    conn = profile_store.connect()
+    schools = [r[0] for r in conn.execute("SELECT DISTINCT school FROM recruitment_jobs WHERE school IS NOT NULL AND school != '' ORDER BY school").fetchall()]
+    locations = [r[0] for r in conn.execute("SELECT DISTINCT location FROM recruitment_jobs WHERE location IS NOT NULL AND location != '' ORDER BY location").fetchall()]
+    conn.close()
+    return {"schools": schools, "locations": locations}
+
+
 @app.post("/match", response_model=MatchResponse)
 def match_jobs(
     request: Request,
