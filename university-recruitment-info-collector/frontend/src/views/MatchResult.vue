@@ -52,6 +52,10 @@
             <p class="text-xs uppercase tracking-[0.18em] text-slate-400">低质量数据</p>
             <p class="mt-3 text-3xl font-semibold text-amber-600">{{ lowQualityCount }}</p>
           </div>
+          <div v-if="useLlm" class="metric-card border border-sky-200 bg-sky-50/50">
+            <p class="text-xs uppercase tracking-[0.18em] text-sky-500">AI 分析</p>
+            <p class="mt-3 text-3xl font-semibold text-sky-700">{{ aiAnalyzedCount }} 个</p>
+          </div>
         </section>
 
         <section v-if="previousMatch" class="glass-panel p-4 border border-emerald-100 bg-emerald-50/30">
@@ -99,6 +103,7 @@
                   <el-tag v-if="item.job.quality_status" :type="qualityTagType(item.job.quality_status)" size="small" effect="plain">
                     {{ qualityLabel(item.job.quality_status) }}
                   </el-tag>
+                  <el-tag v-if="item.llm_summary" size="small" type="primary" effect="light" class="!border-sky-200 !bg-sky-50 !text-sky-600">AI 增强</el-tag>
                 </div>
 
                 <div class="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-500">
@@ -106,6 +111,7 @@
                   <span>{{ item.job.location || '未标注地点' }}</span>
                   <span>{{ item.job.job_type || '未标注岗位类型' }}</span>
                   <span>{{ item.job.education_requirement || '未标注学历要求' }}</span>
+                  <span>{{ item.job.discipline || '未标注学科' }}</span>
                 </div>
 
                 <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -138,9 +144,16 @@
                   </el-tag>
                 </div>
 
-                <div v-if="item.llm_summary" class="mt-5 rounded-2xl border border-sky-100 bg-sky-50 p-4 text-sm leading-6 text-slate-700">
-                  <p class="font-semibold text-sky-800">AI 分析</p>
-                  <p class="mt-2">{{ item.llm_summary }}</p>
+                <div v-if="item.llm_summary" class="mt-5 rounded-2xl border border-sky-200 bg-gradient-to-br from-sky-50 to-white p-5 text-sm leading-6 text-slate-700 shadow-sm">
+                  <div class="flex items-center gap-2 mb-3">
+                    <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-sky-500 text-white text-xs font-bold">AI</span>
+                    <span class="font-semibold text-sky-800">深度分析</span>
+                    <span class="ml-auto text-xs text-sky-400">语义评分已加权</span>
+                  </div>
+                  <p class="leading-relaxed">{{ item.llm_summary }}</p>
+                </div>
+                <div v-else-if="useLlm" class="mt-4 text-xs text-slate-400 italic">
+                  LLM 未对该岗位返回分析（超出分析上限）
                 </div>
 
                 <div v-if="item.job.extraction_warnings && item.job.quality_status === 'needs_review'" class="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
@@ -262,6 +275,7 @@ const lowQualityCount = computed(() => results.value.filter(item => {
   const status = item.job?.quality_status
   return status === 'needs_review' || status === 'hidden'
 }).length)
+const aiAnalyzedCount = computed(() => results.value.filter(item => item.llm_summary).length)
 
 function scoreColor(score) {
   if (score >= 80) return '#22c55e'
