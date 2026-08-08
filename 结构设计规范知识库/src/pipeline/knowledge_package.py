@@ -14,7 +14,7 @@ from typing import Any, Iterable
 
 from src.app.core.config import settings
 
-from .active_db import read_active_db
+from .active_db import read_active_db, write_active_db
 from .manifest import read_manifest
 from .paths import (
     ACTIVE_DB_PATH,
@@ -516,8 +516,7 @@ def import_runtime_package(
                 created_targets.append(root_manifest_path)
                 shutil.copy2(staged_manifest, root_manifest_path)
                 created_targets.append(active_db_path)
-                _atomic_write_json(
-                    active_db_path,
+                write_active_db(
                     {
                         "active_db_dir": str((version_root / "db").resolve()),
                         "manifest": str((version_root / "manifest.json").resolve()),
@@ -527,6 +526,7 @@ def import_runtime_package(
                         "activated_at": _utc_now(),
                         "activation_source": "knowledge_package_import",
                     },
+                    active_db_path,
                 )
         except Exception:
             for target in reversed(created_targets):

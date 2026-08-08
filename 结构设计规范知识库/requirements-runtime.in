@@ -1,0 +1,14 @@
+# API 与运行时
+fastapi
+uvicorn[standard]
+
+# 检索与模型服务
+chromadb
+zhipuai
+httpx
+rank-bm25
+
+# 配置与文档页面渲染
+python-dotenv
+sniffio
+PyMuPDF

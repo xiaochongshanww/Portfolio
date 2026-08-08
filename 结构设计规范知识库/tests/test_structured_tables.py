@@ -184,7 +184,8 @@ def test_wind_pressure_height_factor_lookup():
     assert top.row["roughness_b"] == 2.00
 
 
-def test_structured_evaluation_suite_passes_and_renders_markdown():
+def test_structured_evaluation_suite_passes_and_renders_markdown(monkeypatch):
+    monkeypatch.setattr("src.evaluation.runner.read_active_manifest", lambda: {})
     cases = load_cases(STRUCTURED_EVAL_PATH)
     result = run_evaluation(STRUCTURED_EVAL_PATH, top_k=5)
     markdown = render_evaluation_markdown(result, "结构化检索专项评估")

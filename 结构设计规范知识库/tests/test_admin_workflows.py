@@ -49,17 +49,58 @@ def test_admin_add_approved_shape(tmp_path: Path):
 
 
 def test_active_db_pointer_round_trips(tmp_path: Path):
-    pointer = tmp_path / "active_db.json"
-    db_dir = tmp_path / "db_versions" / "v1" / "db"
+    pointer = tmp_path / "data" / "active_db.json"
+    db_dir = tmp_path / "data" / "db_versions" / "v1" / "db"
     write_active_db({"active_db_dir": str(db_dir), "manifest": "manifest.json"}, pointer)
 
-    assert read_active_db(pointer)["active_db_dir"] == str(db_dir)
+    assert read_active_db(pointer)["active_db_dir"] == "data/db_versions/v1/db"
     assert active_db_dir(pointer) == db_dir
 
-    manifest = tmp_path / "manifest.json"
+    manifest = tmp_path / "data" / "db_versions" / "v1" / "manifest.json"
+    manifest.parent.mkdir(parents=True, exist_ok=True)
     manifest.write_text('{"chunk_count": 7}', encoding="utf-8")
     write_active_db({"active_db_dir": str(db_dir), "manifest": str(manifest)}, pointer)
     assert read_active_manifest(pointer)["chunk_count"] == 7
+
+
+def test_active_db_pointer_resolves_legacy_windows_paths_on_linux_layout(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    pointer = data_dir / "active_db.json"
+    manifest = data_dir / "db_versions" / "v1" / "manifest.json"
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text('{"chunk_count": 11}', encoding="utf-8")
+    pointer.write_text(
+        json.dumps(
+            {
+                "active_db_dir": r"F:\\legacy\\project\\data\\db_versions\\v1\\db",
+                "manifest": r"F:\\legacy\\project\\data\\db_versions\\v1\\manifest.json",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert active_db_dir(pointer) == data_dir / "db_versions" / "v1" / "db"
+    assert read_active_manifest(pointer)["chunk_count"] == 11
+
+
+def test_active_db_pointer_resolves_legacy_posix_paths_on_windows_layout(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    pointer = data_dir / "active_db.json"
+    manifest = data_dir / "db_versions" / "v2" / "manifest.json"
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text('{"chunk_count": 13}', encoding="utf-8")
+    pointer.write_text(
+        json.dumps(
+            {
+                "active_db_dir": "/legacy/project/data/db_versions/v2/db",
+                "manifest": "/legacy/project/data/db_versions/v2/manifest.json",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert active_db_dir(pointer) == data_dir / "db_versions" / "v2" / "db"
+    assert read_active_manifest(pointer)["chunk_count"] == 13
 
 
 def test_active_manifest_falls_back_when_pointer_is_missing(tmp_path: Path):

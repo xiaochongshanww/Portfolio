@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from src.pipeline.active_db import active_db_dir, read_active_manifest
 from src.pipeline.knowledge_package import (
     KnowledgePackageError,
     export_runtime_package,
@@ -121,8 +122,8 @@ def test_runtime_package_round_trip_without_source_pdfs(tmp_path: Path):
 
     assert imported["activated"] is True
     assert imported["restart_required"] is True
-    assert Path(active["active_db_dir"]).is_dir()
-    assert Path(active["manifest"]).is_file()
+    assert active_db_dir(target_data / "active_db.json").is_dir()
+    assert read_active_manifest(target_data / "active_db.json")["data_version_hash"] == "a" * 64
     assert active["data_version_hash"] == "a" * 64
     assert (target_data / "structured_tables" / "table.json").is_file()
     assert (target_data / "images" / "preview.png").read_bytes() == b"png-data"

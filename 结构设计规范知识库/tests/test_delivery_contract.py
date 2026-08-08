@@ -19,7 +19,22 @@ def test_runtime_image_bundles_console_and_runtime_assets():
     assert "COPY data/metadata/ data/metadata/" in dockerfile
     assert "!data/evaluation/**" in dockerignore
     assert "!data/metadata/**" in dockerignore
-    assert "PyMuPDF" in runtime_requirements
+    assert "pymupdf==" in runtime_requirements.casefold()
+
+
+def test_runtime_and_development_dependencies_are_locked():
+    for filename in ("requirements-runtime.txt", "requirements-dev.txt"):
+        lines = (PROJECT_ROOT / filename).read_text(encoding="utf-8").splitlines()
+        requirements = [
+            line.strip()
+            for line in lines
+            if line.strip() and not line.lstrip().startswith(("#", "-"))
+        ]
+        assert requirements
+        assert all("==" in requirement for requirement in requirements)
+
+    assert (PROJECT_ROOT / "requirements-runtime.in").is_file()
+    assert (PROJECT_ROOT / "requirements-dev.in").is_file()
 
 
 def test_compose_persists_runtime_data_and_uses_v1_backend():

@@ -14,13 +14,13 @@ def test_expected_routes_exist():
     pytest.importorskip("fastapi")
     from src.app.main import app
 
-    paths = {route.path for route in app.routes}
+    paths = set(app.openapi()["paths"])
     assert "/health" in paths
     assert "/v1/models" in paths
     assert "/models" in paths
     assert "/v1/chat/completions" in paths
     assert "/chat/completions" in paths
-    assert "/images/{filename:path}" in paths
+    assert "/images/{filename}" in paths
     assert "/page-images/{doc}/{page}" in paths
     assert "/knowledge/documents" in paths
     assert "/evaluation/status" in paths

@@ -13,7 +13,11 @@ from src.app.retrieval.hybrid_search import (
     text_contains_clause_heading,
     text_mentions_clause,
 )
-from src.app.rag.structured_tables import StructuredTableMatch, find_structured_table_matches
+from src.app.rag.structured_tables import (
+    STRUCTURED_TABLE_DIR,
+    StructuredTableMatch,
+    find_structured_table_matches,
+)
 from src.pipeline.active_db import read_active_manifest
 
 
@@ -109,6 +113,19 @@ def load_cases(path: Path = DEFAULT_EVAL_PATH) -> list[EvaluationCase]:
     if errors:
         raise ValueError("评估集契约校验失败：\n- " + "\n- ".join(errors))
     return cases
+
+
+def structured_data_version_hash(directory: Path = STRUCTURED_TABLE_DIR) -> str:
+    paths = sorted(directory.glob("*.json")) if directory.exists() else []
+    if not paths:
+        return ""
+    digest = hashlib.sha256()
+    for path in paths:
+        digest.update(path.name.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    return digest.hexdigest()
 
 
 def _source_hit(case: EvaluationCase, results: list[RetrievalResult]) -> bool:
@@ -346,12 +363,15 @@ def run_evaluation(path: Path = DEFAULT_EVAL_PATH, top_k: int = 5) -> dict[str, 
     }
     summary = summarize_results(cases, results_by_id, structured_by_id)
     manifest = read_active_manifest()
+    data_version_hash = str(manifest.get("data_version_hash") or "")
+    if not data_version_hash and cases and all(case.type == "structured_table" for case in cases):
+        data_version_hash = structured_data_version_hash()
     return {
         "ok": True,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "evaluation_set": str(path.resolve()),
         "evaluation_set_hash": hashlib.sha256(path.read_bytes()).hexdigest(),
-        "data_version_hash": manifest.get("data_version_hash", ""),
+        "data_version_hash": data_version_hash,
         **summary,
     }
 

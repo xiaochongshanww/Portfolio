@@ -45,10 +45,18 @@
 pip install -r requirements.txt
 ```
 
-仅运行 API 和自动化测试时，可使用较轻的开发依赖集合：
+仅运行 API 时使用已锁定的轻量运行依赖；运行自动化测试时使用开发锁：
 
 ```bash
+pip install -r requirements-runtime.txt
 pip install -r requirements-dev.txt
+```
+
+`requirements-runtime.in` 与 `requirements-dev.in` 是直接依赖维护入口，两个 `.txt` 文件是 Python 3.11 跨平台精确锁。升级依赖时使用同一版本的 `uv` 重新生成并在干净环境验证：
+
+```bash
+uv pip compile --universal --python-version 3.11 requirements-runtime.in -o requirements-runtime.txt
+uv pip compile --universal --python-version 3.11 requirements-dev.in -o requirements-dev.txt
 ```
 
 ### 2. 配置模型 API Key
@@ -399,6 +407,8 @@ GET /admin/elements/{doc}/{element_index}
 ├── tests/               # 自动化测试
 ├── README.md            # 快速入口
 ├── requirements.txt     # 完整知识库构建环境依赖
-├── requirements-runtime.txt # 轻量问答运行依赖
-└── requirements-dev.txt # CI 与自动化测试依赖
+├── requirements-runtime.in  # 轻量问答运行直接依赖
+├── requirements-runtime.txt # 轻量问答运行精确锁
+├── requirements-dev.in      # 自动化测试直接依赖
+└── requirements-dev.txt     # CI 与自动化测试精确锁
 ```
