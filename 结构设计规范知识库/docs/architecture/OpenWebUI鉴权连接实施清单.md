@@ -1,11 +1,11 @@
 # OpenWebUI 鉴权连接实施清单
 
-> 状态：实施中
+> 状态：已完成
 > 维护角色：工程与运维负责人
 > 文档更新：2026-08-09
 > 代码/流程核对：2026-08-09，连接探针、Compose 启动依赖和本地隔离进程矩阵已完成
-> 完整运行验证：部分完成，本地 10 项探针测试和 Compose 配置解析通过；真实 OpenWebUI 联调等待远程 CI
-> 验证证据：[ADR 0014](../adr/0014-OpenWebUI连接采用环境托管与启动探测.md)
+> 完整运行验证：2026-08-09，本地 11 项探针测试、全量门禁和 CI #46 十项任务通过
+> 验证证据：[验证记录](../releases/OpenWebUI鉴权连接验证记录.md)、[ADR 0014](../adr/0014-OpenWebUI连接采用环境托管与启动探测.md)、[Structural Spec KB CI #46](https://github.com/xiaochongshanww/Portfolio/actions/runs/31268469521)
 > 复核周期：每个实施项完成时及迭代收口时
 > 迭代编号：I-021
 > 完成规则：每项只有在实现、测试或运行证据存在后才可标记完成
@@ -25,16 +25,16 @@
 
 ## 自动化验证
 
-- [x] 单元测试覆盖 URL 规范化、环境解析、状态码、响应结构和秘密脱敏（证据：`tests/test_openwebui_probe.py`，10 项测试通过）。
+- [x] 单元测试覆盖 URL 规范化、环境解析、状态码、响应结构和秘密脱敏（证据：`tests/test_openwebui_probe.py`，11 项测试通过）。
 - [x] 隔离 API 进程矩阵覆盖鉴权关闭、正确 Key、缺失 Key、错配 Key 和目标鉴权状态不符（证据：`tests/test_openwebui_probe.py`）。
 - [x] Compose 契约测试覆盖镜像固定、复数变量、环境托管、preflight 依赖和持久卷（证据：`tests/test_delivery_contract.py`）。
-- [ ] 远程 CI 使用合成 Key 启动真实 OpenWebUI，并通过其模型接口发现 `mimo-v2-omni`。
+- [x] 远程 CI 使用合成 Key 启动真实 OpenWebUI，并通过临时用户会话从其模型接口发现 `mimo-v2-omni`（证据：[CI #46](https://github.com/xiaochongshanww/Portfolio/actions/runs/31268469521)）。
 - [x] 全量后端测试通过（证据：2026-08-09 本地 `318 passed, 1 skipped`）。
 - [x] 前端组件测试、类型检查、安全审计和生产构建通过（证据：npm 10.9.8 干净安装后 9 项组件测试、`vue-tsc`、零漏洞审计与 Vite 构建通过）。
-- [ ] 远程 CI 全部任务通过并记录运行链接。
+- [x] 远程 CI 十个任务全部通过并记录运行链接（证据：[验证记录](../releases/OpenWebUI鉴权连接验证记录.md)）。
 
 ## 收口
 
-- [ ] 更新系统详细设计、部署运行手册、配置参考、发布检查单、路线图和文档中心。
-- [ ] 生成 I-021 验证记录，列出提交、进程矩阵、Compose 证据、远程 CI 和能力边界。
-- [ ] 证据齐全后将本清单和路线图状态改为“已完成”。
+- [x] 更新系统详细设计、部署运行手册、配置参考、发布检查单、路线图和文档中心。
+- [x] 生成 I-021 验证记录，列出提交、进程矩阵、Compose 证据、远程 CI 和能力边界（证据：[验证记录](../releases/OpenWebUI鉴权连接验证记录.md)）。
+- [x] 证据齐全后将本清单和路线图状态改为“已完成”。

@@ -3,9 +3,9 @@
 > 状态：已接受
 > 维护角色：工程与运维负责人
 > 文档更新：2026-08-09
-> 代码/流程核对：2026-08-09，已实现连接探针、Compose 启动依赖并通过本地隔离进程矩阵
-> 完整运行验证：部分完成，真实 OpenWebUI Compose 联调等待远程 CI
-> 验证证据：[实施清单](../architecture/OpenWebUI鉴权连接实施清单.md)
+> 代码/流程核对：2026-08-09，连接探针、Compose 启动依赖、临时会话模型发现和文档均已核对
+> 完整运行验证：2026-08-09，本地全量门禁和 CI #46 十项任务通过
+> 验证证据：[实施清单](../architecture/OpenWebUI鉴权连接实施清单.md)、[验证记录](../releases/OpenWebUI鉴权连接验证记录.md)、[Structural Spec KB CI #46](https://github.com/xiaochongshanww/Portfolio/actions/runs/31268469521)
 > 复核周期：API 鉴权、Compose 拓扑、OpenWebUI 版本或持久化配置策略变化时
 > 决策日期：2026-08-08
 
