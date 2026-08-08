@@ -7,3 +7,4 @@ httpx
 python-dotenv
 sniffio
 rank-bm25
+PyMuPDF

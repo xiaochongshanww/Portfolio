@@ -1,24 +1,40 @@
-# ---- Builder ----
-FROM python:3.11-slim AS builder
+# syntax=docker/dockerfile:1
+
+# ---- Frontend builder ----
+FROM node:22-alpine AS frontend-builder
+
+WORKDIR /app/frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
+# ---- Python dependency builder ----
+FROM python:3.11-slim AS python-builder
 
 WORKDIR /app
 COPY requirements-runtime.txt .
 RUN pip install --user --no-cache-dir -r requirements-runtime.txt
 
 # ---- Runtime ----
-FROM python:3.11-slim
+FROM python:3.11-slim AS runtime
 
 WORKDIR /app
 
 # 从 builder 复制已安装的包
-COPY --from=builder /root/.local /root/.local
-ENV PATH=/root/.local/bin:$PATH
+COPY --from=python-builder /root/.local /root/.local
+ENV PATH=/root/.local/bin:$PATH \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 # 创建数据目录
-RUN mkdir -p /app/db /app/logs
+RUN mkdir -p /app/db /app/logs /app/data
 
-# 复制应用代码
+# 复制应用、控制台和运行时评估资产
 COPY src/ src/
+COPY --from=frontend-builder /app/frontend/dist frontend/dist/
+COPY data/evaluation/ data/evaluation/
+COPY data/metadata/ data/metadata/
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \

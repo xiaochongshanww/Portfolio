@@ -1,3 +1,5 @@
+name: structural-spec-kb
+
 services:
   api:
     build: .
@@ -8,22 +10,26 @@ services:
     volumes:
       - ./db:/app/db
       - ./logs:/app/logs
-      - ./data/images:/app/data/images
+      - ./data:/app/data
     restart: unless-stopped
     networks:
       - rag-net
 
   open-webui:
-    image: ghcr.io/open-webui/open-webui:main
+    image: ghcr.io/open-webui/open-webui:v0.9.5
     container_name: open-webui
     ports:
       - "3000:8080"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     environment:
       - OLLAMA_BASE_URL=
-      - OPENAI_API_BASE_URL=http://api:8000
-      - OPENAI_API_KEY=not-needed
+      - ENABLE_OPENAI_API=true
+      - OPENAI_API_BASE_URL=http://api:8000/v1
+      - OPENAI_API_KEY=${OPENWEBUI_API_KEY:-not-needed}
+    volumes:
+      - open-webui-data:/app/backend/data
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
@@ -33,3 +39,6 @@ services:
 networks:
   rag-net:
     driver: bridge
+
+volumes:
+  open-webui-data:

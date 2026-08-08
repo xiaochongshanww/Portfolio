@@ -6,7 +6,11 @@ venv/
 .git/
 .gitignore
 *.md
-data/
+data/*
+!data/evaluation/
+!data/evaluation/**
+!data/metadata/
+!data/metadata/**
 logs/
 Dockerfile
 .dockerignore

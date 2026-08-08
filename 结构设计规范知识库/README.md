@@ -45,6 +45,12 @@
 pip install -r requirements.txt
 ```
 
+仅运行 API 和自动化测试时，可使用较轻的开发依赖集合：
+
+```bash
+pip install -r requirements-dev.txt
+```
+
 ### 2. 配置模型 API Key
 
 本项目使用智谱 `embedding-2` 生成向量，并使用 MiMo 生成回答和多模态校对。复制示例环境变量后填写 `ZHIPUAI_API_KEY` 和 `MIMO_API_KEY`。
@@ -327,6 +333,15 @@ cd frontend
 npm run build
 ```
 
+Docker 镜像会在多阶段构建中自动执行前端生产构建：
+
+```bash
+docker compose config -q
+docker compose up --build -d
+```
+
+启用 API 鉴权时，`.env` 中的 `OPENWEBUI_API_KEY` 必须与 `API_KEYS` 中的一项一致。
+
 控制台采用分工模式：
 
 - Open WebUI：主聊天入口，适合日常多会话问答。
@@ -383,5 +398,7 @@ GET /admin/elements/{doc}/{element_index}
 ├── src/                 # API、检索、RAG、LLM 与 pipeline
 ├── tests/               # 自动化测试
 ├── README.md            # 快速入口
-└── requirements.txt     # Python依赖
+├── requirements.txt     # 完整知识库构建环境依赖
+├── requirements-runtime.txt # 轻量问答运行依赖
+└── requirements-dev.txt # CI 与自动化测试依赖
 ```
