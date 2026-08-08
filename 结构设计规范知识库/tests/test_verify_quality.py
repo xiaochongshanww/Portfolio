@@ -1,11 +1,21 @@
 import io
 import json
+import os
+import socket
+import subprocess
 import urllib.error
+import urllib.request
 from pathlib import Path
 
 import pytest
 
 from scripts import verify_quality
+
+
+def _free_loopback_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.bind(("127.0.0.1", 0))
+        return int(probe.getsockname()[1])
 
 
 def test_api_evaluation_surfaces_output_error(monkeypatch, tmp_path: Path):
@@ -236,3 +246,325 @@ def test_access_probe_reports_auth_failure_without_secret(monkeypatch):
     assert result["credential_source"] == "environment"
     assert result["credential_supplied"] is True
     assert "secret-value" not in json.dumps(result, ensure_ascii=False)
+
+
+@pytest.mark.parametrize(
+    ("api_base", "bind_host"),
+    [
+        ("http://127.0.0.1:8017", "127.0.0.1"),
+        ("http://localhost:8017", "127.0.0.1"),
+        ("http://[::1]:8017", "::1"),
+    ],
+)
+def test_managed_api_target_accepts_explicit_loopback_http(api_base: str, bind_host: str):
+    target = verify_quality._parse_managed_api_target(api_base)
+
+    assert target.api_base == api_base
+    assert target.bind_host == bind_host
+    assert target.port == 8017
+
+
+@pytest.mark.parametrize(
+    "api_base",
+    [
+        "https://127.0.0.1:8017",
+        "http://127.0.0.1",
+        "http://127.0.0.1:8017/api",
+        "http://127.0.0.1:8017?debug=1",
+        "http://127.0.0.1:8017#fragment",
+        "http://user:password@127.0.0.1:8017",
+        "http://127.0.0.1:99999",
+        "http://192.168.1.8:8017",
+        "http://example.com:8017",
+    ],
+)
+def test_managed_api_target_rejects_unsafe_or_ambiguous_targets(api_base: str):
+    with pytest.raises(verify_quality.ManagedApiError):
+        verify_quality._parse_managed_api_target(api_base)
+
+
+def test_managed_api_refuses_occupied_port(tmp_path: Path):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen()
+        port = int(listener.getsockname()[1])
+        manager = verify_quality.ManagedApiProcess(
+            target=verify_quality._parse_managed_api_target(
+                f"http://127.0.0.1:{port}"
+            ),
+            log_path=tmp_path / "api.log",
+        )
+
+        with pytest.raises(verify_quality.ManagedApiError, match="端口已占用"):
+            manager.start(timeout_seconds=1)
+
+    assert manager.process is None
+    assert not (tmp_path / "api.log").exists()
+
+
+def test_managed_api_real_process_starts_and_stops(tmp_path: Path):
+    module_path = tmp_path / "managed_fixture.py"
+    module_path.write_text(
+        "from fastapi import FastAPI\n"
+        "app = FastAPI()\n"
+        "@app.get('/health')\n"
+        "def health():\n"
+        "    return {'status': 'ok'}\n",
+        encoding="utf-8",
+    )
+    port = _free_loopback_port()
+    environment = dict(os.environ)
+    environment["PYTHONPATH"] = os.pathsep.join(
+        value
+        for value in (str(tmp_path), environment.get("PYTHONPATH", ""))
+        if value
+    )
+    manager = verify_quality.ManagedApiProcess(
+        target=verify_quality._parse_managed_api_target(f"http://127.0.0.1:{port}"),
+        log_path=tmp_path / "api.log",
+        app="managed_fixture:app",
+        cwd=tmp_path,
+        environ=environment,
+    )
+
+    started = manager.start(timeout_seconds=15)
+    with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=2) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+    stopped = manager.stop(timeout_seconds=10)
+
+    assert started["api_base"] == f"http://127.0.0.1:{port}"
+    assert payload == {"status": "ok"}
+    assert stopped["ok"] is True
+    assert manager.process is not None and manager.process.poll() is not None
+
+
+def test_managed_api_failed_start_redacts_environment_secret(tmp_path: Path):
+    module_path = tmp_path / "failed_fixture.py"
+    module_path.write_text(
+        "import os\n"
+        "raise RuntimeError('credential=' + os.environ['ZHIPUAI_API_KEY'])\n",
+        encoding="utf-8",
+    )
+    port = _free_loopback_port()
+    environment = dict(os.environ)
+    environment["ZHIPUAI_API_KEY"] = "secret-must-not-leak"
+    environment["PYTHONPATH"] = os.pathsep.join(
+        value
+        for value in (str(tmp_path), environment.get("PYTHONPATH", ""))
+        if value
+    )
+    manager = verify_quality.ManagedApiProcess(
+        target=verify_quality._parse_managed_api_target(f"http://127.0.0.1:{port}"),
+        log_path=tmp_path / "failed.log",
+        app="failed_fixture:app",
+        cwd=tmp_path,
+        environ=environment,
+    )
+
+    with pytest.raises(verify_quality.ManagedApiError) as error:
+        manager.start(timeout_seconds=10)
+
+    assert "<redacted>" in str(error.value)
+    assert "secret-must-not-leak" not in str(error.value)
+    assert manager.process is not None and manager.process.poll() is not None
+
+
+def test_managed_child_args_only_removes_lifecycle_switch():
+    arguments = [
+        "--manage-api",
+        "--api-base",
+        "http://127.0.0.1:8017",
+        "--api-key-file",
+        "C:/secure/quality.key",
+    ]
+
+    assert verify_quality._managed_child_args(arguments) == arguments[1:]
+
+
+def test_managed_verification_reports_startup_failure_without_stale_evidence(
+    monkeypatch,
+    tmp_path: Path,
+):
+    reports = tmp_path / "reports"
+    reports.mkdir()
+    stale_path = reports / verify_quality.VERIFICATION_JSON_NAME
+    stale_path.write_text(
+        json.dumps({"generated_at": "stale", "passed": True, "steps": []}),
+        encoding="utf-8",
+    )
+
+    def fail_start(self, *, timeout_seconds):
+        raise verify_quality.ManagedApiError("startup failed")
+
+    def forbidden_child(*args, **kwargs):
+        pytest.fail("启动失败后不应执行质量验证子进程")
+
+    monkeypatch.setattr(verify_quality, "REPORTS_DIR", reports)
+    monkeypatch.setattr(verify_quality.ManagedApiProcess, "start", fail_start)
+    monkeypatch.setattr(verify_quality.subprocess, "run", forbidden_child)
+
+    exit_code = verify_quality._run_managed_verification(
+        "http://127.0.0.1:8017",
+        ["--manage-api"],
+        startup_timeout_seconds=1,
+    )
+    result = json.loads(stale_path.read_text(encoding="utf-8"))
+
+    assert exit_code == 1
+    assert result["generated_at"] != "stale"
+    assert result["passed"] is False
+    assert result["steps"][0]["name"] == "托管 API 启动"
+    assert result["steps"][0]["ok"] is False
+
+
+def test_managed_verification_forwards_custom_base_and_owns_cleanup(
+    monkeypatch,
+    tmp_path: Path,
+):
+    reports = tmp_path / "reports"
+    calls: dict[str, object] = {}
+
+    class FakeManager:
+        def __init__(self, *, target, log_path):
+            self.target = target
+            self.log_path = log_path
+
+        def _child_environment(self):
+            return dict(os.environ)
+
+        def start(self, *, timeout_seconds):
+            calls["start_timeout"] = timeout_seconds
+            return {
+                "api_base": self.target.api_base,
+                "log_path": str(self.log_path),
+            }
+
+        def stop(self, *, timeout_seconds=10):
+            calls["stopped"] = True
+            return {"ok": True, "forced": False, "exit_code": 0}
+
+    def fake_run(command, **kwargs):
+        calls["command"] = command
+        calls["environment"] = kwargs["env"]
+        reports.mkdir(parents=True, exist_ok=True)
+        (reports / verify_quality.VERIFICATION_JSON_NAME).write_text(
+            json.dumps(
+                {
+                    "generated_at": "fresh",
+                    "passed": True,
+                    "steps": [{"name": "质量门禁", "ok": True}],
+                }
+            ),
+            encoding="utf-8",
+        )
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(verify_quality, "REPORTS_DIR", reports)
+    monkeypatch.setattr(verify_quality, "ManagedApiProcess", FakeManager)
+    monkeypatch.setattr(verify_quality.subprocess, "run", fake_run)
+
+    exit_code = verify_quality._run_managed_verification(
+        "http://127.0.0.1:8123",
+        ["--manage-api", "--api-base", "http://127.0.0.1:8123", "--skip-tests"],
+        startup_timeout_seconds=7,
+    )
+    result = json.loads(
+        (reports / verify_quality.VERIFICATION_JSON_NAME).read_text(encoding="utf-8")
+    )
+
+    assert exit_code == 0
+    assert calls["start_timeout"] == 7
+    assert calls["stopped"] is True
+    assert calls["environment"]["ANSWER_EVALUATION_API_BASE"] == "http://127.0.0.1:8123"
+    assert "--manage-api" not in calls["command"]
+    assert "http://127.0.0.1:8123" in calls["command"]
+    assert result["passed"] is True
+    assert result["steps"][0]["name"] == "托管 API 启动"
+    assert result["steps"][-1]["name"] == "托管 API 回收"
+
+
+def test_managed_verification_interrupts_with_cleanup_and_fresh_failure_report(
+    monkeypatch,
+    tmp_path: Path,
+):
+    reports = tmp_path / "reports"
+    calls: dict[str, object] = {}
+
+    class FakeManager:
+        def __init__(self, *, target, log_path):
+            self.target = target
+            self.log_path = log_path
+
+        def _child_environment(self):
+            return dict(os.environ)
+
+        def start(self, *, timeout_seconds):
+            return {
+                "api_base": self.target.api_base,
+                "log_path": str(self.log_path),
+            }
+
+        def stop(self, *, timeout_seconds=10):
+            calls["stopped"] = True
+            return {"ok": True, "forced": False, "exit_code": 0}
+
+    def interrupt(*args, **kwargs):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(verify_quality, "REPORTS_DIR", reports)
+    monkeypatch.setattr(verify_quality, "ManagedApiProcess", FakeManager)
+    monkeypatch.setattr(verify_quality.subprocess, "run", interrupt)
+
+    exit_code = verify_quality._run_managed_verification(
+        "http://127.0.0.1:8123",
+        ["--manage-api", "--api-base", "http://127.0.0.1:8123"],
+        startup_timeout_seconds=7,
+    )
+    result = json.loads(
+        (reports / verify_quality.VERIFICATION_JSON_NAME).read_text(encoding="utf-8")
+    )
+
+    assert exit_code == 130
+    assert calls["stopped"] is True
+    assert result["passed"] is False
+    assert result["managed_api"]["interrupted"] is True
+    assert result["steps"][-1]["name"] == "托管 API 回收"
+    assert result["steps"][-1]["ok"] is True
+
+
+def test_managed_api_stop_forces_kill_after_timeout(tmp_path: Path):
+    class StubbornProcess:
+        returncode = None
+
+        def __init__(self):
+            self.terminated = False
+            self.killed = False
+
+        def poll(self):
+            return None if not self.killed else -9
+
+        def terminate(self):
+            self.terminated = True
+
+        def wait(self, timeout):
+            if not self.killed:
+                raise subprocess.TimeoutExpired("managed-api", timeout)
+            self.returncode = -9
+            return self.returncode
+
+        def kill(self):
+            self.killed = True
+
+    manager = verify_quality.ManagedApiProcess(
+        target=verify_quality._parse_managed_api_target("http://127.0.0.1:8017"),
+        log_path=tmp_path / "api.log",
+    )
+    process = StubbornProcess()
+    manager.process = process
+
+    result = manager.stop(timeout_seconds=0.01)
+
+    assert result["ok"] is True
+    assert result["forced"] is True
+    assert process.terminated is True
+    assert process.killed is True

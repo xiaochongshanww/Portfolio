@@ -128,6 +128,30 @@ def test_quality_verification_assets_and_credentials_are_documented():
     assert checklist.is_file()
 
 
+def test_managed_quality_api_lifecycle_is_documented():
+    readme = Path("README.md").read_text(encoding="utf-8")
+    config_reference = Path("docs/reference/配置参考.md").read_text(encoding="utf-8")
+    operations = Path("docs/operations/知识库维护与质量运营.md").read_text(
+        encoding="utf-8"
+    )
+    detailed_design = Path("docs/architecture/系统详细设计.md").read_text(
+        encoding="utf-8"
+    )
+    decision = Path("docs/adr/0015-无人值守质量验证采用受控本地API生命周期.md")
+    checklist = Path("docs/architecture/质量验证托管API生命周期实施清单.md")
+
+    command = (
+        "python scripts/verify_quality.py --manage-api "
+        "--api-base http://127.0.0.1:8017"
+    )
+    assert command in readme
+    assert "--api-start-timeout-seconds" in config_reference
+    assert "managed_quality_api_latest.log" in operations
+    assert "一命令质量验证" in detailed_design
+    assert decision.is_file()
+    assert checklist.is_file()
+
+
 def test_runtime_backup_and_disaster_recovery_contract_is_documented():
     readme = Path("README.md").read_text(encoding="utf-8")
     operations = Path("docs/operations/部署运行手册.md").read_text(encoding="utf-8")

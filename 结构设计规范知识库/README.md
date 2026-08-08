@@ -306,10 +306,10 @@ python -m src.evaluation run --top-k 5
 完整的无人值守质量验证可通过以下命令执行：
 
 ```powershell
-python scripts/verify_quality.py
+python scripts/verify_quality.py --manage-api --api-base http://127.0.0.1:8017
 ```
 
-该入口会运行后端测试、前端生产构建、常规评估、结构化专项评估、24条回答级盲测和自动质量门禁。报告保存在 `data/audit/reports/`；当前执行口径见 [RAG 系统卡](./docs/quality/检索增强生成系统卡.md)、[回答盲测集阅读版](./docs/quality/回答级盲测集阅读版.md) 与 [运维文档](./docs/operations/知识库维护与质量运营.md)，早期实施计划统一收录在[历史文档说明](./docs/archive/历史文档说明.md)中。
+`--manage-api` 会在空闲的本机回环端口启动 API、等待健康检查、执行验证并可靠回收进程；模型配置和 API 鉴权配置从当前受控环境继承，不进入命令行。该入口会运行后端测试、前端生产构建、常规评估、结构化专项评估、24条回答级盲测和自动质量门禁。连接已经运行的 API 时省略 `--manage-api`。报告和托管 API 日志保存在 `data/audit/reports/`；当前执行口径见 [RAG 系统卡](./docs/quality/检索增强生成系统卡.md)、[回答盲测集阅读版](./docs/quality/回答级盲测集阅读版.md) 与 [运维文档](./docs/operations/知识库维护与质量运营.md)，早期实施计划统一收录在[历史文档说明](./docs/archive/历史文档说明.md)中。
 
 ## 🛡️ 服务成熟化
 

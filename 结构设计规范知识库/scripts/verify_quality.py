@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import ipaddress
 import json
 import os
+import socket
 import subprocess
 import sys
 import time
@@ -12,6 +14,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
+from urllib.parse import urlsplit
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -36,6 +39,204 @@ from src.quality import evaluate_quality_gate, render_quality_gate_markdown  # n
 
 REPORTS_DIR = AUDIT_DIR / "reports"
 LEGACY_API_KEY_PATH = PROJECT_ROOT / ".runtime_api_key"
+MANAGED_API_LOG_NAME = "managed_quality_api_latest.log"
+VERIFICATION_JSON_NAME = "verification_latest.json"
+VERIFICATION_MARKDOWN_NAME = "verification_latest.md"
+SECRET_ENV_NAMES = (
+    "ZHIPUAI_API_KEY",
+    "MIMO_API_KEY",
+    "API_KEYS",
+    "QUALITY_API_KEY",
+    "OPENWEBUI_API_KEY",
+    "ASSET_SIGNING_KEY",
+)
+
+
+class ManagedApiError(RuntimeError):
+    pass
+
+
+@dataclass(frozen=True)
+class ManagedApiTarget:
+    api_base: str
+    host: str
+    bind_host: str
+    port: int
+
+
+def _parse_managed_api_target(api_base: str) -> ManagedApiTarget:
+    parsed = urlsplit(api_base)
+    if parsed.scheme != "http":
+        raise ManagedApiError("托管 API 只支持 loopback HTTP 地址")
+    if parsed.username is not None or parsed.password is not None:
+        raise ManagedApiError("托管 API 地址不能包含用户名或密码")
+    if parsed.path not in {"", "/"} or parsed.query or parsed.fragment:
+        raise ManagedApiError("托管 API 地址不能包含路径前缀、查询或片段")
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise ManagedApiError(f"托管 API 端口无效：{exc}") from exc
+    if port is None:
+        raise ManagedApiError("托管 API 地址必须显式指定端口")
+
+    host = (parsed.hostname or "").lower()
+    if host == "localhost":
+        bind_host = "127.0.0.1"
+    else:
+        try:
+            address = ipaddress.ip_address(host)
+        except ValueError as exc:
+            raise ManagedApiError("托管 API 只允许 localhost 或 loopback IP") from exc
+        if not address.is_loopback:
+            raise ManagedApiError("托管 API 只允许 localhost 或 loopback IP")
+        bind_host = host
+
+    return ManagedApiTarget(
+        api_base=api_base,
+        host=host,
+        bind_host=bind_host,
+        port=port,
+    )
+
+
+def _redact_secrets(text: str, environ: dict[str, str]) -> str:
+    secrets: set[str] = set()
+    for name in SECRET_ENV_NAMES:
+        raw = environ.get(name, "").strip()
+        if not raw:
+            continue
+        secrets.add(raw)
+        if name == "API_KEYS":
+            secrets.update(value.strip() for value in raw.split(",") if value.strip())
+    for secret in sorted(secrets, key=len, reverse=True):
+        text = text.replace(secret, "<redacted>")
+    return text
+
+
+def _read_log_tail(path: Path, *, environ: dict[str, str], limit: int = 4000) -> str:
+    try:
+        content = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+    return _redact_secrets(content[-limit:], environ)
+
+
+@dataclass
+class ManagedApiProcess:
+    target: ManagedApiTarget
+    log_path: Path
+    app: str = "src.app.main:app"
+    cwd: Path = PROJECT_ROOT
+    environ: dict[str, str] | None = field(default=None, repr=False)
+    process: subprocess.Popen[str] | None = field(default=None, init=False, repr=False)
+    _log_handle: Any = field(default=None, init=False, repr=False)
+
+    def _child_environment(self) -> dict[str, str]:
+        values = dict(os.environ if self.environ is None else self.environ)
+        values["ANSWER_EVALUATION_API_BASE"] = self.target.api_base
+        return values
+
+    def _assert_port_available(self) -> None:
+        family = socket.AF_INET6 if ":" in self.target.bind_host else socket.AF_INET
+        try:
+            with socket.socket(family, socket.SOCK_STREAM) as probe:
+                probe.bind((self.target.bind_host, self.target.port))
+        except OSError as exc:
+            raise ManagedApiError(
+                f"托管 API 端口已占用或不可绑定：{self.target.bind_host}:{self.target.port}"
+            ) from exc
+
+    def start(self, *, timeout_seconds: float = 60) -> dict[str, Any]:
+        if timeout_seconds <= 0:
+            raise ManagedApiError("API 启动等待时间必须大于 0")
+        if self.process is not None:
+            raise ManagedApiError("托管 API 进程已经启动")
+        self._assert_port_available()
+        self.log_path.parent.mkdir(parents=True, exist_ok=True)
+        self._log_handle = self.log_path.open("w", encoding="utf-8")
+        environment = self._child_environment()
+        command = [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            self.app,
+            "--host",
+            self.target.bind_host,
+            "--port",
+            str(self.target.port),
+        ]
+        popen_options: dict[str, Any] = {
+            "cwd": self.cwd,
+            "env": environment,
+            "stdout": self._log_handle,
+            "stderr": subprocess.STDOUT,
+            "text": True,
+            "encoding": "utf-8",
+            "errors": "replace",
+        }
+        if sys.platform == "win32":
+            popen_options["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+        else:
+            popen_options["start_new_session"] = True
+        self.process = subprocess.Popen(command, **popen_options)
+
+        deadline = time.monotonic() + timeout_seconds
+        try:
+            while time.monotonic() < deadline:
+                exit_code = self.process.poll()
+                if exit_code is not None:
+                    tail = _read_log_tail(self.log_path, environ=environment)
+                    detail = f"；日志摘要：{tail}" if tail else ""
+                    raise ManagedApiError(
+                        f"托管 API 在健康检查前退出，退出码 {exit_code}{detail}"
+                    )
+                try:
+                    with urllib.request.urlopen(
+                        f"{self.target.api_base}/health",
+                        timeout=1,
+                    ) as response:
+                        if response.status == 200:
+                            return {
+                                "ok": True,
+                                "api_base": self.target.api_base,
+                                "pid": self.process.pid,
+                                "log_path": str(self.log_path.resolve()),
+                            }
+                except (OSError, urllib.error.URLError):
+                    pass
+                time.sleep(0.25)
+            tail = _read_log_tail(self.log_path, environ=environment)
+            detail = f"；日志摘要：{tail}" if tail else ""
+            raise ManagedApiError(f"托管 API 健康检查等待超时{detail}")
+        except BaseException:
+            self.stop()
+            raise
+
+    def stop(self, *, timeout_seconds: float = 10) -> dict[str, Any]:
+        forced = False
+        process = self.process
+        try:
+            if process is None:
+                return {"ok": True, "already_stopped": True, "forced": False}
+            if process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=timeout_seconds)
+                except subprocess.TimeoutExpired:
+                    forced = True
+                    process.kill()
+                    process.wait(timeout=timeout_seconds)
+            return {
+                "ok": True,
+                "forced": forced,
+                "exit_code": process.returncode,
+            }
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            return {"ok": False, "forced": forced, "error": f"托管 API 回收失败：{exc}"}
+        finally:
+            if self._log_handle is not None:
+                self._log_handle.close()
+                self._log_handle = None
 
 
 @dataclass(frozen=True)
@@ -329,6 +530,202 @@ def _render_verification_markdown(result: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _write_verification_result(result: dict[str, Any]) -> str:
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    (REPORTS_DIR / VERIFICATION_JSON_NAME).write_text(
+        json.dumps(result, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    markdown = _render_verification_markdown(result)
+    (REPORTS_DIR / VERIFICATION_MARKDOWN_NAME).write_text(markdown, encoding="utf-8")
+    return markdown
+
+
+def _managed_child_args(argv: list[str]) -> list[str]:
+    return [value for value in argv if value != "--manage-api"]
+
+
+def _report_fingerprint(path: Path) -> tuple[int, int] | None:
+    try:
+        stat = path.stat()
+    except OSError:
+        return None
+    return stat.st_mtime_ns, stat.st_size
+
+
+def _load_fresh_verification_result(
+    path: Path,
+    *,
+    previous_fingerprint: tuple[int, int] | None,
+) -> dict[str, Any] | None:
+    current_fingerprint = _report_fingerprint(path)
+    if current_fingerprint is None or current_fingerprint == previous_fingerprint:
+        return None
+    try:
+        result = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return result if isinstance(result, dict) else None
+
+
+def _run_managed_verification(
+    api_base: str,
+    argv: list[str],
+    *,
+    startup_timeout_seconds: float,
+) -> int:
+    target = _parse_managed_api_target(api_base)
+    manager = ManagedApiProcess(
+        target=target,
+        log_path=REPORTS_DIR / MANAGED_API_LOG_NAME,
+    )
+    report_path = REPORTS_DIR / VERIFICATION_JSON_NAME
+    previous_fingerprint = _report_fingerprint(report_path)
+    started_at = time.monotonic()
+    startup_step: dict[str, Any]
+    cleanup_step: dict[str, Any] | None = None
+
+    try:
+        startup = manager.start(timeout_seconds=startup_timeout_seconds)
+        startup_step = {
+            "name": "托管 API 启动",
+            "ok": True,
+            "duration_seconds": round(time.monotonic() - started_at, 2),
+            "api_base": startup["api_base"],
+            "log_path": startup["log_path"],
+        }
+    except (ManagedApiError, OSError, subprocess.SubprocessError, KeyboardInterrupt) as exc:
+        cleanup = manager.stop()
+        cleanup_step = {
+            "name": "托管 API 回收",
+            "duration_seconds": 0,
+            **cleanup,
+        }
+        result = {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "passed": False,
+            "managed_api": {
+                "enabled": True,
+                "api_base": api_base,
+                "log_path": str(manager.log_path.resolve()),
+            },
+            "steps": [
+                {
+                    "name": "托管 API 启动",
+                    "ok": False,
+                    "duration_seconds": round(time.monotonic() - started_at, 2),
+                    "error": _redact_secrets(str(exc), manager._child_environment()),
+                },
+                cleanup_step,
+            ],
+        }
+        print(_write_verification_result(result))
+        return 130 if isinstance(exc, KeyboardInterrupt) else 1
+
+    child_started_at = time.monotonic()
+    child: subprocess.CompletedProcess[str] | None = None
+    interrupted = False
+    child_error = ""
+    try:
+        child_environment = dict(os.environ)
+        child_environment["ANSWER_EVALUATION_API_BASE"] = api_base
+        child = subprocess.run(
+            [sys.executable, str(Path(__file__).resolve()), *_managed_child_args(argv)],
+            cwd=PROJECT_ROOT,
+            env=child_environment,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            capture_output=True,
+        )
+    except KeyboardInterrupt:
+        interrupted = True
+        child_error = "托管质量验证被中断"
+    except (OSError, subprocess.SubprocessError) as exc:
+        child_error = f"无法执行质量验证子进程：{exc}"
+    finally:
+        cleanup_started_at = time.monotonic()
+        cleanup = manager.stop()
+        cleanup_step = {
+            "name": "托管 API 回收",
+            "duration_seconds": round(time.monotonic() - cleanup_started_at, 2),
+            **cleanup,
+        }
+
+    result = _load_fresh_verification_result(
+        report_path,
+        previous_fingerprint=previous_fingerprint,
+    )
+    if result is None:
+        environment = manager._child_environment()
+        output_tail = ""
+        if child is not None:
+            output_tail = (child.stderr or child.stdout or "")[-4000:]
+        result = {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "passed": False,
+            "steps": [
+                {
+                    "name": "质量验证子进程",
+                    "ok": False,
+                    "duration_seconds": round(time.monotonic() - child_started_at, 2),
+                    "error": _redact_secrets(
+                        child_error or output_tail or "子进程未生成新的验证报告",
+                        environment,
+                    ),
+                    "exit_code": child.returncode if child is not None else None,
+                }
+            ],
+        }
+    elif child_error or interrupted:
+        result.setdefault("steps", []).append(
+            {
+                "name": "质量验证子进程",
+                "ok": False,
+                "duration_seconds": round(time.monotonic() - child_started_at, 2),
+                "error": child_error,
+            }
+        )
+    elif child is not None and child.returncode == 0 and result.get("passed") is not True:
+        result.setdefault("steps", []).append(
+            {
+                "name": "质量验证子进程结果一致性",
+                "ok": False,
+                "duration_seconds": 0,
+                "error": "子进程退出码为 0，但验证报告未标记为通过",
+            }
+        )
+    elif child is not None and child.returncode != 0 and result.get("passed") is True:
+        result.setdefault("steps", []).append(
+            {
+                "name": "质量验证子进程结果一致性",
+                "ok": False,
+                "duration_seconds": 0,
+                "error": f"子进程退出码为 {child.returncode}，但验证报告标记为通过",
+            }
+        )
+
+    result["managed_api"] = {
+        "enabled": True,
+        "api_base": api_base,
+        "log_path": str(manager.log_path.resolve()),
+        "child_exit_code": child.returncode if child is not None else None,
+        "interrupted": interrupted,
+    }
+    result["steps"] = [startup_step, *result.get("steps", []), cleanup_step]
+    result["passed"] = bool(
+        result.get("passed")
+        and child is not None
+        and child.returncode == 0
+        and cleanup_step.get("ok") is True
+        and not interrupted
+    )
+    print(_write_verification_result(result))
+    if interrupted:
+        return 130
+    return 0 if result["passed"] else 1
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="执行完整的无人值守质量验证")
     parser.add_argument("--skip-tests", action="store_true")
@@ -336,6 +733,17 @@ def main() -> None:
     parser.add_argument("--skip-evaluations", action="store_true")
     parser.add_argument("--skip-answer-evaluation", action="store_true")
     parser.add_argument("--api-base", default="http://127.0.0.1:8000")
+    parser.add_argument(
+        "--manage-api",
+        action="store_true",
+        help="在空闲 loopback 端口启动并回收本地 API，再执行完整验证",
+    )
+    parser.add_argument(
+        "--api-start-timeout-seconds",
+        type=float,
+        default=60,
+        help="托管模式等待本地 API /health 就绪的最长秒数",
+    )
     credential_group = parser.add_mutually_exclusive_group()
     credential_group.add_argument(
         "--api-key-file",
@@ -357,6 +765,16 @@ def main() -> None:
         api_base = normalize_http_base_url(args.api_base, field_name="--api-base")
     except ValueError as exc:
         parser.error(str(exc))
+    if args.manage_api:
+        try:
+            exit_code = _run_managed_verification(
+                api_base,
+                sys.argv[1:],
+                startup_timeout_seconds=args.api_start_timeout_seconds,
+            )
+        except ManagedApiError as exc:
+            parser.error(str(exc))
+        raise SystemExit(exit_code)
 
     steps: list[dict[str, Any]] = []
     api_required = (
@@ -535,12 +953,7 @@ def main() -> None:
         "passed": all(step.get("ok") for step in steps),
         "steps": steps,
     }
-    (REPORTS_DIR / "verification_latest.json").write_text(
-        json.dumps(result, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
-    markdown = _render_verification_markdown(result)
-    (REPORTS_DIR / "verification_latest.md").write_text(markdown, encoding="utf-8")
+    markdown = _write_verification_result(result)
     print(markdown)
     if not result["passed"]:
         raise SystemExit(1)
