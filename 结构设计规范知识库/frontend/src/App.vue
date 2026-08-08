@@ -34,26 +34,50 @@
         </div>
         <div class="flex items-center gap-2">
           <a class="text-sm text-blue-600" href="http://localhost:3000" target="_blank">Open WebUI</a>
-          <button class="btn" @click="refreshAll">刷新</button>
+          <button class="btn" :disabled="refreshing" @click="refreshAll()">
+            {{ refreshing ? '刷新中' : '刷新' }}
+          </button>
         </div>
       </header>
 
       <section class="min-h-0 flex-1 overflow-auto p-3 md:p-5">
-        <OverviewTab v-if="activeTab === 'overview'" :ready="ready" :documents="documents" :metrics="metrics" :quality="quality" />
-        <JobsTab v-if="activeTab === 'jobs'" :jobs="jobs" @refresh="refreshJobs" />
-        <VersionsTab v-if="activeTab === 'versions'" @refresh-jobs="refreshJobs" />
-        <ReviewTab v-if="activeTab === 'review'" :candidate-docs="candidateDocs" @refresh="refreshCandidates" />
-        <ManualStructuringTab v-if="activeTab === 'manual'" :documents="manualDocs" @refresh="refreshManualStructuring" />
-        <EvaluationTab v-if="activeTab === 'evaluation'" :evaluation="evaluation" :jobs="jobs" @refresh="refreshJobs" />
-        <ChatTab v-if="activeTab === 'chat'" />
+        <div
+          v-if="bootstrapState === 'checking'"
+          class="flex min-h-64 items-center justify-center text-sm text-slate-500"
+          aria-live="polite"
+        >
+          正在连接后端...
+        </div>
+        <div
+          v-else-if="bootstrapState === 'unavailable'"
+          class="mx-auto mt-10 max-w-xl border border-rose-200 bg-white p-6 shadow-sm"
+          role="alert"
+        >
+          <h2 class="text-base font-semibold text-slate-900">后端暂时不可用</h2>
+          <p class="mt-2 break-words text-sm text-slate-600">{{ bootstrapError }}</p>
+          <button class="btn btn-primary mt-5" :disabled="refreshing" @click="refreshAll()">重新连接</button>
+        </div>
+        <template v-else-if="bootstrapState === 'ready'">
+          <OverviewTab v-if="activeTab === 'overview'" :ready="ready" :documents="documents" :metrics="metrics" :quality="quality" />
+          <JobsTab v-if="activeTab === 'jobs'" :jobs="jobs" @refresh="refreshJobs" />
+          <VersionsTab v-if="activeTab === 'versions'" @refresh-jobs="refreshJobs" />
+          <ReviewTab v-if="activeTab === 'review'" :candidate-docs="candidateDocs" @refresh="refreshCandidates" />
+          <ManualStructuringTab v-if="activeTab === 'manual'" :documents="manualDocs" @refresh="refreshManualStructuring" />
+          <EvaluationTab v-if="activeTab === 'evaluation'" :evaluation="evaluation" :jobs="jobs" @refresh="refreshJobs" />
+          <ChatTab v-if="activeTab === 'chat'" />
+        </template>
       </section>
     </main>
 
     <div v-if="authRequired" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
-      <form class="w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-xl" @submit.prevent="authenticate">
+      <form
+        class="w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-xl"
+        data-testid="auth-form"
+        @submit.prevent="authenticate"
+      >
         <h2 class="text-lg font-semibold">需要 API Key</h2>
         <p class="mt-2 text-sm text-slate-600">
-          当前浏览器尚未通过后端认证。公网地址变化后，需要为新域名重新验证一次。
+          后端已拒绝当前访问凭据。请输入有效的 API Key 后继续。
         </p>
         <label class="mt-5 block text-sm font-medium text-slate-700" for="auth-api-key">API Key</label>
         <input
@@ -75,7 +99,7 @@
 
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { AUTH_REQUIRED_EVENT, apiGet, getApiKey, setApiKey } from './api'
+import { ApiError, AUTH_REQUIRED_EVENT, apiGet, apiGetWithApiKey, getApiKey, setApiKey } from './api'
 import OverviewTab from './components/OverviewTab.vue'
 const JobsTab = defineAsyncComponent(() => import('./components/JobsTab.vue'))
 const VersionsTab = defineAsyncComponent(() => import('./components/VersionsTab.vue'))
@@ -87,9 +111,12 @@ const ChatTab = defineAsyncComponent(() => import('./components/ChatTab.vue'))
 const activeTab = ref('overview')
 const apiKey = ref(getApiKey())
 const authCandidate = ref(apiKey.value)
-const authRequired = ref(!apiKey.value)
+const authRequired = ref(false)
 const authError = ref('')
 const authenticating = ref(false)
+const bootstrapState = ref<'checking' | 'ready' | 'auth-required' | 'unavailable'>('checking')
+const bootstrapError = ref('')
+const refreshing = ref(false)
 const ready = ref<any>(null)
 const metrics = ref<any>({})
 const documents = ref<any>({ documents: [] })
@@ -116,6 +143,9 @@ const manualPendingCount = computed(() => manualDocs.value.reduce(
 ))
 const runningJobs = computed(() => jobs.value.filter(job => ['queued', 'running'].includes(job.status)).length)
 const statusLine = computed(() => {
+  if (bootstrapState.value === 'checking') return '正在连接后端'
+  if (bootstrapState.value === 'auth-required') return '等待 API Key 验证'
+  if (bootstrapState.value === 'unavailable') return '后端连接失败'
   const built = documents.value?.built ? 'built' : 'not built'
   const count = documents.value?.chunk_count ?? '-'
   const readyText = ready.value?.ready ? 'ready' : 'not ready'
@@ -127,9 +157,42 @@ async function persistApiKey() {
   await authenticate()
 }
 
-function requireAuthentication() {
-  authCandidate.value = apiKey.value
+function requireAuthentication(event?: Event) {
+  if (!authRequired.value && !authenticating.value) {
+    authCandidate.value = apiKey.value
+  }
+  const detail = event instanceof CustomEvent ? event.detail : null
+  if (detail?.message) authError.value = String(detail.message)
   authRequired.value = true
+  bootstrapState.value = 'auth-required'
+  bootstrapError.value = ''
+}
+
+function connectionErrorMessage(error: unknown) {
+  if (error instanceof ApiError && error.message) {
+    return `后端请求失败（HTTP ${error.status}）：${error.message}`
+  }
+  return '无法连接后端，请确认 API 服务正在运行。'
+}
+
+async function probeApiAccess() {
+  try {
+    await apiGet('/admin/status')
+    authRequired.value = false
+    authError.value = ''
+    bootstrapError.value = ''
+    bootstrapState.value = 'ready'
+    return true
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) {
+      requireAuthentication()
+    } else {
+      authRequired.value = false
+      bootstrapState.value = 'unavailable'
+      bootstrapError.value = connectionErrorMessage(error)
+    }
+    return false
+  }
 }
 
 async function authenticate() {
@@ -141,22 +204,32 @@ async function authenticate() {
 
   authenticating.value = true
   authError.value = ''
-  setApiKey(candidate)
-  apiKey.value = candidate
   try {
-    await apiGet('/admin/status')
+    await apiGetWithApiKey('/admin/status', candidate)
+    setApiKey(candidate)
+    apiKey.value = candidate
     authRequired.value = false
-    await refreshAll()
+    bootstrapState.value = 'ready'
+    await refreshAll({ skipAccessProbe: true })
   } catch (error) {
+    apiKey.value = getApiKey()
     authRequired.value = true
+    bootstrapState.value = 'auth-required'
     authError.value = error instanceof Error ? error.message : '认证失败，请检查 API Key。'
   } finally {
     authenticating.value = false
   }
 }
 
-async function refreshAll() {
-  await Promise.allSettled([refreshStatus(), refreshCandidates(), refreshManualStructuring(), refreshJobs(), refreshEvaluation(), refreshQuality()])
+async function refreshAll(options: { skipAccessProbe?: boolean } = {}) {
+  if (refreshing.value) return
+  refreshing.value = true
+  try {
+    if (!options.skipAccessProbe && !await probeApiAccess()) return
+    await Promise.allSettled([refreshStatus(), refreshCandidates(), refreshManualStructuring(), refreshJobs(), refreshEvaluation(), refreshQuality()])
+  } finally {
+    refreshing.value = false
+  }
 }
 
 async function refreshStatus() {
@@ -192,7 +265,7 @@ async function refreshQuality() {
 watch(activeTab, () => refreshAll())
 onMounted(() => {
   window.addEventListener(AUTH_REQUIRED_EVENT, requireAuthentication)
-  if (!authRequired.value) refreshAll()
+  refreshAll()
 })
 onBeforeUnmount(() => window.removeEventListener(AUTH_REQUIRED_EVENT, requireAuthentication))
 </script>

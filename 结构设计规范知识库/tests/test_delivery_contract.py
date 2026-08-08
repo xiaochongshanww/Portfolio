@@ -97,6 +97,8 @@ def test_repository_ci_covers_backend_frontend_and_container():
     assert "actions/download-artifact@v4" in workflow
     assert "--require-cross-platform" in workflow
     assert "npm install --global npm@10.9.8" in workflow
+    assert "npm test" in workflow
+    assert "npm run typecheck" in workflow
     assert "npm run build" in workflow
     assert "docker build --tag structural-spec-kb:ci ." in workflow
     assert "/static/index.html" in workflow

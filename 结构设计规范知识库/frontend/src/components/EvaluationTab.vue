@@ -18,7 +18,7 @@
       </div>
       <div class="mt-5">
         <h3 class="mb-2 text-sm font-semibold">类型分布</h3>
-        <KeyValueList :items="evaluation.by_type || {}" />
+        <KeyValueList :data="evaluation.by_type || {}" />
       </div>
       <div class="mt-5 grid grid-cols-3 gap-2">
         <button class="btn" :disabled="busy" @click="runEvaluation">常规评估</button>

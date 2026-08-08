@@ -70,7 +70,7 @@
         </div>
         <div class="space-y-2">
           <div
-            v-for="(column, index) in draft.columns || []"
+            v-for="(column, index) in columns"
             :key="index"
             class="grid grid-cols-[minmax(120px,1fr)_minmax(120px,1fr)_100px_110px_36px] gap-2"
           >
@@ -113,7 +113,7 @@
               ×
             </button>
           </div>
-          <p v-if="!(draft.columns || []).length" class="rounded bg-slate-50 p-3 text-sm text-slate-500">尚未定义列。</p>
+          <p v-if="!columns.length" class="rounded bg-slate-50 p-3 text-sm text-slate-500">尚未定义列。</p>
         </div>
       </section>
 
@@ -121,7 +121,7 @@
         <div class="mb-3 flex items-center justify-between">
           <div>
             <h3 class="text-sm font-semibold text-slate-800">行数据</h3>
-            <p class="mt-1 text-xs text-slate-500">{{ (draft.rows || []).length }} 行</p>
+            <p class="mt-1 text-xs text-slate-500">{{ rows.length }} 行</p>
           </div>
           <button class="btn h-8 w-8 p-0 text-lg" title="新增行" aria-label="新增行" @click="addRow">+</button>
         </div>
@@ -133,7 +133,7 @@
             <thead>
               <tr>
                 <th class="w-12">#</th>
-                <th v-for="column in draft.columns || []" :key="column.key">
+                <th v-for="column in columns" :key="column.key">
                   {{ column.label || column.key }}
                   <span v-if="column.unit" class="font-normal text-slate-400">({{ column.unit }})</span>
                 </th>
@@ -141,10 +141,10 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(row, rowIndex) in draft.rows || []" :key="rowIndex">
+              <tr v-for="(row, rowIndex) in rows" :key="rowIndex">
                 <td class="text-center text-xs text-slate-400">{{ rowIndex + 1 }}</td>
                 <td
-                  v-for="column in draft.columns || []"
+                  v-for="column in columns"
                   :key="column.key"
                   :class="errorClass(`rows[${rowIndex}]`)"
                 >
@@ -178,7 +178,7 @@
               </tr>
             </tbody>
           </table>
-          <div v-if="!(draft.rows || []).length" class="p-6 text-center text-sm text-slate-500">新增一行开始录入。</div>
+          <div v-if="!rows.length" class="p-6 text-center text-sm text-slate-500">新增一行开始录入。</div>
         </div>
         <span v-if="errorMessage('rows')" class="mt-1 block text-xs text-red-600">{{ errorMessage('rows') }}</span>
       </section>
@@ -212,15 +212,15 @@
           <table class="draft-preview">
             <thead>
               <tr>
-                <th v-for="column in draft.columns || []" :key="column.key">
+                <th v-for="column in columns" :key="column.key">
                   {{ column.label || column.key }}
                   <span v-if="column.unit" class="font-normal text-slate-400">({{ column.unit }})</span>
                 </th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(row, index) in draft.rows || []" :key="index">
-                <td v-for="column in draft.columns || []" :key="column.key">
+              <tr v-for="(row, index) in rows" :key="index">
+                <td v-for="column in columns" :key="column.key">
                   <span
                     v-if="isLatexColumn(column) && row[column.key]"
                     v-html="renderLatex(String(row[column.key]))"
@@ -230,7 +230,7 @@
               </tr>
             </tbody>
           </table>
-          <div v-if="!(draft.rows || []).length" class="p-6 text-center text-sm text-slate-500">暂无可预览数据。</div>
+          <div v-if="!rows.length" class="p-6 text-center text-sm text-slate-500">暂无可预览数据。</div>
         </div>
       </section>
     </div>
@@ -266,6 +266,9 @@ const draft = computed<any | null>(() => {
     return null
   }
 })
+
+const columns = computed<any[]>(() => Array.isArray(draft.value?.columns) ? draft.value.columns : [])
+const rows = computed<Record<string, any>[]>(() => Array.isArray(draft.value?.rows) ? draft.value.rows : [])
 
 const jsonError = computed(() => {
   if (!props.modelValue.trim()) return ''

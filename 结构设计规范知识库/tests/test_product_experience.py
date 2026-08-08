@@ -80,6 +80,11 @@ def test_vue_console_contains_required_workflows():
     assert "需要 API Key" in app
     assert "验证并进入" in app
     assert "AUTH_REQUIRED_EVENT" in app
+    assert "const authRequired = ref(false)" in app
+    assert "probeApiAccess" in app
+    assert "bootstrapState === 'unavailable'" in app
     assert "rag-auth-required" in api
+    assert "apiGetWithApiKey" in api
+    assert Path("frontend/src/App.spec.ts").exists()
     assert Path("docs/operations/部署运行手册.md").exists()
     assert "apiPut" in api

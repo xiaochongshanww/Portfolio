@@ -8,11 +8,16 @@ export function getApiKey() {
 }
 
 export function setApiKey(value: string) {
-  localStorage.setItem(API_KEY_STORAGE, value.trim())
+  const normalized = value.trim()
+  if (normalized) {
+    localStorage.setItem(API_KEY_STORAGE, normalized)
+  } else {
+    localStorage.removeItem(API_KEY_STORAGE)
+  }
 }
 
-function headers(extra: HeadersInit = {}) {
-  const key = getApiKey()
+function headers(extra: HeadersInit = {}, apiKey = getApiKey()) {
+  const key = apiKey.trim()
   return {
     ...(key ? { Authorization: `Bearer ${key}` } : {}),
     ...extra,
@@ -20,11 +25,11 @@ function headers(extra: HeadersInit = {}) {
 }
 
 export class ApiError extends Error {
-  constructor(
-    public readonly status: number,
-    message: string,
-  ) {
+  public readonly status: number
+
+  constructor(status: number, message: string) {
     super(message)
+    this.status = status
     this.name = 'ApiError'
   }
 }
@@ -38,18 +43,25 @@ async function throwApiError(response: Response): Promise<never> {
     // The response may not contain JSON.
   }
 
-  if (response.status === 401) {
-    window.dispatchEvent(new CustomEvent(AUTH_REQUIRED_EVENT))
-  }
-
   const message = detail || (response.status === 401
     ? 'API Key 缺失或无效，请重新验证。'
     : `${response.status} ${response.statusText}`)
+  if (response.status === 401) {
+    window.dispatchEvent(new CustomEvent(AUTH_REQUIRED_EVENT, {
+      detail: { status: response.status, message },
+    }))
+  }
   throw new ApiError(response.status, message)
 }
 
 export async function apiGet<T = any>(url: string): Promise<T> {
   const response = await fetch(url, { headers: headers() })
+  if (!response.ok) await throwApiError(response)
+  return response.json()
+}
+
+export async function apiGetWithApiKey<T = any>(url: string, apiKey: string): Promise<T> {
+  const response = await fetch(url, { headers: headers({}, apiKey) })
   if (!response.ok) await throwApiError(response)
   return response.json()
 }
