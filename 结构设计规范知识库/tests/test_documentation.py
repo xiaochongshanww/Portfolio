@@ -1,3 +1,4 @@
+import json
 import re
 from pathlib import Path
 
@@ -204,6 +205,52 @@ def test_active_architecture_and_release_entry_points_are_current():
     )
     assert managed_command in deployment
     assert managed_command in release_checklist
+
+
+def test_rag_system_card_matches_latest_quality_evidence():
+    system_card = Path("docs/quality/检索增强生成系统卡.md").read_text(
+        encoding="utf-8"
+    )
+    verification = json.loads(
+        Path("data/audit/reports/verification_latest.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    quality_gate = json.loads(
+        Path("data/audit/reports/quality_gate_latest.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    evaluation_sets = {
+        "regular": Path("data/evaluation/queries.jsonl"),
+        "structured": Path("data/evaluation/complex_structured_tables.jsonl"),
+        "answer": Path("data/evaluation/answer_holdout.jsonl"),
+    }
+
+    assert (
+        f"`verification.generated_at={verification['generated_at']}`"
+        in system_card
+    )
+    assert (
+        f"`verification.passed={str(verification['passed']).lower()}`"
+        in system_card
+    )
+    assert f"`quality_gate.generated_at={quality_gate['generated_at']}`" in system_card
+    assert (
+        f"`quality_gate.passed={str(quality_gate['passed']).lower()}`"
+        in system_card
+    )
+    failed_checks = ",".join(quality_gate["failed_checks"])
+    assert f"`quality_gate.failed_checks={failed_checks}`" in system_card
+
+    for name, path in evaluation_sets.items():
+        case_count = sum(
+            1 for line in path.read_text(encoding="utf-8").splitlines() if line.strip()
+        )
+        assert f"`evaluation_set.{name}.case_count={case_count}`" in system_card
+
+    if not verification["passed"] or not quality_gate["passed"]:
+        assert "当前没有可用于发布的完整通过证据" in system_card
 
 
 def test_runtime_backup_and_disaster_recovery_contract_is_documented():
