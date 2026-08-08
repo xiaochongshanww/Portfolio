@@ -1,4 +1,6 @@
 import argparse
+from datetime import timedelta
+from math import isfinite
 from pathlib import Path
 
 from .builder import BuildPreflightError, audit, build, print_json, promote_corrections, rebuild, review, status
@@ -9,6 +11,16 @@ from .knowledge_package import (
     validate_runtime_package,
 )
 from .paths import RAW_DIR
+
+
+def _quality_age_hours(value: str) -> float:
+    try:
+        hours = float(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("必须是数字") from exc
+    if not isfinite(hours) or not 0 < hours <= 8760:
+        raise argparse.ArgumentTypeError("必须大于 0 且不超过 8760 小时")
+    return hours
 
 
 def main() -> None:
@@ -42,6 +54,15 @@ def main() -> None:
     export_parser.add_argument("--output", required=True, help="输出 ZIP 文件")
     export_parser.add_argument("--include-source-pdfs", action="store_true", help="显式包含原始 PDF；默认排除")
     export_parser.add_argument("--overwrite", action="store_true", help="覆盖已存在的输出文件")
+    export_parser.add_argument("--actor", default="", help="执行导出的责任人；默认读取当前系统用户")
+    export_parser.add_argument(
+        "--quality-max-age-hours",
+        type=_quality_age_hours,
+        default=168,
+        help="评估报告最大有效期，单位小时，默认 168（7 天）",
+    )
+    export_parser.add_argument("--quality-waiver-actor", default="", help="质量门禁未通过时的豁免责任人")
+    export_parser.add_argument("--quality-waiver-reason", default="", help="质量门禁未通过时的豁免原因")
     validate_parser = subparsers.add_parser("package-validate", help="校验知识包格式和文件哈希")
     validate_parser.add_argument("--package", required=True, help="知识包 ZIP 文件")
     import_parser = subparsers.add_parser("package-import", help="导入并激活运行知识包")
@@ -84,6 +105,10 @@ def main() -> None:
                     Path(args.output),
                     include_source_pdfs=args.include_source_pdfs,
                     overwrite=args.overwrite,
+                    quality_max_age=timedelta(hours=args.quality_max_age_hours),
+                    quality_waiver_actor=args.quality_waiver_actor,
+                    quality_waiver_reason=args.quality_waiver_reason,
+                    export_actor=args.actor,
                 )
             )
         elif args.command == "package-validate":

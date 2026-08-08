@@ -7,17 +7,20 @@ import re
 import shutil
 import tempfile
 import zipfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from getpass import getuser
 from importlib import metadata as importlib_metadata
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable
 
 from src.app.core.config import settings
+from src.quality import DEFAULT_REPORT_MAX_AGE, evaluate_quality_gate
 
 from .active_db import read_active_db, write_active_db
 from .manifest import read_manifest
 from .paths import (
     ACTIVE_DB_PATH,
+    AUDIT_DIR,
     DATA_DIR,
     DB_DIR,
     IMAGES_DIR,
@@ -28,10 +31,12 @@ from .paths import (
 
 
 PACKAGE_FORMAT = "structural-spec-knowledge-package"
-PACKAGE_SCHEMA_VERSION = 1
+PACKAGE_SCHEMA_VERSION = 2
+SUPPORTED_PACKAGE_SCHEMA_VERSIONS = {1, PACKAGE_SCHEMA_VERSION}
 PACKAGE_MANIFEST_NAME = "knowledge-package.json"
 DEFAULT_MAX_UNCOMPRESSED_BYTES = 20 * 1024 * 1024 * 1024
 PACKAGE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+MIN_WAIVER_REASON_LENGTH = 8
 
 
 class KnowledgePackageError(RuntimeError):
@@ -111,6 +116,16 @@ def _payload_hash(entries: Iterable[dict[str, Any]]) -> str:
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
+def _object_hash(payload: dict[str, Any]) -> str:
+    encoded = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
 def _assert_safe_member(name: str) -> PurePosixPath:
     if not name or "\\" in name or ":" in name:
         raise KnowledgePackageError(f"知识包包含不安全路径: {name!r}")
@@ -136,6 +151,52 @@ def _read_package_manifest(archive: zipfile.ZipFile) -> dict[str, Any]:
     return payload
 
 
+def _export_actor(explicit_actor: str) -> str:
+    actor = explicit_actor.strip()
+    if actor:
+        return actor
+    try:
+        return getuser().strip() or "unknown"
+    except (ImportError, KeyError, OSError):
+        return "unknown"
+
+
+def _quality_evidence(
+    gate_result: dict[str, Any],
+    *,
+    data_version_hash: str,
+    max_report_age: timedelta,
+    waiver_actor: str,
+    waiver_reason: str,
+    audit_event_id: str,
+) -> dict[str, Any]:
+    failed_checks = [str(item) for item in gate_result.get("failed_checks", [])]
+    gate_version = str(gate_result.get("data_version_hash") or "")
+    if gate_version != data_version_hash and "quality_gate_data_version" not in failed_checks:
+        failed_checks.append("quality_gate_data_version")
+    gate_passed = gate_result.get("passed") is True and not failed_checks
+    waiver_used = not gate_passed and bool(waiver_actor and waiver_reason)
+    return {
+        "gate_passed": gate_passed,
+        "gate_generated_at": gate_result.get("generated_at"),
+        "data_version_hash": gate_version,
+        "max_report_age_seconds": int(max_report_age.total_seconds()),
+        "failed_checks": failed_checks,
+        "waiver": {
+            "used": waiver_used,
+            "actor": waiver_actor if waiver_used else "",
+            "reason": waiver_reason if waiver_used else "",
+        },
+        "audit_event_id": audit_event_id,
+    }
+
+
+def _write_export_audit(audit_dir: Path, event: dict[str, Any]) -> Path:
+    path = audit_dir / f"{event['event_id']}.json"
+    _atomic_write_json(path, event)
+    return path
+
+
 def export_runtime_package(
     output_path: Path,
     *,
@@ -146,7 +207,14 @@ def export_runtime_package(
     raw_dir: Path = RAW_DIR,
     include_source_pdfs: bool = False,
     overwrite: bool = False,
+    quality_max_age: timedelta = DEFAULT_REPORT_MAX_AGE,
+    quality_waiver_actor: str = "",
+    quality_waiver_reason: str = "",
+    export_actor: str = "",
+    export_audit_dir: Path = AUDIT_DIR / "package_exports",
 ) -> dict[str, Any]:
+    if quality_max_age <= timedelta(0):
+        raise KnowledgePackageError("质量报告最大有效期必须大于 0")
     output_path = output_path.resolve()
     if output_path.exists() and not overwrite:
         raise KnowledgePackageError(f"输出文件已存在: {output_path}")
@@ -171,6 +239,54 @@ def export_runtime_package(
         if output_path == source_root or output_path.is_relative_to(source_root):
             raise KnowledgePackageError(f"知识包输出不能位于待打包目录内: {output_path}")
 
+    data_version_hash = str(manifest.get("data_version_hash") or "")
+    if not data_version_hash:
+        raise KnowledgePackageError("活动 manifest 缺少 data_version_hash")
+    gate_result = evaluate_quality_gate(
+        manifest_path=manifest_path,
+        active_db_path=active_db_path,
+        max_report_age=quality_max_age,
+    )
+    waiver_actor = quality_waiver_actor.strip()
+    waiver_reason = quality_waiver_reason.strip()
+    if bool(waiver_actor) != bool(waiver_reason):
+        raise KnowledgePackageError("质量豁免必须同时提供责任人和原因")
+    if waiver_reason and len(waiver_reason) < MIN_WAIVER_REASON_LENGTH:
+        raise KnowledgePackageError(f"质量豁免原因至少需要 {MIN_WAIVER_REASON_LENGTH} 个字符")
+
+    created_at = _utc_now()
+    event_id = f"package-export-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')}-{data_version_hash[:8]}"
+    quality = _quality_evidence(
+        gate_result,
+        data_version_hash=data_version_hash,
+        max_report_age=quality_max_age,
+        waiver_actor=waiver_actor,
+        waiver_reason=waiver_reason,
+        audit_event_id=event_id,
+    )
+    if quality["gate_passed"] and waiver_actor:
+        raise KnowledgePackageError("质量门禁已通过，不需要提供豁免参数")
+    if not quality["gate_passed"] and not waiver_actor:
+        audit_event = {
+            "schema_version": 1,
+            "event_id": event_id,
+            "event_type": "knowledge_package_export",
+            "created_at": created_at,
+            "outcome": "blocked",
+            "actor": _export_actor(export_actor),
+            "output": str(output_path),
+            "data_version_hash": data_version_hash,
+            "include_source_pdfs": include_source_pdfs,
+            "quality_gate": gate_result,
+            "waiver": quality["waiver"],
+        }
+        audit_path = _write_export_audit(export_audit_dir, audit_event)
+        failed = ", ".join(quality["failed_checks"]) or "unknown"
+        raise KnowledgePackageError(
+            f"质量门禁未通过，已阻断知识包导出（{failed}）；审计记录: {audit_path}。"
+            "如需紧急豁免，必须同时提供责任人和原因"
+        )
+
     payloads: list[tuple[str, Path, str]] = [("runtime/manifest.json", manifest_path, "manifest")]
     database_files = list(_payload_files(db_dir, "runtime/db", "vector_index"))
     if not database_files:
@@ -189,17 +305,15 @@ def export_runtime_package(
 
     entries = [_file_entry(archive_path, source, role) for archive_path, source, role in payloads]
     roles = {entry["role"] for entry in entries}
-    data_version_hash = str(manifest.get("data_version_hash") or "")
-    if not data_version_hash:
-        raise KnowledgePackageError("活动 manifest 缺少 data_version_hash")
     payload_hash = _payload_hash(entries)
-    package_id = f"kp-{data_version_hash[:12]}-{payload_hash[:12]}"
+    quality_hash = _object_hash(quality)
+    package_id = f"kp-{data_version_hash[:12]}-{payload_hash[:12]}-{quality_hash[:12]}"
     package_manifest = {
         "format": PACKAGE_FORMAT,
         "schema_version": PACKAGE_SCHEMA_VERSION,
         "package_id": package_id,
         "profile": "runtime",
-        "created_at": _utc_now(),
+        "created_at": created_at,
         "data_version_hash": data_version_hash,
         "payload_hash": payload_hash,
         "document_count": int(manifest.get("document_count", 0)),
@@ -220,12 +334,27 @@ def export_runtime_package(
             "source_pdfs": "source_pdf" in roles,
             "page_images": "source_pdf" in roles,
         },
+        "quality": quality,
         "files": entries,
     }
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     temporary_path = output_path.with_name(f".{output_path.name}.tmp")
     temporary_path.unlink(missing_ok=True)
+    audit_event = {
+        "schema_version": 1,
+        "event_id": event_id,
+        "event_type": "knowledge_package_export",
+        "created_at": created_at,
+        "outcome": "authorized",
+        "actor": _export_actor(export_actor),
+        "output": str(output_path),
+        "package_id": package_id,
+        "data_version_hash": data_version_hash,
+        "include_source_pdfs": include_source_pdfs,
+        "quality_gate": gate_result,
+        "waiver": quality["waiver"],
+    }
     try:
         with zipfile.ZipFile(temporary_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
             for archive_path, source, _ in payloads:
@@ -234,7 +363,11 @@ def export_runtime_package(
                 PACKAGE_MANIFEST_NAME,
                 json.dumps(package_manifest, ensure_ascii=False, indent=2).encode("utf-8"),
             )
+        audit_path = _write_export_audit(export_audit_dir, audit_event)
         temporary_path.replace(output_path)
+        audit_event["outcome"] = "exported"
+        audit_event["size_bytes"] = output_path.stat().st_size
+        _write_export_audit(export_audit_dir, audit_event)
     except Exception:
         temporary_path.unlink(missing_ok=True)
         raise
@@ -247,6 +380,8 @@ def export_runtime_package(
         "file_count": len(entries),
         "size_bytes": output_path.stat().st_size,
         "capabilities": package_manifest["capabilities"],
+        "quality": quality,
+        "audit_record": str(audit_path),
     }
 
 
@@ -280,7 +415,12 @@ def validate_runtime_package(
         package_manifest = _read_package_manifest(archive)
         if package_manifest.get("format") != PACKAGE_FORMAT:
             raise KnowledgePackageError("知识包 format 不受支持")
-        if package_manifest.get("schema_version") != PACKAGE_SCHEMA_VERSION:
+        schema_version = package_manifest.get("schema_version")
+        if (
+            not isinstance(schema_version, int)
+            or isinstance(schema_version, bool)
+            or schema_version not in SUPPORTED_PACKAGE_SCHEMA_VERSIONS
+        ):
             raise KnowledgePackageError(f"知识包 schema_version 不受支持: {package_manifest.get('schema_version')}")
         if package_manifest.get("profile") != "runtime":
             raise KnowledgePackageError("当前仅支持 runtime 知识包")
@@ -317,9 +457,17 @@ def validate_runtime_package(
         data_version_hash = str(package_manifest.get("data_version_hash") or "").lower()
         if not re.fullmatch(r"[0-9a-f]{64}", data_version_hash):
             raise KnowledgePackageError("知识包 data_version_hash 无效")
-        expected_package_id = f"kp-{data_version_hash[:12]}-{calculated_payload_hash[:12]}"
+        quality = package_manifest.get("quality")
+        if schema_version == 1:
+            expected_package_id = f"kp-{data_version_hash[:12]}-{calculated_payload_hash[:12]}"
+        elif isinstance(quality, dict):
+            expected_package_id = (
+                f"kp-{data_version_hash[:12]}-{calculated_payload_hash[:12]}-{_object_hash(quality)[:12]}"
+            )
+        else:
+            raise KnowledgePackageError("v2 知识包缺少 quality 质量证据")
         if package_id != expected_package_id:
-            raise KnowledgePackageError("知识包 package_id 与数据和 payload 不一致")
+            raise KnowledgePackageError("知识包 package_id 与数据、payload 和质量证据不一致")
 
         actual_payloads = set(names) - {PACKAGE_MANIFEST_NAME}
         if actual_payloads != set(declared_by_path):
@@ -366,6 +514,38 @@ def validate_runtime_package(
             if capabilities.get(key) is not expected:
                 raise KnowledgePackageError(f"能力声明与文件内容不一致: {key}")
 
+        if schema_version >= 2:
+            if not isinstance(quality, dict):
+                raise KnowledgePackageError("v2 知识包缺少 quality 质量证据")
+            if quality.get("data_version_hash") != data_version_hash:
+                raise KnowledgePackageError("质量证据与知识包数据版本不一致")
+            gate_passed = quality.get("gate_passed")
+            if not isinstance(gate_passed, bool):
+                raise KnowledgePackageError("质量证据 gate_passed 必须是布尔值")
+            gate_generated_at = str(quality.get("gate_generated_at") or "")
+            try:
+                parsed_gate_time = datetime.fromisoformat(gate_generated_at.replace("Z", "+00:00"))
+            except ValueError as exc:
+                raise KnowledgePackageError("质量证据 gate_generated_at 无效") from exc
+            if parsed_gate_time.tzinfo is None:
+                raise KnowledgePackageError("质量证据 gate_generated_at 必须包含时区")
+            max_age_seconds = quality.get("max_report_age_seconds")
+            if not isinstance(max_age_seconds, int) or isinstance(max_age_seconds, bool) or max_age_seconds <= 0:
+                raise KnowledgePackageError("质量证据 max_report_age_seconds 无效")
+            failed_checks = quality.get("failed_checks")
+            if not isinstance(failed_checks, list) or not all(isinstance(item, str) for item in failed_checks):
+                raise KnowledgePackageError("质量证据 failed_checks 必须是字符串数组")
+            waiver = quality.get("waiver")
+            if not isinstance(waiver, dict) or not isinstance(waiver.get("used"), bool):
+                raise KnowledgePackageError("质量证据 waiver 声明无效")
+            if gate_passed and (failed_checks or waiver.get("used") is True):
+                raise KnowledgePackageError("质量证据同时声明通过和失败/豁免，状态矛盾")
+            if not gate_passed:
+                if waiver.get("used") is not True:
+                    raise KnowledgePackageError("质量门禁未通过的知识包必须包含显式豁免")
+                if not str(waiver.get("actor") or "").strip() or not str(waiver.get("reason") or "").strip():
+                    raise KnowledgePackageError("质量豁免缺少责任人或原因")
+
         warnings: list[str] = []
         compatibility = package_manifest.get("compatibility", {})
         if not isinstance(compatibility, dict):
@@ -402,6 +582,7 @@ def validate_runtime_package(
         "uncompressed_size_bytes": total_size,
         "capabilities": package_manifest["capabilities"],
         "compatibility": package_manifest.get("compatibility", {}),
+        "quality": package_manifest.get("quality"),
         "warnings": warnings,
     }
 

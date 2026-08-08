@@ -112,6 +112,8 @@ python -m uvicorn src.app.main:app --host 127.0.0.1 --port 8000
 
 知识包默认不包含原始 PDF；此时系统不会提供无法访问的动态页面截图链接。完整格式、兼容与内容权利边界见 [知识包格式规范](./docs/reference/知识包格式规范.md)。
 
+维护者导出知识包前必须运行 `python scripts/verify_quality.py`。当前 v2 导出会复核数据版本、评估集哈希和报告年龄，失败时默认阻断；紧急豁免必须记录责任人和原因，详见 [ADR 0002](./docs/adr/0002-知识包导出强制质量门禁.md)。
+
 ### 第三步：配置客户端并开始使用
 
 以 Open WebUI 或其他 OpenAI-compatible 客户端为例：
@@ -153,7 +155,7 @@ API 服务已按分层结构组织：
 
 ## 🏗️ 知识库构建
 
-阶段二已提供统一 pipeline CLI。PDF 解析当前围绕 MinerU 构建，默认后端为 `mineru`；`pymupdf` 仅作为兼容 fallback。以下命令均在项目根目录执行：
+阶段二已提供统一 pipeline CLI。PDF 解析当前围绕 MinerU 构建，默认后端为 `mineru`；`pymupdf` 仅作为需要人工显式选择的替代后端。以下命令均在项目根目录执行：
 
 ```bash
 # 只查看将处理哪些 PDF，不写入 processed/images/mineru/db

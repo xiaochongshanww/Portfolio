@@ -149,6 +149,25 @@ def test_quality_gate_passes_matching_artifacts(tmp_path: Path):
     assert result["passed"] is True
     assert "结论：通过" in render_quality_gate_markdown(result)
 
+    stale_regular = json.loads(regular.read_text(encoding="utf-8"))
+    stale_regular["generated_at"] = (datetime.now(timezone.utc) - timedelta(days=8)).isoformat()
+    _write_json(regular, stale_regular)
+    stale_result = evaluate_quality_gate(
+        manifest_path=manifest,
+        regular_report_path=regular,
+        structured_report_path=structured,
+        answer_report_path=answer,
+        regular_eval_path=regular_set,
+        structured_eval_path=structured_set,
+        answer_eval_path=answer_set,
+        active_db_path=active_db,
+        jobs=[],
+        runtime_collection_count=10,
+    )
+
+    assert stale_result["passed"] is False
+    assert "regular_report_freshness" in stale_result["failed_checks"]
+
 
 def test_quality_gate_rejects_stale_report(tmp_path: Path):
     manifest = tmp_path / "manifest.json"

@@ -14,6 +14,7 @@ from src.pipeline.paths import ACTIVE_DB_PATH, AUDIT_DIR, DATA_DIR, MANIFEST_PAT
 REGULAR_REPORT_PATH = AUDIT_DIR / "reports" / "evaluation_latest.json"
 STRUCTURED_REPORT_PATH = AUDIT_DIR / "reports" / "evaluation_structured_latest.json"
 ANSWER_REPORT_PATH = AUDIT_DIR / "reports" / "evaluation_answer_latest.json"
+DEFAULT_REPORT_MAX_AGE = timedelta(days=7)
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -107,7 +108,12 @@ def evaluate_quality_gate(
     active_db_path: Path = ACTIVE_DB_PATH,
     jobs: list[dict[str, Any]] | None = None,
     runtime_collection_count: int | None = None,
+    now: datetime | None = None,
+    max_report_age: timedelta = DEFAULT_REPORT_MAX_AGE,
 ) -> dict[str, Any]:
+    gate_time = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    if max_report_age <= timedelta(0):
+        raise ValueError("max_report_age 必须大于 0")
     manifest = _read_json(manifest_path)
     active_db = _read_json(active_db_path)
     active_manifest_path = Path(str(active_db.get("manifest") or manifest_path))
@@ -206,27 +212,43 @@ def evaluate_quality_gate(
     )
 
     data_version = manifest_version
-    regular_fresh = (
-        bool(data_version)
-        and regular.get("data_version_hash") == data_version
-        and regular.get("evaluation_set_hash") == _file_hash(regular_eval_path)
-        and bool(_parse_time(regular.get("generated_at")))
+
+    def report_is_fresh(report: dict[str, Any], evaluation_path: Path) -> tuple[bool, datetime | None]:
+        generated_at = _parse_time(report.get("generated_at"))
+        age = gate_time - generated_at if generated_at else None
+        fresh = (
+            bool(data_version)
+            and report.get("data_version_hash") == data_version
+            and report.get("evaluation_set_hash") == _file_hash(evaluation_path)
+            and age is not None
+            and timedelta(0) <= age <= max_report_age
+        )
+        return fresh, generated_at
+
+    regular_fresh, regular_generated_at = report_is_fresh(regular, regular_eval_path)
+    check(
+        "regular_report_freshness",
+        regular_fresh,
+        "常规评估报告与当前数据及评估集一致，且未超过有效期",
+        generated_at=regular_generated_at.isoformat() if regular_generated_at else None,
+        max_age_seconds=int(max_report_age.total_seconds()),
     )
-    check("regular_report_freshness", regular_fresh, "常规评估报告与当前数据及评估集一致")
-    structured_fresh = (
-        bool(data_version)
-        and structured.get("data_version_hash") == data_version
-        and structured.get("evaluation_set_hash") == _file_hash(structured_eval_path)
-        and bool(_parse_time(structured.get("generated_at")))
+    structured_fresh, structured_generated_at = report_is_fresh(structured, structured_eval_path)
+    check(
+        "structured_report_freshness",
+        structured_fresh,
+        "结构化评估报告与当前数据及评估集一致，且未超过有效期",
+        generated_at=structured_generated_at.isoformat() if structured_generated_at else None,
+        max_age_seconds=int(max_report_age.total_seconds()),
     )
-    check("structured_report_freshness", structured_fresh, "结构化评估报告与当前数据及评估集一致")
-    answer_fresh = (
-        bool(data_version)
-        and answer.get("data_version_hash") == data_version
-        and answer.get("evaluation_set_hash") == _file_hash(answer_eval_path)
-        and bool(_parse_time(answer.get("generated_at")))
+    answer_fresh, answer_generated_at = report_is_fresh(answer, answer_eval_path)
+    check(
+        "answer_report_freshness",
+        answer_fresh,
+        "回答评估报告与当前数据及盲测集一致，且未超过有效期",
+        generated_at=answer_generated_at.isoformat() if answer_generated_at else None,
+        max_age_seconds=int(max_report_age.total_seconds()),
     )
-    check("answer_report_freshness", answer_fresh, "回答评估报告与当前数据及盲测集一致")
     check(
         "unresolved_jobs",
         job_status["unresolved_failed_count"] == 0,
@@ -240,7 +262,7 @@ def evaluate_quality_gate(
 
     failed_checks = [item["name"] for item in checks if item["status"] == "failed"]
     return {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": gate_time.isoformat(),
         "passed": not failed_checks,
         "failed_checks": failed_checks,
         "checks": checks,

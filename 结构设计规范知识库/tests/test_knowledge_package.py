@@ -13,6 +13,21 @@ from src.pipeline.knowledge_package import (
 )
 
 
+@pytest.fixture(autouse=True)
+def passing_quality_gate(monkeypatch):
+    monkeypatch.setattr(
+        "src.pipeline.knowledge_package.evaluate_quality_gate",
+        lambda **_: {
+            "generated_at": "2026-08-08T00:00:00+00:00",
+            "passed": True,
+            "failed_checks": [],
+            "checks": [],
+            "jobs": {},
+            "data_version_hash": "a" * 64,
+        },
+    )
+
+
 def _write_json(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -88,6 +103,8 @@ def _export(tmp_path: Path, *, include_source_pdfs: bool = False) -> Path:
         images_dir=source["images"],
         raw_dir=source["raw"],
         include_source_pdfs=include_source_pdfs,
+        export_actor="test-suite",
+        export_audit_dir=source["data"] / "audit" / "package_exports",
     )
     assert result["ok"] is True
     return package
@@ -107,8 +124,15 @@ def test_runtime_package_round_trip_without_source_pdfs(tmp_path: Path):
         "source_pdfs": False,
         "page_images": False,
     }
+    assert validation["quality"]["gate_passed"] is True
+    assert validation["quality"]["waiver"]["used"] is False
     with zipfile.ZipFile(package) as archive:
+        package_manifest = json.loads(archive.read("knowledge-package.json"))
         names = set(archive.namelist())
+        assert package_manifest["schema_version"] == 2
+        audit_event_id = package_manifest["quality"]["audit_event_id"]
+        audit_record = tmp_path / "source" / "data" / "audit" / "package_exports" / f"{audit_event_id}.json"
+        assert json.loads(audit_record.read_text(encoding="utf-8"))["outcome"] == "exported"
         assert "knowledge-package.json" in names
         assert "runtime/manifest.json" in names
         assert "runtime/db/chroma.sqlite3" in names
@@ -236,3 +260,134 @@ def test_runtime_package_can_install_without_activation(tmp_path: Path):
     assert Path(imported["version_dir"]).is_dir()
     assert not (target_data / "active_db.json").exists()
     assert not (target_data / "manifest.json").exists()
+
+
+def test_runtime_package_blocks_failed_quality_gate_and_audits_attempt(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(
+        "src.pipeline.knowledge_package.evaluate_quality_gate",
+        lambda **_: {
+            "generated_at": "2026-08-08T00:00:00+00:00",
+            "passed": False,
+            "failed_checks": ["answer_report_freshness"],
+            "checks": [],
+            "jobs": {},
+            "data_version_hash": "a" * 64,
+        },
+    )
+    source = _source_runtime(tmp_path)
+    package = tmp_path / "blocked.zip"
+    audit_dir = source["data"] / "audit" / "package_exports"
+
+    with pytest.raises(KnowledgePackageError, match="质量门禁未通过"):
+        export_runtime_package(
+            package,
+            active_db_path=source["active"],
+            fallback_manifest_path=source["manifest"],
+            structured_tables_dir=source["structured"],
+            images_dir=source["images"],
+            raw_dir=source["raw"],
+            export_actor="test-suite",
+            export_audit_dir=audit_dir,
+        )
+
+    assert not package.exists()
+    records = list(audit_dir.glob("*.json"))
+    assert len(records) == 1
+    blocked_audit = json.loads(records[0].read_text(encoding="utf-8"))
+    assert blocked_audit["outcome"] == "blocked"
+    assert blocked_audit["waiver"]["used"] is False
+
+
+def test_runtime_package_allows_complete_audited_quality_waiver(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(
+        "src.pipeline.knowledge_package.evaluate_quality_gate",
+        lambda **_: {
+            "generated_at": "2026-08-08T00:00:00+00:00",
+            "passed": False,
+            "failed_checks": ["answer_report_freshness"],
+            "checks": [],
+            "jobs": {},
+            "data_version_hash": "a" * 64,
+        },
+    )
+    source = _source_runtime(tmp_path)
+    package = tmp_path / "waived.zip"
+    audit_dir = source["data"] / "audit" / "package_exports"
+
+    result = export_runtime_package(
+        package,
+        active_db_path=source["active"],
+        fallback_manifest_path=source["manifest"],
+        structured_tables_dir=source["structured"],
+        images_dir=source["images"],
+        raw_dir=source["raw"],
+        quality_waiver_actor="release-owner",
+        quality_waiver_reason="紧急回归验证期间的受控交付",
+        export_actor="test-suite",
+        export_audit_dir=audit_dir,
+    )
+    validation = validate_runtime_package(package)
+
+    assert result["quality"]["gate_passed"] is False
+    assert validation["quality"]["waiver"] == {
+        "used": True,
+        "actor": "release-owner",
+        "reason": "紧急回归验证期间的受控交付",
+    }
+    audit = json.loads(Path(result["audit_record"]).read_text(encoding="utf-8"))
+    assert audit["outcome"] == "exported"
+    assert audit["waiver"]["used"] is True
+
+
+def test_runtime_package_v1_without_quality_evidence_remains_compatible(tmp_path: Path):
+    package = _export(tmp_path)
+    legacy = tmp_path / "legacy-v1.zip"
+    with zipfile.ZipFile(package) as source, zipfile.ZipFile(legacy, "w") as target:
+        for info in source.infolist():
+            content = source.read(info.filename)
+            if info.filename == "knowledge-package.json":
+                manifest = json.loads(content.decode("utf-8"))
+                manifest["schema_version"] = 1
+                manifest.pop("quality")
+                manifest["package_id"] = (
+                    f"kp-{manifest['data_version_hash'][:12]}-{manifest['payload_hash'][:12]}"
+                )
+                content = json.dumps(manifest, ensure_ascii=False).encode("utf-8")
+            target.writestr(info.filename, content)
+
+    validation = validate_runtime_package(legacy)
+
+    assert validation["valid"] is True
+    assert validation["quality"] is None
+
+
+def test_runtime_package_v2_requires_consistent_quality_evidence(tmp_path: Path):
+    package = _export(tmp_path)
+    malformed = tmp_path / "missing-quality.zip"
+    with zipfile.ZipFile(package) as source, zipfile.ZipFile(malformed, "w") as target:
+        for info in source.infolist():
+            content = source.read(info.filename)
+            if info.filename == "knowledge-package.json":
+                manifest = json.loads(content.decode("utf-8"))
+                manifest.pop("quality")
+                content = json.dumps(manifest, ensure_ascii=False).encode("utf-8")
+            target.writestr(info.filename, content)
+
+    with pytest.raises(KnowledgePackageError, match="缺少 quality"):
+        validate_runtime_package(malformed)
+
+
+def test_runtime_package_id_binds_v2_quality_evidence(tmp_path: Path):
+    package = _export(tmp_path)
+    tampered = tmp_path / "tampered-quality.zip"
+    with zipfile.ZipFile(package) as source, zipfile.ZipFile(tampered, "w") as target:
+        for info in source.infolist():
+            content = source.read(info.filename)
+            if info.filename == "knowledge-package.json":
+                manifest = json.loads(content.decode("utf-8"))
+                manifest["quality"]["audit_event_id"] = "different-event"
+                content = json.dumps(manifest, ensure_ascii=False).encode("utf-8")
+            target.writestr(info.filename, content)
+
+    with pytest.raises(KnowledgePackageError, match="质量证据不一致"):
+        validate_runtime_package(tampered)
