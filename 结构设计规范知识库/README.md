@@ -50,16 +50,22 @@ pip install -r requirements.txt
 仅运行 API 时使用已锁定的轻量运行依赖；运行自动化测试时使用开发锁：
 
 ```bash
-pip install -r requirements-runtime.txt
-pip install -r requirements-dev.txt
+pip install --require-hashes -r requirements-runtime.txt
+pip install --require-hashes -r requirements-dev.txt
 ```
 
-`requirements-runtime.in` 与 `requirements-dev.in` 是直接依赖维护入口，两个 `.txt` 文件是 Python 3.11 跨平台精确锁。升级依赖时使用同一版本的 `uv` 重新生成并在干净环境验证：
+`requirements-runtime.in` 与 `requirements-dev.in` 是直接依赖维护入口，两个 `.txt` 文件是带包哈希的 Python 3.11 跨平台精确锁。`dependency-lock.json` 固定 Python 版本、`uv` 版本和依赖时间截点；不要手工编辑锁文件。检查或有意升级依赖时执行：
 
 ```bash
-uv pip compile --universal --python-version 3.11 requirements-runtime.in -o requirements-runtime.txt
-uv pip compile --universal --python-version 3.11 requirements-dev.in -o requirements-dev.txt
+python -m pip install -r requirements-tools.txt
+python scripts/lock_dependencies.py --check
+
+# 修改 .in，并同步更新 dependency-lock.json 的 exclude_newer 后：
+python scripts/lock_dependencies.py --write
+python scripts/lock_dependencies.py --check
 ```
+
+CI 会从空临时目录重新解析并逐字比较锁文件，同时在 Ubuntu 和 Windows 上按哈希安装开发锁并运行完整测试。只有直接依赖、锁配置、两个锁文件和验证证据同时更新，依赖升级才算完成。
 
 ### 2. 配置模型 API Key
 
@@ -416,7 +422,9 @@ GET /admin/elements/{doc}/{element_index}
 ├── src/                 # API、检索、RAG、LLM 与 pipeline
 ├── tests/               # 自动化测试
 ├── README.md            # 快速入口
+├── dependency-lock.json # 锁生成器、Python 版本与时间截点契约
 ├── requirements.txt     # 完整知识库构建环境依赖
+├── requirements-tools.txt   # 固定版本的锁生成工具
 ├── requirements-runtime.in  # 轻量问答运行直接依赖
 ├── requirements-runtime.txt # 轻量问答运行精确锁
 ├── requirements-dev.in      # 自动化测试直接依赖

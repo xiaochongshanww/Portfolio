@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "python_version": "3.11",
+  "uv_version": "0.12.3",
+  "exclude_newer": "2026-08-08T00:00:00Z",
+  "generate_hashes": true,
+  "locks": [
+    {
+      "input": "requirements-runtime.in",
+      "output": "requirements-runtime.txt"
+    },
+    {
+      "input": "requirements-dev.in",
+      "output": "requirements-dev.txt"
+    }
+  ]
+}
