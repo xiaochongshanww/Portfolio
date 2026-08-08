@@ -28,7 +28,7 @@
 3. 标准 Compose 设置 `ENABLE_PERSISTENT_CONFIG=false`，让连接 URL、Key 和其他声明式配置在每次启动时以环境变量为准。OpenWebUI 用户、聊天和文件数据仍保存在命名卷；管理界面修改的 `ConfigVar` 不承诺跨重启生效。
 4. 新增无外部模型调用的连接探针。探针先校验 `API_AUTH_ENABLED`、`API_KEYS` 与 `OPENWEBUI_API_KEY` 的静态关系，再经容器网络检查 `/health`、`/v1/models`、受保护管理接口和 malformed chat 请求的鉴权顺序。
 5. Compose 新增一次性 preflight 服务；OpenWebUI 只有在 API 健康且连接探针成功后才能启动。启用鉴权但 Key 缺失、错配或目标未执行鉴权时，部署失败关闭，不进入半可用状态。
-6. CI 使用合成 Key、临时数据卷和 `WEBUI_AUTH=false` 启动完整 Compose，调用 OpenWebUI 自身模型接口验证其能通过受保护连接发现 `mimo-v2-omni`。该设置只用于无人值守联调，不改变标准部署的 OpenWebUI 用户鉴权默认值。
+6. CI 使用合成 Key、临时数据卷和 `WEBUI_AUTH=false` 启动完整 Compose。OpenWebUI v0.9.5 的 `/api/models` 即使在无登录界面模式下仍依赖已验证用户；CI 因此先调用该版本的无鉴权登录流程取得临时管理员会话，再携带会话令牌调用模型接口，验证界面会话能通过受保护连接发现 `mimo-v2-omni`。该设置和临时账户只用于一次性无人值守联调，不改变标准部署的 OpenWebUI 用户鉴权默认值。
 7. 探针的 JSON、stdout、stderr 和异常不得包含连接 Key 或 `API_KEYS` 原值。Key 轮换必须同时更新两项、重建相关容器并重新运行同一探针。
 
 ## 兼容性

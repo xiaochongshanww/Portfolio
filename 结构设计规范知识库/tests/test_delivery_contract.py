@@ -127,6 +127,8 @@ def test_repository_ci_covers_backend_frontend_and_container():
     assert "OpenWebUI authenticated integration" in workflow
     assert "docker build --tag structural-spec-kb:ci-openwebui ." in workflow
     assert "docker compose up --no-build --detach open-webui" in workflow
+    assert "http://127.0.0.1:3000/api/v1/auths/signin" in workflow
+    assert 'Authorization: Bearer $OPENWEBUI_TOKEN' in workflow
     assert "http://127.0.0.1:3000/api/models" in workflow
     assert "ci-openwebui-connection-key" in workflow
     assert "/static/index.html" in workflow
