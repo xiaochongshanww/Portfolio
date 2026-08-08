@@ -2,6 +2,12 @@ import argparse
 from pathlib import Path
 
 from .builder import BuildPreflightError, audit, build, print_json, promote_corrections, rebuild, review, status
+from .knowledge_package import (
+    KnowledgePackageError,
+    export_runtime_package,
+    import_runtime_package,
+    validate_runtime_package,
+)
 from .paths import RAW_DIR
 
 
@@ -32,6 +38,17 @@ def main() -> None:
     promote_parser = subparsers.add_parser("promote-corrections")
     promote_parser.add_argument("--doc", required=True, help="要提升候选修正的文档文件名或 doc id")
     promote_parser.add_argument("--include-pending", action="store_true", help="同时提升 pending 候选；默认只提升 approved")
+    export_parser = subparsers.add_parser("package-export", help="导出可直接运行的知识包")
+    export_parser.add_argument("--output", required=True, help="输出 ZIP 文件")
+    export_parser.add_argument("--include-source-pdfs", action="store_true", help="显式包含原始 PDF；默认排除")
+    export_parser.add_argument("--overwrite", action="store_true", help="覆盖已存在的输出文件")
+    validate_parser = subparsers.add_parser("package-validate", help="校验知识包格式和文件哈希")
+    validate_parser.add_argument("--package", required=True, help="知识包 ZIP 文件")
+    import_parser = subparsers.add_parser("package-import", help="导入并激活运行知识包")
+    import_parser.add_argument("--package", required=True, help="知识包 ZIP 文件")
+    import_parser.add_argument("--data-dir", default="data", help="目标数据目录，默认 data")
+    import_parser.add_argument("--replace", action="store_true", help="覆盖同包版本和冲突资产")
+    import_parser.add_argument("--no-activate", action="store_true", help="只安装版本，不更新活动数据库指针")
     args = parser.parse_args()
 
     try:
@@ -61,7 +78,26 @@ def main() -> None:
             print_json(review(args.doc, args.pages, Path(args.source), Path(args.processed_dir)))
         elif args.command == "promote-corrections":
             print_json(promote_corrections(args.doc, include_pending=args.include_pending))
-    except BuildPreflightError as exc:
+        elif args.command == "package-export":
+            print_json(
+                export_runtime_package(
+                    Path(args.output),
+                    include_source_pdfs=args.include_source_pdfs,
+                    overwrite=args.overwrite,
+                )
+            )
+        elif args.command == "package-validate":
+            print_json(validate_runtime_package(Path(args.package)))
+        elif args.command == "package-import":
+            print_json(
+                import_runtime_package(
+                    Path(args.package),
+                    data_dir=Path(args.data_dir),
+                    replace=args.replace,
+                    activate=not args.no_activate,
+                )
+            )
+    except (BuildPreflightError, KnowledgePackageError) as exc:
         print_json({"ok": False, "error": str(exc)})
         raise SystemExit(1) from exc
 

@@ -761,6 +761,7 @@ def test_manifest_hash_is_stable(tmp_path: Path):
 def test_cli_status_without_manifest(tmp_path: Path, monkeypatch):
     from src.pipeline import builder
 
+    monkeypatch.setattr(builder, "ACTIVE_DB_PATH", tmp_path / "missing-active.json")
     monkeypatch.setattr(builder, "MANIFEST_PATH", tmp_path / "missing.json")
     result = builder.status()
     assert result["built"] is False

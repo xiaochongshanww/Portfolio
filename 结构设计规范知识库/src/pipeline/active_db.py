@@ -2,7 +2,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .paths import ACTIVE_DB_PATH, DB_DIR
+from .manifest import read_manifest
+from .paths import ACTIVE_DB_PATH, DB_DIR, MANIFEST_PATH
 
 
 def read_active_db(path: Path = ACTIVE_DB_PATH) -> dict[str, Any]:
@@ -21,11 +22,14 @@ def active_db_dir(path: Path = ACTIVE_DB_PATH) -> Path:
     return Path(payload.get("active_db_dir") or DB_DIR)
 
 
-def read_active_manifest(path: Path = ACTIVE_DB_PATH) -> dict[str, Any]:
+def read_active_manifest(
+    path: Path = ACTIVE_DB_PATH,
+    fallback_manifest_path: Path = MANIFEST_PATH,
+) -> dict[str, Any]:
+    if not path.exists():
+        return read_manifest(fallback_manifest_path) or {}
     payload = read_active_db(path)
     manifest_path = Path(payload.get("manifest") or "data/manifest.json")
     if not manifest_path.is_absolute():
         manifest_path = path.resolve().parents[1] / manifest_path
-    if not manifest_path.exists():
-        return {}
-    return json.loads(manifest_path.read_text(encoding="utf-8"))
+    return read_manifest(manifest_path) or {}

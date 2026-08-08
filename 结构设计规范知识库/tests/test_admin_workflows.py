@@ -60,3 +60,10 @@ def test_active_db_pointer_round_trips(tmp_path: Path):
     manifest.write_text('{"chunk_count": 7}', encoding="utf-8")
     write_active_db({"active_db_dir": str(db_dir), "manifest": str(manifest)}, pointer)
     assert read_active_manifest(pointer)["chunk_count"] == 7
+
+
+def test_active_manifest_falls_back_when_pointer_is_missing(tmp_path: Path):
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text('{"chunk_count": 9}', encoding="utf-8")
+
+    assert read_active_manifest(tmp_path / "missing-active.json", manifest)["chunk_count"] == 9

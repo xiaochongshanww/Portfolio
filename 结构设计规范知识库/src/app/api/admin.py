@@ -29,12 +29,10 @@ from src.pipeline.audit.manual_structuring import (
 )
 from src.pipeline.audit.multimodal import find_source_pdf, render_pdf_pages
 from src.pipeline.audit.structuring_ai import read_structuring_suggestion
-from src.pipeline.active_db import read_active_db
-from src.pipeline.manifest import read_manifest
+from src.pipeline.active_db import read_active_db, read_active_manifest
 from src.pipeline.paths import (
     AUDIT_DIR,
     CORRECTIONS_DIR,
-    MANIFEST_PATH,
     MANUAL_STRUCTURING_DIR,
     PROCESSED_DIR,
     RAW_DIR,
@@ -119,7 +117,7 @@ def _load_processed_doc(doc: str) -> dict[str, Any]:
 
 @router.get("/status")
 async def admin_status():
-    manifest = read_manifest(MANIFEST_PATH)
+    manifest = read_active_manifest()
     return {
         "built": bool(manifest),
         "manifest": manifest or {},
@@ -130,7 +128,7 @@ async def admin_status():
 
 @router.get("/documents")
 async def admin_documents():
-    manifest = read_manifest(MANIFEST_PATH) or {}
+    manifest = read_active_manifest()
     return {
         "raw_documents": [path.name for path in sorted(RAW_DIR.glob("*.pdf"))],
         "manifest_documents": manifest.get("documents", []),
@@ -139,7 +137,7 @@ async def admin_documents():
 
 @router.get("/manifest")
 async def admin_manifest():
-    return read_manifest(MANIFEST_PATH) or {}
+    return read_active_manifest()
 
 
 @router.get("/active-db")

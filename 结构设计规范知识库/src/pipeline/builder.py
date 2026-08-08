@@ -7,9 +7,10 @@ from typing import Any
 
 from src.app.core.config import settings
 
+from .active_db import read_active_manifest
 from .manifest import build_manifest, read_manifest, write_manifest
 from .metadata import load_spec_metadata
-from .paths import AUDIT_DIR, CORRECTIONS_DIR, DB_DIR, IMAGES_DIR, MANIFEST_PATH, METADATA_DIR, MINERU_DIR, PROCESSED_DIR, RAW_DIR
+from .paths import ACTIVE_DB_PATH, AUDIT_DIR, CORRECTIONS_DIR, DB_DIR, IMAGES_DIR, MANIFEST_PATH, METADATA_DIR, MINERU_DIR, PROCESSED_DIR, RAW_DIR
 
 
 class BuildPreflightError(RuntimeError):
@@ -160,9 +161,9 @@ def promote_corrections(doc: str, *, include_pending: bool = False) -> dict[str,
 
 
 def status() -> dict[str, Any]:
-    manifest = read_manifest(MANIFEST_PATH)
+    manifest = read_active_manifest(ACTIVE_DB_PATH, MANIFEST_PATH)
     if not manifest:
-        return {"built": False, "message": "知识库尚未构建，未找到 data/manifest.json"}
+        return {"built": False, "message": "知识库尚未构建，未找到活动 manifest"}
     return {
         "built": True,
         "built_at": manifest.get("built_at"),

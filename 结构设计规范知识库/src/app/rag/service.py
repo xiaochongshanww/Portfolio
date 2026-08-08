@@ -7,7 +7,7 @@ from ..core.config import settings
 from ..core.errors import ErrorCode, error_payload
 from ..retrieval.hybrid_search import retrieval_state
 from ..schemas.chat import ChatCompletionRequest
-from .images import load_images_by_name, load_page_images, page_image_filenames
+from .images import load_images_by_name, load_page_images, page_image_filenames, source_pdf_available
 from .prompt import SYSTEM_PROMPT
 from .context import format_result_context
 from .structured_tables import find_structured_table_matches, format_structured_table_context
@@ -99,16 +99,23 @@ async def build_mimo_payload(
         source = meta.get("source", "")
         pages_str = meta.get("pages", "")
         if pages_str and source:
-            for page in _parse_pages(pages_str):
-                url = _page_image_url(source, page)
-                image_list.append(f"- 第{page}页：请原样引用 `![第{page}页]({url})`")
-                offered_image_urls.append(url)
-            for filename in page_image_filenames(source, _parse_pages(pages_str)):
+            pages = _parse_pages(pages_str)
+            if source_pdf_available(source):
+                for page in pages:
+                    url = _page_image_url(source, page)
+                    image_list.append(f"- 第{page}页：请原样引用 `![第{page}页]({url})`")
+                    offered_image_urls.append(url)
+            for filename in page_image_filenames(source, pages):
                 url = _image_url(filename)
                 image_list.append(f"- 页面截图：请原样引用 `![页面截图]({url})`")
                 offered_image_urls.append(url)
 
     context = "\n\n---\n\n".join(context_parts[:20])
+    screenshot_text = (
+        "已随消息附上。以下为截图列表，你可以在回答末尾用 Markdown 格式引用它们：\n" + "\n".join(image_list)
+        if image_list
+        else "当前知识包未提供可引用的页面截图，请仅依据检索文本回答，不要编造图片路径。"
+    )
     user_text = f"""用户问题：
 {current_query}
 
@@ -116,8 +123,7 @@ async def build_mimo_payload(
 {context}
 
 页面截图：
-已随消息附上。以下为截图列表，你可以在回答末尾用 Markdown 格式引用它们：
-{chr(10).join(image_list)}
+{screenshot_text}
 
 请根据检索文本和截图回答问题。"""
 

@@ -14,7 +14,7 @@ from src.app.retrieval.hybrid_search import (
     text_mentions_clause,
 )
 from src.app.rag.structured_tables import StructuredTableMatch, find_structured_table_matches
-from src.pipeline.paths import MANIFEST_PATH
+from src.pipeline.active_db import read_active_manifest
 
 
 DEFAULT_EVAL_PATH = Path(__file__).resolve().parents[2] / "data" / "evaluation" / "queries.jsonl"
@@ -345,7 +345,7 @@ def run_evaluation(path: Path = DEFAULT_EVAL_PATH, top_k: int = 5) -> dict[str, 
         if case.expected_table_id
     }
     summary = summarize_results(cases, results_by_id, structured_by_id)
-    manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8")) if MANIFEST_PATH.exists() else {}
+    manifest = read_active_manifest()
     return {
         "ok": True,
         "generated_at": datetime.now(timezone.utc).isoformat(),

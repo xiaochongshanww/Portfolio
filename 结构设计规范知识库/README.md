@@ -1,12 +1,12 @@
 # 结构设计规范知识库
 
-本项目是一个基于RAG（检索增强生成）技术的本地知识库解决方案，专门用于查询结构设计规范。它通过将PDF格式的规范文档处理成向量数据库，并结合本地大语言模型（LLM），提供一个兼容OpenAI API标准的智能问答接口。
+本项目是面向结构设计规范的 RAG（检索增强生成）知识库。它将 PDF 规范处理为可追溯的知识资产，结合权威性排序、结构化表检索和 MiMo 模型生成，提供兼容 OpenAI API 的问答接口与管理控制台。
 
 ## ✨ 功能特性
 
 - **自动化数据处理**: 提供从PDF扫描件到结构化文本的完整自动化处理流水线（OCR、清洗、切分）。
 - **智能检索增强**: 利用高质量的文本嵌入模型，精准检索与用户问题最相关的规范条文。
-- **本地化LLM支持**: 集成[Ollama](https://ollama.com/)，让您可以使用本地运行的大语言模型（如Llama 3, Qwen）生成答案，确保数据私密性。
+- **来源可追溯回答**: 使用 MiMo OpenAI-compatible API 生成答案，并返回规范、条文/表格、页码和页面截图证据。
 - **标准化API**: 提供兼容OpenAI的`/v1/chat/completions`接口，可无缝对接[Chatbox](https://chatbox.app/)、[LobeChat](https://github.com/lobehub/lobe-chat)等多种客户端。
 - **流式响应**: 支持打字机效果的流式API响应，提升用户体验。
 
@@ -15,8 +15,8 @@
 ```
 +-----------+        +-------------------------+        +-----------------+
 |           |        |                         |        |                 |
-|  Chatbox  |  <---> |  RAG API 服务 (FastAPI) |  <---> |  Ollama (LLM)   |
-| (或其他UI) |        |      (src/main.py)      |        | (e.g., Qwen)    |
+| Open WebUI|  <---> |  RAG API 服务 (FastAPI) |  <---> | MiMo API        |
+| Vue 控制台 |        |   (src.app.main:app)   |        | (LLM / Vision)  |
 |           |        |                         |        |                 |
 +-----------+        +-------------------------+        +-----------------+
                            ^
@@ -39,35 +39,22 @@
 
 ### 1. 安装项目依赖
 
-建议在Python 3.8+ 环境下运行。在项目根目录打开终端，执行以下命令：
+建议在 Python 3.11 环境下运行。在项目根目录打开终端，执行以下命令：
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. 设置智谱AI API Key
+### 2. 配置模型 API Key
 
-本项目使用智谱AI的`embedding-2`模型来生成高质量的文本向量。请在您的终端中设置环境变量 `ZHIPUAI_API_KEY`。
+本项目使用智谱 `embedding-2` 生成向量，并使用 MiMo 生成回答和多模态校对。复制示例环境变量后填写 `ZHIPUAI_API_KEY` 和 `MIMO_API_KEY`。
 
-**macOS / Linux:**
+**Windows PowerShell:**
 ```bash
-export ZHIPUAI_API_KEY="您的智谱AI API密钥"
+Copy-Item .env.example .env
 ```
 
-**Windows (CMD):**
-```bash
-set ZHIPUAI_API_KEY="您的智谱AI API密钥"
-```
-
-### 3. 安装并运行Ollama
-
-请根据[Ollama官方文档](https://ollama.com/)的指引，下载并安装Ollama。安装后，请从模型库中拉取一个适合中文问答的模型，推荐`qwen:14b-chat`。
-
-```bash
-ollama pull qwen:14b-chat
-```
-
-确保Ollama服务正在后台运行。
+然后编辑 `.env`。不要提交真实密钥；公网部署还必须设置 `API_AUTH_ENABLED=true` 和 `API_KEYS`。完整配置见 [配置参考](docs/reference/配置参考.md)。
 
 ## 📖 如何运行
 
@@ -99,17 +86,26 @@ python src/main.py
 
 服务默认运行在 `http://localhost:8000`。当您看到Uvicorn成功启动的日志时，表示API已准备就绪。
 
+如果你拿到的是维护者已构建的运行知识包，可以跳过 PDF 解析、MinerU 和向量化：
+
+```bash
+python -m src.pipeline package-validate --package knowledge-runtime.zip
+python -m src.pipeline package-import --package knowledge-runtime.zip
+python -m uvicorn src.app.main:app --host 127.0.0.1 --port 8000
+```
+
+知识包默认不包含原始 PDF；此时系统不会提供无法访问的动态页面截图链接。完整格式、兼容与内容权利边界见 [知识包格式规范](./docs/reference/知识包格式规范.md)。
+
 ### 第三步：配置客户端并开始使用
 
-以 **Chatbox** 为例：
+以 Open WebUI 或其他 OpenAI-compatible 客户端为例：
 
-1.  打开Chatbox客户端。
-2.  进入设置，在`模型`设置中，将`模型提供商`选为`Ollama`。
-3.  将 **Ollama API 地址** 设置为我们刚刚启动的RAG服务的地址：`http://localhost:8000`。
-4.  在模型列表中，填入您在Ollama中下载并希望使用的模型名称，例如 `qwen:14b-chat`。
-5.  保存设置，开始提问！
+1. 配置 OpenAI-compatible API 基地址为 `http://localhost:8000/v1`。
+2. 使用 `GET /v1/models` 返回的模型标识，默认是 `mimo-v2.5`。
+3. 开启鉴权时，填写 `API_KEYS` 中配置的 Key。
+4. 保存设置，开始提问。
 
-现在，您的所有提问都会经由本地知识库检索增强后，再由本地大模型回答。
+所有提问会先经知识库检索增强，再由模型生成带来源依据的回答。
 
 ## 📚 API文档
 
@@ -117,16 +113,19 @@ python src/main.py
 
 ## 🧭 项目文档
 
-- [技术方案](./TECHNICAL_PLAN.md)：当前系统架构、核心流程和基础实现方案。
-- [产品化实施方案](./PRODUCTIZATION_PLAN.md)：从可运行原型升级为成熟产品的阶段路线、验收标准和近期执行清单。
-- [RAG 技术方案演进记录](./RAG_OPTIMIZATION.md)：检索、多模态、PDF 解析和质量优化过程中的决策记录。
-- [AI 校对修正层实施方案](./AI_CORRECTION_PLAN.md)：MinerU 解析后的规则审计、AI 候选和人工批准修正流程。
-- [知识库维护与质量运营](./OPERATIONS.md)：复杂表审核、发布保护、评估和日常运维的标准工作流。
-- [阶段六 MinerU 环境执行交接文档](./STAGE6_MINERU_HANDOFF.md)：在另一台具备 MinerU 的环境中继续构建、验收和带回结果的操作手册。
+- [文档中心](./docs/文档中心.md)：当前架构、部署、质量、内容治理和发布的唯一导航入口。
+- [系统架构概览](./docs/architecture/系统架构概览.md)：已验证的组件、数据流和运行边界。
+- [系统详细设计](./docs/architecture/系统详细设计.md)：组件接口、数据生命周期、部署、安全与关键时序。
+- [部署运行手册](./docs/operations/部署运行手册.md)：当前支持的启动方式、生产要求和已知限制。
+- [产品化实施方案](./结构设计规范知识库产品化实施方案.md)：产品化路线与阶段验收历史。
+- [RAG 技术方案演进记录](./RAG技术方案演进记录.md)：检索、多模态、PDF 解析和质量优化历史。
+- [AI 校对修正层实施方案](./AI校对修正层实施方案.md)：MinerU 解析后的规则审计、AI 候选和人工批准修正流程。
+- [知识库维护与质量运营](./知识库维护与质量运营.md)：复杂表审核、发布保护、评估和日常运维的标准工作流。
+- [阶段六 MinerU 环境执行交接文档](./阶段六MinerU环境执行交接文档.md)：历史环境交接材料，当前部署以运行手册为准。
 
 ## 🧱 当前工程结构
 
-API 服务已按产品化阶段一拆分为分层结构：
+API 服务已按分层结构组织：
 
 - `src/app/main.py`：FastAPI 应用创建、路由注册和静态文件挂载。
 - `src/app/core/`：配置读取与日志初始化。
@@ -135,7 +134,7 @@ API 服务已按产品化阶段一拆分为分层结构：
 - `src/app/rag/`：检索上下文、图片引用和 MiMo payload 组装。
 - `src/app/llm/`：MiMo 非流式和流式调用。
 
-旧入口 `src.main:app` 仍保留兼容；新部署建议使用 `src.app.main:app`。
+旧入口 `src.main:app` 仍保留兼容；新部署建议使用 `src.app.main:app`。当前架构事实以 [系统架构概览](./docs/architecture/系统架构概览.md) 与 [系统详细设计](./docs/architecture/系统详细设计.md) 为准。
 
 ## 🏗️ 知识库构建
 
@@ -267,7 +266,7 @@ python -m src.evaluation run --top-k 5
 python scripts/verify_quality.py
 ```
 
-该入口会运行后端测试、前端生产构建、常规评估、结构化专项评估、24条回答级盲测和自动质量门禁。报告保存在 `data/audit/reports/`；详细口径见 [无人工参与质量自动化计划](./AUTOMATION_QUALITY_PLAN.md)、[回答质量计划](./ANSWER_QUALITY_PLAN.md)、[回答盲测集阅读版](./ANSWER_EVALUATION_SET.md) 与 [运维文档](./OPERATIONS.md)。
+该入口会运行后端测试、前端生产构建、常规评估、结构化专项评估、24条回答级盲测和自动质量门禁。报告保存在 `data/audit/reports/`；详细口径见 [无人工参与质量自动化计划](./无人工参与质量自动化计划.md)、[回答质量计划](./回答级质量与引用完整性实施计划.md)、[回答盲测集阅读版](./回答级盲测集阅读版.md) 与 [运维文档](./知识库维护与质量运营.md)。
 
 ## 🛡️ 服务成熟化
 
@@ -375,16 +374,15 @@ GET /admin/elements/{doc}/{element_index}
 ```
 . 
 ├── data/                # 数据目录
-│   ├── raw/             # 存放原始PDF文件
-│   ├── processed/       # 存放清洗后的TXT文件
-│   └── chunks/          # 存放切分后的JSON文件
+│   ├── raw/             # 原始 PDF（受内容治理约束）
+│   ├── processed/       # 解析后元素与 chunk
+│   ├── images/          # 页面与元素图片资产
+│   └── corrections/     # 人工批准的修正
 ├── db/                  # 存放ChromaDB数据库文件
-├── logs/                # (预留) 存放日志文件
-├── src/                 # 源代码目录
-│   ├── pipeline/        # 数据处理流水线脚本
-│   └── main.py          # FastAPI主程序
-├── .gitignore           
-├── GEMINI.md            # 项目开发规范
-├── README.md            # 本文档
+├── docs/                # 当前文档体系与历史说明
+├── frontend/            # Vue 3 + Tailwind 控制台
+├── src/                 # API、检索、RAG、LLM 与 pipeline
+├── tests/               # 自动化测试
+├── README.md            # 快速入口
 └── requirements.txt     # Python依赖
 ```

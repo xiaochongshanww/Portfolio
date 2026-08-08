@@ -77,5 +77,5 @@ def test_vue_console_contains_required_workflows():
     assert "验证并进入" in app
     assert "AUTH_REQUIRED_EVENT" in app
     assert "rag-auth-required" in api
-    assert Path("OPERATIONS.md").exists()
+    assert Path("docs/operations/部署运行手册.md").exists()
     assert "apiPut" in api

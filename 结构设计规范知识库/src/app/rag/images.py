@@ -39,6 +39,10 @@ def page_image_filenames(source: str, pages: list[int]) -> list[str]:
     return filenames
 
 
+def source_pdf_available(source: str) -> bool:
+    return find_source_pdf(source, RAW_DIR) is not None
+
+
 def load_page_images(source: str, pages: list[int]) -> list[str]:
     images: list[str] = []
     pdf_path = find_source_pdf(source, RAW_DIR)
