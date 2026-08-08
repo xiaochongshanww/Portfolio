@@ -14,6 +14,7 @@ from src.pipeline import builder
 from src.pipeline.active_db import active_processed_dir, write_active_db
 from src.pipeline.manifest import write_manifest
 from src.pipeline.paths import ACTIVE_DB_PATH, AUDIT_DIR, DB_VERSIONS_DIR, MANIFEST_PATH, RAW_DIR
+from src.pipeline.version_retention import execute_cleanup_plan, retention_policy_from_settings
 from src.pipeline.audit.structuring_ai import generate_structuring_suggestion
 from src.pipeline.audit.structuring_ai import read_structuring_suggestion
 from src.pipeline.audit.manual_structuring import (
@@ -180,6 +181,40 @@ def rebuild_workflow(job: Job, store: JobStore) -> dict[str, Any]:
         "answer_evaluation_required": True,
         "latest_reports_published": latest_reports_published,
     }
+
+
+def cleanup_versions_workflow(job: Job, store: JobStore) -> dict[str, Any]:
+    plan_id = str(job.params.get("plan_id") or "")
+    _set_step(job, store, "validate_plan", "重新核对清理计划与受保护版本", plan_id=plan_id)
+    result = execute_cleanup_plan(
+        plan_id,
+        policy=retention_policy_from_settings(settings),
+        jobs=store.list(),
+    )
+    if result.get("failed_count", 0):
+        store.append_log(
+            job.job_id,
+            "error",
+            "知识版本清理部分失败，详情保留在执行报告",
+            plan_id=plan_id,
+            failed_count=result.get("failed_count", 0),
+            report_path=result.get("report_path", ""),
+        )
+        raise RuntimeError(
+            f"知识版本清理部分失败: {result.get('failed_count', 0)} 个版本；"
+            f"报告 {result.get('report_path', '')}"
+        )
+    _set_step(
+        job,
+        store,
+        "cleanup_versions",
+        "知识版本清理完成",
+        plan_id=plan_id,
+        deleted_count=result.get("deleted_count", 0),
+        skipped_count=result.get("skipped_count", 0),
+        failed_count=result.get("failed_count", 0),
+    )
+    return result
 
 
 def audit_workflow(job: Job, store: JobStore) -> dict[str, Any]:

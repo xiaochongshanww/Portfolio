@@ -41,6 +41,7 @@
       <section class="min-h-0 flex-1 overflow-auto p-3 md:p-5">
         <OverviewTab v-if="activeTab === 'overview'" :ready="ready" :documents="documents" :metrics="metrics" :quality="quality" />
         <JobsTab v-if="activeTab === 'jobs'" :jobs="jobs" @refresh="refreshJobs" />
+        <VersionsTab v-if="activeTab === 'versions'" @refresh-jobs="refreshJobs" />
         <ReviewTab v-if="activeTab === 'review'" :candidate-docs="candidateDocs" @refresh="refreshCandidates" />
         <ManualStructuringTab v-if="activeTab === 'manual'" :documents="manualDocs" @refresh="refreshManualStructuring" />
         <EvaluationTab v-if="activeTab === 'evaluation'" :evaluation="evaluation" :jobs="jobs" @refresh="refreshJobs" />
@@ -73,14 +74,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { AUTH_REQUIRED_EVENT, apiGet, getApiKey, setApiKey } from './api'
 import OverviewTab from './components/OverviewTab.vue'
-import JobsTab from './components/JobsTab.vue'
-import ReviewTab from './components/ReviewTab.vue'
-import ManualStructuringTab from './components/ManualStructuringTab.vue'
-import EvaluationTab from './components/EvaluationTab.vue'
-import ChatTab from './components/ChatTab.vue'
+const JobsTab = defineAsyncComponent(() => import('./components/JobsTab.vue'))
+const VersionsTab = defineAsyncComponent(() => import('./components/VersionsTab.vue'))
+const ReviewTab = defineAsyncComponent(() => import('./components/ReviewTab.vue'))
+const ManualStructuringTab = defineAsyncComponent(() => import('./components/ManualStructuringTab.vue'))
+const EvaluationTab = defineAsyncComponent(() => import('./components/EvaluationTab.vue'))
+const ChatTab = defineAsyncComponent(() => import('./components/ChatTab.vue'))
 
 const activeTab = ref('overview')
 const apiKey = ref(getApiKey())
@@ -100,6 +102,7 @@ const quality = ref<any>({})
 const navItems = computed(() => [
   { key: 'overview', label: '概览' },
   { key: 'jobs', label: '构建任务', count: runningJobs.value || undefined },
+  { key: 'versions', label: '版本管理' },
   { key: 'review', label: '校对工作台', count: pendingCount.value || undefined },
   { key: 'manual', label: '结构化队列', count: manualPendingCount.value || undefined },
   { key: 'evaluation', label: '评估' },

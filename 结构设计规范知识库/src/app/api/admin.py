@@ -38,13 +38,22 @@ from src.pipeline.paths import (
     RAW_DIR,
     STRUCTURED_TABLES_DIR,
 )
+from src.pipeline.version_retention import (
+    VersionRetentionError,
+    create_cleanup_plan,
+    inventory_versions,
+    retention_policy_from_settings,
+    set_version_pin,
+)
 from src.quality import evaluate_quality_gate
 
 from ..admin.jobs import job_manager
+from ..core.config import settings
 from ..admin.storage import job_store
 from ..admin.workflows import (
     audit_workflow,
     answer_evaluate_workflow,
+    cleanup_versions_workflow,
     dry_run_workflow,
     evaluate_workflow,
     rebuild_workflow,
@@ -96,6 +105,15 @@ class ManualStructuringDraftRequest(BaseModel):
 class StructuringSuggestionBatchRequest(BaseModel):
     documents: list[str] = Field(default_factory=list)
     force: bool = False
+
+
+class VersionRetentionUpdate(BaseModel):
+    pinned: bool
+    note: str = Field(default="", max_length=500)
+
+
+class VersionCleanupRequest(BaseModel):
+    plan_id: str = Field(min_length=16, max_length=16)
 
 
 def _safe_doc_stem(doc: str) -> str:
@@ -167,6 +185,37 @@ async def start_dry_run(request: JobRequest):
 @router.post("/jobs/rebuild")
 async def start_rebuild(request: JobRequest):
     return job_manager.submit("rebuild", request.dict(), rebuild_workflow).to_dict()
+
+
+@router.get("/versions")
+def admin_versions():
+    return inventory_versions(
+        policy=retention_policy_from_settings(settings),
+        jobs=job_store.list(),
+    )
+
+
+@router.put("/versions/{version_id}/retention")
+def admin_version_retention(version_id: str, request: VersionRetentionUpdate):
+    try:
+        return set_version_pin(version_id, pinned=request.pinned, note=request.note)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except VersionRetentionError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/versions/cleanup-plans")
+def admin_version_cleanup_plan():
+    return create_cleanup_plan(
+        policy=retention_policy_from_settings(settings),
+        jobs=job_store.list(),
+    )
+
+
+@router.post("/jobs/cleanup-versions")
+async def start_version_cleanup(request: VersionCleanupRequest):
+    return job_manager.submit("cleanup_versions", request.dict(), cleanup_versions_workflow).to_dict()
 
 
 @router.post("/jobs/audit")

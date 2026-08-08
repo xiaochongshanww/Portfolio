@@ -30,6 +30,13 @@ CONFIG_ENV_NAMES = {
     "RETRIEVAL_BM25_WEIGHT",
     "RETRIEVAL_CLAUSE_BOOST",
     "RETRIEVAL_DENSE_WEIGHT",
+    "VERSION_RETENTION_FAILED_DAYS",
+    "VERSION_RETENTION_HIGH_WATERMARK_BYTES",
+    "VERSION_RETENTION_KEEP_RECENT_PASSED",
+    "VERSION_RETENTION_LOW_WATERMARK_BYTES",
+    "VERSION_RETENTION_MINIMUM_AGE_HOURS",
+    "VERSION_RETENTION_PLAN_TTL_MINUTES",
+    "VERSION_RETENTION_SUCCESS_DAYS",
 }
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -98,6 +105,14 @@ def test_cors_wildcard_cannot_be_combined_with_credentials(monkeypatch):
             {"RETRIEVAL_DENSE_WEIGHT": "0", "RETRIEVAL_BM25_WEIGHT": "0"},
             "不能同时为 0",
         ),
+        (
+            {
+                "VERSION_RETENTION_HIGH_WATERMARK_BYTES": "100",
+                "VERSION_RETENTION_LOW_WATERMARK_BYTES": "101",
+            },
+            "LOW_WATERMARK_BYTES 不能大于高水位",
+        ),
+        ({"VERSION_RETENTION_PLAN_TTL_MINUTES": "0"}, "必须在 1 到 1440"),
     ],
 )
 def test_invalid_numeric_ranges_are_rejected(monkeypatch, values, message):

@@ -92,6 +92,27 @@ class Settings:
     max_request_bytes: int = field(default_factory=lambda: _env_int("MAX_REQUEST_BYTES", "1048576"))
     rate_limit_enabled: bool = field(default_factory=lambda: _env_bool("RATE_LIMIT_ENABLED", "true"))
     rate_limit_per_minute: int = field(default_factory=lambda: _env_int("RATE_LIMIT_PER_MINUTE", "30"))
+    version_retention_keep_recent_passed: int = field(
+        default_factory=lambda: _env_int("VERSION_RETENTION_KEEP_RECENT_PASSED", "2")
+    )
+    version_retention_success_days: int = field(
+        default_factory=lambda: _env_int("VERSION_RETENTION_SUCCESS_DAYS", "30")
+    )
+    version_retention_failed_days: int = field(
+        default_factory=lambda: _env_int("VERSION_RETENTION_FAILED_DAYS", "7")
+    )
+    version_retention_minimum_age_hours: int = field(
+        default_factory=lambda: _env_int("VERSION_RETENTION_MINIMUM_AGE_HOURS", "24")
+    )
+    version_retention_high_watermark_bytes: int = field(
+        default_factory=lambda: _env_int("VERSION_RETENTION_HIGH_WATERMARK_BYTES", str(20 * 1024**3))
+    )
+    version_retention_low_watermark_bytes: int = field(
+        default_factory=lambda: _env_int("VERSION_RETENTION_LOW_WATERMARK_BYTES", str(16 * 1024**3))
+    )
+    version_retention_plan_ttl_minutes: int = field(
+        default_factory=lambda: _env_int("VERSION_RETENTION_PLAN_TTL_MINUTES", "15")
+    )
 
     db_dir: Path = field(default_factory=lambda: Path(_env_or_default("DB_DIR", "db")))
     img_dir: Path = field(default_factory=lambda: Path(_env_or_default("IMG_DIR", str(PROJECT_ROOT / "data" / "images"))))
@@ -133,6 +154,20 @@ class Settings:
             issues.append("MAX_REQUEST_BYTES 必须大于 0")
         if self.rate_limit_enabled and self.rate_limit_per_minute <= 0:
             issues.append("启用限流时 RATE_LIMIT_PER_MINUTE 必须大于 0")
+        retention_non_negative = {
+            "VERSION_RETENTION_KEEP_RECENT_PASSED": self.version_retention_keep_recent_passed,
+            "VERSION_RETENTION_SUCCESS_DAYS": self.version_retention_success_days,
+            "VERSION_RETENTION_FAILED_DAYS": self.version_retention_failed_days,
+            "VERSION_RETENTION_MINIMUM_AGE_HOURS": self.version_retention_minimum_age_hours,
+            "VERSION_RETENTION_LOW_WATERMARK_BYTES": self.version_retention_low_watermark_bytes,
+        }
+        issues.extend(f"{name} 不能小于 0" for name, value in retention_non_negative.items() if value < 0)
+        if self.version_retention_high_watermark_bytes <= 0:
+            issues.append("VERSION_RETENTION_HIGH_WATERMARK_BYTES 必须大于 0")
+        if self.version_retention_low_watermark_bytes > self.version_retention_high_watermark_bytes:
+            issues.append("VERSION_RETENTION_LOW_WATERMARK_BYTES 不能大于高水位")
+        if not 1 <= self.version_retention_plan_ttl_minutes <= 1440:
+            issues.append("VERSION_RETENTION_PLAN_TTL_MINUTES 必须在 1 到 1440 之间")
         if not 60 <= self.asset_url_ttl_seconds <= 604800:
             issues.append("ASSET_URL_TTL_SECONDS 必须在 60 到 604800 之间")
         if self.api_auth_enabled:
