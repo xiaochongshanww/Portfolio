@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "release_quality_status": "not_passed",
+  "reports": {
+    "verification": {
+      "path": "data/audit/reports/verification_latest.json",
+      "sha256": "c13aaea27816cc31cf11edd2547d779542864ae9b3faec85b55c6e228470485f",
+      "generated_at": "2026-08-08T17:36:42.529101+00:00",
+      "passed": false
+    },
+    "quality_gate": {
+      "path": "data/audit/reports/quality_gate_latest.json",
+      "sha256": "47f221248f19c22e02f75fcef078b8366f77a9232000d9d1dc31c2bbb0b49a1f",
+      "generated_at": "2026-08-08T17:36:42.492250+00:00",
+      "passed": false
+    }
+  },
+  "quality_gate_failed_checks": [
+    "regular_evaluation",
+    "answer_evaluation",
+    "regular_report_freshness"
+  ],
+  "evaluation_sets": {
+    "regular": {
+      "path": "data/evaluation/queries.jsonl",
+      "sha256": "f80a91e649fd7e17552953c2db5ae8254ad3bc8691914420be0572181186df7a",
+      "case_count": 100
+    },
+    "structured": {
+      "path": "data/evaluation/complex_structured_tables.jsonl",
+      "sha256": "4b496d1a8282670cefd18ea19abaea30220509fe71045946a965d42d4e6c3da0",
+      "case_count": 12
+    },
+    "answer": {
+      "path": "data/evaluation/answer_holdout.jsonl",
+      "sha256": "44200b5f5e8c99794f96ae67d92c2d01f88668ce16bb04c2a9b48cfdcae1fd23",
+      "case_count": 24
+    }
+  }
+}

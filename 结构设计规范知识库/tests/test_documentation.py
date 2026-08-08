@@ -211,21 +211,11 @@ def test_rag_system_card_matches_latest_quality_evidence():
     system_card = Path("docs/quality/检索增强生成系统卡.md").read_text(
         encoding="utf-8"
     )
-    verification = json.loads(
-        Path("data/audit/reports/verification_latest.json").read_text(
-            encoding="utf-8"
-        )
+    snapshot = json.loads(
+        Path("docs/quality/质量证据状态.json").read_text(encoding="utf-8")
     )
-    quality_gate = json.loads(
-        Path("data/audit/reports/quality_gate_latest.json").read_text(
-            encoding="utf-8"
-        )
-    )
-    evaluation_sets = {
-        "regular": Path("data/evaluation/queries.jsonl"),
-        "structured": Path("data/evaluation/complex_structured_tables.jsonl"),
-        "answer": Path("data/evaluation/answer_holdout.jsonl"),
-    }
+    verification = snapshot["reports"]["verification"]
+    quality_gate = snapshot["reports"]["quality_gate"]
 
     assert (
         f"`verification.generated_at={verification['generated_at']}`"
@@ -240,17 +230,24 @@ def test_rag_system_card_matches_latest_quality_evidence():
         f"`quality_gate.passed={str(quality_gate['passed']).lower()}`"
         in system_card
     )
-    failed_checks = ",".join(quality_gate["failed_checks"])
+    failed_checks = ",".join(snapshot["quality_gate_failed_checks"])
     assert f"`quality_gate.failed_checks={failed_checks}`" in system_card
 
-    for name, path in evaluation_sets.items():
-        case_count = sum(
-            1 for line in path.read_text(encoding="utf-8").splitlines() if line.strip()
-        )
-        assert f"`evaluation_set.{name}.case_count={case_count}`" in system_card
+    for name, evaluation_set in snapshot["evaluation_sets"].items():
+        marker = f"`evaluation_set.{name}.case_count={evaluation_set['case_count']}`"
+        assert marker in system_card
 
-    if not verification["passed"] or not quality_gate["passed"]:
+    if snapshot["release_quality_status"] != "passed":
         assert "当前没有可用于发布的完整通过证据" in system_card
+
+    snapshot_command = "python scripts/snapshot_quality_evidence.py"
+    for documentation_path in (
+        Path("README.md"),
+        Path("docs/operations/知识库维护与质量运营.md"),
+        Path("docs/releases/发布检查单.md"),
+    ):
+        documentation = documentation_path.read_text(encoding="utf-8")
+        assert snapshot_command in documentation
 
 
 def test_runtime_backup_and_disaster_recovery_contract_is_documented():
