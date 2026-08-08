@@ -3,6 +3,7 @@ name: structural-spec-kb
 services:
   api:
     build: .
+    image: structural-spec-kb:${STRUCTURAL_SPEC_KB_IMAGE_TAG:-local}
     container_name: rag-api
     ports:
       - "8000:8000"
@@ -20,7 +21,7 @@ services:
       - rag-net
 
   openwebui-preflight:
-    build: .
+    image: structural-spec-kb:${STRUCTURAL_SPEC_KB_IMAGE_TAG:-local}
     container_name: openwebui-preflight
     command: ["python", "-m", "src.app.core.openwebui_probe"]
     env_file:

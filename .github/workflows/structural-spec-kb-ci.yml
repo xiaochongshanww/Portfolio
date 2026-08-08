@@ -220,9 +220,12 @@ jobs:
           OPENWEBUI_AUTH=false
           RATE_LIMIT_ENABLED=false
           MIMO_MODEL=mimo-v2-omni
+          STRUCTURAL_SPEC_KB_IMAGE_TAG=ci-openwebui
           EOF
+      - name: Build shared application image
+        run: docker build --tag structural-spec-kb:ci-openwebui .
       - name: Start authenticated Compose stack
-        run: docker compose up --build --detach open-webui
+        run: docker compose up --no-build --detach open-webui
       - name: Verify preflight and OpenWebUI model discovery
         run: |
           test "$(docker inspect --format '{{.State.ExitCode}}' openwebui-preflight)" = "0"
