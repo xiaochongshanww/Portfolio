@@ -1,11 +1,11 @@
 # 质量验证托管 API 生命周期验证记录
 
-> 状态：验证中
+> 状态：工程验证完成，真实质量复验待补
 > 维护角色：工程与质量负责人
 > 文档更新：2026-08-09
 > 代码/流程核对：2026-08-09
-> 完整运行验证：本地能力验证完成；远程 CI 与真实模型质量复验待完成
-> 验证证据：提交前本地门禁、`data/audit/reports/verification_latest.json`、[实施清单](../architecture/质量验证托管API生命周期实施清单.md)、[ADR 0015](../adr/0015-无人值守质量验证采用受控本地API生命周期.md)
+> 完整运行验证：本地能力验证及 [CI #48](https://github.com/xiaochongshanww/Portfolio/actions/runs/31270198190) 十项任务通过；真实模型质量复验待受控凭据
+> 验证证据：提交 `50990e5`、`data/audit/reports/verification_latest.json`、[CI #48](https://github.com/xiaochongshanww/Portfolio/actions/runs/31270198190)、[实施清单](../architecture/质量验证托管API生命周期实施清单.md)、[ADR 0015](../adr/0015-无人值守质量验证采用受控本地API生命周期.md)
 > 复核周期：I-022 收口、质量验证入口或 API 生命周期变化时
 
 ## 验证范围
@@ -25,6 +25,7 @@
 | 后端 | 通过 | `python -m pytest -q`：339 passed、1 skipped |
 | 前端 | 通过 | 9 项组件测试、`vue-tsc --noEmit`、high 级审计 0 漏洞、Vite 生产构建通过 |
 | 依赖与编排 | 通过 | 三套 Python 哈希锁无漂移；`docker compose config --quiet` 通过 |
+| 远程 CI | 通过 | CI #48 的依赖锁、Windows/Linux 后端、前端、容器、Windows/Linux 产包、双向消费和 OpenWebUI 十项任务全部成功 |
 
 ## 当前质量结论
 
@@ -34,6 +35,6 @@
 
 ## 待完成
 
-- [ ] 推送实现并通过 Windows/Linux 后端、前端、依赖锁、容器、知识包与 OpenWebUI 远程 CI。
+- [x] 推送实现并通过 Windows/Linux 后端、前端、依赖锁、容器、知识包与 OpenWebUI 远程 CI。
 - [ ] 在受控模型凭据可用时运行完整托管质量验证，按实际报告处置检索或回答回归。
 - [ ] 两类证据均完成后，将本记录、实施清单和路线图状态更新为“已完成”。
