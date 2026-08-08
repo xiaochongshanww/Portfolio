@@ -73,6 +73,44 @@ def test_cross_platform_probe_requires_only_expected_os_warning(tmp_path: Path, 
     assert probe["warnings"][0].startswith("操作系统不同:")
 
 
+def test_portability_variants_keep_asset_paths_and_change_runtime_identity(tmp_path: Path):
+    package_a = tmp_path / "variant-a.zip"
+    package_b = tmp_path / "variant-b.zip"
+
+    created_a = create_portability_package(package_a, variant="test-a")
+    created_b = create_portability_package(package_b, variant="test-b")
+    validation_a = validate_runtime_package(package_a)
+    validation_b = validate_runtime_package(package_b)
+
+    assert created_a["variant"] == "test-a"
+    assert created_b["variant"] == "test-b"
+    assert validation_a["package_id"] != validation_b["package_id"]
+    assert validation_a["data_version_hash"] != validation_b["data_version_hash"]
+
+    with zipfile.ZipFile(package_a) as archive_a, zipfile.ZipFile(package_b) as archive_b:
+        asset_prefixes = (
+            "runtime/structured_tables/",
+            "runtime/images/",
+            "runtime/metadata/",
+        )
+        runtime_paths_a = {
+            name for name in archive_a.namelist() if name.startswith(asset_prefixes)
+        }
+        runtime_paths_b = {
+            name for name in archive_b.namelist() if name.startswith(asset_prefixes)
+        }
+        table_a = json.loads(archive_a.read("runtime/structured_tables/表5.1.1-活荷载.json"))
+        table_b = json.loads(archive_b.read("runtime/structured_tables/表5.1.1-活荷载.json"))
+        image_a = archive_a.read("runtime/images/第1页-示意图.png")
+        image_b = archive_b.read("runtime/images/第1页-示意图.png")
+
+    assert runtime_paths_a == runtime_paths_b
+    assert table_a["package_variant"] == "test-a"
+    assert table_b["package_variant"] == "test-b"
+    assert image_a == b"portability-image:test-a"
+    assert image_b == b"portability-image:test-b"
+
+
 def test_api_cold_start_failure_stops_child_process(tmp_path: Path, monkeypatch):
     package = tmp_path / "cleanup-package.zip"
     create_portability_package(package)

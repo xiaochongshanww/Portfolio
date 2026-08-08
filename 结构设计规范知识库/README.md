@@ -122,6 +122,8 @@ python -m uvicorn src.app.main:app --host 127.0.0.1 --port 8000
 
 维护者导出知识包前必须运行 `python scripts/verify_quality.py`。当前 v4 导出会复核数据版本、评估集哈希和报告年龄，携带来源访问策略，并把兼容性、能力和质量元数据绑定到包标识；失败时默认阻断，紧急豁免必须记录责任人和原因。`package-validate` 只证明格式与哈希完整，目标环境还应运行 `package-probe` 隔离导入并实际打开 Chroma。详见 [知识包格式规范](./docs/reference/知识包格式规范.md) 与 [ADR 0004](./docs/adr/0004-知识包采用受控兼容矩阵与运行探针.md)。
 
+运行包升级与回退必须在维护窗口使用完整 ZIP：保留上一版包及 SHA-256，停止 API 后以 `--replace` 导入，重启并核对包标识与数据版本；回退时重新导入上一版包，不手工编辑活动指针。完整步骤见 [部署运行手册](./docs/operations/部署运行手册.md) 与 [ADR 0009](./docs/adr/0009-运行知识恢复采用受控知识包重部署.md)。
+
 ### 第三步：配置客户端并开始使用
 
 以 Open WebUI 或其他 OpenAI-compatible 客户端为例：

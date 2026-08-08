@@ -83,7 +83,11 @@ def main() -> None:
     import_parser.add_argument("--package", required=True, help="知识包 ZIP 文件")
     import_parser.add_argument("--data-dir", default=str(DATA_DIR), help="目标数据目录，默认使用 DATA_DIR")
     import_parser.add_argument("--replace", action="store_true", help="覆盖同包版本和冲突资产")
-    import_parser.add_argument("--no-activate", action="store_true", help="只安装版本，不更新活动数据库指针")
+    import_parser.add_argument(
+        "--no-activate",
+        action="store_true",
+        help="只安装数据库版本，不更新活动指针或共享资产",
+    )
     args = parser.parse_args()
 
     try:

@@ -786,7 +786,11 @@ def import_runtime_package(
         staged_manifest = runtime / "manifest.json"
         asset_mappings = _asset_mappings(runtime, data_dir)
 
-        conflicts = [target for source, target in asset_mappings if target.exists() and _sha256(source) != _sha256(target)]
+        conflicts = [
+            target
+            for source, target in asset_mappings
+            if activate and target.exists() and _sha256(source) != _sha256(target)
+        ]
         if version_root.exists() and not replace:
             raise KnowledgePackageError(f"知识包版本已经安装: {version_root}")
         if conflicts and not replace:
@@ -817,16 +821,17 @@ def import_runtime_package(
 
             copied_assets = 0
             reused_assets = 0
-            for index, (source, target) in enumerate(asset_mappings):
-                if target.exists() and _sha256(source) == _sha256(target):
-                    reused_assets += 1
-                    continue
-                if target.exists():
-                    backup_target(target, f"asset-{index}")
-                target.parent.mkdir(parents=True, exist_ok=True)
-                created_targets.append(target)
-                shutil.copy2(source, target)
-                copied_assets += 1
+            if activate:
+                for index, (source, target) in enumerate(asset_mappings):
+                    if target.exists() and _sha256(source) == _sha256(target):
+                        reused_assets += 1
+                        continue
+                    if target.exists():
+                        backup_target(target, f"asset-{index}")
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    created_targets.append(target)
+                    shutil.copy2(source, target)
+                    copied_assets += 1
 
             if activate:
                 backup_target(root_manifest_path, "root-manifest.json")

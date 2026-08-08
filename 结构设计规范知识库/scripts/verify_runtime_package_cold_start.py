@@ -75,27 +75,15 @@ def _stop_process(process: subprocess.Popen[Any]) -> None:
         process.wait(timeout=10)
 
 
-def verify_runtime_package_cold_start(
-    package_path: Path,
+def verify_imported_runtime_api(
+    data_dir: Path,
+    validation: dict[str, Any],
     *,
-    expected_source_platform: str = "",
-    require_cross_platform: bool = False,
+    expected_db_dir: Path,
     startup_timeout: float = 60,
 ) -> dict[str, Any]:
-    package_path = package_path.resolve()
-    validation = validate_runtime_package(package_path)
-    compatibility = validation.get("compatibility", {})
-    source_platform = str(compatibility.get("platform") or "").lower()
-    target_platform = platform.system().lower()
-    if expected_source_platform and source_platform != expected_source_platform.lower():
-        raise RuntimePackageColdStartError(
-            f"知识包来源平台不匹配: expected={expected_source_platform.lower()}, actual={source_platform}"
-        )
-    if require_cross_platform and source_platform == target_platform:
-        raise RuntimePackageColdStartError(
-            f"要求跨平台冷启动，但来源和目标均为 {target_platform}"
-        )
-
+    data_dir = data_dir.resolve()
+    expected_db_dir = expected_db_dir.resolve()
     expected_count = int(validation.get("chunk_count", 0))
     expected_document_count = int(validation.get("document_count", 0))
     if expected_count <= 0:
@@ -103,9 +91,6 @@ def verify_runtime_package_cold_start(
 
     with tempfile.TemporaryDirectory(prefix="knowledge-package-api-") as temporary_name:
         runtime_root = Path(temporary_name)
-        data_dir = runtime_root / "runtime-data"
-        imported = import_runtime_package(package_path, data_dir=data_dir)
-        expected_db_dir = Path(imported["active_db_dir"]).resolve()
         log_path = runtime_root / "api.log"
         port = _free_port()
         base_url = f"http://127.0.0.1:{port}"
@@ -154,23 +139,67 @@ def verify_runtime_package_cold_start(
             finally:
                 _stop_process(process)
 
-        loaded_db_dir = Path(str(active.get("loaded_db_dir") or "")).resolve()
-        checks = {
-            "ready": ready.get("ready") is True,
-            "collection_count": int(active.get("collection_count", -1)) == expected_count,
-            "manifest_chunk_count": int(documents.get("chunk_count", -1)) == expected_count,
-            "document_count": int(documents.get("document_count", -1)) == expected_document_count,
-            "data_version_hash": documents.get("data_version_hash") == validation.get("data_version_hash"),
-            "loaded_expected_db": loaded_db_dir == expected_db_dir,
-            "loaded_within_data_dir": loaded_db_dir.is_relative_to(data_dir.resolve()),
-        }
-        failed_checks = [name for name, passed in checks.items() if not passed]
-        if failed_checks:
-            raise RuntimePackageColdStartError(
-                "API 冷启动断言失败: "
-                + ", ".join(failed_checks)
-                + f"; ready={ready}; documents={documents}; active={active}"
-            )
+    loaded_db_dir = Path(str(active.get("loaded_db_dir") or "")).resolve()
+    checks = {
+        "ready": ready.get("ready") is True,
+        "collection_count": int(active.get("collection_count", -1)) == expected_count,
+        "manifest_chunk_count": int(documents.get("chunk_count", -1)) == expected_count,
+        "document_count": int(documents.get("document_count", -1)) == expected_document_count,
+        "data_version_hash": documents.get("data_version_hash") == validation.get("data_version_hash"),
+        "active_data_version_hash": active.get("data_version_hash") == validation.get("data_version_hash"),
+        "active_package_id": active.get("package_id") == validation.get("package_id"),
+        "loaded_expected_db": loaded_db_dir == expected_db_dir,
+        "loaded_within_data_dir": loaded_db_dir.is_relative_to(data_dir),
+    }
+    failed_checks = [name for name, passed in checks.items() if not passed]
+    if failed_checks:
+        raise RuntimePackageColdStartError(
+            "API 冷启动断言失败: "
+            + ", ".join(failed_checks)
+            + f"; ready={ready}; documents={documents}; active={active}"
+        )
+    return {
+        "checks": checks,
+        "loaded_db_dir": str(loaded_db_dir),
+        "package_id": active.get("package_id"),
+        "data_version_hash": documents.get("data_version_hash"),
+        "chunk_count": int(documents.get("chunk_count", -1)),
+        "document_count": int(documents.get("document_count", -1)),
+    }
+
+
+def verify_runtime_package_cold_start(
+    package_path: Path,
+    *,
+    expected_source_platform: str = "",
+    require_cross_platform: bool = False,
+    startup_timeout: float = 60,
+) -> dict[str, Any]:
+    package_path = package_path.resolve()
+    validation = validate_runtime_package(package_path)
+    compatibility = validation.get("compatibility", {})
+    source_platform = str(compatibility.get("platform") or "").lower()
+    target_platform = platform.system().lower()
+    if expected_source_platform and source_platform != expected_source_platform.lower():
+        raise RuntimePackageColdStartError(
+            f"知识包来源平台不匹配: expected={expected_source_platform.lower()}, actual={source_platform}"
+        )
+    if require_cross_platform and source_platform == target_platform:
+        raise RuntimePackageColdStartError(
+            f"要求跨平台冷启动，但来源和目标均为 {target_platform}"
+        )
+
+    with tempfile.TemporaryDirectory(prefix="knowledge-package-api-") as temporary_name:
+        runtime_root = Path(temporary_name)
+        data_dir = runtime_root / "runtime-data"
+        imported = import_runtime_package(package_path, data_dir=data_dir)
+        expected_db_dir = Path(imported["active_db_dir"]).resolve()
+        runtime_result = verify_imported_runtime_api(
+            data_dir,
+            validation,
+            expected_db_dir=expected_db_dir,
+            startup_timeout=startup_timeout,
+        )
 
     return {
         "ok": True,
@@ -179,10 +208,10 @@ def verify_runtime_package_cold_start(
         "source_platform": source_platform,
         "target_platform": target_platform,
         "cross_platform": source_platform != target_platform,
-        "chunk_count": expected_count,
-        "document_count": expected_document_count,
+        "chunk_count": int(validation.get("chunk_count", 0)),
+        "document_count": int(validation.get("document_count", 0)),
         "data_version_hash": validation["data_version_hash"],
-        "checks": checks,
+        "checks": runtime_result["checks"],
         "external_model_calls": 0,
     }
 

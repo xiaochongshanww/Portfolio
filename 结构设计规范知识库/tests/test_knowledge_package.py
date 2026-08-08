@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+import src.pipeline.knowledge_package as knowledge_package_module
 from src.pipeline.active_db import active_db_dir, read_active_manifest
 from src.pipeline.knowledge_package import (
     KnowledgePackageError,
@@ -270,17 +271,59 @@ def test_runtime_package_requires_replace_for_conflicting_assets(tmp_path: Path)
     assert target_image.read_bytes() == b"png-data"
 
 
+def test_runtime_package_replace_failure_restores_complete_previous_state(
+    tmp_path: Path,
+    monkeypatch,
+):
+    package = _export(tmp_path)
+    target_data = tmp_path / "target" / "data"
+    import_runtime_package(package, data_dir=target_data)
+    target_image = target_data / "images" / "preview.png"
+    target_image.write_bytes(b"previous-active-image")
+
+    def snapshot(root: Path) -> dict[str, bytes]:
+        return {
+            path.relative_to(root).as_posix(): path.read_bytes()
+            for path in sorted(root.rglob("*"))
+            if path.is_file()
+        }
+
+    before = snapshot(target_data)
+    real_copy2 = knowledge_package_module.shutil.copy2
+    root_manifest = (target_data / "manifest.json").resolve()
+
+    def fail_root_manifest_copy(source, target, *args, **kwargs):
+        if Path(target).resolve() == root_manifest:
+            raise OSError("injected root manifest copy failure")
+        return real_copy2(source, target, *args, **kwargs)
+
+    monkeypatch.setattr(knowledge_package_module.shutil, "copy2", fail_root_manifest_copy)
+
+    with pytest.raises(OSError, match="injected root manifest copy failure"):
+        import_runtime_package(package, data_dir=target_data, replace=True)
+
+    assert snapshot(target_data) == before
+
+
 def test_runtime_package_can_install_without_activation(tmp_path: Path):
     package = _export(tmp_path)
     target_data = tmp_path / "target" / "data"
+    existing_image = target_data / "images" / "preview.png"
+    existing_image.parent.mkdir(parents=True)
+    existing_image.write_bytes(b"existing-image")
 
     imported = import_runtime_package(package, data_dir=target_data, activate=False)
 
     assert imported["activated"] is False
     assert imported["restart_required"] is False
+    assert imported["copied_asset_count"] == 0
+    assert imported["reused_asset_count"] == 0
     assert Path(imported["version_dir"]).is_dir()
     assert not (target_data / "active_db.json").exists()
     assert not (target_data / "manifest.json").exists()
+    assert existing_image.read_bytes() == b"existing-image"
+    assert not (target_data / "structured_tables").exists()
+    assert not (target_data / "metadata").exists()
 
 
 def test_runtime_package_blocks_failed_quality_gate_and_audits_attempt(tmp_path: Path, monkeypatch):
