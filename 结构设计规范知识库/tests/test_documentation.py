@@ -152,6 +152,30 @@ def test_managed_quality_api_lifecycle_is_documented():
     assert checklist.is_file()
 
 
+def test_configuration_example_validation_is_documented():
+    readme = Path("README.md").read_text(encoding="utf-8")
+    config_reference = Path("docs/reference/配置参考.md").read_text(encoding="utf-8")
+    operations = Path("docs/operations/部署运行手册.md").read_text(encoding="utf-8")
+    governance = Path("docs/文档治理规则.md").read_text(encoding="utf-8")
+    detailed_design = Path("docs/architecture/系统详细设计.md").read_text(
+        encoding="utf-8"
+    )
+    release_checklist = Path("docs/releases/发布检查单.md").read_text(
+        encoding="utf-8"
+    )
+    implementation = Path("docs/architecture/配置示例可执行验证实施清单.md")
+    command = "python scripts/validate_configuration_example.py"
+    compose_command = "docker compose --env-file .env.example config --quiet"
+
+    assert command in readme
+    assert command in config_reference
+    assert command.replace("/", "\\") in operations
+    assert "tests/test_configuration_example.py" in governance
+    assert "Windows/Linux 后端 CI" in detailed_design
+    assert compose_command in release_checklist
+    assert implementation.is_file()
+
+
 def test_runtime_backup_and_disaster_recovery_contract_is_documented():
     readme = Path("README.md").read_text(encoding="utf-8")
     operations = Path("docs/operations/部署运行手册.md").read_text(encoding="utf-8")

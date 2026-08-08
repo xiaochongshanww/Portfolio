@@ -67,6 +67,15 @@ python scripts/lock_dependencies.py --write
 python scripts/lock_dependencies.py --check
 ```
 
+提交配置示例变更前必须验证 dotenv 语法、重复键、敏感占位和应用启动配置：
+
+```powershell
+python scripts/validate_configuration_example.py
+docker compose --env-file .env.example config --quiet
+```
+
+第一条命令在隔离环境中用 `.env.example` 执行真实应用配置预检，输出不含配置值的 JSON；第二条命令验证同一示例能完成 Compose 变量替换与结构渲染。真实部署仍需从秘密管理系统注入 Key，不能把示例文件改成凭据文件。
+
 CI 会从空临时目录重新解析并逐字比较三份锁，同时在 Ubuntu 和 Windows 上按哈希安装开发锁并运行完整测试。只有直接依赖、锁配置、对应锁文件和验证证据同时更新，依赖升级才算完成。
 
 ### 2. 配置模型 API Key
