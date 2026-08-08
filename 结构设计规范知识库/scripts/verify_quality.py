@@ -21,6 +21,13 @@ from src.evaluation.runner import (  # noqa: E402
     render_evaluation_markdown,
     run_evaluation,
 )
+from src.evaluation.answer_runner import (  # noqa: E402
+    ANSWER_EVAL_PATH,
+    render_answer_evaluation_markdown,
+    run_answer_evaluation,
+)
+from src.evaluation.api_target import probe_api_readiness  # noqa: E402
+from src.app.core.urls import normalize_http_base_url  # noqa: E402
 from src.pipeline.paths import AUDIT_DIR  # noqa: E402
 from src.quality import evaluate_quality_gate, render_quality_gate_markdown  # noqa: E402
 
@@ -59,12 +66,18 @@ def _run_evaluation(path: Path, stem: str, title: str) -> dict[str, Any]:
         render_evaluation_markdown(result, title),
         encoding="utf-8",
     )
+    failure_count = len(result.get("failures", []))
+    passed = result.get("ok") is True and failure_count == 0
     return {
-        "ok": result.get("ok") is True and not result.get("failures"),
+        "ok": passed,
         "duration_seconds": round(time.monotonic() - started, 2),
         "case_count": result.get("case_count", 0),
-        "failure_count": len(result.get("failures", [])),
-        "error": result.get("error", ""),
+        "failure_count": failure_count,
+        "error": (
+            result.get("error")
+            or (f"检索评估完成但有 {failure_count} 个失败用例" if failure_count else "")
+            or ("检索评估执行结果为 ok=false" if not passed else "")
+        ),
     }
 
 
@@ -98,18 +111,27 @@ def _run_api_evaluation(path: Path, api_base: str, api_key: str) -> dict[str, An
         current = _api_json(f"{api_base}/admin/jobs/{job_id}", api_key=api_key)
         if current.get("status") == "succeeded":
             outputs = current.get("outputs", {})
+            failure_count = len(outputs.get("failures", []))
+            passed = outputs.get("ok") is True and failure_count == 0
             return {
-                "ok": outputs.get("ok") is True and not outputs.get("failures"),
+                "ok": passed,
                 "duration_seconds": round(time.monotonic() - started, 2),
                 "case_count": outputs.get("case_count", 0),
-                "failure_count": len(outputs.get("failures", [])),
+                "failure_count": failure_count,
+                "error": (
+                    outputs.get("error")
+                    or (f"检索评估完成但有 {failure_count} 个失败用例" if failure_count else "")
+                    or ("评估后台任务返回 ok=false" if not passed else "")
+                ),
                 "job_id": job_id,
             }
         if current.get("status") == "failed":
+            outputs = current.get("outputs", {})
             return {
                 "ok": False,
                 "duration_seconds": round(time.monotonic() - started, 2),
-                "error": current.get("error") or "评估后台任务失败",
+                "error": current.get("error") or outputs.get("error") or "评估后台任务失败",
+                "report_path": outputs.get("report_path", ""),
                 "job_id": job_id,
             }
         time.sleep(1)
@@ -121,52 +143,49 @@ def _run_api_evaluation(path: Path, api_base: str, api_key: str) -> dict[str, An
     }
 
 
-def _run_api_answer_evaluation(api_base: str, api_key: str) -> dict[str, Any]:
+def _run_answer_evaluation_against_api(api_base: str, api_key: str) -> dict[str, Any]:
     started = time.monotonic()
-    job = _api_json(
-        f"{api_base}/admin/jobs/evaluate-answers",
+    result = run_answer_evaluation(
+        api_base=api_base,
         api_key=api_key,
-        method="POST",
-        payload={},
+        path=ANSWER_EVAL_PATH,
     )
-    job_id = str(job["job_id"])
-    deadline = time.monotonic() + 1800
-    while time.monotonic() < deadline:
-        current = _api_json(f"{api_base}/admin/jobs/{job_id}", api_key=api_key)
-        if current.get("status") == "succeeded":
-            outputs = current.get("outputs", {})
-            return {
-                "ok": (
-                    outputs.get("ok") is True
-                    and float(outputs.get("pass_rate", 0)) >= 0.90
-                ),
-                "duration_seconds": round(time.monotonic() - started, 2),
-                "case_count": outputs.get("case_count", 0),
-                "failure_count": outputs.get("failure_count", 0),
-                "pass_rate": outputs.get("pass_rate", 0),
-                "job_id": job_id,
-            }
-        if current.get("status") == "failed":
-            return {
-                "ok": False,
-                "duration_seconds": round(time.monotonic() - started, 2),
-                "error": current.get("error") or "回答评估后台任务失败",
-                "job_id": job_id,
-            }
-        time.sleep(2)
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    (REPORTS_DIR / "evaluation_answer_latest.json").write_text(
+        json.dumps(result, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    (REPORTS_DIR / "evaluation_answer_latest.md").write_text(
+        render_answer_evaluation_markdown(result),
+        encoding="utf-8",
+    )
+    pass_rate = float(result.get("pass_rate", 0))
+    passed = result.get("ok") is True and pass_rate >= 0.90
     return {
-        "ok": False,
+        "ok": passed,
         "duration_seconds": round(time.monotonic() - started, 2),
-        "error": "回答评估后台任务等待超时",
-        "job_id": job_id,
+        "case_count": result.get("case_count", 0),
+        "failure_count": result.get("failure_count", 0),
+        "pass_rate": pass_rate,
+        "api_base": result.get("api_base", api_base),
+        "error": (
+            result.get("error")
+            or (f"回答级盲测通过率 {pass_rate:.1%}，低于 90.0%" if not passed else "")
+        ),
     }
 
 
 def _execute_step(name: str, action: Callable[[], dict[str, Any]]) -> dict[str, Any]:
+    started = time.monotonic()
     try:
         return {"name": name, **action()}
     except Exception as exc:
-        return {"name": name, "ok": False, "error": str(exc)}
+        return {
+            "name": name,
+            "ok": False,
+            "duration_seconds": round(time.monotonic() - started, 2),
+            "error": str(exc),
+        }
 
 
 def _render_verification_markdown(result: dict[str, Any]) -> str:
@@ -180,8 +199,9 @@ def _render_verification_markdown(result: dict[str, Any]) -> str:
         "| --- | --- | --- |",
     ]
     for step in result.get("steps", []):
+        status = "跳过" if step.get("skipped") else ("通过" if step.get("ok") else "失败")
         lines.append(
-            f"| {step.get('name')} | {'通过' if step.get('ok') else '失败'} | {step.get('duration_seconds', '-')} s |"
+            f"| {step.get('name')} | {status} | {step.get('duration_seconds', '-')} s |"
         )
     failed = [step for step in result.get("steps", []) if not step.get("ok")]
     if failed:
@@ -206,8 +226,27 @@ def main() -> None:
         help="默认通过已运行 API 执行评估，以复用其模型配置",
     )
     args = parser.parse_args()
+    try:
+        api_base = normalize_http_base_url(args.api_base, field_name="--api-base")
+    except ValueError as exc:
+        parser.error(str(exc))
 
     steps: list[dict[str, Any]] = []
+    runtime_key_path = PROJECT_ROOT / ".runtime_api_key"
+    runtime_key = runtime_key_path.read_text(encoding="utf-8").strip() if runtime_key_path.exists() else ""
+    api_required = (
+        (not args.skip_evaluations and args.evaluation_mode == "api")
+        or not args.skip_answer_evaluation
+    )
+    api_ready = True
+    if api_required:
+        readiness_step = _execute_step(
+            "目标 API 就绪预检",
+            lambda: probe_api_readiness(api_base),
+        )
+        steps.append(readiness_step)
+        api_ready = readiness_step.get("ok") is True
+
     if not args.skip_tests:
         steps.append(
             _execute_step(
@@ -224,46 +263,70 @@ def main() -> None:
             )
         )
     if not args.skip_evaluations:
-        runtime_key_path = PROJECT_ROOT / ".runtime_api_key"
-        runtime_key = runtime_key_path.read_text(encoding="utf-8").strip() if runtime_key_path.exists() else ""
-
         def evaluation_action(path: Path, stem: str, title: str) -> dict[str, Any]:
             if args.evaluation_mode == "api":
                 if not runtime_key:
                     return {"ok": False, "error": "缺少 .runtime_api_key，无法调用本地评估 API"}
                 try:
-                    return _run_api_evaluation(path, args.api_base.rstrip("/"), runtime_key)
+                    return _run_api_evaluation(path, api_base, runtime_key)
                 except (OSError, urllib.error.URLError, json.JSONDecodeError) as exc:
                     return {"ok": False, "error": f"无法调用本地评估 API：{exc}"}
             return _run_evaluation(path, stem, title)
 
-        steps.append(
-            _execute_step(
-                "常规检索评估",
-                lambda: evaluation_action(DEFAULT_EVAL_PATH, "evaluation_latest", "检索评估报告"),
+        if args.evaluation_mode == "api" and not api_ready:
+            for name in ("常规检索评估", "结构化专项评估"):
+                steps.append(
+                    {
+                        "name": name,
+                        "ok": False,
+                        "skipped": True,
+                        "duration_seconds": 0,
+                        "error": "未执行：目标 API 就绪预检失败",
+                    }
+                )
+        else:
+            steps.append(
+                _execute_step(
+                    "常规检索评估",
+                    lambda: evaluation_action(DEFAULT_EVAL_PATH, "evaluation_latest", "检索评估报告"),
+                )
             )
-        )
-        steps.append(
-            _execute_step(
-                "结构化专项评估",
-                lambda: evaluation_action(
-                    STRUCTURED_EVAL_PATH,
-                    "evaluation_structured_latest",
-                    "结构化检索专项评估",
-                ),
+            steps.append(
+                _execute_step(
+                    "结构化专项评估",
+                    lambda: evaluation_action(
+                        STRUCTURED_EVAL_PATH,
+                        "evaluation_structured_latest",
+                        "结构化检索专项评估",
+                    ),
+                )
             )
-        )
     if not args.skip_answer_evaluation:
-        runtime_key_path = PROJECT_ROOT / ".runtime_api_key"
-        runtime_key = runtime_key_path.read_text(encoding="utf-8").strip() if runtime_key_path.exists() else ""
-        if not runtime_key:
-            steps.append({"name": "回答级盲测", "ok": False, "error": "缺少 .runtime_api_key"})
+        if not api_ready:
+            steps.append(
+                {
+                    "name": "回答级盲测",
+                    "ok": False,
+                    "skipped": True,
+                    "duration_seconds": 0,
+                    "error": "未执行：目标 API 就绪预检失败",
+                }
+            )
+        elif not runtime_key:
+            steps.append(
+                {
+                    "name": "回答级盲测",
+                    "ok": False,
+                    "duration_seconds": 0,
+                    "error": "缺少 .runtime_api_key",
+                }
+            )
         else:
             steps.append(
                 _execute_step(
                     "回答级盲测",
-                    lambda: _run_api_answer_evaluation(
-                        args.api_base.rstrip("/"),
+                    lambda: _run_answer_evaluation_against_api(
+                        api_base,
                         runtime_key,
                     ),
                 )
@@ -278,7 +341,19 @@ def main() -> None:
         render_quality_gate_markdown(gate_result),
         encoding="utf-8",
     )
-    steps.append({"name": "自动质量门禁", "ok": gate_result["passed"], "duration_seconds": 0})
+    failed_gate_checks = [str(value) for value in gate_result.get("failed_checks", [])]
+    steps.append(
+        {
+            "name": "自动质量门禁",
+            "ok": gate_result["passed"],
+            "duration_seconds": 0,
+            "error": (
+                "自动质量门禁未通过：" + ", ".join(failed_gate_checks)
+                if not gate_result["passed"]
+                else ""
+            ),
+        }
+    )
 
     result = {
         "generated_at": datetime.now(timezone.utc).isoformat(),

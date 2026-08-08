@@ -8,6 +8,7 @@ from src.evaluation.answer_runner import (
     evaluate_answer,
     extract_markdown_images,
     load_answer_cases,
+    summarize_answer_results,
     validate_trace_citations,
     validate_answer_cases,
 )
@@ -187,3 +188,52 @@ def test_load_answer_cases_rejects_invalid_file(tmp_path: Path):
     path.write_text('{"id":"x","query":"","type":"direct_value"}\n', encoding="utf-8")
     with pytest.raises(ValueError, match="契约校验失败"):
         load_answer_cases(path)
+
+
+def test_answer_summary_distinguishes_request_failure_from_quality_failure(tmp_path: Path):
+    path = tmp_path / "answers.jsonl"
+    path.write_text("{}", encoding="utf-8")
+    cases = [_case(id="request"), _case(id="quality")]
+    results = [
+        {
+            "id": "request",
+            "type": "direct_value",
+            "passed": False,
+            "checks": {"request": False},
+            "failed_checks": ["request"],
+            "error": "connection refused",
+        },
+        {
+            "id": "quality",
+            "type": "direct_value",
+            "passed": False,
+            "checks": {"facts_all": False},
+            "failed_checks": ["facts_all"],
+        },
+    ]
+
+    summary = summarize_answer_results(cases, results, path=path)
+
+    assert summary["ok"] is False
+    assert "1/2 个请求未完成" in summary["error"]
+    assert summary["failure_count"] == 2
+
+
+def test_answer_summary_keeps_assertion_failure_as_completed(tmp_path: Path):
+    path = tmp_path / "answers.jsonl"
+    path.write_text("{}", encoding="utf-8")
+    cases = [_case(id="quality")]
+    results = [
+        {
+            "id": "quality",
+            "type": "direct_value",
+            "passed": False,
+            "checks": {"facts_all": False},
+            "failed_checks": ["facts_all"],
+        }
+    ]
+
+    summary = summarize_answer_results(cases, results, path=path)
+
+    assert summary["ok"] is True
+    assert summary["pass_rate"] == 0

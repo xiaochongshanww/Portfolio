@@ -338,7 +338,9 @@ def run_answer_evaluation(
             case_results.append(result)
             if progress_callback:
                 progress_callback(index, len(cases), result)
-    return summarize_answer_results(cases, case_results, path=path)
+    result = summarize_answer_results(cases, case_results, path=path)
+    result["api_base"] = api_base.rstrip("/")
+    return result
 
 
 def summarize_answer_results(
@@ -349,6 +351,11 @@ def summarize_answer_results(
 ) -> dict[str, Any]:
     total = len(cases)
     passed = sum(1 for item in case_results if item.get("passed"))
+    request_failures = [
+        item
+        for item in case_results
+        if item.get("checks", {}).get("request") is False
+    ]
     check_names = sorted(
         {name for item in case_results for name in item.get("checks", {})}
     )
@@ -371,8 +378,8 @@ def summarize_answer_results(
         for case, result in zip(cases, case_results)
         if case.requires_refusal
     ]
-    return {
-        "ok": True,
+    result = {
+        "ok": not request_failures,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "evaluation_set": str(path.resolve()),
         "evaluation_set_hash": hashlib.sha256(path.read_bytes()).hexdigest(),
@@ -393,12 +400,21 @@ def summarize_answer_results(
         "failures": [item for item in case_results if not item.get("passed")],
         "results": case_results,
     }
+    if request_failures:
+        sample_error = str(request_failures[0].get("error") or "请求失败")
+        result["error"] = (
+            f"回答级盲测有 {len(request_failures)}/{total} 个请求未完成；"
+            f"首个错误：{sample_error}"
+        )
+    return result
 
 
 def render_answer_evaluation_markdown(result: dict[str, Any]) -> str:
     lines = [
         "# 回答级盲测评估报告",
         "",
+        f"- 执行状态：{'完成' if result.get('ok') else '失败'}",
+        f"- 目标 API：{result.get('api_base', '-')}",
         f"- 用例数：{result.get('case_count', 0)}",
         f"- 通过数：{result.get('passed_count', 0)}",
         f"- 总体通过率：{result.get('pass_rate', 0):.1%}",
@@ -406,9 +422,10 @@ def render_answer_evaluation_markdown(result: dict[str, Any]) -> str:
         f"- 规范依据命中率：{result.get('check_rates', {}).get('citations', 0):.1%}",
         f"- 拒答正确率：{result.get('refusal_pass_rate', 0):.1%}",
         "",
-        "## 失败用例",
-        "",
     ]
+    if result.get("error"):
+        lines.extend(["## 执行错误", "", str(result["error"]), ""])
+    lines.extend(["## 失败用例", ""])
     failures = result.get("failures", [])
     if not failures:
         lines.append("无失败用例。")

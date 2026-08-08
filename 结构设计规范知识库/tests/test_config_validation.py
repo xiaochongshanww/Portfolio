@@ -10,6 +10,7 @@ from src.app.core.config import ConfigurationError, Settings
 
 
 CONFIG_ENV_NAMES = {
+    "ANSWER_EVALUATION_API_BASE",
     "API_AUTH_ENABLED",
     "API_KEYS",
     "ASSET_SIGNING_KEY",
@@ -150,6 +151,18 @@ def test_valid_protected_configuration_is_accepted(monkeypatch):
 
     assert configured.api_auth_enabled is True
     assert configured.openwebui_api_key == "api-key-two"
+
+
+def test_answer_evaluation_target_is_normalized_and_validated(monkeypatch):
+    configured = settings_from_env(
+        monkeypatch,
+        ANSWER_EVALUATION_API_BASE="https://api.example.com/internal/",
+    )
+    assert configured.answer_evaluation_api_base == "https://api.example.com/internal"
+
+    for value in ("file:///tmp/api", "http://user:secret@example.com", "http:///missing"):
+        with pytest.raises(ConfigurationError, match="ANSWER_EVALUATION_API_BASE"):
+            settings_from_env(monkeypatch, ANSWER_EVALUATION_API_BASE=value)
 
 
 def test_runtime_paths_follow_data_dir_with_explicit_overrides(monkeypatch, tmp_path):

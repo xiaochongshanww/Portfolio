@@ -5,7 +5,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.evaluation.runner import DEFAULT_EVAL_PATH, STRUCTURED_EVAL_PATH, load_cases
 from src.evaluation.answer_runner import ANSWER_EVAL_PATH, load_answer_cases
@@ -93,6 +93,8 @@ class EvaluateRequest(BaseModel):
 
 
 class AnswerEvaluateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     file: str = str(ANSWER_EVAL_PATH)
 
 

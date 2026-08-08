@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from math import isfinite
 from pathlib import Path
 
+from src.app.core.urls import normalize_http_base_url
 from src.pipeline.paths import configured_project_path
 
 try:
@@ -61,6 +62,13 @@ def _env_float(name: str, default: str) -> float:
     return parsed
 
 
+def _env_http_base_url(name: str, default: str) -> str:
+    try:
+        return normalize_http_base_url(os.getenv(name, default), field_name=name)
+    except ValueError as exc:
+        raise ConfigurationError(str(exc)) from exc
+
+
 @dataclass(frozen=True)
 class Settings:
     app_title: str = "结构设计规范知识库 RAG API (多模态)"
@@ -91,6 +99,12 @@ class Settings:
     rate_limit_per_minute: int = field(default_factory=lambda: _env_int("RATE_LIMIT_PER_MINUTE", "30"))
     job_heartbeat_seconds: int = field(default_factory=lambda: _env_int("JOB_HEARTBEAT_SECONDS", "15"))
     job_stale_after_seconds: int = field(default_factory=lambda: _env_int("JOB_STALE_AFTER_SECONDS", "7200"))
+    answer_evaluation_api_base: str = field(
+        default_factory=lambda: _env_http_base_url(
+            "ANSWER_EVALUATION_API_BASE",
+            "http://127.0.0.1:8000",
+        )
+    )
     version_retention_keep_recent_passed: int = field(
         default_factory=lambda: _env_int("VERSION_RETENTION_KEEP_RECENT_PASSED", "2")
     )

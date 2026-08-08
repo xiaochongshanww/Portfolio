@@ -90,3 +90,19 @@ def test_all_documentation_is_reachable_from_document_center():
     unreachable = sorted(str(path.relative_to(project_root)) for path in required - visited)
 
     assert unreachable == []
+
+
+def test_quality_verification_target_contract_is_documented():
+    env_example = Path(".env.example").read_text(encoding="utf-8")
+    config_reference = Path("docs/reference/配置参考.md").read_text(encoding="utf-8")
+    api_reference = Path("docs/reference/接口参考.md").read_text(encoding="utf-8")
+    operations = Path("docs/operations/知识库维护与质量运营.md").read_text(encoding="utf-8")
+    decision = Path("docs/adr/0011-质量验证采用显式目标与执行失败语义.md")
+    checklist = Path("docs/architecture/质量验证目标与失败语义实施清单.md")
+
+    assert "ANSWER_EVALUATION_API_BASE=http://127.0.0.1:8000" in env_example
+    assert "ANSWER_EVALUATION_API_BASE" in config_reference
+    assert "评估执行失败" in api_reference
+    assert "--api-base http://127.0.0.1:8017" in operations
+    assert decision.is_file()
+    assert checklist.is_file()

@@ -389,6 +389,7 @@ def render_evaluation_markdown(result: dict[str, Any], title: str = "检索评�
     lines = [
         f"# {title}",
         "",
+        f"- 执行状态：{'完成' if result.get('ok') else '失败'}",
         f"- 用例数：{result.get('case_count', 0)}",
         f"- 来源命中率：{result.get('source_hit_rate', 0):.1%}",
         f"- 条文命中率：{result.get('clause_hit_rate', 0):.1%}",
@@ -397,9 +398,10 @@ def render_evaluation_markdown(result: dict[str, Any], title: str = "检索评�
         f"- 结构化表命中率：{result.get('structured_table_hit_rate', 1):.1%}",
         f"- 失败数：{len(result.get('failures', []))}",
         "",
-        "## 类型分布",
-        "",
     ]
+    if result.get("error"):
+        lines.extend(["## 执行错误", "", str(result["error"]), ""])
+    lines.extend(["## 类型分布", ""])
     for key, value in sorted(result.get("cases_by_type", {}).items()):
         lines.append(f"- `{key}`：{value}")
     lines.extend(["", "## 失败用例", ""])
