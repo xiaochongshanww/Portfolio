@@ -1,4 +1,5 @@
 import argparse
+import sys
 from datetime import timedelta
 from math import isfinite
 from pathlib import Path
@@ -14,6 +15,13 @@ from .knowledge_package import (
 from .paths import DATA_DIR, RAW_DIR
 
 
+def _configure_cli_streams() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(errors="backslashreplace")
+
+
 def _quality_age_hours(value: str) -> float:
     try:
         hours = float(value)
@@ -25,6 +33,7 @@ def _quality_age_hours(value: str) -> float:
 
 
 def main() -> None:
+    _configure_cli_streams()
     parser = argparse.ArgumentParser(description="结构设计规范知识库构建工具")
     subparsers = parser.add_subparsers(dest="command", required=True)
 

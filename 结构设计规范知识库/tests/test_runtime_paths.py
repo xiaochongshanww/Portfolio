@@ -58,6 +58,7 @@ def test_pipeline_path_constants_follow_data_dir_at_process_start(tmp_path):
 def test_pipeline_cli_initializes_with_configured_data_dir(tmp_path):
     env = os.environ.copy()
     env["DATA_DIR"] = str(tmp_path / "cli-data")
+    env["PYTHONIOENCODING"] = "cp1252"
     result = subprocess.run(
         [sys.executable, "-m", "src.pipeline", "package-import", "--help"],
         cwd=PROJECT_ROOT,
