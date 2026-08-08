@@ -2,6 +2,8 @@
 
 本项目是面向结构设计规范的 RAG（检索增强生成）知识库。它将 PDF 规范处理为可追溯的知识资产，结合权威性排序、结构化表检索和 MiMo 模型生成，提供兼容 OpenAI API 的问答接口与管理控制台。
 
+[![Structural Spec KB CI](https://github.com/xiaochongshanww/Portfolio/actions/workflows/structural-spec-kb-ci.yml/badge.svg)](https://github.com/xiaochongshanww/Portfolio/actions/workflows/structural-spec-kb-ci.yml)
+
 ## ✨ 功能特性
 
 - **自动化数据处理**: 提供从PDF扫描件到结构化文本的完整自动化处理流水线（OCR、清洗、切分）。
