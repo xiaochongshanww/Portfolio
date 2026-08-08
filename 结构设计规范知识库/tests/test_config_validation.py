@@ -19,6 +19,8 @@ CONFIG_ENV_NAMES = {
     "LLM_TIMEOUT_SECONDS",
     "LOG_LEVEL",
     "LOG_FORMAT",
+    "JOB_HEARTBEAT_SECONDS",
+    "JOB_STALE_AFTER_SECONDS",
     "MAX_REQUEST_BYTES",
     "OPENWEBUI_API_KEY",
     "RAG_MIN_SCORE",
@@ -100,6 +102,11 @@ def test_cors_wildcard_cannot_be_combined_with_credentials(monkeypatch):
         ({"LLM_TIMEOUT_SECONDS": "0"}, "LLM_TIMEOUT_SECONDS 必须大于 0"),
         ({"RAG_TOP_K": "101"}, "RAG_TOP_K 必须在 1 到 100"),
         ({"MAX_REQUEST_BYTES": "0"}, "MAX_REQUEST_BYTES 必须大于 0"),
+        ({"JOB_HEARTBEAT_SECONDS": "0"}, "JOB_HEARTBEAT_SECONDS 必须在 1 到 300"),
+        (
+            {"JOB_HEARTBEAT_SECONDS": "20", "JOB_STALE_AFTER_SECONDS": "30"},
+            "JOB_STALE_AFTER_SECONDS 必须至少为 30",
+        ),
         ({"ASSET_URL_TTL_SECONDS": "59"}, "ASSET_URL_TTL_SECONDS 必须在 60 到 604800"),
         (
             {"RETRIEVAL_DENSE_WEIGHT": "0", "RETRIEVAL_BM25_WEIGHT": "0"},

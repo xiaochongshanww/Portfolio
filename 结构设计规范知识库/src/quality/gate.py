@@ -83,7 +83,11 @@ def summarize_jobs(
     for job in jobs:
         if job.get("status") not in {"queued", "running"}:
             continue
-        started = _parse_time(job.get("started_at") or job.get("created_at"))
+        started = _parse_time(
+            job.get("progress_at")
+            or job.get("started_at")
+            or job.get("created_at")
+        )
         if started and now - started > stale_after:
             stale.append(job)
     return {
@@ -115,10 +119,13 @@ def evaluate_quality_gate(
     runtime_collection_count: int | None = None,
     now: datetime | None = None,
     max_report_age: timedelta = DEFAULT_REPORT_MAX_AGE,
+    job_stale_after: timedelta = timedelta(hours=2),
 ) -> dict[str, Any]:
     gate_time = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     if max_report_age <= timedelta(0):
         raise ValueError("max_report_age 必须大于 0")
+    if job_stale_after <= timedelta(0):
+        raise ValueError("job_stale_after 必须大于 0")
     manifest = _read_json(manifest_path)
     active_db = _read_json(active_db_path)
     active_manifest_path = Path(str(active_db.get("manifest") or manifest_path))
@@ -128,7 +135,11 @@ def evaluate_quality_gate(
     regular = _read_json(regular_report_path)
     structured = _read_json(structured_report_path)
     answer = _read_json(answer_report_path)
-    job_status = summarize_jobs(jobs if jobs is not None else _load_jobs())
+    job_status = summarize_jobs(
+        jobs if jobs is not None else _load_jobs(),
+        now=gate_time,
+        stale_after=job_stale_after,
+    )
     checks: list[dict[str, Any]] = []
 
     def check(name: str, passed: bool, message: str, **details: Any) -> None:

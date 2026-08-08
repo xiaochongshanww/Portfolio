@@ -22,6 +22,7 @@ def test_vue_console_contains_required_workflows():
     assert "Vue" in package_json or '"vue"' in package_json
     assert "tailwindcss" in package_json
     assert "构建任务" in app
+    assert 'main class="flex min-h-0 min-w-0 flex-1 flex-col"' in app
     assert "校对工作台" in app
     assert "结构化队列" in app
     assert "问答验证" in app
@@ -31,6 +32,9 @@ def test_vue_console_contains_required_workflows():
     assert "/admin/manual-structuring" in app
     assert "/admin/jobs/rebuild" in jobs
     assert "/admin/jobs/review" in jobs
+    assert "疑似卡滞" in jobs
+    assert "PROCESS_RESTARTED" in jobs
+    assert "setInterval" in jobs
     assert "/admin/corrections/approved" in review
     assert "/admin/page-image/" in review
     assert "最终修正文" in review

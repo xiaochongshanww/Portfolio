@@ -1,4 +1,5 @@
 import json
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -47,6 +48,7 @@ from src.pipeline.version_retention import (
 )
 from src.quality import evaluate_quality_gate
 
+from ..admin.job_diagnostics import diagnose_job, diagnose_jobs
 from ..admin.jobs import job_manager
 from ..core.config import settings
 from ..admin.storage import job_store
@@ -64,6 +66,14 @@ from ..admin.workflows import (
 from ..retrieval.hybrid_search import retrieval_state
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+def _diagnosed_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return diagnose_jobs(
+        jobs,
+        stale_after_seconds=settings.job_stale_after_seconds,
+        heartbeat_timeout_seconds=max(60, settings.job_heartbeat_seconds * 3),
+    )
 
 
 class JobRequest(BaseModel):
@@ -140,7 +150,7 @@ async def admin_status():
         "built": bool(manifest),
         "manifest": manifest or {},
         "raw_documents": [path.name for path in sorted(RAW_DIR.glob("*.pdf"))],
-        "jobs": job_store.list()[:10],
+        "jobs": _diagnosed_jobs(job_store.list()[:10]),
     }
 
 
@@ -240,20 +250,31 @@ async def start_answer_evaluate(request: AnswerEvaluateRequest):
 
 @router.get("/jobs")
 async def list_jobs():
-    return {"jobs": job_store.list()}
+    return {"jobs": _diagnosed_jobs(job_store.list())}
 
 
 @router.get("/jobs/{job_id}")
 async def get_job(job_id: str):
-    job = job_store.read(job_id)
+    try:
+        job = job_store.read(job_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not job:
         raise HTTPException(status_code=404, detail="job not found")
-    return job
+    return diagnose_job(
+        job,
+        stale_after_seconds=settings.job_stale_after_seconds,
+        heartbeat_timeout_seconds=max(60, settings.job_heartbeat_seconds * 3),
+    )
 
 
 @router.get("/jobs/{job_id}/logs")
 async def get_job_logs(job_id: str, limit: int = 200):
-    return {"job_id": job_id, "logs": job_store.logs(job_id, limit=limit)}
+    try:
+        logs = job_store.logs(job_id, limit=max(1, min(limit, 1000)))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"job_id": job_id, "logs": logs}
 
 
 @router.get("/evaluation/status")
@@ -303,6 +324,7 @@ async def admin_quality_status():
     quality_gate = evaluate_quality_gate(
         jobs=recent_jobs,
         runtime_collection_count=retrieval_state.chroma_count(),
+        job_stale_after=timedelta(seconds=settings.job_stale_after_seconds),
     )
     job_status = quality_gate["jobs"]
     latest_path = AUDIT_DIR / "reports" / "evaluation_latest.json"

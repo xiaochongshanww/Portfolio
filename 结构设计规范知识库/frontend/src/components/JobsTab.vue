@@ -1,5 +1,5 @@
 <template>
-  <div class="grid h-full min-h-[720px] grid-cols-[360px_minmax(0,1fr)] gap-5">
+  <div class="grid min-h-[calc(100dvh-7rem)] gap-5 xl:h-full xl:min-h-[720px] xl:grid-cols-[320px_minmax(0,1fr)]">
     <section class="panel flex flex-col">
       <div class="border-b border-slate-200 p-4">
         <h2 class="panel-title">构建任务</h2>
@@ -40,19 +40,19 @@
       </div>
     </section>
 
-    <section class="panel grid min-h-0 grid-cols-[minmax(0,1fr)_420px] overflow-hidden">
+    <section class="panel grid min-h-[760px] min-w-0 grid-rows-[minmax(420px,1fr)_320px] overflow-hidden 2xl:min-h-[680px] 2xl:grid-cols-[minmax(0,1fr)_420px] 2xl:grid-rows-1">
       <div class="min-w-0 overflow-auto">
         <div class="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white p-4">
           <h2 class="panel-title">任务队列</h2>
           <button class="btn" @click="$emit('refresh')">刷新</button>
         </div>
-        <table class="w-full text-left text-sm">
+        <table class="w-full min-w-[760px] table-fixed text-left text-sm">
           <thead class="bg-slate-50 text-xs uppercase text-slate-500">
             <tr>
-              <th class="px-4 py-3">类型</th>
-              <th class="px-4 py-3">状态</th>
-              <th class="px-4 py-3">步骤</th>
-              <th class="px-4 py-3">开始时间</th>
+              <th class="w-36 px-4 py-3">类型</th>
+              <th class="w-28 px-4 py-3">状态</th>
+              <th class="w-36 px-4 py-3">步骤</th>
+              <th class="w-44 px-4 py-3">最近进度</th>
               <th class="px-4 py-3">错误</th>
             </tr>
           </thead>
@@ -64,11 +64,19 @@
               :class="selectedJob?.job_id === job.job_id ? 'bg-blue-50' : ''"
               @click="selectJob(job)"
             >
-              <td class="px-4 py-3 font-medium">{{ job.type }}</td>
-              <td class="px-4 py-3"><span :class="statusClass(job.status)">{{ job.status }}</span></td>
-              <td class="px-4 py-3 text-slate-600">{{ job.step }}</td>
-              <td class="px-4 py-3 text-slate-500">{{ job.started_at || job.created_at }}</td>
-              <td class="max-w-[360px] truncate px-4 py-3 text-red-600">{{ job.error }}</td>
+              <td class="break-all px-4 py-3 font-medium">{{ job.type }}</td>
+              <td class="px-4 py-3">
+                <div class="flex flex-wrap gap-1">
+                  <span :class="statusClass(job.status)">{{ statusLabel(job) }}</span>
+                  <span v-if="job.diagnostics?.stalled" class="rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">疑似卡滞</span>
+                </div>
+              </td>
+              <td class="truncate px-4 py-3 text-slate-600" :title="job.step">{{ job.step }}</td>
+              <td class="px-4 py-3 text-slate-500">
+                <div>{{ formatDate(job.progress_at || job.started_at || job.created_at) }}</div>
+                <div class="mt-1 text-xs">{{ formatAge(job.diagnostics?.progress_age_seconds) }}</div>
+              </td>
+              <td class="max-w-[360px] truncate px-4 py-3 text-red-600" :title="job.error || job.error_code">{{ job.error || errorCodeLabel(job.error_code) }}</td>
             </tr>
             <tr v-if="!jobs.length">
               <td colspan="5" class="px-4 py-10 text-center text-slate-500">暂无任务。</td>
@@ -77,10 +85,16 @@
         </table>
       </div>
 
-      <aside class="flex min-h-0 flex-col border-l border-slate-200 bg-slate-950 text-slate-100">
+      <aside class="flex min-h-[320px] min-w-0 flex-col border-t border-slate-200 bg-slate-950 text-slate-100 2xl:min-h-0 2xl:border-t-0 2xl:border-l">
         <div class="border-b border-slate-800 p-4">
-          <div class="text-sm font-semibold">{{ selectedJob?.job_id || '任务日志' }}</div>
-          <div class="mt-1 text-xs text-slate-400">{{ selectedJob?.type || '选择左侧任务查看日志' }}</div>
+          <div class="flex items-center justify-between gap-2">
+            <div class="min-w-0 truncate text-sm font-semibold">{{ selectedJob?.job_id || '任务日志' }}</div>
+            <span v-if="selectedJob" :class="statusClass(selectedJob.status)">{{ statusLabel(selectedJob) }}</span>
+          </div>
+          <div class="mt-1 text-xs text-slate-400">{{ selectedJob ? `${selectedJob.type} · ${selectedJob.step}` : '选择左侧任务查看日志' }}</div>
+          <div v-if="selectedJob?.diagnostics?.stalled" class="mt-3 rounded bg-amber-400/15 px-3 py-2 text-xs text-amber-200">
+            {{ diagnosticLabel(selectedJob) }}。系统不会强制终止线程，请结合日志和进程状态处理。
+          </div>
         </div>
         <pre class="flex-1 overflow-auto whitespace-pre-wrap p-4 text-xs leading-5 text-slate-200">{{ logsText }}</pre>
       </aside>
@@ -89,7 +103,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { apiGet, apiPost } from '../api'
 
 const props = defineProps<{ jobs: any[] }>()
@@ -100,6 +114,8 @@ const error = ref('')
 const message = ref('')
 const selectedJob = ref<any>(null)
 const logs = ref<any[]>([])
+const logsLoading = ref(false)
+let logsRequestSerial = 0
 const reviewDoc = ref('')
 const reviewPages = ref('')
 const jobRequest = ref({ source: 'data/raw', parser_backend: 'mineru', apply_corrections: true })
@@ -133,9 +149,22 @@ async function selectJob(job: any) {
 }
 
 async function loadLogs(job: any) {
-  if (!job?.job_id) return
-  const result = await apiGet(`/admin/jobs/${job.job_id}/logs?limit=300`)
-  logs.value = result.logs || []
+  const jobId = job?.job_id
+  if (!jobId) return
+  const requestSerial = ++logsRequestSerial
+  logsLoading.value = true
+  try {
+    const result = await apiGet(`/admin/jobs/${jobId}/logs?limit=300`)
+    if (requestSerial === logsRequestSerial && selectedJob.value?.job_id === jobId) {
+      logs.value = result.logs || []
+    }
+  } catch (err: any) {
+    if (requestSerial === logsRequestSerial) {
+      error.value = err.message || String(err)
+    }
+  } finally {
+    if (requestSerial === logsRequestSerial) logsLoading.value = false
+  }
 }
 
 function formatLogEntry(entry: any) {
@@ -147,23 +176,79 @@ function formatLogEntry(entry: any) {
   const request = entry.request_id ? ` [request:${entry.request_id}]` : ''
   const message = entry.message || entry.error || JSON.stringify(entry)
   const progress = entry.progress ? `\n${JSON.stringify(entry.progress, null, 2)}` : ''
-  return `${time} ${level}${step}${request} ${message}${progress}`.trim()
+  const recovery = entry.recovery ? `\n${JSON.stringify(entry.recovery, null, 2)}` : ''
+  return `${time} ${level}${step}${request} ${message}${progress}${recovery}`.trim()
+}
+
+function statusLabel(job: any) {
+  if (job?.error_code === 'PROCESS_RESTARTED') return '已中断'
+  return ({
+    queued: '排队中',
+    running: '运行中',
+    succeeded: '已成功',
+    failed: '已失败',
+  } as Record<string, string>)[job?.status] || job?.status || '-'
+}
+
+function errorCodeLabel(code: string) {
+  return ({
+    PROCESS_RESTARTED: 'API 进程重启，任务已中断',
+    JOB_RECORD_INVALID: '任务记录损坏',
+    WORKFLOW_FAILED: '任务执行失败',
+  } as Record<string, string>)[code] || ''
+}
+
+function formatDate(value: string) {
+  if (!value) return '-'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN', { hour12: false })
+}
+
+function formatAge(value: any) {
+  const seconds = Number(value)
+  if (!Number.isFinite(seconds)) return '暂无进度时间'
+  if (seconds < 60) return `${Math.floor(seconds)} 秒前`
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} 分钟前`
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} 小时前`
+  return `${Math.floor(seconds / 86400)} 天前`
+}
+
+function diagnosticLabel(job: any) {
+  const diagnostics = job?.diagnostics || {}
+  if (diagnostics.reason === 'no_progress_and_heartbeat_stale') return '长时间无进展且执行器心跳已过期'
+  if (diagnostics.reason === 'no_progress') return '执行器仍有心跳，但任务长时间没有推进步骤'
+  if (diagnostics.reason === 'heartbeat_stale') return '执行器心跳已过期'
+  return '任务状态需要核对'
 }
 
 function statusClass(status: string) {
-  const base = 'rounded px-2 py-1 text-xs font-semibold'
+  const base = 'whitespace-nowrap rounded px-2 py-1 text-xs font-semibold'
   if (status === 'succeeded') return `${base} bg-emerald-100 text-emerald-700`
   if (status === 'failed') return `${base} bg-red-100 text-red-700`
   if (status === 'running') return `${base} bg-blue-100 text-blue-700`
   return `${base} bg-slate-100 text-slate-600`
 }
 
-watch(() => props.jobs, () => {
+watch(() => props.jobs, async () => {
   if (!selectedJob.value && props.jobs.length) {
     selectedJob.value = props.jobs[0]
+    await loadLogs(selectedJob.value)
     return
   }
   const updated = props.jobs.find(job => job.job_id === selectedJob.value?.job_id)
   if (updated) selectedJob.value = updated
+}, { immediate: true })
+
+let refreshTimer: number | undefined
+onMounted(() => {
+  refreshTimer = window.setInterval(() => {
+    emit('refresh')
+    if (selectedJob.value?.status === 'running' || selectedJob.value?.status === 'queued') {
+      loadLogs(selectedJob.value)
+    }
+  }, 5000)
+})
+onBeforeUnmount(() => {
+  if (refreshTimer !== undefined) window.clearInterval(refreshTimer)
 })
 </script>

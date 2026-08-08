@@ -25,7 +25,7 @@ from src.pipeline.audit.manual_structuring import (
 )
 from src.quality import assess_candidate_activation, write_candidate_activation_artifacts
 
-from .models import Job
+from .models import Job, utc_now
 from .storage import JobStore
 
 
@@ -57,6 +57,7 @@ def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
 def _set_step(job: Job, store: JobStore, step: str, message: str, **progress: Any) -> None:
     job.step = step
     job.progress = {"message": message, **progress}
+    job.progress_at = utc_now()
     store.save(job)
     store.append_log(job.job_id, "info", message, step=step, progress=job.progress)
 

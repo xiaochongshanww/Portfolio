@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -6,6 +7,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from .api import admin, chat, health, images, knowledge
+from .admin.jobs import job_manager
 from .core.config import settings
 from .core.logging import configure_logging
 from .core.middleware import ServiceMiddleware
@@ -14,6 +16,11 @@ from .retrieval.hybrid_search import retrieval_state
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    app.state.job_recovery = job_manager.reconcile_interrupted_jobs()
+    logging.info(
+        "job_startup_reconciliation_completed",
+        extra={"extra_data": app.state.job_recovery},
+    )
     retrieval_state.initialize()
     yield
 

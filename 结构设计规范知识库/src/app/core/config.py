@@ -92,6 +92,8 @@ class Settings:
     max_request_bytes: int = field(default_factory=lambda: _env_int("MAX_REQUEST_BYTES", "1048576"))
     rate_limit_enabled: bool = field(default_factory=lambda: _env_bool("RATE_LIMIT_ENABLED", "true"))
     rate_limit_per_minute: int = field(default_factory=lambda: _env_int("RATE_LIMIT_PER_MINUTE", "30"))
+    job_heartbeat_seconds: int = field(default_factory=lambda: _env_int("JOB_HEARTBEAT_SECONDS", "15"))
+    job_stale_after_seconds: int = field(default_factory=lambda: _env_int("JOB_STALE_AFTER_SECONDS", "7200"))
     version_retention_keep_recent_passed: int = field(
         default_factory=lambda: _env_int("VERSION_RETENTION_KEEP_RECENT_PASSED", "2")
     )
@@ -154,6 +156,10 @@ class Settings:
             issues.append("MAX_REQUEST_BYTES 必须大于 0")
         if self.rate_limit_enabled and self.rate_limit_per_minute <= 0:
             issues.append("启用限流时 RATE_LIMIT_PER_MINUTE 必须大于 0")
+        if not 1 <= self.job_heartbeat_seconds <= 300:
+            issues.append("JOB_HEARTBEAT_SECONDS 必须在 1 到 300 之间")
+        if self.job_stale_after_seconds < max(30, self.job_heartbeat_seconds * 2):
+            issues.append("JOB_STALE_AFTER_SECONDS 必须至少为 30 且不小于心跳间隔的 2 倍")
         retention_non_negative = {
             "VERSION_RETENTION_KEEP_RECENT_PASSED": self.version_retention_keep_recent_passed,
             "VERSION_RETENTION_SUCCESS_DAYS": self.version_retention_success_days,

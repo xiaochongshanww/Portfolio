@@ -26,7 +26,7 @@
       </div>
     </aside>
 
-    <main class="flex min-w-0 flex-1 flex-col">
+    <main class="flex min-h-0 min-w-0 flex-1 flex-col">
       <header class="flex min-h-14 shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-3 py-2 md:px-5">
         <div class="min-w-0">
           <h1 class="text-base font-semibold md:text-lg">结构设计规范知识库控制台</h1>
