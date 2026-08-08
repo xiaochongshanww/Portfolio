@@ -17,6 +17,7 @@ CONFIG_ENV_NAMES = {
     "CORS_ORIGINS",
     "LLM_TIMEOUT_SECONDS",
     "LOG_LEVEL",
+    "LOG_FORMAT",
     "MAX_REQUEST_BYTES",
     "OPENWEBUI_API_KEY",
     "RAG_MIN_SCORE",
@@ -46,6 +47,7 @@ def settings_from_env(monkeypatch, **values: str) -> Settings:
         ("RAG_TOP_K", "many", "RAG_TOP_K 必须是整数"),
         ("RAG_MIN_SCORE", "nan", "RAG_MIN_SCORE 必须是有限数字"),
         ("RATE_LIMIT_ENABLED", "sometimes", "RATE_LIMIT_ENABLED 必须是布尔值"),
+        ("LOG_FORMAT", "xml", "LOG_FORMAT 必须是 json, text 之一"),
     ],
 )
 def test_invalid_environment_value_has_actionable_error(monkeypatch, name, value, message):

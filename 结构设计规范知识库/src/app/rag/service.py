@@ -64,14 +64,25 @@ async def build_mimo_payload(
 
     current_query = request.messages[-1].content
     enhanced_query = _enhance_query(request)
-    logging.info("检索: %s", enhanced_query[:120])
+    logging.info(
+        "retrieval_started",
+        extra={"extra_data": {"query_chars": len(enhanced_query), "top_k": settings.rag_top_k}},
+    )
 
     results = retrieval_state.hybrid_search(enhanced_query, settings.rag_top_k)
     structured_matches = find_structured_table_matches(enhanced_query, limit=3)
     if not results:
         return error_payload(ErrorCode.NO_RETRIEVAL_RESULTS, "知识库中未找到相关条目") | {"status_code": 404}
 
-    logging.info("检索到 %s 条，结构化表格 %s 条", len(results), len(structured_matches))
+    logging.info(
+        "retrieval_completed",
+        extra={
+            "extra_data": {
+                "result_count": len(results),
+                "structured_result_count": len(structured_matches),
+            }
+        },
+    )
 
     imgs_to_send: list[str] = []
     seen_imgs: set[str] = set()
@@ -99,7 +110,15 @@ async def build_mimo_payload(
                         seen_imgs.add(image)
                         imgs_to_send.append(image)
 
-    logging.info("图片 %s 页, 文本 %s 段", len(imgs_to_send), len(context_parts))
+    logging.info(
+        "rag_context_built",
+        extra={
+            "extra_data": {
+                "model_image_count": len(imgs_to_send),
+                "context_part_count": len(context_parts),
+            }
+        },
+    )
 
     image_list = []
     offered_image_urls: list[str] = []

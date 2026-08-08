@@ -12,6 +12,7 @@ def utc_now() -> str:
 class Job:
     type: str
     params: dict[str, Any] = field(default_factory=dict)
+    request_id: str = ""
     job_id: str = field(default_factory=lambda: uuid4().hex[:12])
     status: str = "queued"
     step: str = "queued"

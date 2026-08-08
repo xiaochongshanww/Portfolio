@@ -1,6 +1,6 @@
 <template>
   <div class="grid gap-5 xl:grid-cols-[1fr_420px]">
-    <div class="grid gap-4 md:grid-cols-4">
+    <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
       <MetricCard label="文档数" :value="documents.document_count ?? 0" />
       <MetricCard label="Chunk 数" :value="documents.chunk_count ?? 0" />
       <MetricCard label="图片数" :value="documents.image_count ?? 0" />
@@ -8,7 +8,7 @@
       <div class="panel col-span-full p-4">
         <div class="mb-3 flex items-center justify-between">
           <h2 class="panel-title">文档清单</h2>
-          <span class="muted">{{ documents.data_version_hash || '-' }}</span>
+          <span class="muted max-w-[60%] break-all text-right">{{ documents.data_version_hash || '-' }}</span>
         </div>
         <div class="overflow-auto">
           <table class="w-full text-left text-sm">
@@ -32,7 +32,7 @@
           <h2 class="panel-title">质量运营</h2>
           <span class="muted">自动化状态与人工工作量</span>
         </div>
-        <div class="grid gap-3 md:grid-cols-4">
+        <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
           <MetricCard label="待处理逻辑表" :value="quality.pending_task_count ?? 0" />
           <MetricCard label="AI 建议覆盖" :value="`${quality.suggestion_count ?? 0}/${quality.logical_task_count ?? 0}`" />
           <MetricCard label="人工发布资产" :value="quality.manual_publication_count ?? 0" />
@@ -67,7 +67,15 @@
     </div>
     <div class="grid gap-4">
       <div class="panel p-4">
-        <h2 class="panel-title mb-3">Ready Checks</h2>
+        <div class="mb-3 flex items-center justify-between">
+          <h2 class="panel-title">Ready Checks</h2>
+          <span :class="ready?.ready ? 'text-emerald-700' : 'text-rose-700'" class="text-xs font-semibold">
+            {{ ready?.status || 'unknown' }}
+          </span>
+        </div>
+        <div v-if="ready?.reasons?.length" class="mb-3 rounded-md bg-rose-50 px-3 py-2 text-xs text-rose-700">
+          {{ ready.reasons.join('、') }}
+        </div>
         <KeyValueList :data="ready?.checks || {}" />
       </div>
       <div class="panel p-4">

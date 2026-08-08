@@ -17,6 +17,7 @@ TRUE_VALUES = {"1", "true", "yes", "on"}
 FALSE_VALUES = {"0", "false", "no", "off"}
 PLACEHOLDER_API_KEYS = {"change-me", "changeme", "not-needed", "your-api-key"}
 VALID_LOG_LEVELS = {"CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"}
+VALID_LOG_FORMATS = {"json", "text"}
 
 
 class ConfigurationError(ValueError):
@@ -108,6 +109,7 @@ class Settings:
         default_factory=lambda: _env_bool("CORS_ALLOW_CREDENTIALS", "false")
     )
     log_level: str = field(default_factory=lambda: os.getenv("LOG_LEVEL", "INFO").upper())
+    log_format: str = field(default_factory=lambda: os.getenv("LOG_FORMAT", "json").strip().lower())
 
     def __post_init__(self) -> None:
         issues: list[str] = []
@@ -147,6 +149,8 @@ class Settings:
             issues.append("当前版本尚未实现可用 reranker，不能启用 RERANK_ENABLED")
         if self.log_level not in VALID_LOG_LEVELS:
             issues.append(f"LOG_LEVEL 必须是 {', '.join(sorted(VALID_LOG_LEVELS))} 之一")
+        if self.log_format not in VALID_LOG_FORMATS:
+            issues.append(f"LOG_FORMAT 必须是 {', '.join(sorted(VALID_LOG_FORMATS))} 之一")
         if issues:
             raise ConfigurationError(issues)
 

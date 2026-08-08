@@ -1,15 +1,15 @@
 <template>
-  <div class="flex h-screen overflow-hidden bg-slate-100">
-    <aside class="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-slate-950 text-slate-100">
-      <div class="border-b border-slate-800 px-5 py-4">
+  <div class="flex h-dvh flex-col overflow-hidden bg-slate-100 md:flex-row">
+    <aside class="flex w-full shrink-0 flex-col border-b border-slate-800 bg-slate-950 text-slate-100 md:w-64 md:border-r md:border-b-0 md:border-slate-200">
+      <div class="hidden border-b border-slate-800 px-5 py-4 md:block">
         <div class="text-base font-semibold">结构规范知识库</div>
         <div class="mt-1 text-xs text-slate-400">Build · Review · Evaluate</div>
       </div>
-      <nav class="flex-1 space-y-1 px-3 py-4">
+      <nav class="flex shrink-0 gap-1 overflow-x-auto px-2 py-2 md:flex-1 md:block md:space-y-1 md:overflow-visible md:px-3 md:py-4">
         <button
           v-for="item in navItems"
           :key="item.key"
-          class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition"
+          class="flex w-auto shrink-0 items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition md:w-full"
           :class="activeTab === item.key ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800'"
           @click="activeTab = item.key"
         >
@@ -17,7 +17,7 @@
           <span v-if="item.count !== undefined" class="rounded bg-white/10 px-2 py-0.5 text-xs">{{ item.count }}</span>
         </button>
       </nav>
-      <div class="border-t border-slate-800 p-3">
+      <div class="hidden border-t border-slate-800 p-3 md:block">
         <label class="mb-1 block text-xs text-slate-400">API Key</label>
         <form class="flex gap-2" @submit.prevent="persistApiKey">
           <input v-model="apiKey" class="field h-9 min-w-0 flex-1 bg-slate-900 text-slate-100" type="password" autocomplete="current-password">
@@ -27,9 +27,9 @@
     </aside>
 
     <main class="flex min-w-0 flex-1 flex-col">
-      <header class="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-5">
-        <div>
-          <h1 class="text-lg font-semibold">结构设计规范知识库控制台</h1>
+      <header class="flex min-h-14 shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-3 py-2 md:px-5">
+        <div class="min-w-0">
+          <h1 class="text-base font-semibold md:text-lg">结构设计规范知识库控制台</h1>
           <p class="text-xs text-slate-500">{{ statusLine }}</p>
         </div>
         <div class="flex items-center gap-2">
@@ -38,7 +38,7 @@
         </div>
       </header>
 
-      <section class="min-h-0 flex-1 overflow-auto p-5">
+      <section class="min-h-0 flex-1 overflow-auto p-3 md:p-5">
         <OverviewTab v-if="activeTab === 'overview'" :ready="ready" :documents="documents" :metrics="metrics" :quality="quality" />
         <JobsTab v-if="activeTab === 'jobs'" :jobs="jobs" @refresh="refreshJobs" />
         <ReviewTab v-if="activeTab === 'review'" :candidate-docs="candidateDocs" @refresh="refreshCandidates" />
@@ -157,7 +157,8 @@ async function refreshAll() {
 }
 
 async function refreshStatus() {
-  ready.value = await apiGet('/ready')
+  const readyResponse = await fetch('/ready')
+  ready.value = await readyResponse.json()
   metrics.value = await apiGet('/metrics')
   documents.value = await apiGet('/knowledge/documents')
 }

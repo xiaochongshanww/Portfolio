@@ -8,7 +8,7 @@ from .config import settings
 from .errors import ErrorCode, error_response
 from .metrics import metrics
 from .rate_limit import rate_limiter
-from .request_context import new_request_id, set_request_id
+from .request_context import normalize_request_id, reset_request_id, set_request_id
 from .security import is_authorized, is_trusted_local_request
 
 
@@ -21,17 +21,19 @@ def _client_ip(request: Request) -> str:
 
 class ServiceMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        request_id = request.headers.get("x-request-id") or new_request_id()
-        set_request_id(request_id)
+        request_id = normalize_request_id(request.headers.get("x-request-id"))
+        request_id_token = set_request_id(request_id)
         path = request.url.path
         method = request.method
         client_ip = _client_ip(request)
         start = time.perf_counter()
         status_code = 500
         error_code = ""
-        metrics.increment_request(path)
+        request_metric_started = False
 
         try:
+            metrics.request_started(path)
+            request_metric_started = True
             content_length = int(request.headers.get("content-length") or 0)
             if content_length > settings.max_request_bytes:
                 error_code = ErrorCode.INVALID_REQUEST
@@ -57,24 +59,28 @@ class ServiceMiddleware(BaseHTTPMiddleware):
             response = error_response(500, ErrorCode.INTERNAL_ERROR, "服务内部错误")
             return response
         finally:
-            duration_ms = int((time.perf_counter() - start) * 1000)
-            if "response" in locals():
-                status_code = response.status_code
-                response.headers["X-Request-ID"] = request_id
-            if error_code:
-                metrics.increment_error(str(error_code), path)
-            logging.info(
-                "request",
-                extra={
-                    "extra_data": {
-                        "request_id": request_id,
-                        "method": method,
-                        "path": path,
-                        "status": status_code,
-                        "duration_ms": duration_ms,
-                        "client_ip": client_ip,
-                        "error_code": str(error_code) if error_code else "",
-                    }
-                },
-            )
+            try:
+                duration_ms = int((time.perf_counter() - start) * 1000)
+                if "response" in locals():
+                    status_code = response.status_code
+                    response.headers["X-Request-ID"] = request_id
+                if error_code:
+                    metrics.increment_error(str(error_code), path)
+                if request_metric_started:
+                    metrics.request_finished(path, status_code, duration_ms)
+                logging.info(
+                    "request_completed",
+                    extra={
+                        "extra_data": {
+                            "request_id": request_id,
+                            "method": method,
+                            "path": path,
+                            "status": status_code,
+                            "duration_ms": duration_ms,
+                            "error_code": str(error_code) if error_code else "",
+                        }
+                    },
+                )
+            finally:
+                reset_request_id(request_id_token)
 

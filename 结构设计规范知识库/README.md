@@ -312,6 +312,8 @@ RATE_LIMIT_ENABLED=true
 RATE_LIMIT_PER_MINUTE=30
 CORS_ORIGINS=http://localhost:3000,http://localhost:8080
 CORS_ALLOW_CREDENTIALS=false
+LOG_LEVEL=INFO
+LOG_FORMAT=json
 ```
 
 开启鉴权后，`/v1/chat/completions` 和 `/chat/completions` 需要：
@@ -328,7 +330,7 @@ X-API-Key: <API_KEY>
 
 `/images/*` 和 `/page-images/*` 还会执行每份来源的展示策略。受保护图片既可使用上述 Header，也可使用问答自动生成的短期签名 URL；长期 API Key 不会写入图片链接。
 
-`/health` 只表示进程存活，Docker healthcheck 使用它即可；`/ready` 表示依赖是否满足真实问答条件，适合部署前检查。
+`/health` 只表示进程存活，Docker healthcheck 使用它即可；`/ready` 表示依赖是否满足真实问答条件，就绪返回 HTTP 200，未就绪返回 HTTP 503 并列出机器可读失败原因。`/metrics` 是当前 API 进程的 JSON 快照，重启后清零，不是跨实例聚合指标。每个响应都携带 `X-Request-ID`，可与 JSON 事件日志和后台任务日志关联。
 
 ## 🖥️ 产品控制台
 

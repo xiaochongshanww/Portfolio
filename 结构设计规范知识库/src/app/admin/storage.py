@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from ..core.request_context import current_request_id
+
 from src.pipeline.paths import DATA_DIR
 
 from .models import Job, utc_now
@@ -40,7 +42,14 @@ class JobStore:
         return jobs
 
     def append_log(self, job_id: str, level: str, message: str, **extra: Any) -> None:
-        payload = {"ts": utc_now(), "level": level, "message": message, **extra}
+        request_id = str(extra.pop("request_id", "") or current_request_id())
+        payload = {
+            "ts": utc_now(),
+            "level": level,
+            "message": message,
+            **({"request_id": request_id} if request_id else {}),
+            **extra,
+        }
         with self.log_path(job_id).open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
 

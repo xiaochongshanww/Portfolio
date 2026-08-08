@@ -144,9 +144,10 @@ function formatLogEntry(entry: any) {
   const time = entry.ts ? entry.ts.replace('T', ' ').replace(/\+\d\d:\d\d$/, '') : ''
   const level = String(entry.level || 'info').toUpperCase()
   const step = entry.step ? ` [${entry.step}]` : ''
+  const request = entry.request_id ? ` [request:${entry.request_id}]` : ''
   const message = entry.message || entry.error || JSON.stringify(entry)
   const progress = entry.progress ? `\n${JSON.stringify(entry.progress, null, 2)}` : ''
-  return `${time} ${level}${step} ${message}${progress}`.trim()
+  return `${time} ${level}${step}${request} ${message}${progress}`.trim()
 }
 
 function statusClass(status: string) {
