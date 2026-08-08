@@ -19,8 +19,35 @@ def test_committed_quality_evidence_snapshot_is_valid():
     assert result["evaluation_set_count"] == 3
 
 
-def test_build_snapshot_contains_only_sanitized_summaries():
-    snapshot = build_snapshot()
+def test_build_snapshot_contains_only_sanitized_summaries(tmp_path: Path):
+    project = tmp_path / "project"
+    reports = {
+        Path("data/audit/reports/verification_latest.json"): {
+            "generated_at": "2026-08-08T17:36:42+00:00",
+            "passed": False,
+            "steps": [{"error": "sensitive execution detail"}],
+        },
+        Path("data/audit/reports/quality_gate_latest.json"): {
+            "generated_at": "2026-08-08T17:36:41+00:00",
+            "passed": False,
+            "failed_checks": ["regular_evaluation"],
+            "checks": [{"details": {"query": "sensitive query"}}],
+        },
+    }
+    for relative_path, payload in reports.items():
+        target = project / relative_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps(payload), encoding="utf-8")
+    for relative_path in (
+        Path("data/evaluation/queries.jsonl"),
+        Path("data/evaluation/complex_structured_tables.jsonl"),
+        Path("data/evaluation/answer_holdout.jsonl"),
+    ):
+        target = project / relative_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(relative_path.read_bytes())
+
+    snapshot = build_snapshot(project)
     serialized = json.dumps(snapshot, ensure_ascii=False)
 
     assert set(snapshot["reports"]) == {"verification", "quality_gate"}
