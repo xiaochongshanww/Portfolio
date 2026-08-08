@@ -91,9 +91,15 @@ def test_compose_persists_runtime_data_and_uses_v1_backend():
     assert "./data:/app/data" in compose
     assert "DATA_DIR=/app/data" in compose
     assert "open-webui-data:/app/backend/data" in compose
-    assert "OPENAI_API_BASE_URL=http://api:8000/v1" in compose
-    assert "OPENAI_API_KEY=${OPENWEBUI_API_KEY:-not-needed}" in compose
+    assert "openwebui-preflight:" in compose
+    assert 'command: ["python", "-m", "src.app.core.openwebui_probe"]' in compose
+    assert "OPENAI_API_BASE_URLS: http://api:8000/v1" in compose
+    assert "MIMO_MODEL: ${MIMO_MODEL:-mimo-v2.5}" in compose
+    assert "OPENAI_API_KEYS: ${OPENWEBUI_API_KEY:-not-needed}" in compose
+    assert 'ENABLE_PERSISTENT_CONFIG: "false"' in compose
+    assert 'ENABLE_OLLAMA_API: "false"' in compose
     assert "condition: service_healthy" in compose
+    assert "condition: service_completed_successfully" in compose
 
 
 def test_repository_ci_covers_backend_frontend_and_container():
@@ -116,6 +122,10 @@ def test_repository_ci_covers_backend_frontend_and_container():
     assert "npm run typecheck" in workflow
     assert "npm run build" in workflow
     assert "docker build --tag structural-spec-kb:ci ." in workflow
+    assert "OpenWebUI authenticated integration" in workflow
+    assert "docker compose up --build --detach open-webui" in workflow
+    assert "http://127.0.0.1:3000/api/models" in workflow
+    assert "ci-openwebui-connection-key" in workflow
     assert "/static/index.html" in workflow
     assert "/health" in workflow
 

@@ -145,3 +145,24 @@ def test_runtime_backup_and_disaster_recovery_contract_is_documented():
     assert "backup_id" in release_checklist
     assert decision.is_file()
     assert checklist.is_file()
+
+
+def test_openwebui_authenticated_connection_contract_is_documented():
+    env_example = Path(".env.example").read_text(encoding="utf-8")
+    readme = Path("README.md").read_text(encoding="utf-8")
+    operations = Path("docs/operations/部署运行手册.md").read_text(encoding="utf-8")
+    config_reference = Path("docs/reference/配置参考.md").read_text(encoding="utf-8")
+    release_checklist = Path("docs/releases/发布检查单.md").read_text(encoding="utf-8")
+    decision = Path("docs/adr/0014-OpenWebUI连接采用环境托管与启动探测.md")
+    checklist = Path("docs/architecture/OpenWebUI鉴权连接实施清单.md")
+
+    assert "OPENWEBUI_AUTH=true" in env_example
+    assert "openwebui-preflight" in readme
+    assert "Exited (0)" in operations
+    assert "两阶段轮换" in operations
+    assert "不需要删除 `open-webui-data`" in operations
+    assert "ENABLE_PERSISTENT_CONFIG=false" in config_reference
+    assert "python -m src.app.core.openwebui_probe" in config_reference
+    assert "OpenWebUI `/health` 和 `/api/models`" in release_checklist
+    assert decision.is_file()
+    assert checklist.is_file()

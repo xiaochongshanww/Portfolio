@@ -19,6 +19,26 @@ services:
     networks:
       - rag-net
 
+  openwebui-preflight:
+    build: .
+    container_name: openwebui-preflight
+    command: ["python", "-m", "src.app.core.openwebui_probe"]
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      API_AUTH_ENABLED: ${API_AUTH_ENABLED:-false}
+      API_KEYS: ${API_KEYS:-}
+      MIMO_MODEL: ${MIMO_MODEL:-mimo-v2.5}
+      OPENAI_API_BASE_URLS: http://api:8000/v1
+      OPENWEBUI_API_KEY: ${OPENWEBUI_API_KEY:-}
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - rag-net
+
   open-webui:
     image: ghcr.io/open-webui/open-webui:v0.9.5
     container_name: open-webui
@@ -27,11 +47,16 @@ services:
     depends_on:
       api:
         condition: service_healthy
+      openwebui-preflight:
+        condition: service_completed_successfully
     environment:
-      - OLLAMA_BASE_URL=
-      - ENABLE_OPENAI_API=true
-      - OPENAI_API_BASE_URL=http://api:8000/v1
-      - OPENAI_API_KEY=${OPENWEBUI_API_KEY:-not-needed}
+      ENABLE_OPENAI_API: "true"
+      ENABLE_OLLAMA_API: "false"
+      ENABLE_PERSISTENT_CONFIG: "false"
+      OLLAMA_BASE_URL: ""
+      OPENAI_API_BASE_URLS: http://api:8000/v1
+      OPENAI_API_KEYS: ${OPENWEBUI_API_KEY:-not-needed}
+      WEBUI_AUTH: ${OPENWEBUI_AUTH:-true}
     volumes:
       - open-webui-data:/app/backend/data
     extra_hosts:

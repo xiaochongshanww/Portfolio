@@ -381,10 +381,12 @@ Docker 镜像会在多阶段构建中自动执行前端生产构建：
 
 ```bash
 docker compose config -q
-docker compose up --build -d
+docker compose up --build -d open-webui
+docker compose ps --all
+docker compose logs --no-color openwebui-preflight
 ```
 
-启用 API 鉴权时，`.env` 中的 `OPENWEBUI_API_KEY` 必须与 `API_KEYS` 中的一项一致。
+启用 API 鉴权时，`.env` 中的 `OPENWEBUI_API_KEY` 必须与 `API_KEYS` 中的一项一致。一次性 `openwebui-preflight` 会在 OpenWebUI 启动前验证真实连接；显示 `Exited (0)` 是成功终态。标准 Compose 以环境变量托管 OpenWebUI 连接，旧数据卷中的连接配置不会覆盖 `.env`，完整启动与轮换步骤见[部署运行手册](./docs/operations/部署运行手册.md)。
 
 控制台采用分工模式：
 
