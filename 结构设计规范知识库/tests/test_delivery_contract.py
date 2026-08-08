@@ -12,8 +12,15 @@ def test_runtime_image_bundles_console_and_runtime_assets():
     runtime_requirements = (PROJECT_ROOT / "requirements-runtime.txt").read_text(
         encoding="utf-8"
     )
+    frontend_package = json.loads(
+        (PROJECT_ROOT / "frontend" / "package.json").read_text(encoding="utf-8")
+    )
+    frontend_npmrc = (PROJECT_ROOT / "frontend" / ".npmrc").read_text(
+        encoding="utf-8"
+    )
 
     assert "FROM node:22-alpine AS frontend-builder" in dockerfile
+    assert "RUN npm install --global npm@10.9.8" in dockerfile
     assert "RUN npm ci" in dockerfile
     assert "COPY --from=frontend-builder /app/frontend/dist frontend/dist/" in dockerfile
     assert "COPY data/evaluation/ data/evaluation/" in dockerfile
@@ -22,6 +29,9 @@ def test_runtime_image_bundles_console_and_runtime_assets():
     assert "!data/evaluation/**" in dockerignore
     assert "!data/metadata/**" in dockerignore
     assert "pymupdf==" in runtime_requirements.casefold()
+    assert frontend_package["packageManager"] == "npm@10.9.8"
+    assert frontend_package["engines"] == {"node": "22.x", "npm": "10.9.8"}
+    assert "engine-strict=true" in frontend_npmrc.splitlines()
 
 
 def test_runtime_and_development_dependencies_are_locked():
@@ -86,6 +96,7 @@ def test_repository_ci_covers_backend_frontend_and_container():
     assert "actions/upload-artifact@v4" in workflow
     assert "actions/download-artifact@v4" in workflow
     assert "--require-cross-platform" in workflow
+    assert "npm install --global npm@10.9.8" in workflow
     assert "npm run build" in workflow
     assert "docker build --tag structural-spec-kb:ci ." in workflow
     assert "/static/index.html" in workflow

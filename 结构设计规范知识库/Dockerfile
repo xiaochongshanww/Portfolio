@@ -5,6 +5,7 @@ FROM node:22-alpine AS frontend-builder
 
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json ./
+RUN npm install --global npm@10.9.8
 RUN npm ci
 COPY frontend/ ./
 RUN npm run build
