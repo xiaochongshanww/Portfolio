@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import sys
@@ -143,11 +144,17 @@ def test_config_preflight_reports_success():
     result = run_config_preflight()
 
     assert result.returncode == 0
-    assert "configuration: ok" in result.stdout
+    assert json.loads(result.stdout) == {"ok": True, "message": "configuration: ok"}
+    assert result.stderr == ""
 
 
 def test_config_preflight_fails_before_application_startup():
     result = run_config_preflight(API_AUTH_ENABLED="true", API_KEYS="")
 
-    assert result.returncode != 0
-    assert "API_KEYS 至少需要一个非空 Key" in result.stderr
+    assert result.returncode == 2
+    payload = json.loads(result.stderr)
+    assert payload["ok"] is False
+    assert payload["error"] == "configuration_invalid"
+    assert "启用 API 鉴权时 API_KEYS 至少需要一个非空 Key" in payload["issues"]
+    assert "Traceback" not in result.stderr
+    assert result.stderr.isascii()

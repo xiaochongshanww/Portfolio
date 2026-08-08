@@ -1,4 +1,6 @@
+import json
 import os
+import sys
 from dataclasses import dataclass, field
 from math import isfinite
 from pathlib import Path
@@ -155,8 +157,24 @@ class Settings:
             raise ConfigurationError(issues)
 
 
-settings = Settings()
+try:
+    settings = Settings()
+except ConfigurationError as exc:
+    if __name__ != "__main__":
+        raise
+    print(
+        json.dumps(
+            {
+                "ok": False,
+                "error": "configuration_invalid",
+                "issues": list(exc.issues),
+            },
+            ensure_ascii=True,
+        ),
+        file=sys.stderr,
+    )
+    raise SystemExit(2) from None
 
 
 if __name__ == "__main__":
-    print("configuration: ok")
+    print(json.dumps({"ok": True, "message": "configuration: ok"}, ensure_ascii=True))
