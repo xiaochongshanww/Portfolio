@@ -11,6 +11,8 @@ from src.app.core.config import ConfigurationError, Settings
 CONFIG_ENV_NAMES = {
     "API_AUTH_ENABLED",
     "API_KEYS",
+    "ASSET_SIGNING_KEY",
+    "ASSET_URL_TTL_SECONDS",
     "CORS_ALLOW_CREDENTIALS",
     "CORS_ORIGINS",
     "LLM_TIMEOUT_SECONDS",
@@ -58,6 +60,9 @@ def test_authentication_requires_real_api_key(monkeypatch):
     with pytest.raises(ConfigurationError, match="API_KEYS 不能使用示例占位值"):
         settings_from_env(monkeypatch, API_AUTH_ENABLED="true", API_KEYS="not-needed")
 
+    with pytest.raises(ConfigurationError, match="ASSET_SIGNING_KEY 至少需要 32 个字符"):
+        settings_from_env(monkeypatch, API_AUTH_ENABLED="true", API_KEYS="real-api-key")
+
 
 def test_openwebui_key_must_match_api_keys_when_present(monkeypatch):
     with pytest.raises(ConfigurationError, match="OPENWEBUI_API_KEY 必须与 API_KEYS"):
@@ -65,6 +70,7 @@ def test_openwebui_key_must_match_api_keys_when_present(monkeypatch):
             monkeypatch,
             API_AUTH_ENABLED="true",
             API_KEYS="api-key-one",
+            ASSET_SIGNING_KEY="s" * 32,
             OPENWEBUI_API_KEY="different-key",
         )
 
@@ -84,6 +90,7 @@ def test_cors_wildcard_cannot_be_combined_with_credentials(monkeypatch):
         ({"LLM_TIMEOUT_SECONDS": "0"}, "LLM_TIMEOUT_SECONDS 必须大于 0"),
         ({"RAG_TOP_K": "101"}, "RAG_TOP_K 必须在 1 到 100"),
         ({"MAX_REQUEST_BYTES": "0"}, "MAX_REQUEST_BYTES 必须大于 0"),
+        ({"ASSET_URL_TTL_SECONDS": "59"}, "ASSET_URL_TTL_SECONDS 必须在 60 到 604800"),
         (
             {"RETRIEVAL_DENSE_WEIGHT": "0", "RETRIEVAL_BM25_WEIGHT": "0"},
             "不能同时为 0",
@@ -105,6 +112,7 @@ def test_valid_protected_configuration_is_accepted(monkeypatch):
         monkeypatch,
         API_AUTH_ENABLED="true",
         API_KEYS="api-key-one,api-key-two",
+        ASSET_SIGNING_KEY="s" * 32,
         OPENWEBUI_API_KEY="api-key-two",
         CORS_ORIGINS="https://console.example.com",
         CORS_ALLOW_CREDENTIALS="true",

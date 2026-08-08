@@ -18,6 +18,7 @@ from src.quality import DEFAULT_REPORT_MAX_AGE, evaluate_quality_gate
 
 from .active_db import read_active_db, write_active_db
 from .manifest import read_manifest
+from .metadata import load_metadata_overrides, parse_metadata_overrides
 from .paths import (
     ACTIVE_DB_PATH,
     AUDIT_DIR,
@@ -25,14 +26,15 @@ from .paths import (
     DB_DIR,
     IMAGES_DIR,
     MANIFEST_PATH,
+    METADATA_DIR,
     RAW_DIR,
     STRUCTURED_TABLES_DIR,
 )
 
 
 PACKAGE_FORMAT = "structural-spec-knowledge-package"
-PACKAGE_SCHEMA_VERSION = 2
-SUPPORTED_PACKAGE_SCHEMA_VERSIONS = {1, PACKAGE_SCHEMA_VERSION}
+PACKAGE_SCHEMA_VERSION = 3
+SUPPORTED_PACKAGE_SCHEMA_VERSIONS = {1, 2, PACKAGE_SCHEMA_VERSION}
 PACKAGE_MANIFEST_NAME = "knowledge-package.json"
 DEFAULT_MAX_UNCOMPRESSED_BYTES = 20 * 1024 * 1024 * 1024
 PACKAGE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
@@ -204,6 +206,7 @@ def export_runtime_package(
     fallback_manifest_path: Path = MANIFEST_PATH,
     structured_tables_dir: Path = STRUCTURED_TABLES_DIR,
     images_dir: Path = IMAGES_DIR,
+    metadata_dir: Path = METADATA_DIR,
     raw_dir: Path = RAW_DIR,
     include_source_pdfs: bool = False,
     overwrite: bool = False,
@@ -232,7 +235,12 @@ def export_runtime_package(
     if not db_dir.is_dir():
         raise KnowledgePackageError(f"活动数据库目录不存在: {db_dir}")
 
-    source_roots = [db_dir.resolve(), structured_tables_dir.resolve(), images_dir.resolve()]
+    source_roots = [
+        db_dir.resolve(),
+        structured_tables_dir.resolve(),
+        images_dir.resolve(),
+        metadata_dir.resolve(),
+    ]
     if include_source_pdfs:
         source_roots.append(raw_dir.resolve())
     for source_root in source_roots:
@@ -294,6 +302,29 @@ def export_runtime_package(
     payloads.extend(database_files)
     payloads.extend(_payload_files(structured_tables_dir, "runtime/structured_tables", "structured_table"))
     payloads.extend(_payload_files(images_dir, "runtime/images", "image"))
+    source_policy_path = metadata_dir / "specs.json"
+    if not source_policy_path.is_file():
+        raise KnowledgePackageError(f"来源访问策略不存在: {source_policy_path}")
+    try:
+        source_policies = load_metadata_overrides(source_policy_path)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        raise KnowledgePackageError(f"来源访问策略无效: {exc}") from exc
+    manifest_sources = {
+        str(document.get("source_file") or "")
+        for document in manifest.get("documents", [])
+        if isinstance(document, dict) and document.get("source_file")
+    }
+    missing_policies = sorted(manifest_sources - set(source_policies))
+    incomplete_policies = sorted(
+        source
+        for source in manifest_sources & set(source_policies)
+        if not all(field in source_policies[source] for field in ("image_access", "page_image_access"))
+    )
+    if missing_policies or incomplete_policies:
+        raise KnowledgePackageError(
+            f"来源访问策略覆盖不完整: missing={missing_policies}, incomplete={incomplete_policies}"
+        )
+    payloads.append(("runtime/metadata/specs.json", source_policy_path, "source_metadata"))
     if include_source_pdfs:
         for archive_path, source, role in _payload_files(raw_dir, "runtime/raw", "source_pdf"):
             if source.suffix.lower() == ".pdf":
@@ -333,6 +364,7 @@ def export_runtime_package(
             "extracted_images": "image" in roles,
             "source_pdfs": "source_pdf" in roles,
             "page_images": "source_pdf" in roles,
+            "source_access_policy": "source_metadata" in roles,
         },
         "quality": quality,
         "files": entries,
@@ -503,6 +535,7 @@ def validate_runtime_package(
         has_raw = any(path.startswith("runtime/raw/") for path in declared_by_path)
         has_images = any(path.startswith("runtime/images/") for path in declared_by_path)
         has_tables = any(path.startswith("runtime/structured_tables/") for path in declared_by_path)
+        has_source_policy = "runtime/metadata/specs.json" in declared_by_path
         expected_capabilities = {
             "prebuilt_vector_index": True,
             "structured_tables": has_tables,
@@ -510,9 +543,34 @@ def validate_runtime_package(
             "source_pdfs": has_raw,
             "page_images": has_raw,
         }
+        if schema_version >= 3:
+            expected_capabilities["source_access_policy"] = has_source_policy
         for key, expected in expected_capabilities.items():
             if capabilities.get(key) is not expected:
                 raise KnowledgePackageError(f"能力声明与文件内容不一致: {key}")
+        if schema_version >= 3 and not has_source_policy:
+            raise KnowledgePackageError("v3 知识包缺少 runtime/metadata/specs.json 来源访问策略")
+        if schema_version >= 3:
+            try:
+                policy_payload = json.loads(archive.read("runtime/metadata/specs.json").decode("utf-8"))
+                source_policies = parse_metadata_overrides(policy_payload)
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+                raise KnowledgePackageError(f"v3 来源访问策略无效: {exc}") from exc
+            manifest_sources = {
+                str(document.get("source_file") or "")
+                for document in runtime_manifest.get("documents", [])
+                if isinstance(document, dict) and document.get("source_file")
+            }
+            missing_policies = sorted(manifest_sources - set(source_policies))
+            incomplete_policies = sorted(
+                source
+                for source in manifest_sources & set(source_policies)
+                if not all(field in source_policies[source] for field in ("image_access", "page_image_access"))
+            )
+            if missing_policies or incomplete_policies:
+                raise KnowledgePackageError(
+                    f"v3 来源访问策略覆盖不完整: missing={missing_policies}, incomplete={incomplete_policies}"
+                )
 
         if schema_version >= 2:
             if not isinstance(quality, dict):
@@ -613,6 +671,7 @@ def _asset_mappings(staging_runtime: Path, data_dir: Path) -> list[tuple[Path, P
     for source_name, target_name in (
         ("structured_tables", "structured_tables"),
         ("images", "images"),
+        ("metadata", "metadata"),
         ("raw", "raw"),
     ):
         source_root = staging_runtime / source_name

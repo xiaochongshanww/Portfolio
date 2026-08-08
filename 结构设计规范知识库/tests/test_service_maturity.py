@@ -27,7 +27,8 @@ def test_security_path_rules():
 
     assert is_protected_path("/v1/chat/completions") is True
     assert is_protected_path("/chat/completions") is True
-    assert is_protected_path("/images/a.png") is False
+    assert is_protected_path("/images/a.png") is True
+    assert is_protected_path("/page-images/doc.pdf/1") is True
     assert is_protected_path("/corrections/candidates") is True
     assert is_protected_path("/admin/jobs/rebuild") is True
     assert is_protected_path("/health") is False

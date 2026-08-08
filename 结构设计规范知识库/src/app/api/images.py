@@ -1,11 +1,13 @@
 import mimetypes
 from urllib.parse import unquote
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse
 
 from ..core.config import settings
+from ..core.content_access import asset_access_scope
 from ..core.errors import ErrorCode, error_response
+from ..core.security import is_asset_request_allowed
 from src.pipeline.audit.multimodal import find_source_pdf, render_pdf_pages
 from src.pipeline.paths import AUDIT_DIR, RAW_DIR
 
@@ -13,7 +15,10 @@ router = APIRouter()
 
 
 @router.get("/page-images/{doc}/{page}")
-async def serve_page_image(doc: str, page: int):
+async def serve_page_image(doc: str, page: int, request: Request):
+    scope = asset_access_scope("page_image", doc)
+    if not is_asset_request_allowed(request, scope):
+        return error_response(403, ErrorCode.ASSET_ACCESS_DENIED, "当前来源不允许访问页面截图")
     pdf_path = find_source_pdf(decoded_doc := unquote(doc), RAW_DIR)
     if not pdf_path:
         return error_response(404, ErrorCode.IMAGE_NOT_FOUND, f"源 PDF 不存在: {decoded_doc}")
@@ -25,14 +30,17 @@ async def serve_page_image(doc: str, page: int):
 
 
 @router.get("/images/{filename:path}")
-async def serve_image(filename: str):
+async def serve_image(filename: str, request: Request):
     decoded = unquote(filename)
-    decoded_path = settings.img_dir / decoded
-    if decoded_path.exists():
-        return FileResponse(decoded_path, media_type=mimetypes.guess_type(decoded_path.name)[0] or "application/octet-stream")
-
-    raw_path = settings.img_dir / filename
-    if raw_path.exists():
-        return FileResponse(raw_path, media_type=mimetypes.guess_type(raw_path.name)[0] or "application/octet-stream")
+    scope = asset_access_scope("image", decoded)
+    if not is_asset_request_allowed(request, scope):
+        return error_response(403, ErrorCode.ASSET_ACCESS_DENIED, "当前来源不允许访问提取图片")
+    root = settings.img_dir.resolve()
+    decoded_path = (root / decoded).resolve()
+    if decoded_path.is_relative_to(root) and decoded_path.is_file():
+        return FileResponse(
+            decoded_path,
+            media_type=mimetypes.guess_type(decoded_path.name)[0] or "application/octet-stream",
+        )
 
     return error_response(404, ErrorCode.IMAGE_NOT_FOUND, f"图片不存在: {filename}")

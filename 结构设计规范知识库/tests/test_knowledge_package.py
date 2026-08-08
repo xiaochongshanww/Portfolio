@@ -76,6 +76,19 @@ def _source_runtime(tmp_path: Path) -> dict[str, Path]:
     images = data / "images"
     images.mkdir()
     (images / "preview.png").write_bytes(b"png-data")
+    metadata = data / "metadata"
+    _write_json(
+        metadata / "specs.json",
+        {
+            "documents": [
+                {
+                    "source_file": "GB 50009-2012_测试规范.pdf",
+                    "image_access": "authenticated",
+                    "page_image_access": "authenticated",
+                }
+            ]
+        },
+    )
     raw = data / "raw"
     raw.mkdir()
     (raw / "GB 50009-2012_测试规范.pdf").write_bytes(b"%PDF-test")
@@ -88,6 +101,7 @@ def _source_runtime(tmp_path: Path) -> dict[str, Path]:
         "manifest": manifest_path,
         "structured": structured,
         "images": images,
+        "metadata": metadata,
         "raw": raw,
     }
 
@@ -101,6 +115,7 @@ def _export(tmp_path: Path, *, include_source_pdfs: bool = False) -> Path:
         fallback_manifest_path=source["manifest"],
         structured_tables_dir=source["structured"],
         images_dir=source["images"],
+        metadata_dir=source["metadata"],
         raw_dir=source["raw"],
         include_source_pdfs=include_source_pdfs,
         export_actor="test-suite",
@@ -123,13 +138,14 @@ def test_runtime_package_round_trip_without_source_pdfs(tmp_path: Path):
         "extracted_images": True,
         "source_pdfs": False,
         "page_images": False,
+        "source_access_policy": True,
     }
     assert validation["quality"]["gate_passed"] is True
     assert validation["quality"]["waiver"]["used"] is False
     with zipfile.ZipFile(package) as archive:
         package_manifest = json.loads(archive.read("knowledge-package.json"))
         names = set(archive.namelist())
-        assert package_manifest["schema_version"] == 2
+        assert package_manifest["schema_version"] == 3
         audit_event_id = package_manifest["quality"]["audit_event_id"]
         audit_record = tmp_path / "source" / "data" / "audit" / "package_exports" / f"{audit_event_id}.json"
         assert json.loads(audit_record.read_text(encoding="utf-8"))["outcome"] == "exported"
@@ -138,6 +154,7 @@ def test_runtime_package_round_trip_without_source_pdfs(tmp_path: Path):
         assert "runtime/db/chroma.sqlite3" in names
         assert "runtime/structured_tables/table.json" in names
         assert "runtime/images/preview.png" in names
+        assert "runtime/metadata/specs.json" in names
         assert not any(name.startswith("runtime/raw/") for name in names)
 
     target_data = tmp_path / "target" / "data"
@@ -151,6 +168,7 @@ def test_runtime_package_round_trip_without_source_pdfs(tmp_path: Path):
     assert active["data_version_hash"] == "a" * 64
     assert (target_data / "structured_tables" / "table.json").is_file()
     assert (target_data / "images" / "preview.png").read_bytes() == b"png-data"
+    assert (target_data / "metadata" / "specs.json").is_file()
     assert not (target_data / "raw").exists()
 
 
@@ -210,6 +228,7 @@ def test_runtime_package_rejects_output_inside_payload_directory(tmp_path: Path)
             fallback_manifest_path=source["manifest"],
             structured_tables_dir=source["structured"],
             images_dir=source["images"],
+            metadata_dir=source["metadata"],
             raw_dir=source["raw"],
         )
 
@@ -285,6 +304,7 @@ def test_runtime_package_blocks_failed_quality_gate_and_audits_attempt(tmp_path:
             fallback_manifest_path=source["manifest"],
             structured_tables_dir=source["structured"],
             images_dir=source["images"],
+            metadata_dir=source["metadata"],
             raw_dir=source["raw"],
             export_actor="test-suite",
             export_audit_dir=audit_dir,
@@ -297,6 +317,40 @@ def test_runtime_package_blocks_failed_quality_gate_and_audits_attempt(tmp_path:
     assert blocked_audit["outcome"] == "blocked"
     assert blocked_audit["waiver"]["used"] is False
 
+
+def test_runtime_package_requires_source_access_policy(tmp_path: Path):
+    source = _source_runtime(tmp_path)
+    (source["metadata"] / "specs.json").unlink()
+
+    with pytest.raises(KnowledgePackageError, match="来源访问策略不存在"):
+        export_runtime_package(
+            tmp_path / "knowledge.zip",
+            active_db_path=source["active"],
+            fallback_manifest_path=source["manifest"],
+            structured_tables_dir=source["structured"],
+            images_dir=source["images"],
+            metadata_dir=source["metadata"],
+            raw_dir=source["raw"],
+        )
+
+
+def test_runtime_package_requires_complete_source_access_policy(tmp_path: Path):
+    source = _source_runtime(tmp_path)
+    policy_path = source["metadata"] / "specs.json"
+    policy = json.loads(policy_path.read_text(encoding="utf-8"))
+    policy["documents"][0].pop("page_image_access")
+    _write_json(policy_path, policy)
+
+    with pytest.raises(KnowledgePackageError, match="来源访问策略覆盖不完整"):
+        export_runtime_package(
+            tmp_path / "knowledge.zip",
+            active_db_path=source["active"],
+            fallback_manifest_path=source["manifest"],
+            structured_tables_dir=source["structured"],
+            images_dir=source["images"],
+            metadata_dir=source["metadata"],
+            raw_dir=source["raw"],
+        )
 
 def test_runtime_package_allows_complete_audited_quality_waiver(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(
@@ -320,6 +374,7 @@ def test_runtime_package_allows_complete_audited_quality_waiver(tmp_path: Path, 
         fallback_manifest_path=source["manifest"],
         structured_tables_dir=source["structured"],
         images_dir=source["images"],
+        metadata_dir=source["metadata"],
         raw_dir=source["raw"],
         quality_waiver_actor="release-owner",
         quality_waiver_reason="紧急回归验证期间的受控交付",

@@ -84,6 +84,8 @@ class Settings:
     api_auth_enabled: bool = field(default_factory=lambda: _env_bool("API_AUTH_ENABLED", "false"))
     api_keys: list[str] = field(default_factory=lambda: _split_csv(os.getenv("API_KEYS", "")))
     openwebui_api_key: str = field(default_factory=lambda: os.getenv("OPENWEBUI_API_KEY", "").strip())
+    asset_signing_key: str = field(default_factory=lambda: os.getenv("ASSET_SIGNING_KEY", "").strip())
+    asset_url_ttl_seconds: int = field(default_factory=lambda: _env_int("ASSET_URL_TTL_SECONDS", "3600"))
     max_request_bytes: int = field(default_factory=lambda: _env_int("MAX_REQUEST_BYTES", "1048576"))
     rate_limit_enabled: bool = field(default_factory=lambda: _env_bool("RATE_LIMIT_ENABLED", "true"))
     rate_limit_per_minute: int = field(default_factory=lambda: _env_int("RATE_LIMIT_PER_MINUTE", "30"))
@@ -92,6 +94,11 @@ class Settings:
     img_dir: Path = field(default_factory=lambda: Path(_env_or_default("IMG_DIR", str(PROJECT_ROOT / "data" / "images"))))
     img_base_url: str = field(default_factory=lambda: os.getenv("IMG_BASE_URL", "/images"))
     public_asset_base_url: str = field(default_factory=lambda: os.getenv("PUBLIC_ASSET_BASE_URL", "").rstrip("/"))
+    source_metadata_path: Path = field(
+        default_factory=lambda: Path(
+            _env_or_default("SOURCE_METADATA_PATH", str(PROJECT_ROOT / "data" / "metadata" / "specs.json"))
+        )
+    )
     static_dir: Path = field(default_factory=lambda: Path(_env_or_default("STATIC_DIR", str(PROJECT_ROOT / "frontend" / "dist"))))
 
     cors_origins: list[str] = field(
@@ -122,6 +129,8 @@ class Settings:
             issues.append("MAX_REQUEST_BYTES 必须大于 0")
         if self.rate_limit_enabled and self.rate_limit_per_minute <= 0:
             issues.append("启用限流时 RATE_LIMIT_PER_MINUTE 必须大于 0")
+        if not 60 <= self.asset_url_ttl_seconds <= 604800:
+            issues.append("ASSET_URL_TTL_SECONDS 必须在 60 到 604800 之间")
         if self.api_auth_enabled:
             if not self.api_keys:
                 issues.append("启用 API 鉴权时 API_KEYS 至少需要一个非空 Key")
@@ -130,6 +139,8 @@ class Settings:
                 issues.append("API_KEYS 不能使用示例占位值")
             if self.openwebui_api_key and self.openwebui_api_key not in self.api_keys:
                 issues.append("OPENWEBUI_API_KEY 必须与 API_KEYS 中的一项一致")
+            if len(self.asset_signing_key) < 32:
+                issues.append("启用 API 鉴权时 ASSET_SIGNING_KEY 至少需要 32 个字符")
         if self.cors_allow_credentials and "*" in self.cors_origins:
             issues.append("CORS_ALLOW_CREDENTIALS=true 时 CORS_ORIGINS 不能包含通配符 *")
         if self.rerank_enabled:

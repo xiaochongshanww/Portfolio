@@ -63,6 +63,16 @@ def test_metadata_override_wins():
     assert spec.aliases == ["荷载"]
 
 
+def test_metadata_override_validates_asset_access_scope():
+    base = parse_spec_filename("GB 50009-2012_.建筑结构荷载规范.pdf")
+    spec = apply_metadata_override(base, {"image_access": "public", "page_image_access": "disabled"})
+    assert spec.image_access == "public"
+    assert spec.page_image_access == "disabled"
+
+    with pytest.raises(ValueError, match="image_access 必须是"):
+        apply_metadata_override(base, {"image_access": "private"})
+
+
 def test_normalize_chunk_contains_required_metadata():
     spec = parse_spec_filename("GB 50011-2010_建筑抗震设计规范_2016年版.pdf")
     chunks = normalize_chunks(

@@ -11,6 +11,8 @@ from .images import load_images_by_name, load_page_images, page_image_filenames,
 from .prompt import SYSTEM_PROMPT
 from .context import format_result_context
 from .structured_tables import find_structured_table_matches, format_structured_table_context
+from ..core.content_access import asset_access_scope
+from ..core.security import sign_asset_url
 
 
 def _parse_pages(pages_str: str) -> list[int]:
@@ -26,11 +28,23 @@ def _parse_images(images_value: Any) -> list[str]:
 
 
 def _image_url(filename: str) -> str:
-    return f"{settings.public_asset_base_url}{settings.img_base_url.rstrip('/')}/{quote(filename)}"
+    scope = asset_access_scope("image", filename)
+    if scope == "disabled":
+        return ""
+    path = f"{settings.img_base_url.rstrip('/')}/{quote(filename, safe='')}"
+    if scope == "authenticated" and settings.api_auth_enabled:
+        path = sign_asset_url(path)
+    return f"{settings.public_asset_base_url}{path}"
 
 
 def _page_image_url(source: str, page: int) -> str:
-    return f"{settings.public_asset_base_url}/page-images/{quote(source)}/{page}"
+    scope = asset_access_scope("page_image", source)
+    if scope == "disabled":
+        return ""
+    path = f"/page-images/{quote(source, safe='')}/{page}"
+    if scope == "authenticated" and settings.api_auth_enabled:
+        path = sign_asset_url(path)
+    return f"{settings.public_asset_base_url}{path}"
 
 
 def _enhance_query(request: ChatCompletionRequest) -> str:
@@ -93,6 +107,8 @@ async def build_mimo_payload(
         meta = result.meta
         for filename in _parse_images(meta.get("images", "")):
             url = _image_url(filename)
+            if not url:
+                continue
             image_list.append(f"- 相关截图：请原样引用 `![相关截图]({url})`")
             offered_image_urls.append(url)
 
@@ -103,10 +119,14 @@ async def build_mimo_payload(
             if source_pdf_available(source):
                 for page in pages:
                     url = _page_image_url(source, page)
+                    if not url:
+                        continue
                     image_list.append(f"- 第{page}页：请原样引用 `![第{page}页]({url})`")
                     offered_image_urls.append(url)
             for filename in page_image_filenames(source, pages):
                 url = _image_url(filename)
+                if not url:
+                    continue
                 image_list.append(f"- 页面截图：请原样引用 `![页面截图]({url})`")
                 offered_image_urls.append(url)
 

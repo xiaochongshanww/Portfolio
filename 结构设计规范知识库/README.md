@@ -70,7 +70,7 @@ uv pip compile --universal --python-version 3.11 requirements-dev.in -o requirem
 Copy-Item .env.example .env
 ```
 
-然后编辑 `.env`。不要提交真实密钥；公网部署还必须设置 `API_AUTH_ENABLED=true` 和 `API_KEYS`。完整配置见 [配置参考](docs/reference/配置参考.md)。
+然后编辑 `.env`。不要提交真实密钥；公网部署还必须设置 `API_AUTH_ENABLED=true`、`API_KEYS` 和独立的 `ASSET_SIGNING_KEY`。完整配置见 [配置参考](docs/reference/配置参考.md)。
 
 ## 📖 如何运行
 
@@ -112,7 +112,7 @@ python -m uvicorn src.app.main:app --host 127.0.0.1 --port 8000
 
 知识包默认不包含原始 PDF；此时系统不会提供无法访问的动态页面截图链接。完整格式、兼容与内容权利边界见 [知识包格式规范](./docs/reference/知识包格式规范.md)。
 
-维护者导出知识包前必须运行 `python scripts/verify_quality.py`。当前 v2 导出会复核数据版本、评估集哈希和报告年龄，失败时默认阻断；紧急豁免必须记录责任人和原因，详见 [ADR 0002](./docs/adr/0002-知识包导出强制质量门禁.md)。
+维护者导出知识包前必须运行 `python scripts/verify_quality.py`。当前 v3 导出会复核数据版本、评估集哈希和报告年龄，并携带来源访问策略；失败时默认阻断，紧急豁免必须记录责任人和原因，详见 [ADR 0002](./docs/adr/0002-知识包导出强制质量门禁.md) 与 [ADR 0003](./docs/adr/0003-来源资源采用分级访问与短期签名.md)。
 
 ### 第三步：配置客户端并开始使用
 
@@ -305,6 +305,8 @@ curl http://localhost:8000/metrics
 ```env
 API_AUTH_ENABLED=false
 API_KEYS=
+ASSET_SIGNING_KEY=
+ASSET_URL_TTL_SECONDS=3600
 MAX_REQUEST_BYTES=1048576
 RATE_LIMIT_ENABLED=true
 RATE_LIMIT_PER_MINUTE=30
@@ -312,7 +314,7 @@ CORS_ORIGINS=http://localhost:3000,http://localhost:8080
 CORS_ALLOW_CREDENTIALS=false
 ```
 
-开启鉴权后，`/v1/chat/completions`、`/chat/completions` 和 `/images/*` 需要：
+开启鉴权后，`/v1/chat/completions` 和 `/chat/completions` 需要：
 
 ```http
 Authorization: Bearer <API_KEY>
@@ -323,6 +325,8 @@ Authorization: Bearer <API_KEY>
 ```http
 X-API-Key: <API_KEY>
 ```
+
+`/images/*` 和 `/page-images/*` 还会执行每份来源的展示策略。受保护图片既可使用上述 Header，也可使用问答自动生成的短期签名 URL；长期 API Key 不会写入图片链接。
 
 `/health` 只表示进程存活，Docker healthcheck 使用它即可；`/ready` 表示依赖是否满足真实问答条件，适合部署前检查。
 
@@ -393,7 +397,7 @@ GET /admin/elements/{doc}/{element_index}
 
 校对工作台不要求人工直接编辑 JSON。推荐流程是：查看候选、对照当前解析元素、在“最终修正文”中写入完整可替换文本或 Markdown 表格、保存为 approved correction，再执行重建。`value` 为 `needs_correction`、包含“需人工校对”或只是描述“更正某项”的候选不应直接保存为 approved。
 
-如果开启 `API_AUTH_ENABLED=true`，控制台中的轻量问答、图片访问、`/corrections/*` 和 `/admin/*` 需要填写 API Key；Key 只保存在当前浏览器的 localStorage。
+如果开启 `API_AUTH_ENABLED=true`，控制台中的轻量问答、校对与管理操作需要填写 API Key；Key 只保存在当前浏览器的 localStorage。问答正文中的受保护图片由后端生成短期签名，不要求浏览器把长期 Key 写入图片 URL。
 
 ## 📁 项目结构
 

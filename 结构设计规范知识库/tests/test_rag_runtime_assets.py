@@ -52,3 +52,30 @@ def test_payload_offers_page_images_when_source_pdf_exists(monkeypatch):
 
     assert trace["image_urls"] == ["/page-images/test.pdf/30"]
     assert "![第30页](/page-images/test.pdf/30)" in user_text
+
+
+def test_authenticated_page_image_url_is_signed(monkeypatch):
+    configured = type(
+        "Configured",
+        (),
+        {
+            "api_auth_enabled": True,
+            "img_base_url": "/images",
+            "public_asset_base_url": "https://kb.example",
+        },
+    )()
+    monkeypatch.setattr(service, "settings", configured)
+    monkeypatch.setattr(service, "asset_access_scope", lambda *_: "authenticated")
+    monkeypatch.setattr(service, "sign_asset_url", lambda path: f"{path}?expires=123&signature=signed")
+
+    url = service._page_image_url("GB 50009-2012_荷载规范.pdf", 30)
+
+    assert url.startswith("https://kb.example/page-images/GB%2050009-2012_")
+    assert url.endswith("/30?expires=123&signature=signed")
+
+
+def test_disabled_source_is_not_offered(monkeypatch):
+    monkeypatch.setattr(service, "asset_access_scope", lambda *_: "disabled")
+
+    assert service._image_url("restricted.png") == ""
+    assert service._page_image_url("restricted.pdf", 1) == ""
