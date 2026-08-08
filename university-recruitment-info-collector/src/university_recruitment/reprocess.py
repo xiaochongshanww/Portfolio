@@ -144,6 +144,9 @@ def reprocess_jobs(
                     except (ValueError, TypeError):
                         pass  # Keep original deadline if LLM returns non-date string
 
+                evidence = extracted.get("evidence") or {}
+                evidence_json = json.dumps(evidence, ensure_ascii=False) if evidence else None
+
                 new_jobs.append(RecruitmentJob(
                     id=pos_id, school=job.school,
                     position=extracted.get("position_raw", job.position),
@@ -165,6 +168,7 @@ def reprocess_jobs(
                     content_hash=job.content_hash,
                     notice_title=job.notice_title or job.position,
                     notice_url=str(job.source_url),
+                    evidence_json=evidence_json,
                 ))
 
                 qscore, qstatus, qwarnings = calculate_job_quality(new_jobs[-1], doc_type=doc_type)

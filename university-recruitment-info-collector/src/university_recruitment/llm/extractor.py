@@ -242,13 +242,27 @@ class LlmFieldExtractor:
 
     def _call_llm(self, prompt: str, max_tokens: int = 1500) -> str:
         assert self.client is not None
-        resp = self.client.chat.completions.create(
-            model=self.model,
-            max_tokens=max_tokens,
-            temperature=0.1,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return resp.choices[0].message.content or ""
+        content = ""
+        for attempt in range(3):
+            if attempt > 0:
+                import time
+                time.sleep(2 ** attempt)
+            try:
+                resp = self.client.chat.completions.create(
+                    model=self.model,
+                    max_tokens=max_tokens,
+                    temperature=0.1,
+                    reasoning_effort="low",
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                content = resp.choices[0].message.content or ""
+            except Exception as exc:
+                logger.warning("LLM call attempt %d failed: %s", attempt + 1, exc)
+                content = ""
+            if content.strip():
+                return content
+            logger.warning("LLM returned empty content, retry %d/3", attempt + 1)
+        return content
 
     def _parse_json(self, content: str) -> dict | list | None:
         """Parse JSON from LLM response, handling Markdown wrappers.
@@ -274,14 +288,19 @@ class LlmFieldExtractor:
             end = text.rfind("]")
             if end >= 0:
                 text = text[:end + 1]
-        # Normalize curly/smart quotes
+        # Fast path: valid JSON. Try raw text first so smart quotes inside
+        # string values ("……") are not corrupted by normalization below.
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError as exc:
+            logger.debug("JSON fast parse failed: %s", exc)
+        # Normalize curly/smart quotes that were used as JSON delimiters
         text = (
             text
             .replace("\u201c", '"').replace("\u201d", '"')
             .replace("\u2018", "'").replace("\u2019", "'")
             .replace("\uff02", '"')
         )
-        # Fast path: valid JSON
         try:
             return json.loads(text)
         except json.JSONDecodeError as exc:
@@ -304,7 +323,7 @@ class LlmFieldExtractor:
         input_text = _build_structured_input(text, metadata)
         try:
             prompt = STAGE_A_PROMPT.format(input_text=input_text[:8000])
-            content = self._call_llm(prompt, max_tokens=300)
+            content = self._call_llm(prompt, max_tokens=2000)
             result = self._parse_json(content)
             if isinstance(result, dict): return result
         except Exception as exc:
@@ -323,7 +342,7 @@ class LlmFieldExtractor:
                 input_text=input_text[:12000],
                 global_context=global_context or "无特殊公共条件",
             )
-            content = self._call_llm(prompt, max_tokens=3000)
+            content = self._call_llm(prompt, max_tokens=8000)
             result = self._parse_json(content)
             if isinstance(result, list):
                 return [self._validate_position(p) for p in result if isinstance(p, dict)]
@@ -335,6 +354,13 @@ class LlmFieldExtractor:
 
     def _validate_position(self, raw: dict) -> dict:
         """Validate and clean a single position dict from LLM."""
+        raw = dict(raw or {})
+        raw_evidence = raw.get("evidence")
+        if isinstance(raw_evidence, dict):
+            raw["evidence"] = {
+                k: v for k, v in raw_evidence.items()
+                if isinstance(v, dict)
+            }
         try:
             pos = ExtractedPosition(**raw)
             return {
@@ -350,6 +376,14 @@ class LlmFieldExtractor:
                 "deadline": pos.deadline.isoformat() if pos.deadline else None,
                 "headcount": pos.headcount,
                 "requirements": pos.requirements,
+                "evidence": {
+                    key: {
+                        "source_id": ev.source_id,
+                        "quote": ev.quote,
+                        "confidence": ev.confidence,
+                    }
+                    for key, ev in pos.evidence.items()
+                },
                 "confidence": pos.confidence,
             }
         except Exception as exc:
@@ -366,6 +400,15 @@ class LlmFieldExtractor:
                 "deadline": None,
                 "headcount": None,
                 "requirements": [],
+                "evidence": {
+                    key: {
+                        "source_id": ev.get("source_id", ""),
+                        "quote": ev.get("quote", ""),
+                        "confidence": ev.get("confidence", 1.0),
+                    }
+                    for key, ev in (raw.get("evidence") or {}).items()
+                    if isinstance(ev, dict)
+                } if isinstance(raw.get("evidence"), dict) else {},
                 "confidence": 0.3,
             }
 
@@ -381,7 +424,7 @@ class LlmFieldExtractor:
                 input_text=input_text[:8000],
                 positions_json=json.dumps(positions, ensure_ascii=False, indent=2),
             )
-            content = self._call_llm(prompt, max_tokens=1500)
+            content = self._call_llm(prompt, max_tokens=8000)
             result = self._parse_json(content)
             if isinstance(result, dict): return result
         except Exception as exc:
@@ -456,6 +499,7 @@ class LlmFieldExtractor:
             "positions": positions,
             "warnings": warnings,
             "document_type": doc_type_str,
+            "confidence": doc_type.get("confidence", 0.5),
             "review_accepted": review.get("accepted", True),
             "corrected_positions": review.get("corrected_positions", []),
             "removed_indexes": review.get("remove_position_indexes", []),

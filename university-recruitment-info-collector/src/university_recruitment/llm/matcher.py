@@ -169,8 +169,9 @@ class LlmMatcher:
         assert self.client is not None
         response = self.client.chat.completions.create(
             model=self.model,
-            max_tokens=2048,
+            max_tokens=8000,
             temperature=0.3,
+            reasoning_effort="low",
             messages=[{"role": "user", "content": prompt}],
         )
         content = response.choices[0].message.content or ""

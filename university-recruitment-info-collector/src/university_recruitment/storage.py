@@ -208,6 +208,7 @@ class JobStore:
             "position", "normalized_position", "department", "discipline",
             "location", "education_requirement", "job_type", "deadline",
             "status", "source_url", "published_at", "content_hash",
+            "quality_score", "quality_status", "evidence_json",
         )
 
         with self.connect() as conn:
@@ -323,14 +324,16 @@ class JobStore:
                 source_type, source_name, source_url, published_at, collected_at,
                 description, status, first_seen_at, last_seen_at, last_changed_at,
                 content_hash, removed_at, quality_score, quality_status, extraction_method,
-                extraction_confidence, extraction_warnings, document_type, notice_title, notice_url
+                extraction_confidence, extraction_warnings, document_type, notice_title, notice_url,
+                evidence_json
             ) VALUES (
                 :id, :school, :position, :normalized_position, :department, :discipline, :location,
                 :longitude, :latitude, :education_requirement, :job_type, :deadline,
                 :source_type, :source_name, :source_url, :published_at, :collected_at,
                 :description, :status, :first_seen_at, :last_seen_at, :last_changed_at,
                 :content_hash, :removed_at, :quality_score, :quality_status, :extraction_method,
-                :extraction_confidence, :extraction_warnings, :document_type, :notice_title, :notice_url
+                :extraction_confidence, :extraction_warnings, :document_type, :notice_title, :notice_url,
+                :evidence_json
             )
         """
 
@@ -366,7 +369,8 @@ class JobStore:
                 extraction_warnings = :extraction_warnings,
                 document_type = :document_type,
                 notice_title = :notice_title,
-                notice_url = :notice_url
+                notice_url = :notice_url,
+                evidence_json = :evidence_json
             WHERE id = :id
         """
 
@@ -712,6 +716,7 @@ class JobStore:
             "document_type": job.document_type,
             "notice_title": job.notice_title,
             "notice_url": job.notice_url,
+            "evidence_json": job.evidence_json,
         }
 
     @staticmethod
@@ -749,6 +754,7 @@ class JobStore:
             document_type=_row_get(row, "document_type"),
             notice_title=_row_get(row, "notice_title"),
             notice_url=_row_get(row, "notice_url"),
+            evidence_json=_row_get(row, "evidence_json"),
         )
 
     @staticmethod

@@ -137,3 +137,83 @@ class TestNormalizedPosition:
         )
         job.normalized_position = "清洗后标题"
         assert job.position == "原始标题"
+
+
+class TestEvidencePreservation:
+    def test_validate_position_keeps_evidence(self):
+        """P0: evidence from LLM must survive _validate_position."""
+        from university_recruitment.llm.extractor import LlmFieldExtractor
+        raw = {
+            "position_raw": "专任教师",
+            "department": "计算机学院",
+            "evidence": {
+                "position": {"source_id": "table1.r1", "quote": "招聘专任教师", "confidence": 0.95},
+                "department": {"source_id": "table1.r1", "quote": "计算机学院", "confidence": 0.9},
+            },
+        }
+        result = LlmFieldExtractor._validate_position(LlmFieldExtractor, raw)
+        assert "evidence" in result
+        assert result["evidence"]["position"]["quote"] == "招聘专任教师"
+        assert result["evidence"]["department"]["source_id"] == "table1.r1"
+        assert result["evidence"]["position"]["confidence"] == 0.95
+
+    def test_validate_position_evidence_defaults(self):
+        """Malformed evidence must degrade to empty dict, not crash."""
+        from university_recruitment.llm.extractor import LlmFieldExtractor
+        raw = {"position_raw": "专任教师", "evidence": "not-a-dict"}
+        result = LlmFieldExtractor._validate_position(LlmFieldExtractor, raw)
+        assert result["evidence"] == {}
+
+    def test_analyze_document_returns_confidence(self, monkeypatch):
+        """P0: analyze_document final result must include confidence."""
+        from university_recruitment.llm import extractor as ext_mod
+        from university_recruitment.llm.extractor import LlmFieldExtractor
+
+        class _StubClient:
+            def __init__(self):
+                self.calls = []
+
+            def chat(self):
+                return self
+
+            def completions(self):
+                return self
+
+            def create(self, **kwargs):
+                self.calls.append(kwargs.get("messages", [""])[0]["content"])
+                import json
+                # Stage A → classification
+                if "分类器" in kwargs["messages"][0]["content"]:
+                    text = '{"document_type": "single_position", "confidence": 0.88, "reason": "ok"}'
+                else:
+                    text = json.dumps([{
+                        "position_raw": "专任教师",
+                        "position_normalized": "专任教师",
+                        "department": "计算机学院",
+                        "education_requirement": "博士",
+                        "job_type": "教学科研岗",
+                        "evidence": {
+                            "position": {"source_id": "t1", "quote": "招聘专任教师", "confidence": 0.9}
+                        },
+                    }])
+                return type("Resp", (), {
+                    "choices": [type("Choice", (), {"message": type("Msg", (), {"content": text})()})()],
+                })()
+
+        stub = _StubClient()
+        monkeypatch.setattr(ext_mod.LlmFieldExtractor, "_call_llm", lambda self, prompt, max_tokens=1500: (
+            '{"document_type": "single_position", "confidence": 0.88, "reason": "ok"}'
+            if "分类器" in prompt else (
+                '[{"position_raw": "专任教师", "position_normalized": "专任教师", '
+                '"department": "计算机学院", "education_requirement": "博士", "job_type": "教学科研岗", '
+                '"evidence": {"position": {"source_id": "t1", "quote": "招聘专任教师", "confidence": 0.9}}}]'
+            )
+        ))
+        extractor = LlmFieldExtractor()
+        extractor.client = stub
+        assert extractor.available
+
+        result = extractor.analyze_document("中山大学招聘专任教师，要求博士学历", {})
+        assert result["document_type"] == "single_position"
+        assert result["confidence"] == 0.88
+        assert result["positions"][0]["evidence"]["position"]["quote"] == "招聘专任教师"

@@ -87,6 +87,43 @@ class TestJobStore:
         counts = store.upsert_jobs([job])
         assert counts["unchanged"] == 1
 
+    def test_upsert_persists_evidence_json(self, tmp_path):
+        """P0: evidence_json must be written on insert and update."""
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        job = make_job()
+        job.evidence_json = '{"position": {"source_id": "t1", "quote": "招聘教师", "confidence": 0.9}}'
+        store.upsert_jobs([job])
+        with store.connect() as conn:
+            row = conn.execute("SELECT evidence_json FROM recruitment_jobs WHERE id = ?", (job.id,)).fetchone()
+            assert row["evidence_json"] == job.evidence_json
+
+    def test_upsert_quality_change_triggers_update(self, tmp_path):
+        """P0: quality_score change must be detected as an update, not unchanged."""
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        job = make_job(quality_score=40, quality_status="needs_review")
+        store.upsert_jobs([job])
+        job2 = make_job(quality_score=75, quality_status="normal")
+        counts = store.upsert_jobs([job2])
+        assert counts["updated"] == 1
+        with store.connect() as conn:
+            row = conn.execute("SELECT quality_score FROM recruitment_jobs WHERE id = ?", (job.id,)).fetchone()
+            assert row["quality_score"] == 75
+
+    def test_round_trip_preserves_evidence_and_confidence(self, tmp_path):
+        """P0: evidence_json + extraction_confidence survive upsert round trip."""
+        store = JobStore(tmp_path / "test.sqlite")
+        store.init_db()
+        job = make_job(
+            extraction_confidence=0.88,
+            evidence_json='{"position": {"source_id": "t1", "quote": "招聘教师"}}',
+        )
+        store.upsert_jobs([job])
+        jobs, _ = store.list_jobs(include_expired=True)
+        assert jobs[0].extraction_confidence == 0.88
+        assert jobs[0].evidence_json == job.evidence_json
+
     def test_list_filters_expired(self, tmp_path):
         store = JobStore(tmp_path / "test.sqlite")
         store.init_db()

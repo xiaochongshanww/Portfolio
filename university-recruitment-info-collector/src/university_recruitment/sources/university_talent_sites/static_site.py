@@ -108,7 +108,7 @@ class StaticTalentSiteAdapter(SourceAdapter):
             should_fetch_detail = len(jobs) < detail_limit
             detail = self._fetch_detail(source_url) if should_fetch_detail else None
             description = detail.text if detail and detail.text else raw_title
-            analysis_text, used_attachment_text, _ = prepare_llm_input_text(
+            analysis_text, used_attachment_text, aug_warnings = prepare_llm_input_text(
                 body_text=description,
                 notice_url=str(source_url),
             )
@@ -133,6 +133,9 @@ class StaticTalentSiteAdapter(SourceAdapter):
                 except Exception:
                     analysis = {"document_type": "unknown", "positions": [],
                                 "warnings": [], "review_accepted": True}
+                analysis_warnings = list(analysis.get("warnings") or [])
+                analysis_warnings.extend(aug_warnings)
+                analysis["warnings"] = analysis_warnings
 
                 doc_type = analysis.get("document_type", "unknown")
                 doc_type_obj = doc_type
@@ -197,6 +200,8 @@ class StaticTalentSiteAdapter(SourceAdapter):
                             ),
                             doc_type=doc_type,
                         )
+                        all_warnings = list(qwarnings)
+                        all_warnings.extend(analysis.get("warnings") or [])
 
                         jobs.append(RecruitmentJob(
                             id=pos_id,
@@ -224,7 +229,7 @@ class StaticTalentSiteAdapter(SourceAdapter):
                             extraction_confidence=analysis.get("confidence"),
                             quality_score=qscore,
                             quality_status=qstatus,
-                            extraction_warnings=build_extraction_warnings_json(qwarnings),
+                            extraction_warnings=build_extraction_warnings_json(all_warnings),
                             evidence_json=evidence_json,
                             notice_title=detail.title if detail else raw_title,
                             notice_url=canonical_url,

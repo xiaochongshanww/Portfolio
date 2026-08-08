@@ -67,23 +67,40 @@ def parse_attachment_bytes(filename: str, content: bytes, max_chars: int = LLM_M
 
     Unsupported formats return an empty string.
     """
+    text, _ = parse_attachment_bytes_detailed(filename, content, max_chars=max_chars)
+    return text
+
+
+def parse_attachment_bytes_detailed(
+    filename: str,
+    content: bytes,
+    max_chars: int = LLM_MAX_ATTACHMENT_CHARS,
+) -> tuple[str, str | None]:
+    """Parse attachment bytes. Returns (text, failure_reason).
+
+    failure_reason is None on success or empty content; otherwise a
+    human-readable explanation (missing dependency, unsupported format, ...).
+    """
     lower = filename.lower()
     text = ""
+    reason: str | None = None
 
     if lower.endswith(".csv"):
-        text = _parse_csv(content)
+        text, reason = _parse_csv(content)
     elif lower.endswith((".xlsx", ".xls")):
-        text = _parse_excel(content)
+        text, reason = _parse_excel(content)
     elif lower.endswith(".docx"):
-        text = _parse_docx(content)
+        text, reason = _parse_docx(content)
     elif lower.endswith(".pdf"):
-        text = _parse_pdf(content)
+        text, reason = _parse_pdf(content)
+    else:
+        reason = f"unsupported attachment format: {filename}"
 
     if not text:
-        return ""
+        return "", reason
     if len(text) > max_chars:
-        return text[:max_chars]
-    return text
+        return text[:max_chars], None
+    return text, None
 
 
 def build_attachment_augmented_text(
@@ -118,9 +135,11 @@ def build_attachment_augmented_text(
             parse_name = filename
             if not any(parse_name.lower().endswith(ext) for ext in _ATTACHMENT_EXTENSIONS):
                 parse_name = url.split("/")[-1] or parse_name
-            parsed = parse_attachment_bytes(parse_name, file_resp.content, max_chars=max_chars)
+            parsed, reason = parse_attachment_bytes_detailed(parse_name, file_resp.content, max_chars=max_chars)
             if parsed:
                 blocks.append(f"[附件{idx}: {filename}]\n{parsed}")
+            elif reason:
+                warnings.append(f"attachment parse failed: {filename} ({reason})")
             else:
                 warnings.append(f"attachment parsed empty: {filename}")
         except Exception as exc:
@@ -165,29 +184,29 @@ def prepare_llm_input_text(
     return normalized, False, warnings
 
 
-def _parse_csv(content: bytes) -> str:
+def _parse_csv(content: bytes) -> tuple[str, str | None]:
     text_data = _decode_text(content)
     if not text_data:
-        return ""
+        return "", "csv text decode failed"
     reader = csv.reader(io.StringIO(text_data))
     lines: list[str] = []
     for i, row in enumerate(reader):
         lines.append(" | ".join(str(c).strip() for c in row if str(c).strip()))
         if i >= 800:
             break
-    return "\n".join(line for line in lines if line).strip()
+    return "\n".join(line for line in lines if line).strip(), None
 
 
-def _parse_excel(content: bytes) -> str:
+def _parse_excel(content: bytes) -> tuple[str, str | None]:
     try:
         from openpyxl import load_workbook
     except Exception:
-        return ""
+        return "", "missing dependency: openpyxl"
 
     try:
         wb = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
-    except Exception:
-        return ""
+    except Exception as exc:
+        return "", f"excel parse failed: {exc}"
 
     chunks: list[str] = []
     row_count = 0
@@ -204,34 +223,34 @@ def _parse_excel(content: bytes) -> str:
         if row_count >= 2000:
             break
 
-    return "\n".join(chunks).strip()
+    return "\n".join(chunks).strip(), None
 
 
-def _parse_docx(content: bytes) -> str:
+def _parse_docx(content: bytes) -> tuple[str, str | None]:
     try:
         from docx import Document
     except Exception:
-        return ""
+        return "", "missing dependency: python-docx"
 
     try:
         doc = Document(io.BytesIO(content))
-    except Exception:
-        return ""
+    except Exception as exc:
+        return "", f"docx parse failed: {exc}"
 
     lines = [p.text.strip() for p in doc.paragraphs if p.text and p.text.strip()]
-    return "\n".join(lines).strip()
+    return "\n".join(lines).strip(), None
 
 
-def _parse_pdf(content: bytes) -> str:
+def _parse_pdf(content: bytes) -> tuple[str, str | None]:
     try:
         from pypdf import PdfReader
     except Exception:
-        return ""
+        return "", "missing dependency: pypdf"
 
     try:
         reader = PdfReader(io.BytesIO(content))
-    except Exception:
-        return ""
+    except Exception as exc:
+        return "", f"pdf parse failed: {exc}"
 
     lines: list[str] = []
     for page in reader.pages[:20]:
@@ -239,7 +258,7 @@ def _parse_pdf(content: bytes) -> str:
         cleaned = txt.strip()
         if cleaned:
             lines.append(cleaned)
-    return "\n\n".join(lines).strip()
+    return "\n\n".join(lines).strip(), None
 
 
 def _decode_text(content: bytes) -> str:

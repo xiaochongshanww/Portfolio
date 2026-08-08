@@ -3,6 +3,7 @@ from university_recruitment.sources.attachment_parser import (
     extract_attachment_urls_from_html,
     looks_like_attachment_notice,
     parse_attachment_bytes,
+    parse_attachment_bytes_detailed,
     prepare_llm_input_text,
 )
 
@@ -32,6 +33,13 @@ def test_parse_attachment_bytes_csv() -> None:
     text = parse_attachment_bytes("岗位需求.csv", csv_bytes)
     assert "专任教师" in text
     assert "计算机学院" in text
+
+
+def test_parse_attachment_bytes_detailed_unsupported() -> None:
+    text, reason = parse_attachment_bytes_detailed("岗位表.txt", b"some text")
+    assert text == ""
+    assert reason is not None
+    assert "unsupported" in reason
 
 
 def test_build_attachment_augmented_text(monkeypatch) -> None:

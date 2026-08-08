@@ -202,7 +202,7 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
             detail = details.get(source_url)
             school = self._configured_school() or self._infer_school(raw_title, link)
             description = detail.text if detail and detail.text else raw_title
-            analysis_text, used_attachment_text, _ = prepare_llm_input_text(
+            analysis_text, used_attachment_text, aug_warnings = prepare_llm_input_text(
                 body_text=description,
                 notice_url=str(source_url),
             )
@@ -226,6 +226,9 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
                     analysis = llm.analyze_document(analysis_text, metadata)
                 except Exception:
                     analysis = {"document_type": "unknown", "positions": [], "warnings": [], "review_accepted": True}
+                analysis_warnings = list(analysis.get("warnings") or [])
+                analysis_warnings.extend(aug_warnings)
+                analysis["warnings"] = analysis_warnings
 
                 doc_type = analysis.get("document_type", "unknown")
                 skippable = {"result_announcement", "interview_notice", "publicity_notice", "non_recruitment"}
@@ -255,7 +258,8 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
 
                         jobs.append(self._build_extracted_job(pos_id, school, position, extracted.get("position_normalized"),
                             dept, disc, edu, jt, loc, dl, pa, analysis_text, canonical_url, ("llm_analyze_document_attachment" if used_attachment_text else "llm_analyze_document"),
-                            doc_type, analysis.get("confidence"), now))
+                            doc_type, analysis.get("confidence"), now,
+                            evidence_json=ev_json, extra_warnings=analysis.get("warnings") or []))
                 else:
                     # Fallback to legacy extract
                     legacy = llm.extract(analysis_text) if hasattr(llm, "extract") else {}
@@ -335,7 +339,8 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
     def _build_extracted_job(self, job_id, school, position, normalized_position,
                              department, discipline, education_requirement, job_type,
                              location, deadline, published_at, description,
-                             canonical_url, method, doc_type=None, confidence=None, now=None):
+                             canonical_url, method, doc_type=None, confidence=None, now=None,
+                             evidence_json=None, extra_warnings=None):
         from datetime import datetime, timezone
         from university_recruitment.models import JobStatus
         from university_recruitment.quality.validators import (
@@ -345,8 +350,9 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
         job_status = JobStatus.EXPIRED if (deadline and deadline < date.today()) else JobStatus.ACTIVE
         qscore = None
         qstatus = None
+        qwarnings: list[str] = []
         try:
-            qscore, qstatus, _ = calculate_job_quality(RecruitmentJob(
+            qscore, qstatus, qwarnings = calculate_job_quality(RecruitmentJob(
                 id=job_id, school=school, position=position,
                 normalized_position=normalized_position,
                 department=department, discipline=discipline,
@@ -357,6 +363,8 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
             ), doc_type=doc_type)
         except Exception:
             pass
+        all_warnings = list(qwarnings)
+        all_warnings.extend(extra_warnings or [])
         return RecruitmentJob(
             id=job_id, school=school, position=position,
             normalized_position=normalized_position,
@@ -371,6 +379,8 @@ class GaoxiaojobColumnAdapter(SourceAdapter):
             document_type=doc_type, extraction_method=method,
             extraction_confidence=confidence,
             quality_score=qscore, quality_status=qstatus,
+            extraction_warnings=build_extraction_warnings_json(all_warnings),
+            evidence_json=evidence_json,
         )
 
     def _configured_school(self) -> str | None:
