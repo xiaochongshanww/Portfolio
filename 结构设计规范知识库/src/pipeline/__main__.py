@@ -8,6 +8,7 @@ from .knowledge_package import (
     KnowledgePackageError,
     export_runtime_package,
     import_runtime_package,
+    probe_runtime_package,
     validate_runtime_package,
 )
 from .paths import RAW_DIR
@@ -65,6 +66,10 @@ def main() -> None:
     export_parser.add_argument("--quality-waiver-reason", default="", help="质量门禁未通过时的豁免原因")
     validate_parser = subparsers.add_parser("package-validate", help="校验知识包格式和文件哈希")
     validate_parser.add_argument("--package", required=True, help="知识包 ZIP 文件")
+    probe_parser = subparsers.add_parser("package-probe", help="隔离导入并打开 Chroma 验证运行兼容性")
+    probe_parser.add_argument("--package", required=True, help="知识包 ZIP 文件")
+    probe_parser.add_argument("--expect-source-platform", default="", help="要求清单中的来源平台，例如 windows")
+    probe_parser.add_argument("--require-cross-platform", action="store_true", help="要求来源与本机平台不同且无非预期兼容警告")
     import_parser = subparsers.add_parser("package-import", help="导入并激活运行知识包")
     import_parser.add_argument("--package", required=True, help="知识包 ZIP 文件")
     import_parser.add_argument("--data-dir", default="data", help="目标数据目录，默认 data")
@@ -113,6 +118,14 @@ def main() -> None:
             )
         elif args.command == "package-validate":
             print_json(validate_runtime_package(Path(args.package)))
+        elif args.command == "package-probe":
+            print_json(
+                probe_runtime_package(
+                    Path(args.package),
+                    expected_source_platform=args.expect_source_platform,
+                    require_cross_platform=args.require_cross_platform,
+                )
+            )
         elif args.command == "package-import":
             print_json(
                 import_runtime_package(

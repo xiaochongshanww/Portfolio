@@ -77,6 +77,80 @@ jobs:
       - name: Build production console
         run: npm run build
 
+  package-producer:
+    name: Package producer (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    needs: [dependency-lock, backend]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: windows-latest
+            platform: windows
+    defaults:
+      run:
+        working-directory: 结构设计规范知识库
+    env:
+      ANONYMIZED_TELEMETRY: "FALSE"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: 结构设计规范知识库/requirements-runtime.txt
+      - name: Install runtime dependencies
+        run: python -m pip install --disable-pip-version-check --require-hashes -r requirements-runtime.txt
+      - name: Create real Chroma package
+        run: python -m scripts.create_portability_package --output dist/portability-${{ matrix.platform }}.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: portability-${{ matrix.platform }}
+          path: 结构设计规范知识库/dist/portability-${{ matrix.platform }}.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  package-portability:
+    name: Package portability (${{ matrix.source }} -> ${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    needs: package-producer
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            source: windows
+            target: linux
+          - os: windows-latest
+            source: linux
+            target: windows
+    defaults:
+      run:
+        working-directory: 结构设计规范知识库
+    env:
+      ANONYMIZED_TELEMETRY: "FALSE"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: 结构设计规范知识库/requirements-runtime.txt
+      - name: Install runtime dependencies
+        run: python -m pip install --disable-pip-version-check --require-hashes -r requirements-runtime.txt
+      - uses: actions/download-artifact@v4
+        with:
+          name: portability-${{ matrix.source }}
+          path: 结构设计规范知识库/dist
+      - name: Import and probe foreign package
+        run: >-
+          python -m src.pipeline package-probe
+          --package dist/portability-${{ matrix.source }}.zip
+          --expect-source-platform ${{ matrix.source }}
+          --require-cross-platform
+
   container:
     name: Container smoke test
     runs-on: ubuntu-latest

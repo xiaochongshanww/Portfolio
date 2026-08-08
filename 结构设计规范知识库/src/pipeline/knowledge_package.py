@@ -5,6 +5,8 @@ import json
 import platform
 import re
 import shutil
+import subprocess
+import sys
 import tempfile
 import zipfile
 from datetime import datetime, timedelta, timezone
@@ -33,12 +35,21 @@ from .paths import (
 
 
 PACKAGE_FORMAT = "structural-spec-knowledge-package"
-PACKAGE_SCHEMA_VERSION = 3
-SUPPORTED_PACKAGE_SCHEMA_VERSIONS = {1, 2, PACKAGE_SCHEMA_VERSION}
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PACKAGE_SCHEMA_VERSION = 4
+SUPPORTED_PACKAGE_SCHEMA_VERSIONS = {1, 2, 3, PACKAGE_SCHEMA_VERSION}
 PACKAGE_MANIFEST_NAME = "knowledge-package.json"
 DEFAULT_MAX_UNCOMPRESSED_BYTES = 20 * 1024 * 1024 * 1024
 PACKAGE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 MIN_WAIVER_REASON_LENGTH = 8
+MACHINE_ALIASES = {
+    "amd64": "x86_64",
+    "x64": "x86_64",
+    "x86-64": "x86_64",
+    "x86_64": "x86_64",
+    "aarch64": "aarch64",
+    "arm64": "aarch64",
+}
 
 
 class KnowledgePackageError(RuntimeError):
@@ -126,6 +137,53 @@ def _object_hash(payload: dict[str, Any]) -> str:
         separators=(",", ":"),
     )
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def _normalize_machine(value: Any) -> str:
+    normalized = str(value or "").strip().lower()
+    return MACHINE_ALIASES.get(normalized, normalized)
+
+
+def _version_prefix(value: Any, count: int) -> tuple[int, ...] | None:
+    match = re.match(r"^(\d+(?:\.\d+)*)", str(value or "").strip())
+    if not match:
+        return None
+    parts = tuple(int(part) for part in match.group(1).split("."))
+    return parts[:count] if len(parts) >= count else None
+
+
+def _identity_metadata(package_manifest: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: package_manifest.get(key)
+        for key in (
+            "format",
+            "schema_version",
+            "profile",
+            "created_at",
+            "data_version_hash",
+            "document_count",
+            "chunk_count",
+            "compatibility",
+            "capabilities",
+            "quality",
+        )
+    }
+
+
+def _expected_package_id(
+    package_manifest: dict[str, Any],
+    *,
+    data_version_hash: str,
+    payload_hash: str,
+) -> str:
+    schema_version = package_manifest.get("schema_version")
+    if schema_version == 1:
+        return f"kp-{data_version_hash[:12]}-{payload_hash[:12]}"
+    if schema_version in {2, 3}:
+        identity_hash = _object_hash(package_manifest.get("quality") or {})
+    else:
+        identity_hash = _object_hash(_identity_metadata(package_manifest))
+    return f"kp-{data_version_hash[:12]}-{payload_hash[:12]}-{identity_hash[:12]}"
 
 
 def _assert_safe_member(name: str) -> PurePosixPath:
@@ -337,12 +395,9 @@ def export_runtime_package(
     entries = [_file_entry(archive_path, source, role) for archive_path, source, role in payloads]
     roles = {entry["role"] for entry in entries}
     payload_hash = _payload_hash(entries)
-    quality_hash = _object_hash(quality)
-    package_id = f"kp-{data_version_hash[:12]}-{payload_hash[:12]}-{quality_hash[:12]}"
     package_manifest = {
         "format": PACKAGE_FORMAT,
         "schema_version": PACKAGE_SCHEMA_VERSION,
-        "package_id": package_id,
         "profile": "runtime",
         "created_at": created_at,
         "data_version_hash": data_version_hash,
@@ -352,8 +407,9 @@ def export_runtime_package(
         "compatibility": {
             "app_version": settings.app_version,
             "python_version": platform.python_version(),
+            "python_implementation": platform.python_implementation().lower(),
             "platform": platform.system().lower(),
-            "machine": platform.machine().lower(),
+            "machine": _normalize_machine(platform.machine()),
             "chromadb_version": _dependency_version("chromadb"),
             "embedding_model": str(manifest.get("embedding_model") or settings.embedding_model),
             "collection_name": str(manifest.get("collection_name") or settings.collection_name),
@@ -369,6 +425,12 @@ def export_runtime_package(
         "quality": quality,
         "files": entries,
     }
+    package_id = _expected_package_id(
+        package_manifest,
+        data_version_hash=data_version_hash,
+        payload_hash=payload_hash,
+    )
+    package_manifest["package_id"] = package_id
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     temporary_path = output_path.with_name(f".{output_path.name}.tmp")
@@ -490,16 +552,15 @@ def validate_runtime_package(
         if not re.fullmatch(r"[0-9a-f]{64}", data_version_hash):
             raise KnowledgePackageError("知识包 data_version_hash 无效")
         quality = package_manifest.get("quality")
-        if schema_version == 1:
-            expected_package_id = f"kp-{data_version_hash[:12]}-{calculated_payload_hash[:12]}"
-        elif isinstance(quality, dict):
-            expected_package_id = (
-                f"kp-{data_version_hash[:12]}-{calculated_payload_hash[:12]}-{_object_hash(quality)[:12]}"
-            )
-        else:
+        if schema_version >= 2 and not isinstance(quality, dict):
             raise KnowledgePackageError("v2 知识包缺少 quality 质量证据")
+        expected_package_id = _expected_package_id(
+            package_manifest,
+            data_version_hash=data_version_hash,
+            payload_hash=calculated_payload_hash,
+        )
         if package_id != expected_package_id:
-            raise KnowledgePackageError("知识包 package_id 与数据、payload 和质量证据不一致")
+            raise KnowledgePackageError("知识包 package_id 与数据、payload 和身份元数据不一致")
 
         actual_payloads = set(names) - {PACKAGE_MANIFEST_NAME}
         if actual_payloads != set(declared_by_path):
@@ -613,6 +674,20 @@ def validate_runtime_package(
         if source_chroma not in {"", "not-installed"} and local_chroma not in {"", "not-installed"}:
             if source_chroma.split(".", 1)[0] != local_chroma.split(".", 1)[0]:
                 warnings.append(f"Chroma 主版本不同: package={source_chroma}, local={local_chroma}")
+        source_app = str(compatibility.get("app_version") or "")
+        local_app = settings.app_version
+        if source_app and _version_prefix(source_app, 1) != _version_prefix(local_app, 1):
+            warnings.append(f"应用主版本不同: package={source_app}, local={local_app}")
+        source_python = str(compatibility.get("python_version") or "")
+        local_python = platform.python_version()
+        if source_python and _version_prefix(source_python, 2) != _version_prefix(local_python, 2):
+            warnings.append(f"Python 主次版本不同: package={source_python}, local={local_python}")
+        source_implementation = str(compatibility.get("python_implementation") or "").lower()
+        local_implementation = platform.python_implementation().lower()
+        if source_implementation and source_implementation != local_implementation:
+            warnings.append(
+                f"Python 实现不同: package={source_implementation}, local={local_implementation}"
+            )
         if compatibility.get("collection_name") != settings.collection_name:
             warnings.append(
                 f"集合名称不同: package={compatibility.get('collection_name')}, local={settings.collection_name}"
@@ -622,17 +697,19 @@ def validate_runtime_package(
                 f"Embedding 模型不同: package={compatibility.get('embedding_model')}, local={settings.embedding_model}"
             )
         local_platform = platform.system().lower()
-        local_machine = platform.machine().lower()
+        local_machine = _normalize_machine(platform.machine())
         if compatibility.get("platform") not in {None, "", local_platform}:
             warnings.append(f"操作系统不同: package={compatibility.get('platform')}, local={local_platform}")
-        if compatibility.get("machine") not in {None, "", local_machine}:
-            warnings.append(f"处理器架构不同: package={compatibility.get('machine')}, local={local_machine}")
+        source_machine = _normalize_machine(compatibility.get("machine"))
+        if source_machine not in {"", local_machine}:
+            warnings.append(f"处理器架构不同: package={source_machine}, local={local_machine}")
 
     return {
         "ok": True,
         "valid": True,
         "package": str(package_path),
         "package_id": package_manifest["package_id"],
+        "schema_version": package_manifest["schema_version"],
         "data_version_hash": package_manifest["data_version_hash"],
         "document_count": package_manifest.get("document_count", 0),
         "chunk_count": package_manifest.get("chunk_count", 0),
@@ -792,4 +869,98 @@ def import_runtime_package(
         "capabilities": validation["capabilities"],
         "warnings": validation["warnings"],
         "restart_required": activate,
+    }
+
+
+def probe_runtime_package(
+    package_path: Path,
+    *,
+    expected_source_platform: str = "",
+    require_cross_platform: bool = False,
+) -> dict[str, Any]:
+    validation = validate_runtime_package(package_path)
+    compatibility = validation.get("compatibility", {})
+    collection_name = str(compatibility.get("collection_name") or "")
+    if not collection_name:
+        raise KnowledgePackageError("知识包 compatibility 缺少 collection_name")
+
+    with tempfile.TemporaryDirectory(prefix="knowledge-package-probe-") as temporary_name:
+        data_dir = Path(temporary_name) / "data"
+        imported = import_runtime_package(package_path, data_dir=data_dir)
+        database_dir = Path(imported["active_db_dir"])
+        try:
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "src.pipeline.chroma_probe",
+                    "--database",
+                    str(database_dir),
+                    "--collection",
+                    collection_name,
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                cwd=PROJECT_ROOT,
+                timeout=120,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise KnowledgePackageError(f"无法执行隔离 Chroma 运行探针: {exc}") from exc
+        if result.returncode != 0:
+            details = (result.stderr or result.stdout).strip() or f"exit={result.returncode}"
+            raise KnowledgePackageError(f"导入后 Chroma 运行探针失败: {details}")
+        try:
+            probe = json.loads(result.stdout)
+            actual_count = int(probe["count"])
+            expected_count = int(validation.get("chunk_count", -1))
+            if actual_count != expected_count:
+                raise KnowledgePackageError(
+                    f"导入后集合数量不一致: collection={actual_count}, manifest={expected_count}"
+                )
+            if actual_count > 0 and not probe.get("sample_ids"):
+                raise KnowledgePackageError("导入后集合无法读取样本记录")
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise KnowledgePackageError(f"Chroma 运行探针返回无效结果: {result.stdout!r}") from exc
+        except KnowledgePackageError:
+            raise
+
+    source_platform = str(compatibility.get("platform") or "")
+    target_platform = platform.system().lower()
+    cross_platform = bool(source_platform and source_platform != target_platform)
+    if expected_source_platform and source_platform != expected_source_platform.strip().lower():
+        raise KnowledgePackageError(
+            f"知识包来源平台不符合预期: package={source_platform}, expected={expected_source_platform}"
+        )
+    if require_cross_platform:
+        if not cross_platform:
+            raise KnowledgePackageError(
+                f"未形成跨平台验证: package={source_platform}, local={target_platform}"
+            )
+        platform_warnings = [
+            warning for warning in validation["warnings"] if warning.startswith("操作系统不同:")
+        ]
+        unexpected_warnings = [
+            warning for warning in validation["warnings"] if not warning.startswith("操作系统不同:")
+        ]
+        if len(platform_warnings) != 1 or unexpected_warnings:
+            raise KnowledgePackageError(
+                f"跨平台探针包含非预期兼容警告: {validation['warnings']}"
+            )
+    return {
+        "ok": True,
+        "package_id": validation["package_id"],
+        "data_version_hash": validation["data_version_hash"],
+        "source_platform": source_platform,
+        "target_platform": target_platform,
+        "cross_platform": cross_platform,
+        "source_machine": _normalize_machine(compatibility.get("machine")),
+        "target_machine": _normalize_machine(platform.machine()),
+        "collection_name": collection_name,
+        "expected_count": expected_count,
+        "actual_count": actual_count,
+        "copied_asset_count": imported["copied_asset_count"],
+        "warnings": validation["warnings"],
     }

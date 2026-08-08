@@ -82,6 +82,10 @@ def test_repository_ci_covers_backend_frontend_and_container():
     assert "os: [ubuntu-latest, windows-latest]" in workflow
     assert "python scripts/lock_dependencies.py --check" in workflow
     assert "--require-hashes -r requirements-dev.txt" in workflow
+    assert "Package portability (${{ matrix.source }} -> ${{ matrix.target }})" in workflow
+    assert "actions/upload-artifact@v4" in workflow
+    assert "actions/download-artifact@v4" in workflow
+    assert "--require-cross-platform" in workflow
     assert "npm run build" in workflow
     assert "docker build --tag structural-spec-kb:ci ." in workflow
     assert "/static/index.html" in workflow

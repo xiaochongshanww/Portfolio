@@ -1,3 +1,4 @@
+import hashlib
 import json
 import zipfile
 from pathlib import Path
@@ -145,7 +146,7 @@ def test_runtime_package_round_trip_without_source_pdfs(tmp_path: Path):
     with zipfile.ZipFile(package) as archive:
         package_manifest = json.loads(archive.read("knowledge-package.json"))
         names = set(archive.namelist())
-        assert package_manifest["schema_version"] == 3
+        assert package_manifest["schema_version"] == 4
         audit_event_id = package_manifest["quality"]["audit_event_id"]
         audit_record = tmp_path / "source" / "data" / "audit" / "package_exports" / f"{audit_event_id}.json"
         assert json.loads(audit_record.read_text(encoding="utf-8"))["outcome"] == "exported"
@@ -424,6 +425,7 @@ def test_runtime_package_v2_requires_consistent_quality_evidence(tmp_path: Path)
             content = source.read(info.filename)
             if info.filename == "knowledge-package.json":
                 manifest = json.loads(content.decode("utf-8"))
+                manifest["schema_version"] = 2
                 manifest.pop("quality")
                 content = json.dumps(manifest, ensure_ascii=False).encode("utf-8")
             target.writestr(info.filename, content)
@@ -432,7 +434,7 @@ def test_runtime_package_v2_requires_consistent_quality_evidence(tmp_path: Path)
         validate_runtime_package(malformed)
 
 
-def test_runtime_package_id_binds_v2_quality_evidence(tmp_path: Path):
+def test_runtime_package_v4_id_binds_quality_evidence(tmp_path: Path):
     package = _export(tmp_path)
     tampered = tmp_path / "tampered-quality.zip"
     with zipfile.ZipFile(package) as source, zipfile.ZipFile(tampered, "w") as target:
@@ -444,5 +446,59 @@ def test_runtime_package_id_binds_v2_quality_evidence(tmp_path: Path):
                 content = json.dumps(manifest, ensure_ascii=False).encode("utf-8")
             target.writestr(info.filename, content)
 
-    with pytest.raises(KnowledgePackageError, match="质量证据不一致"):
+    with pytest.raises(KnowledgePackageError, match="身份元数据不一致"):
         validate_runtime_package(tampered)
+
+
+def test_runtime_package_v4_id_binds_compatibility_metadata(tmp_path: Path):
+    package = _export(tmp_path)
+    tampered = tmp_path / "tampered-compatibility.zip"
+    with zipfile.ZipFile(package) as source, zipfile.ZipFile(tampered, "w") as target:
+        for info in source.infolist():
+            content = source.read(info.filename)
+            if info.filename == "knowledge-package.json":
+                manifest = json.loads(content.decode("utf-8"))
+                manifest["compatibility"]["chromadb_version"] = "99.0.0"
+                content = json.dumps(manifest, ensure_ascii=False).encode("utf-8")
+            target.writestr(info.filename, content)
+
+    with pytest.raises(KnowledgePackageError, match="身份元数据不一致"):
+        validate_runtime_package(tampered)
+
+
+def test_runtime_package_v3_remains_compatible(tmp_path: Path):
+    package = _export(tmp_path)
+    legacy = tmp_path / "legacy-v3.zip"
+    with zipfile.ZipFile(package) as source, zipfile.ZipFile(legacy, "w") as target:
+        for info in source.infolist():
+            content = source.read(info.filename)
+            if info.filename == "knowledge-package.json":
+                manifest = json.loads(content.decode("utf-8"))
+                manifest["schema_version"] = 3
+                quality_json = json.dumps(
+                    manifest["quality"],
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+                quality_hash = hashlib.sha256(quality_json.encode("utf-8")).hexdigest()
+                manifest["package_id"] = (
+                    f"kp-{manifest['data_version_hash'][:12]}-"
+                    f"{manifest['payload_hash'][:12]}-{quality_hash[:12]}"
+                )
+                content = json.dumps(manifest, ensure_ascii=False).encode("utf-8")
+            target.writestr(info.filename, content)
+
+    validation = validate_runtime_package(legacy)
+
+    assert validation["schema_version"] == 3
+    assert validation["valid"] is True
+
+
+def test_machine_architecture_aliases_do_not_create_false_warning(tmp_path: Path, monkeypatch):
+    package = _export(tmp_path)
+    monkeypatch.setattr("src.pipeline.knowledge_package.platform.machine", lambda: "AMD64")
+
+    validation = validate_runtime_package(package)
+
+    assert not any("处理器架构不同" in warning for warning in validation["warnings"])
