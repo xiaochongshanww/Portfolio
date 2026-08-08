@@ -41,6 +41,8 @@ def test_compose_persists_runtime_data_and_uses_v1_backend():
     compose = (PROJECT_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
 
     assert compose.startswith("name: structural-spec-kb")
+    assert "path: .env" in compose
+    assert "required: false" in compose
     assert "./data:/app/data" in compose
     assert "open-webui-data:/app/backend/data" in compose
     assert "OPENAI_API_BASE_URL=http://api:8000/v1" in compose
