@@ -193,7 +193,7 @@ def main() -> int:
     if not args.output:
         parser.error("--output 是必需参数")
     result = create_portability_package(args.output)
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    print(json.dumps(result, ensure_ascii=True, indent=2))
     return 0
 
 

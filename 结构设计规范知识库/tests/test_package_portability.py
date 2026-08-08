@@ -1,10 +1,16 @@
 import json
+import os
 import platform
+import subprocess
+import sys
 import zipfile
 from pathlib import Path
 
 from scripts.create_portability_package import create_portability_package
 from src.pipeline.knowledge_package import probe_runtime_package, validate_runtime_package
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_real_chroma_package_can_be_exported_imported_and_probed(tmp_path: Path):
@@ -55,3 +61,32 @@ def test_cross_platform_probe_requires_only_expected_os_warning(tmp_path: Path, 
     assert probe["target_platform"] == local_platform
     assert len(probe["warnings"]) == 1
     assert probe["warnings"][0].startswith("操作系统不同:")
+
+
+def test_portability_package_cli_output_is_ascii_safe(tmp_path: Path):
+    package = tmp_path / "中文兼容包.zip"
+    environment = os.environ.copy()
+    environment["PYTHONIOENCODING"] = "cp1252"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "scripts.create_portability_package",
+            "--output",
+            str(package),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="cp1252",
+        errors="strict",
+        cwd=PROJECT_ROOT,
+        env=environment,
+        timeout=120,
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["schema_version"] == 4
+    assert package.exists()
