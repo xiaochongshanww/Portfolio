@@ -176,6 +176,36 @@ def test_configuration_example_validation_is_documented():
     assert implementation.is_file()
 
 
+def test_active_architecture_and_release_entry_points_are_current():
+    overview = Path("docs/architecture/系统架构概览.md").read_text(
+        encoding="utf-8"
+    )
+    detailed_design = Path("docs/architecture/系统详细设计.md").read_text(
+        encoding="utf-8"
+    )
+    deployment = Path("docs/operations/部署运行手册.md").read_text(
+        encoding="utf-8"
+    )
+    release_checklist = Path("docs/releases/发布检查单.md").read_text(
+        encoding="utf-8"
+    )
+    decisions = sorted(Path("docs/adr").glob("[0-9][0-9][0-9][0-9]-*.md"))
+
+    assert decisions
+    active_architecture = overview + detailed_design
+    assert all(decision.name in active_architecture for decision in decisions)
+    assert decisions[-1].name in overview
+    assert "scripts/validate_configuration_example.py" in overview
+    assert "openwebui-preflight" in overview
+
+    managed_command = (
+        "python scripts/verify_quality.py --manage-api "
+        "--api-base http://127.0.0.1:8017"
+    )
+    assert managed_command in deployment
+    assert managed_command in release_checklist
+
+
 def test_runtime_backup_and_disaster_recovery_contract_is_documented():
     readme = Path("README.md").read_text(encoding="utf-8")
     operations = Path("docs/operations/部署运行手册.md").read_text(encoding="utf-8")
