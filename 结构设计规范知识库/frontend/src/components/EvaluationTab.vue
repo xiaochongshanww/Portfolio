@@ -174,7 +174,10 @@ async function runEvaluation() {
   busy.value = true
   error.value = ''
   try {
-    const job = await apiPost('/admin/jobs/evaluate', { top_k: 5 })
+    const job = await apiPost('/admin/jobs/evaluate', {
+      top_k: 5,
+      evaluation_set: 'regular',
+    })
     message.value = `已提交评估任务 ${job.job_id}`
     emit('refresh')
   } catch (err: any) {
@@ -190,7 +193,7 @@ async function runStructuredEvaluation() {
   try {
     const job = await apiPost('/admin/jobs/evaluate', {
       top_k: 5,
-      file: 'data/evaluation/complex_structured_tables.jsonl',
+      evaluation_set: 'structured',
     })
     message.value = `已提交结构化专项评估 ${job.job_id}`
     emit('refresh')
@@ -205,7 +208,9 @@ async function runAnswerEvaluation() {
   busy.value = true
   error.value = ''
   try {
-    const job = await apiPost('/admin/jobs/evaluate-answers', {})
+    const job = await apiPost('/admin/jobs/evaluate-answers', {
+      evaluation_set: 'answer',
+    })
     message.value = `已提交回答级盲测 ${job.job_id}`
     emit('refresh')
   } catch (err: any) {

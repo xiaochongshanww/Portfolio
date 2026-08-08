@@ -2,13 +2,17 @@ import json
 from pathlib import Path
 from typing import Any
 
-from src.evaluation.runner import DEFAULT_EVAL_PATH, STRUCTURED_EVAL_PATH, render_evaluation_markdown, run_evaluation
+from src.evaluation.runner import STRUCTURED_EVAL_PATH, render_evaluation_markdown, run_evaluation
 from src.evaluation.answer_runner import (
-    ANSWER_EVAL_PATH,
     render_answer_evaluation_markdown,
     run_answer_evaluation,
 )
 from src.evaluation.api_target import probe_api_readiness
+from src.evaluation.assets import (
+    ANSWER_EVALUATION_SET_IDS,
+    RETRIEVAL_EVALUATION_SET_IDS,
+    resolve_evaluation_asset,
+)
 from src.app.core.config import settings
 from src.app.retrieval.hybrid_search import retrieval_state
 from src.pipeline import builder
@@ -338,9 +342,23 @@ def structuring_suggestion_batch_workflow(job: Job, store: JobStore) -> dict[str
 
 def evaluate_workflow(job: Job, store: JobStore) -> dict[str, Any]:
     top_k = int(job.params.get("top_k", 5))
-    eval_file = Path(job.params.get("file", DEFAULT_EVAL_PATH))
-    _set_step(job, store, "evaluate", "开始检索评估", top_k=top_k)
-    result = run_evaluation(eval_file, top_k=top_k)
+    evaluation_set_id = str(job.params.get("evaluation_set", "regular"))
+    eval_file = resolve_evaluation_asset(
+        evaluation_set_id,
+        allowed_ids=RETRIEVAL_EVALUATION_SET_IDS,
+    )
+    _set_step(
+        job,
+        store,
+        "evaluate",
+        "开始检索评估",
+        top_k=top_k,
+        evaluation_set=evaluation_set_id,
+    )
+    result = {
+        **run_evaluation(eval_file, top_k=top_k),
+        "evaluation_set_id": evaluation_set_id,
+    }
     out_dir = AUDIT_DIR / "reports"
     out_dir.mkdir(parents=True, exist_ok=True)
     is_structured = eval_file.resolve() == STRUCTURED_EVAL_PATH.resolve()
@@ -354,7 +372,11 @@ def evaluate_workflow(job: Job, store: JobStore) -> dict[str, Any]:
         render_evaluation_markdown(result, "结构化检索专项评估" if is_structured else "检索评估报告"),
         encoding="utf-8",
     )
-    output = {**result, "report_path": str(out_path), "markdown_report_path": str(markdown_path)}
+    output = {
+        **result,
+        "report_path": str(out_path),
+        "markdown_report_path": str(markdown_path),
+    }
     if result.get("ok") is not True:
         _raise_evaluation_failure(
             job,
@@ -366,7 +388,11 @@ def evaluate_workflow(job: Job, store: JobStore) -> dict[str, Any]:
 
 
 def answer_evaluate_workflow(job: Job, store: JobStore) -> dict[str, Any]:
-    eval_file = Path(job.params.get("file", ANSWER_EVAL_PATH))
+    evaluation_set_id = str(job.params.get("evaluation_set", "answer"))
+    eval_file = resolve_evaluation_asset(
+        evaluation_set_id,
+        allowed_ids=ANSWER_EVALUATION_SET_IDS,
+    )
     api_base = settings.answer_evaluation_api_base
     api_key = settings.api_keys[0] if settings.api_keys else ""
 
@@ -391,7 +417,13 @@ def answer_evaluate_workflow(job: Job, store: JobStore) -> dict[str, Any]:
     )
     readiness = probe_api_readiness(api_base)
     if readiness.get("ok"):
-        _set_step(job, store, "answer_evaluate", "开始回答级盲测", file=str(eval_file))
+        _set_step(
+            job,
+            store,
+            "answer_evaluate",
+            "开始回答级盲测",
+            evaluation_set=evaluation_set_id,
+        )
         result = run_answer_evaluation(
             api_base=api_base,
             api_key=api_key,
@@ -414,6 +446,7 @@ def answer_evaluate_workflow(job: Job, store: JobStore) -> dict[str, Any]:
             "readiness": readiness,
             "error": readiness.get("error") or "回答盲测目标 API 未就绪",
         }
+    result["evaluation_set_id"] = evaluation_set_id
     out_dir = AUDIT_DIR / "reports"
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / "evaluation_answer_latest.json"
@@ -422,7 +455,11 @@ def answer_evaluate_workflow(job: Job, store: JobStore) -> dict[str, Any]:
 
     out_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     markdown_path.write_text(render_answer_evaluation_markdown(result), encoding="utf-8")
-    output = {**result, "report_path": str(out_path), "markdown_report_path": str(markdown_path)}
+    output = {
+        **result,
+        "report_path": str(out_path),
+        "markdown_report_path": str(markdown_path),
+    }
     if result.get("ok") is not True:
         _raise_evaluation_failure(
             job,

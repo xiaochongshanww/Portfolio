@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
 import urllib.error
 import urllib.request
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -33,6 +35,49 @@ from src.quality import evaluate_quality_gate, render_quality_gate_markdown  # n
 
 
 REPORTS_DIR = AUDIT_DIR / "reports"
+LEGACY_API_KEY_PATH = PROJECT_ROOT / ".runtime_api_key"
+
+
+@dataclass(frozen=True)
+class ApiCredential:
+    key: str = field(repr=False)
+    source: str
+
+
+def _read_api_key_file(path: Path, *, source: str) -> ApiCredential:
+    resolved = path.expanduser().resolve()
+    if not resolved.is_file():
+        raise ValueError(f"API Key 文件不存在：{resolved}")
+    try:
+        key = resolved.read_text(encoding="utf-8").strip()
+    except OSError as exc:
+        raise ValueError(f"无法读取 API Key 文件 {resolved}：{exc}") from exc
+    if not key:
+        raise ValueError(f"API Key 文件为空：{resolved}")
+    return ApiCredential(key=key, source=source)
+
+
+def _resolve_api_credential(
+    *,
+    api_key_file: str | None,
+    no_api_key: bool,
+    environ: dict[str, str] | None = None,
+    legacy_path: Path = LEGACY_API_KEY_PATH,
+) -> ApiCredential:
+    values = os.environ if environ is None else environ
+    if no_api_key:
+        return ApiCredential(key="", source="explicit_none")
+    environment_key = values.get("QUALITY_API_KEY", "").strip()
+    if environment_key:
+        return ApiCredential(key=environment_key, source="environment")
+    if api_key_file:
+        return _read_api_key_file(Path(api_key_file), source="command_file")
+    environment_file = values.get("QUALITY_API_KEY_FILE", "").strip()
+    if environment_file:
+        return _read_api_key_file(Path(environment_file), source="environment_file")
+    if legacy_path.is_file():
+        return _read_api_key_file(legacy_path, source="legacy_file")
+    return ApiCredential(key="", source="none")
 
 
 def _run_command(command: list[str], cwd: Path) -> dict[str, Any]:
@@ -54,9 +99,15 @@ def _run_command(command: list[str], cwd: Path) -> dict[str, Any]:
     }
 
 
-def _run_evaluation(path: Path, stem: str, title: str) -> dict[str, Any]:
+def _run_evaluation(
+    path: Path,
+    stem: str,
+    title: str,
+    evaluation_set_id: str,
+) -> dict[str, Any]:
     started = time.monotonic()
     result = run_evaluation(path, top_k=5)
+    result["evaluation_set_id"] = evaluation_set_id
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     (REPORTS_DIR / f"{stem}.json").write_text(
         json.dumps(result, ensure_ascii=False, indent=2),
@@ -73,6 +124,7 @@ def _run_evaluation(path: Path, stem: str, title: str) -> dict[str, Any]:
         "duration_seconds": round(time.monotonic() - started, 2),
         "case_count": result.get("case_count", 0),
         "failure_count": failure_count,
+        "evaluation_set_id": evaluation_set_id,
         "error": (
             result.get("error")
             or (f"检索评估完成但有 {failure_count} 个失败用例" if failure_count else "")
@@ -89,7 +141,7 @@ def _api_json(
     payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     body = json.dumps(payload).encode("utf-8") if payload is not None else None
-    headers = {"Authorization": f"Bearer {api_key}"}
+    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
     if body is not None:
         headers["Content-Type"] = "application/json"
     request = urllib.request.Request(url, data=body, headers=headers, method=method)
@@ -97,13 +149,75 @@ def _api_json(
         return json.loads(response.read().decode("utf-8"))
 
 
-def _run_api_evaluation(path: Path, api_base: str, api_key: str) -> dict[str, Any]:
+def _http_error_message(error: urllib.error.HTTPError) -> str:
+    try:
+        payload = json.loads(error.read().decode("utf-8"))
+    except Exception:
+        return str(error.reason or error)
+    if isinstance(payload, dict):
+        detail = payload.get("detail")
+        api_error = payload.get("error")
+        if isinstance(api_error, dict):
+            return str(api_error.get("message") or api_error.get("code") or error.reason)
+        if detail:
+            return str(detail)
+    return str(error.reason or error)
+
+
+def _probe_api_access(
+    api_base: str,
+    credential: ApiCredential,
+) -> dict[str, Any]:
+    started = time.monotonic()
+    common = {
+        "credential_source": credential.source,
+        "credential_supplied": bool(credential.key),
+    }
+    try:
+        _api_json(f"{api_base}/admin/status", api_key=credential.key)
+    except urllib.error.HTTPError as exc:
+        message = _http_error_message(exc)
+        if exc.code in {401, 403}:
+            error = (
+                f"目标 API 鉴权失败（HTTP {exc.code}）：{message}。"
+                "请设置 QUALITY_API_KEY、--api-key-file 或 QUALITY_API_KEY_FILE；"
+                "目标关闭鉴权时可使用 --no-api-key。"
+            )
+        else:
+            error = f"目标 API 受保护端点预检失败（HTTP {exc.code}）：{message}"
+        return {
+            "ok": False,
+            **common,
+            "status_code": exc.code,
+            "duration_seconds": round(time.monotonic() - started, 2),
+            "error": error,
+        }
+    except (OSError, urllib.error.URLError, json.JSONDecodeError) as exc:
+        return {
+            "ok": False,
+            **common,
+            "duration_seconds": round(time.monotonic() - started, 2),
+            "error": f"无法验证目标 API 访问权限：{exc}",
+        }
+    return {
+        "ok": True,
+        **common,
+        "status_code": 200,
+        "duration_seconds": round(time.monotonic() - started, 2),
+    }
+
+
+def _run_api_evaluation(
+    evaluation_set_id: str,
+    api_base: str,
+    api_key: str,
+) -> dict[str, Any]:
     started = time.monotonic()
     job = _api_json(
         f"{api_base}/admin/jobs/evaluate",
         api_key=api_key,
         method="POST",
-        payload={"top_k": 5, "file": str(path.resolve())},
+        payload={"top_k": 5, "evaluation_set": evaluation_set_id},
     )
     job_id = str(job["job_id"])
     deadline = time.monotonic() + 600
@@ -118,6 +232,7 @@ def _run_api_evaluation(path: Path, api_base: str, api_key: str) -> dict[str, An
                 "duration_seconds": round(time.monotonic() - started, 2),
                 "case_count": outputs.get("case_count", 0),
                 "failure_count": failure_count,
+                "evaluation_set_id": outputs.get("evaluation_set_id", evaluation_set_id),
                 "error": (
                     outputs.get("error")
                     or (f"检索评估完成但有 {failure_count} 个失败用例" if failure_count else "")
@@ -150,6 +265,7 @@ def _run_answer_evaluation_against_api(api_base: str, api_key: str) -> dict[str,
         api_key=api_key,
         path=ANSWER_EVAL_PATH,
     )
+    result["evaluation_set_id"] = "answer"
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     (REPORTS_DIR / "evaluation_answer_latest.json").write_text(
         json.dumps(result, ensure_ascii=False, indent=2),
@@ -168,6 +284,7 @@ def _run_answer_evaluation_against_api(api_base: str, api_key: str) -> dict[str,
         "failure_count": result.get("failure_count", 0),
         "pass_rate": pass_rate,
         "api_base": result.get("api_base", api_base),
+        "evaluation_set_id": "answer",
         "error": (
             result.get("error")
             or (f"回答级盲测通过率 {pass_rate:.1%}，低于 90.0%" if not passed else "")
@@ -219,6 +336,16 @@ def main() -> None:
     parser.add_argument("--skip-evaluations", action="store_true")
     parser.add_argument("--skip-answer-evaluation", action="store_true")
     parser.add_argument("--api-base", default="http://127.0.0.1:8000")
+    credential_group = parser.add_mutually_exclusive_group()
+    credential_group.add_argument(
+        "--api-key-file",
+        help="从 UTF-8 文件读取目标 API Key；不把原始 Key 放入命令行",
+    )
+    credential_group.add_argument(
+        "--no-api-key",
+        action="store_true",
+        help="忽略所有 Key 来源，显式验证关闭鉴权的目标",
+    )
     parser.add_argument(
         "--evaluation-mode",
         choices=("api", "local"),
@@ -232,20 +359,68 @@ def main() -> None:
         parser.error(str(exc))
 
     steps: list[dict[str, Any]] = []
-    runtime_key_path = PROJECT_ROOT / ".runtime_api_key"
-    runtime_key = runtime_key_path.read_text(encoding="utf-8").strip() if runtime_key_path.exists() else ""
     api_required = (
         (not args.skip_evaluations and args.evaluation_mode == "api")
         or not args.skip_answer_evaluation
     )
     api_ready = True
+    api_accessible = True
+    credential = ApiCredential(key="", source="none")
     if api_required:
+        try:
+            credential = _resolve_api_credential(
+                api_key_file=args.api_key_file,
+                no_api_key=args.no_api_key,
+            )
+            steps.append(
+                {
+                    "name": "API 凭据加载",
+                    "ok": True,
+                    "duration_seconds": 0,
+                    "credential_source": credential.source,
+                    "credential_supplied": bool(credential.key),
+                }
+            )
+            credential_loaded = True
+        except ValueError as exc:
+            steps.append(
+                {
+                    "name": "API 凭据加载",
+                    "ok": False,
+                    "duration_seconds": 0,
+                    "error": str(exc),
+                }
+            )
+            credential_loaded = False
         readiness_step = _execute_step(
             "目标 API 就绪预检",
             lambda: probe_api_readiness(api_base),
         )
         steps.append(readiness_step)
         api_ready = readiness_step.get("ok") is True
+        if credential_loaded:
+            access_step = _execute_step(
+                "目标 API 鉴权预检",
+                lambda: _probe_api_access(api_base, credential),
+            )
+        else:
+            access_step = {
+                "name": "目标 API 鉴权预检",
+                "ok": False,
+                "skipped": True,
+                "duration_seconds": 0,
+                "error": "未执行：API 凭据加载失败",
+            }
+        steps.append(access_step)
+        api_accessible = access_step.get("ok") is True
+
+    api_available = api_ready and api_accessible
+    unavailable_reasons = []
+    if not api_ready:
+        unavailable_reasons.append("就绪预检失败")
+    if not api_accessible:
+        unavailable_reasons.append("鉴权预检失败")
+    api_unavailable_error = "未执行：目标 API " + "、".join(unavailable_reasons)
 
     if not args.skip_tests:
         steps.append(
@@ -263,17 +438,20 @@ def main() -> None:
             )
         )
     if not args.skip_evaluations:
-        def evaluation_action(path: Path, stem: str, title: str) -> dict[str, Any]:
+        def evaluation_action(
+            evaluation_set_id: str,
+            path: Path,
+            stem: str,
+            title: str,
+        ) -> dict[str, Any]:
             if args.evaluation_mode == "api":
-                if not runtime_key:
-                    return {"ok": False, "error": "缺少 .runtime_api_key，无法调用本地评估 API"}
                 try:
-                    return _run_api_evaluation(path, api_base, runtime_key)
+                    return _run_api_evaluation(evaluation_set_id, api_base, credential.key)
                 except (OSError, urllib.error.URLError, json.JSONDecodeError) as exc:
                     return {"ok": False, "error": f"无法调用本地评估 API：{exc}"}
-            return _run_evaluation(path, stem, title)
+            return _run_evaluation(path, stem, title, evaluation_set_id)
 
-        if args.evaluation_mode == "api" and not api_ready:
+        if args.evaluation_mode == "api" and not api_available:
             for name in ("常规检索评估", "结构化专项评估"):
                 steps.append(
                     {
@@ -281,20 +459,26 @@ def main() -> None:
                         "ok": False,
                         "skipped": True,
                         "duration_seconds": 0,
-                        "error": "未执行：目标 API 就绪预检失败",
+                        "error": api_unavailable_error,
                     }
                 )
         else:
             steps.append(
                 _execute_step(
                     "常规检索评估",
-                    lambda: evaluation_action(DEFAULT_EVAL_PATH, "evaluation_latest", "检索评估报告"),
+                    lambda: evaluation_action(
+                        "regular",
+                        DEFAULT_EVAL_PATH,
+                        "evaluation_latest",
+                        "检索评估报告",
+                    ),
                 )
             )
             steps.append(
                 _execute_step(
                     "结构化专项评估",
                     lambda: evaluation_action(
+                        "structured",
                         STRUCTURED_EVAL_PATH,
                         "evaluation_structured_latest",
                         "结构化检索专项评估",
@@ -302,23 +486,14 @@ def main() -> None:
                 )
             )
     if not args.skip_answer_evaluation:
-        if not api_ready:
+        if not api_available:
             steps.append(
                 {
                     "name": "回答级盲测",
                     "ok": False,
                     "skipped": True,
                     "duration_seconds": 0,
-                    "error": "未执行：目标 API 就绪预检失败",
-                }
-            )
-        elif not runtime_key:
-            steps.append(
-                {
-                    "name": "回答级盲测",
-                    "ok": False,
-                    "duration_seconds": 0,
-                    "error": "缺少 .runtime_api_key",
+                    "error": api_unavailable_error,
                 }
             )
         else:
@@ -327,7 +502,7 @@ def main() -> None:
                     "回答级盲测",
                     lambda: _run_answer_evaluation_against_api(
                         api_base,
-                        runtime_key,
+                        credential.key,
                     ),
                 )
             )

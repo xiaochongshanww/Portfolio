@@ -72,7 +72,8 @@ def test_vue_console_contains_required_workflows():
     assert "回答级盲测" in evaluation
     assert "/admin/jobs/evaluate-answers" in evaluation
     assert "截图可访问" in evaluation
-    assert "complex_structured_tables.jsonl" in evaluation
+    assert "evaluation_set: 'structured'" in evaluation
+    assert "complex_structured_tables.jsonl" not in evaluation
     assert "质量运营" in overview
     assert "自动质量门禁" in overview
     assert "未解决失败任务" in overview

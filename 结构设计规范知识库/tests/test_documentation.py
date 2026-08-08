@@ -106,3 +106,23 @@ def test_quality_verification_target_contract_is_documented():
     assert "--api-base http://127.0.0.1:8017" in operations
     assert decision.is_file()
     assert checklist.is_file()
+
+
+def test_quality_verification_assets_and_credentials_are_documented():
+    env_example = Path(".env.example").read_text(encoding="utf-8")
+    config_reference = Path("docs/reference/配置参考.md").read_text(encoding="utf-8")
+    api_reference = Path("docs/reference/接口参考.md").read_text(encoding="utf-8")
+    operations = Path("docs/operations/知识库维护与质量运营.md").read_text(encoding="utf-8")
+    decision = Path("docs/adr/0012-质量验证采用内置评估资产与显式凭据.md")
+    checklist = Path("docs/architecture/质量验证资产与凭据实施清单.md")
+
+    assert "QUALITY_API_KEY=" in env_example
+    assert "QUALITY_API_KEY_FILE" in env_example
+    assert "--api-key-file" in config_reference
+    assert "--no-api-key" in config_reference
+    assert "evaluation_set=regular|structured" in api_reference
+    assert "HTTP 422" in api_reference
+    assert "--no-api-key" in operations
+    assert "evaluation_set_id" in operations
+    assert decision.is_file()
+    assert checklist.is_file()

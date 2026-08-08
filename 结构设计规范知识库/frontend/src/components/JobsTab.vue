@@ -11,7 +11,7 @@
           <button class="btn" :disabled="busy" @click="startJob('/admin/jobs/dry-run', jobRequest)">Dry Run</button>
           <button class="btn btn-primary" :disabled="busy" @click="startJob('/admin/jobs/rebuild', jobRequest)">重建知识库</button>
           <button class="btn" :disabled="busy" @click="startJob('/admin/jobs/audit')">规则审计</button>
-          <button class="btn" :disabled="busy" @click="startJob('/admin/jobs/evaluate', { top_k: 5 })">运行评估</button>
+          <button class="btn" :disabled="busy" @click="startJob('/admin/jobs/evaluate', { top_k: 5, evaluation_set: 'regular' })">运行评估</button>
         </div>
 
         <div class="space-y-2">

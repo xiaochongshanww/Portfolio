@@ -2,12 +2,14 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from src.app.admin.models import Job
 from src.app.admin.storage import JobStore
 from src.app.admin import workflows
-from src.app.api.admin import AnswerEvaluateRequest
+from src.app.api.admin import AnswerEvaluateRequest, EvaluateRequest, router
 
 
 def test_answer_evaluation_request_rejects_client_supplied_target():
@@ -15,9 +17,47 @@ def test_answer_evaluation_request_rejects_client_supplied_target():
         AnswerEvaluateRequest(api_base="http://example.com")
 
 
+@pytest.mark.parametrize("evaluation_set", ["regular", "structured"])
+def test_retrieval_evaluation_request_accepts_builtin_set(evaluation_set: str):
+    request = EvaluateRequest(evaluation_set=evaluation_set)
+
+    assert request.evaluation_set == evaluation_set
+
+
+@pytest.mark.parametrize(
+    ("request_type", "payload"),
+    [
+        (EvaluateRequest, {"evaluation_set": "unknown"}),
+        (EvaluateRequest, {"file": "data/evaluation/custom.jsonl"}),
+        (AnswerEvaluateRequest, {"evaluation_set": "regular"}),
+        (AnswerEvaluateRequest, {"file": "data/evaluation/custom.jsonl"}),
+    ],
+)
+def test_evaluation_requests_reject_unknown_sets_and_file_paths(request_type, payload):
+    with pytest.raises(ValidationError):
+        request_type(**payload)
+
+
+@pytest.mark.parametrize(
+    ("endpoint", "payload"),
+    [
+        ("/admin/jobs/evaluate", {"file": "C:/private/cases.jsonl"}),
+        ("/admin/jobs/evaluate", {"evaluation_set": "unknown"}),
+        ("/admin/jobs/evaluate-answers", {"file": "/private/answers.jsonl"}),
+    ],
+)
+def test_evaluation_http_api_rejects_paths_and_unknown_sets(endpoint: str, payload: dict):
+    app = FastAPI()
+    app.include_router(router)
+
+    response = TestClient(app).post(endpoint, json=payload)
+
+    assert response.status_code == 422
+
+
 def test_retrieval_evaluation_execution_failure_marks_workflow_failed(monkeypatch, tmp_path: Path):
     store = JobStore(tmp_path / "jobs")
-    job = Job(type="evaluate", params={"file": str(tmp_path / "cases.jsonl")})
+    job = Job(type="evaluate", params={"evaluation_set": "regular"})
     monkeypatch.setattr(workflows, "AUDIT_DIR", tmp_path / "audit")
     monkeypatch.setattr(
         workflows,
@@ -30,7 +70,10 @@ def test_retrieval_evaluation_execution_failure_marks_workflow_failed(monkeypatc
 
     persisted = store.read(job.job_id)
     assert persisted["outputs"]["ok"] is False
+    assert persisted["outputs"]["evaluation_set_id"] == "regular"
     assert Path(persisted["outputs"]["report_path"]).is_file()
+    report = Path(persisted["outputs"]["report_path"]).read_text(encoding="utf-8")
+    assert '"evaluation_set_id": "regular"' in report
     assert "执行错误" in Path(persisted["outputs"]["markdown_report_path"]).read_text(encoding="utf-8")
 
 
@@ -59,6 +102,7 @@ def test_answer_evaluation_unready_target_fails_before_cases(monkeypatch, tmp_pa
 
     persisted = store.read(job.job_id)
     assert persisted["outputs"]["api_base"] == "http://127.0.0.1:8017"
+    assert persisted["outputs"]["evaluation_set_id"] == "answer"
     assert persisted["outputs"]["readiness"]["ok"] is False
 
 
@@ -96,6 +140,7 @@ def test_answer_quality_failure_is_completed_evaluation(monkeypatch, tmp_path: P
     result = workflows.answer_evaluate_workflow(job, store)
 
     assert result["ok"] is True
+    assert result["evaluation_set_id"] == "answer"
     assert result["pass_rate"] == 0.5
     assert result["readiness"]["ok"] is True
 

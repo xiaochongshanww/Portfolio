@@ -297,7 +297,7 @@ def run_answer_evaluation(
             try:
                 response = client.post(
                     f"{api_base.rstrip('/')}/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {api_key}"},
+                    headers={"Authorization": f"Bearer {api_key}"} if api_key else {},
                     json={
                         "messages": [{"role": "user", "content": case.query}],
                         "stream": False,
@@ -413,6 +413,7 @@ def render_answer_evaluation_markdown(result: dict[str, Any]) -> str:
     lines = [
         "# 回答级盲测评估报告",
         "",
+        f"- 评估集标识：`{result.get('evaluation_set_id', '-')}`",
         f"- 执行状态：{'完成' if result.get('ok') else '失败'}",
         f"- 目标 API：{result.get('api_base', '-')}",
         f"- 用例数：{result.get('case_count', 0)}",

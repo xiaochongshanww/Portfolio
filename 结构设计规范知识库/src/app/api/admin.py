@@ -1,7 +1,7 @@
 import json
 from datetime import timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
@@ -88,14 +88,16 @@ class ReviewRequest(BaseModel):
 
 
 class EvaluateRequest(BaseModel):
-    top_k: int = 5
-    file: str = str(DEFAULT_EVAL_PATH)
+    model_config = ConfigDict(extra="forbid")
+
+    top_k: int = Field(default=5, ge=1, le=100)
+    evaluation_set: Literal["regular", "structured"] = "regular"
 
 
 class AnswerEvaluateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    file: str = str(ANSWER_EVAL_PATH)
+    evaluation_set: Literal["answer"] = "answer"
 
 
 class CandidateStatusUpdate(BaseModel):
@@ -242,12 +244,12 @@ async def start_review(request: ReviewRequest):
 
 @router.post("/jobs/evaluate")
 async def start_evaluate(request: EvaluateRequest):
-    return job_manager.submit("evaluate", request.dict(), evaluate_workflow).to_dict()
+    return job_manager.submit("evaluate", request.model_dump(), evaluate_workflow).to_dict()
 
 
 @router.post("/jobs/evaluate-answers")
 async def start_answer_evaluate(request: AnswerEvaluateRequest):
-    return job_manager.submit("answer_evaluate", request.dict(), answer_evaluate_workflow).to_dict()
+    return job_manager.submit("answer_evaluate", request.model_dump(), answer_evaluate_workflow).to_dict()
 
 
 @router.get("/jobs")
