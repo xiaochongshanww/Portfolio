@@ -284,9 +284,9 @@ def main() -> int:
             write_snapshot(PROJECT_ROOT, args.snapshot)
         result = validate_snapshot(PROJECT_ROOT, args.snapshot)
     except EvidenceSnapshotError as exc:
-        print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False))
+        print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=True))
         return 1
-    print(json.dumps(result, ensure_ascii=False))
+    print(json.dumps(result, ensure_ascii=True))
     return 0
 
 

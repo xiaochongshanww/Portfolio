@@ -1,5 +1,8 @@
 import json
+import os
 from pathlib import Path
+import subprocess
+import sys
 
 import pytest
 
@@ -141,3 +144,22 @@ def test_snapshot_validation_rejects_missing_system_card_marker(tmp_path: Path):
 
     with pytest.raises(EvidenceSnapshotError, match="系统卡缺少"):
         validate_snapshot(project)
+
+
+def test_snapshot_cli_is_safe_for_ascii_only_console():
+    environment = os.environ.copy()
+    environment["PYTHONIOENCODING"] = "ascii"
+
+    completed = subprocess.run(
+        [sys.executable, "scripts/snapshot_quality_evidence.py"],
+        cwd=Path.cwd(),
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    payload = json.loads(completed.stdout)
+    assert payload["ok"] is True
+    assert payload["snapshot"] == "docs/quality/质量证据状态.json"
