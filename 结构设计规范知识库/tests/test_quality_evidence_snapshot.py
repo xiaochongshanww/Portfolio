@@ -70,7 +70,14 @@ def test_snapshot_validation_rejects_evaluation_set_drift(tmp_path: Path):
         source = Path(relative_path)
         target = project / relative_path
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(source.read_bytes())
+        if relative_path.suffix == ".jsonl":
+            target.write_text(
+                source.read_text(encoding="utf-8"),
+                encoding="utf-8",
+                newline="\n",
+            )
+        else:
+            target.write_bytes(source.read_bytes())
 
     snapshot["evaluation_sets"]["regular"]["case_count"] += 1
     (project / DEFAULT_SNAPSHOT).write_text(
@@ -95,7 +102,14 @@ def test_snapshot_validation_supports_clean_checkout_without_audit_reports(
         source = Path(relative_path)
         target = project / relative_path
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(source.read_bytes())
+        if relative_path.suffix == ".jsonl":
+            target.write_text(
+                source.read_text(encoding="utf-8"),
+                encoding="utf-8",
+                newline="\n",
+            )
+        else:
+            target.write_bytes(source.read_bytes())
 
     result = validate_snapshot(project)
 

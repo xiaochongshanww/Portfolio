@@ -37,6 +37,15 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _sha256_utf8_lf(path: Path) -> str:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise EvidenceSnapshotError(f"无法读取文本以计算哈希：{path}") from exc
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
 def _read_json(path: Path) -> dict[str, Any]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -72,6 +81,7 @@ def _report_summary(
     return {
         "path": relative_path.as_posix(),
         "sha256": _sha256(absolute_path),
+        "hash_mode": "raw_bytes",
         "generated_at": generated_at,
         "passed": passed,
     }
@@ -98,7 +108,8 @@ def build_snapshot(project_root: Path = PROJECT_ROOT) -> dict[str, Any]:
         absolute_path = project_root / relative_path
         evaluation_sets[name] = {
             "path": relative_path.as_posix(),
-            "sha256": _sha256(absolute_path),
+            "sha256": _sha256_utf8_lf(absolute_path),
+            "hash_mode": "utf8_lf",
             "case_count": _case_count(absolute_path),
         }
 
@@ -132,6 +143,8 @@ def _validate_report_entry(name: str, report: dict[str, Any]) -> None:
         report["sha256"]
     ):
         raise EvidenceSnapshotError(f"报告哈希无效：{name}")
+    if report.get("hash_mode") != "raw_bytes":
+        raise EvidenceSnapshotError(f"报告哈希模式无效：{name}")
 
 
 def _system_card_markers(snapshot: dict[str, Any]) -> list[str]:
@@ -198,7 +211,8 @@ def validate_snapshot(
         absolute_path = project_root / relative_path
         expected = {
             "path": relative_path.as_posix(),
-            "sha256": _sha256(absolute_path),
+            "sha256": _sha256_utf8_lf(absolute_path),
+            "hash_mode": "utf8_lf",
             "case_count": _case_count(absolute_path),
         }
         if entry != expected:

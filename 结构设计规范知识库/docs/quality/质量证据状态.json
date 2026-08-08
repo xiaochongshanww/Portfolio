@@ -5,12 +5,14 @@
     "verification": {
       "path": "data/audit/reports/verification_latest.json",
       "sha256": "c13aaea27816cc31cf11edd2547d779542864ae9b3faec85b55c6e228470485f",
+      "hash_mode": "raw_bytes",
       "generated_at": "2026-08-08T17:36:42.529101+00:00",
       "passed": false
     },
     "quality_gate": {
       "path": "data/audit/reports/quality_gate_latest.json",
       "sha256": "47f221248f19c22e02f75fcef078b8366f77a9232000d9d1dc31c2bbb0b49a1f",
+      "hash_mode": "raw_bytes",
       "generated_at": "2026-08-08T17:36:42.492250+00:00",
       "passed": false
     }
@@ -23,17 +25,20 @@
   "evaluation_sets": {
     "regular": {
       "path": "data/evaluation/queries.jsonl",
-      "sha256": "f80a91e649fd7e17552953c2db5ae8254ad3bc8691914420be0572181186df7a",
+      "sha256": "7b1f8a1ce9211ec13588ad3cf37290fae777eceb4c53ad3d5154a8d31919b3cc",
+      "hash_mode": "utf8_lf",
       "case_count": 100
     },
     "structured": {
       "path": "data/evaluation/complex_structured_tables.jsonl",
-      "sha256": "4b496d1a8282670cefd18ea19abaea30220509fe71045946a965d42d4e6c3da0",
+      "sha256": "9d36c6fee18e29f9ad3d0251a625d9bc43032dd121b46fcb4712a189eff10b0f",
+      "hash_mode": "utf8_lf",
       "case_count": 12
     },
     "answer": {
       "path": "data/evaluation/answer_holdout.jsonl",
-      "sha256": "44200b5f5e8c99794f96ae67d92c2d01f88668ce16bb04c2a9b48cfdcae1fd23",
+      "sha256": "e906c55bad589e18da86d40cf8926e7f3fd956453b7b535f09e00682477d1658",
+      "hash_mode": "utf8_lf",
       "case_count": 24
     }
   }
