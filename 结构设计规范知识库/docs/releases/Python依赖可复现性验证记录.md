@@ -4,8 +4,8 @@
 > 维护角色：工程负责人
 > 文档更新：2026-08-08
 > 代码/流程核对：2026-08-08
-> 完整运行验证：本地完成，远程 Windows/Linux CI 待执行
-> 验证证据：`dependency-lock.json`、`scripts/lock_dependencies.py`、`tests/test_delivery_contract.py`
+> 完整运行验证：本地与远程 Windows/Linux/Docker 均完成
+> 验证证据：提交 `298f10e`、跨平台修复提交 `003edce`、`dependency-lock.json`、`scripts/lock_dependencies.py`、`tests/test_delivery_contract.py`、[Structural Spec KB CI #14](https://github.com/xiaochongshanww/Portfolio/actions/runs/31247350564)
 > 复核周期：Python、直接依赖、锁生成器、基础镜像或支持平台变化时
 
 ## 验证范围
@@ -50,17 +50,23 @@ python -m pytest tests/test_delivery_contract.py -q
 
 上述安装在新建的 Windows 虚拟环境中执行，未复用项目现有 site-packages；安装器为标准 `pip`，所有分发包均按锁内 SHA-256 校验。
 
-## 待取得的远程证据
+## 远程证据
 
-1. Ubuntu 与 Windows 均能按哈希安装 `requirements-dev.txt` 并运行全部测试。
-2. Ubuntu 使用固定 `uv` 重新解析后，两个锁文件均无漂移。
-3. Linux Docker 镜像能按哈希安装运行锁，并通过 API 与控制台冒烟测试。
+CI #14 在提交 `003edce` 上完成以下验证：
 
-上述证据全部完成前，路线图 I-008 保持“进行中”。
+| Job | 结果 | 证明范围 |
+| --- | --- | --- |
+| Dependency lock | success | Ubuntu 使用 `uv==0.12.3` 从空临时目录重新解析，两份锁文件无漂移 |
+| Backend tests (ubuntu-latest) | success | Linux 按哈希安装开发锁，191 项测试通过 |
+| Backend tests (windows-latest) | success | Windows 按同一份哈希锁安装开发依赖，191 项测试通过 |
+| Frontend build | success | 前端生产构建未受交付契约变化影响 |
+| Container smoke test | success | Linux Docker 按哈希安装运行锁，API 健康检查与控制台静态页通过 |
+
+CI #13 首次引入矩阵时，Windows 已完成哈希安装，但进程级配置预检测试受终端中文转义影响而失败。提交 `003edce` 将预检输出改为 ASCII 安全 JSON 后，CI #14 复验通过；该过程证明失败来自跨平台输出契约，而非锁文件缺少 Windows 分发包。
 
 ## 保留限制
 
 1. 通用锁覆盖平台标记，但不保证所有未来 CPU 架构都有可用 wheel；新增架构必须扩展 CI。
 2. Python 只固定到 3.11 主次版本，补丁版本由目标环境或基础镜像提供；改变补丁版本仍需重新运行矩阵。
-3. `requirements.txt` 是完整知识生产环境的历史直接依赖清单，尚未具备同等级哈希锁。
+3. `requirements.txt` 是完整知识生产环境的历史直接依赖清单，尚未具备同等级哈希锁；其治理进入后续独立迭代，不属于 I-008 已验证范围。
 4. 上游包即使哈希固定，仍需在升级评审中检查许可证、安全公告和行为变化。
