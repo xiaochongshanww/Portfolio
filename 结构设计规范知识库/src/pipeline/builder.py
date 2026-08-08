@@ -10,6 +10,8 @@ from src.app.core.config import settings
 from .active_db import read_active_manifest
 from .manifest import build_manifest, read_manifest, write_manifest
 from .metadata import load_spec_metadata
+from .parsers.base import ParserUnavailableError
+from .parsers.mineru import DEFAULT_MINERU_BINARY, probe_mineru_cli
 from .paths import ACTIVE_DB_PATH, AUDIT_DIR, CORRECTIONS_DIR, DB_DIR, IMAGES_DIR, MANIFEST_PATH, METADATA_DIR, MINERU_DIR, PROCESSED_DIR, RAW_DIR
 
 
@@ -66,9 +68,25 @@ def dry_run(source_dir: Path = RAW_DIR, *, parser_backend: str = DEFAULT_PARSER_
     }
 
 
-def validate_parser_backend(parser_backend: str) -> None:
-    if parser_backend == "mineru" and shutil.which(os.environ.get("MINERU_BIN", "mineru")) is None:
-        raise BuildPreflightError("未找到 MinerU CLI，请先安装 MinerU，或使用 --parser-backend pymupdf")
+def validate_parser_backend(parser_backend: str) -> dict[str, Any]:
+    if parser_backend != "mineru":
+        return {
+            "backend": parser_backend,
+            "compatibility": "not_applicable",
+            "verified": False,
+        }
+    try:
+        probe = probe_mineru_cli(os.environ.get("MINERU_BIN") or DEFAULT_MINERU_BINARY)
+    except ParserUnavailableError as exc:
+        raise BuildPreflightError(str(exc)) from exc
+    return {"backend": parser_backend, **probe.to_dict()}
+
+
+def parser_status(parser_backend: str = DEFAULT_PARSER_BACKEND) -> dict[str, Any]:
+    return {
+        "ok": True,
+        "parser_environment": validate_parser_backend(parser_backend),
+    }
 
 
 def rebuild(
@@ -92,9 +110,9 @@ def rebuild(
     if dry_run_only:
         return dry_run(source_dir, parser_backend=parser_backend)
 
+    parser_environment = validate_parser_backend(parser_backend)
     if not os.environ.get("ZHIPUAI_API_KEY"):
         raise BuildPreflightError("ZHIPUAI_API_KEY 未设置，无法执行全量构建和向量化入库")
-    validate_parser_backend(parser_backend)
 
     clean_generated_outputs(
         db_dir=db_dir,
@@ -140,6 +158,7 @@ def rebuild(
             "source_dir": str(source_dir),
             "mode": "rebuild",
             "parser_backend": parser_backend,
+            "parser_environment": parser_environment,
             "processed_dir": str(processed_dir),
             "images_dir": str(images_dir),
             "mineru_output_dir": str(mineru_output_dir),

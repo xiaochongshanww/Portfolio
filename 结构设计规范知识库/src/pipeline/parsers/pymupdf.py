@@ -39,7 +39,7 @@ class PyMuPdfParser:
         try:
             import fitz
         except ImportError as exc:
-            raise ParserUnavailableError("缺少 PyMuPDF 依赖，请先安装 requirements.txt") from exc
+            raise ParserUnavailableError("缺少 PyMuPDF 依赖，请先安装 requirements-runtime.txt") from exc
 
         image_dir.mkdir(parents=True, exist_ok=True)
         doc = fitz.open(pdf_path)

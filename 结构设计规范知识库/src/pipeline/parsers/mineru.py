@@ -1,8 +1,9 @@
 import json
 import os
+import re
 import shutil
 import subprocess
-import re
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,126 @@ from .base import ParseResult, ParserUnavailableError
 
 MINERU_TEXT_TYPES = {"text", "equation"}
 MINERU_MEDIA_TYPES = {"image", "table"}
+DEFAULT_MINERU_BINARY = "magic-pdf"
+DEFAULT_MINERU_COMPATIBILITY_POLICY = "strict"
+MINERU_COMPATIBILITY_POLICIES = {"strict", "allow-unverified"}
+VERIFIED_MINERU_IMPLEMENTATIONS = {("magic-pdf", "1.3.12")}
+MINERU_VERSION_TIMEOUT_SECONDS = 10
+MINERU_VERSION_PATTERN = re.compile(
+    r"\b(?P<implementation>magic-pdf|mineru)\b\s*,?\s*(?:version\s*)?v?"
+    r"(?P<version>\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)",
+    re.IGNORECASE,
+)
+
+
+class ParserCompatibilityError(ParserUnavailableError):
+    pass
+
+
+@dataclass(frozen=True)
+class MineruCliProbe:
+    binary: str
+    resolved_binary: str
+    implementation: str
+    version: str
+    raw_version: str
+    policy: str
+    compatibility: str
+    verified: bool
+    warning: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+def _compatibility_policy(value: str | None = None) -> str:
+    policy = (value or os.environ.get("MINERU_COMPATIBILITY_POLICY") or DEFAULT_MINERU_COMPATIBILITY_POLICY).strip().lower()
+    if policy not in MINERU_COMPATIBILITY_POLICIES:
+        choices = ", ".join(sorted(MINERU_COMPATIBILITY_POLICIES))
+        raise ParserCompatibilityError(f"MINERU_COMPATIBILITY_POLICY 必须是以下值之一: {choices}")
+    return policy
+
+
+def probe_mineru_cli(
+    binary: str | None = None,
+    *,
+    policy: str | None = None,
+    timeout_seconds: int = MINERU_VERSION_TIMEOUT_SECONDS,
+) -> MineruCliProbe:
+    requested_binary = binary or os.environ.get("MINERU_BIN") or DEFAULT_MINERU_BINARY
+    compatibility_policy = _compatibility_policy(policy)
+    resolved_binary = shutil.which(requested_binary)
+    if resolved_binary is None:
+        raise ParserUnavailableError(
+            f"未找到 PDF 解析 CLI：{requested_binary}。"
+            "请安装 requirements-parser.txt，或将 MINERU_BIN 指向 magic-pdf 1.3.12。"
+        )
+
+    try:
+        completed = subprocess.run(
+            [resolved_binary, "--version"],
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            capture_output=True,
+            check=False,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise ParserUnavailableError(
+            f"PDF 解析 CLI 版本探测超时（{timeout_seconds} 秒）：{requested_binary}"
+        ) from exc
+    except OSError as exc:
+        raise ParserUnavailableError(f"无法执行 PDF 解析 CLI：{requested_binary}：{exc}") from exc
+
+    raw_version = "\n".join(
+        part.strip() for part in (completed.stdout, completed.stderr) if part and part.strip()
+    )[:2000]
+    if completed.returncode != 0:
+        detail = raw_version or f"exit code {completed.returncode}"
+        raise ParserUnavailableError(f"PDF 解析 CLI 版本探测失败：{detail}")
+
+    matched = MINERU_VERSION_PATTERN.search(raw_version)
+    if matched is None:
+        rendered = raw_version or "<empty>"
+        raise ParserCompatibilityError(f"无法识别 PDF 解析 CLI 的实现和版本：{rendered}")
+
+    implementation = matched.group("implementation").lower()
+    version = matched.group("version")
+    verified = (implementation, version) in VERIFIED_MINERU_IMPLEMENTATIONS
+    if verified:
+        return MineruCliProbe(
+            binary=requested_binary,
+            resolved_binary=str(Path(resolved_binary).resolve()),
+            implementation=implementation,
+            version=version,
+            raw_version=raw_version,
+            policy=compatibility_policy,
+            compatibility="verified",
+            verified=True,
+        )
+
+    supported = ", ".join(f"{name} {item_version}" for name, item_version in sorted(VERIFIED_MINERU_IMPLEMENTATIONS))
+    warning = (
+        f"检测到未验证的 PDF 解析器 {implementation} {version}；"
+        f"当前兼容矩阵仅包含 {supported}。"
+    )
+    if compatibility_policy == "strict":
+        raise ParserCompatibilityError(
+            f"{warning} 如需隔离迁移试验，显式设置 "
+            "MINERU_COMPATIBILITY_POLICY=allow-unverified；不得将试验结果视为生产兼容。"
+        )
+    return MineruCliProbe(
+        binary=requested_binary,
+        resolved_binary=str(Path(resolved_binary).resolve()),
+        implementation=implementation,
+        version=version,
+        raw_version=raw_version,
+        policy=compatibility_policy,
+        compatibility="unverified",
+        verified=False,
+        warning=warning,
+    )
 
 
 def doc_id_for_pdf(pdf_path: Path) -> str:
@@ -111,16 +232,26 @@ def content_list_to_elements(content_list: list[dict[str, Any]], artifact_dir: P
 class MineruParser:
     name = "mineru"
 
-    def __init__(self, output_dir: Path, binary: str | None = None, extra_args: list[str] | None = None):
+    def __init__(
+        self,
+        output_dir: Path,
+        binary: str | None = None,
+        extra_args: list[str] | None = None,
+        compatibility_policy: str | None = None,
+    ):
         self.output_dir = output_dir
-        self.binary = binary or os.environ.get("MINERU_BIN", "mineru")
-        self.extra_args = extra_args or os.environ.get("MINERU_ARGS", "").split()
+        self.binary = binary or os.environ.get("MINERU_BIN") or DEFAULT_MINERU_BINARY
+        self.extra_args = extra_args if extra_args is not None else os.environ.get("MINERU_ARGS", "").split()
+        self.compatibility_policy = compatibility_policy
+        self._cli_probe: MineruCliProbe | None = None
+
+    def probe(self) -> MineruCliProbe:
+        if self._cli_probe is None:
+            self._cli_probe = probe_mineru_cli(self.binary, policy=self.compatibility_policy)
+        return self._cli_probe
 
     def parse(self, pdf_path: Path, image_dir: Path) -> ParseResult:
-        if shutil.which(self.binary) is None:
-            raise ParserUnavailableError(
-                f"未找到 MinerU CLI：{self.binary}。请先安装 MinerU，或使用 --parser-backend pymupdf。"
-            )
+        cli_probe = self.probe()
 
         doc_dir = self.output_dir / doc_id_for_pdf(pdf_path)
         raw_dir = doc_dir / "raw"
@@ -128,21 +259,30 @@ class MineruParser:
             shutil.rmtree(doc_dir)
         raw_dir.mkdir(parents=True, exist_ok=True)
 
-        command = [self.binary, "-p", str(pdf_path), "-o", str(raw_dir), *self.extra_args]
-        completed = subprocess.run(command, text=True, capture_output=True, check=False)
+        command = [cli_probe.resolved_binary, "-p", str(pdf_path), "-o", str(raw_dir), *self.extra_args]
+        completed = subprocess.run(
+            command,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            capture_output=True,
+            check=False,
+        )
         if completed.returncode != 0:
             detail = (completed.stderr or completed.stdout).strip()
             raise RuntimeError(f"MinerU 解析失败: {detail}")
 
-        version = subprocess.run([self.binary, "--version"], text=True, capture_output=True, check=False)
-        cli_version = (version.stdout or version.stderr).strip() if version.returncode == 0 else ""
         artifacts = scan_mineru_artifacts(doc_dir)
         require_artifacts(artifacts)
         write_artifact_index(
             doc_dir / "artifacts.json",
             pdf_path.name,
             artifacts,
-            {"command": command, "mineru_version": cli_version},
+            {
+                "command": command,
+                "mineru_version": cli_probe.raw_version,
+                "parser_cli": cli_probe.to_dict(),
+            },
         )
 
         content_list_path = find_artifact(artifacts, "content_list")
@@ -164,7 +304,8 @@ class MineruParser:
                 "mineru_content_list": str(content_list_path),
                 "mineru_markdown": str(markdown_path) if markdown_path else "",
                 "mineru_artifact_index": str(doc_dir / "artifacts.json"),
-                "mineru_version": cli_version,
+                "mineru_version": cli_probe.raw_version,
                 "mineru_command": command,
+                "parser_cli": cli_probe.to_dict(),
             },
         )

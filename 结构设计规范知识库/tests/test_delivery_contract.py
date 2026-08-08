@@ -67,7 +67,19 @@ def test_dependency_lock_toolchain_is_pinned_and_machine_readable():
     assert {item["output"] for item in config["locks"]} == {
         "requirements-runtime.txt",
         "requirements-dev.txt",
+        "requirements-parser.txt",
     }
+
+
+def test_pdf_parser_dependencies_are_separate_and_locked():
+    parser_input = (PROJECT_ROOT / "requirements-parser.in").read_text(encoding="utf-8")
+    parser_lock = (PROJECT_ROOT / "requirements-parser.txt").read_text(encoding="utf-8")
+
+    assert "-r requirements-runtime.in" in parser_input
+    assert "magic-pdf[full]==1.3.12" in parser_input
+    assert "magic-pdf==1.3.12" in parser_lock
+    assert "pymupdf==1.28.2" not in parser_lock.casefold()
+    assert not (PROJECT_ROOT / "requirements.txt").exists()
 
 
 def test_compose_persists_runtime_data_and_uses_v1_backend():

@@ -42,20 +42,21 @@
 
 ### 1. 安装项目依赖
 
-建议在 Python 3.11 环境下运行。在项目根目录打开终端，执行以下命令：
-
-```bash
-pip install -r requirements.txt
-```
-
-仅运行 API 时使用已锁定的轻量运行依赖；运行自动化测试时使用开发锁：
+建议在 Python 3.11 环境下运行。仅运行 API 或导入已验证知识包时使用轻量运行锁；运行自动化测试时使用开发锁：
 
 ```bash
 pip install --require-hashes -r requirements-runtime.txt
 pip install --require-hashes -r requirements-dev.txt
 ```
 
-`requirements-runtime.in` 与 `requirements-dev.in` 是直接依赖维护入口，两个 `.txt` 文件是带包哈希的 Python 3.11 跨平台精确锁。`dependency-lock.json` 固定 Python 版本、`uv` 版本和依赖时间截点；不要手工编辑锁文件。检查或有意升级依赖时执行：
+只有从原始 PDF 生产知识资产的独立环境才安装重型解析器锁：
+
+```bash
+pip install --require-hashes -r requirements-parser.txt
+python -m src.pipeline parser-status
+```
+
+`requirements-runtime.in`、`requirements-dev.in` 与 `requirements-parser.in` 是三类环境的直接依赖维护入口，对应 `.txt` 文件是带包哈希的 Python 3.11 跨平台精确锁。解析器锁当前固定活动知识资产实际使用过的 `magic-pdf[full]==1.3.12`，不代表 MinerU 2.x/3.x 已兼容。`dependency-lock.json` 固定 Python 版本、`uv` 版本和依赖时间截点；不要手工编辑锁文件。检查或有意升级依赖时执行：
 
 ```bash
 python -m pip install -r requirements-tools.txt
@@ -66,7 +67,7 @@ python scripts/lock_dependencies.py --write
 python scripts/lock_dependencies.py --check
 ```
 
-CI 会从空临时目录重新解析并逐字比较锁文件，同时在 Ubuntu 和 Windows 上按哈希安装开发锁并运行完整测试。只有直接依赖、锁配置、两个锁文件和验证证据同时更新，依赖升级才算完成。
+CI 会从空临时目录重新解析并逐字比较三份锁，同时在 Ubuntu 和 Windows 上按哈希安装开发锁并运行完整测试。只有直接依赖、锁配置、对应锁文件和验证证据同时更新，依赖升级才算完成。
 
 ### 2. 配置模型 API Key
 
@@ -174,6 +175,9 @@ python -m src.pipeline build --dry-run
 # 命令行基础重建；生产控制台重建会隔离候选运行资产、执行预激活门禁后再切换活动指针
 python -m src.pipeline rebuild --source data/raw
 
+# 独立检查外部解析器实现、版本和兼容状态，不处理 PDF
+python -m src.pipeline parser-status
+
 # 临时使用旧 PyMuPDF 解析后端
 python -m src.pipeline rebuild --source data/raw --parser-backend pymupdf
 
@@ -190,15 +194,18 @@ python -m src.pipeline review --doc GB50009-2012 --pages 40-45 --source data/raw
 python -m src.pipeline promote-corrections --doc GB50009-2012
 ```
 
-MinerU 依赖外部 CLI，安装后需确保 `mineru` 命令在 `PATH` 中。多模态 review 复用 MiMo 配置；未设置 `MIMO_API_KEY` 时只生成 `not_configured` 报告，不调用外部模型。可通过环境变量调整：
+项目后端名保持为 `mineru`，但当前唯一通过活动资产验证的外部实现是 `magic-pdf 1.3.12`。重建会在清理候选产物前检查 CLI；缺失、版本无法识别或未验证版本在默认严格策略下都会阻断。多模态 review 复用 MiMo 配置；未设置 `MIMO_API_KEY` 时只生成 `not_configured` 报告，不调用外部模型。可通过环境变量调整：
 
 ```bash
 export PDF_PARSER_BACKEND=mineru
-export MINERU_BIN=mineru
+export MINERU_BIN=magic-pdf
 export MINERU_ARGS=""
+export MINERU_COMPATIBILITY_POLICY=strict
 export MIMO_API_KEY="..."
 export AI_REVIEW_MODEL="mimo-v2.5"
 ```
+
+`allow-unverified` 只用于隔离迁移试验，结果会在 manifest 中标记为未验证，不构成生产兼容承诺。解析器版本或输出 schema 升级必须重新完成复杂表、公式、人工校对和候选激活评估。
 
 构建产物：
 
@@ -209,10 +216,10 @@ export AI_REVIEW_MODEL="mimo-v2.5"
 - `data/corrections/approved/`：人工批准后的修正文件，rebuild 默认应用。
 - `data/corrections/candidates/`：AI 生成的待审修正候选，默认不入库。
 - `data/mineru/<doc_id>/raw/`：MinerU 原始解析产物，包括 `content_list`、Markdown、middle/model JSON 和媒体文件。
-- `data/mineru/<doc_id>/artifacts.json`：单文档产物索引，记录 `kind/path/sha256/size_bytes/required/status`。
+- `data/mineru/<doc_id>/artifacts.json`：单文档产物索引，记录 `kind/path/sha256/size_bytes/required/status`，以及解析器实现、版本、路径、策略和兼容状态。
 - `data/images/`：从 MinerU 产物复制出的表格、公式、图片等媒体文件；PyMuPDF fallback 下为页面截图。
 - `db/`：ChromaDB 向量库。
-- `data/manifest.json`：最近一次构建清单，包含文档 hash、chunk hash、MinerU 产物 hash、chunk 数、图片数、embedding 模型、集合名、解析后端和 `data_version_hash`。
+- `data/manifest.json`：最近一次构建清单，包含文档 hash、chunk hash、MinerU 产物 hash、chunk 数、图片数、embedding 模型、集合名、解析后端、解析器环境证据和 `data_version_hash`。
 
 MinerU 标准流程以 `content_list` 作为唯一主入库输入；Markdown 用于人工审阅，middle/model JSON 用于后续版面定位、质量回归和审计。`content_list` 和 Markdown 缺失时构建失败，不写成功 manifest；middle/model/media 缺失会进入 manifest 和质量报告。
 
@@ -428,10 +435,11 @@ GET /admin/elements/{doc}/{element_index}
 ├── tests/               # 自动化测试
 ├── README.md            # 快速入口
 ├── dependency-lock.json # 锁生成器、Python 版本与时间截点契约
-├── requirements.txt     # 完整知识库构建环境依赖
 ├── requirements-tools.txt   # 固定版本的锁生成工具
 ├── requirements-runtime.in  # 轻量问答运行直接依赖
 ├── requirements-runtime.txt # 轻量问答运行精确锁
 ├── requirements-dev.in      # 自动化测试直接依赖
-└── requirements-dev.txt     # CI 与自动化测试精确锁
+├── requirements-dev.txt     # CI 与自动化测试精确锁
+├── requirements-parser.in   # PDF 知识生产直接依赖
+└── requirements-parser.txt  # PDF 知识生产精确锁
 ```

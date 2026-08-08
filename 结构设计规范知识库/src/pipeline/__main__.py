@@ -4,7 +4,7 @@ from datetime import timedelta
 from math import isfinite
 from pathlib import Path
 
-from .builder import BuildPreflightError, audit, build, print_json, promote_corrections, rebuild, review, status
+from .builder import BuildPreflightError, audit, build, parser_status, print_json, promote_corrections, rebuild, review, status
 from .knowledge_package import (
     KnowledgePackageError,
     export_runtime_package,
@@ -50,6 +50,13 @@ def main() -> None:
         )
 
     subparsers.add_parser("status")
+    parser_status_parser = subparsers.add_parser("parser-status", help="探测 PDF 解析器实现、版本与兼容状态")
+    parser_status_parser.add_argument(
+        "--parser-backend",
+        default="mineru",
+        choices=["mineru", "pymupdf"],
+        help="PDF 解析后端，默认 mineru",
+    )
     audit_parser = subparsers.add_parser("audit")
     audit_parser.add_argument("--processed-dir", default="data/processed", help="已生成 processed 目录")
     review_parser = subparsers.add_parser("review")
@@ -93,6 +100,8 @@ def main() -> None:
     try:
         if args.command == "status":
             print_json(status())
+        elif args.command == "parser-status":
+            print_json(parser_status(args.parser_backend))
         elif args.command == "build":
             print_json(
                 build(
