@@ -126,3 +126,22 @@ def test_quality_verification_assets_and_credentials_are_documented():
     assert "evaluation_set_id" in operations
     assert decision.is_file()
     assert checklist.is_file()
+
+
+def test_runtime_backup_and_disaster_recovery_contract_is_documented():
+    readme = Path("README.md").read_text(encoding="utf-8")
+    operations = Path("docs/operations/部署运行手册.md").read_text(encoding="utf-8")
+    format_reference = Path("docs/reference/运行数据快照格式规范.md").read_text(encoding="utf-8")
+    release_checklist = Path("docs/releases/发布检查单.md").read_text(encoding="utf-8")
+    decision = Path("docs/adr/0013-运行数据采用离线完整快照与事务恢复.md")
+    checklist = Path("docs/architecture/运行数据快照与灾难恢复实施清单.md")
+
+    for command in ("backup-create", "backup-validate", "backup-restore"):
+        assert command in format_reference
+    assert "--maintenance-window" in readme
+    assert "--replace" in operations
+    assert "旧数据" in operations
+    assert "不加密" in format_reference
+    assert "backup_id" in release_checklist
+    assert decision.is_file()
+    assert checklist.is_file()

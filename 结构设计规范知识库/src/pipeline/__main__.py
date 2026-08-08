@@ -13,6 +13,12 @@ from .knowledge_package import (
     validate_runtime_package,
 )
 from .paths import DATA_DIR, RAW_DIR
+from .runtime_backup import (
+    RuntimeBackupError,
+    create_runtime_backup,
+    restore_runtime_backup,
+    validate_runtime_backup,
+)
 
 
 def _configure_cli_streams() -> None:
@@ -95,6 +101,28 @@ def main() -> None:
         action="store_true",
         help="只安装数据库版本，不更新活动指针或共享资产",
     )
+    backup_create_parser = subparsers.add_parser("backup-create", help="在维护窗口创建完整 DATA_DIR 快照")
+    backup_create_parser.add_argument("--output", required=True, help="输出 ZIP 文件，必须位于 DATA_DIR 外")
+    backup_create_parser.add_argument("--data-dir", default=str(DATA_DIR), help="源数据目录，默认使用 DATA_DIR")
+    backup_create_parser.add_argument("--overwrite", action="store_true", help="覆盖已存在的输出文件")
+    backup_create_parser.add_argument("--actor", default="", help="执行备份的责任人；默认读取当前系统用户")
+    backup_create_parser.add_argument(
+        "--maintenance-window",
+        action="store_true",
+        help="确认 API 已停止且 DATA_DIR 处于维护窗口",
+    )
+    backup_validate_parser = subparsers.add_parser("backup-validate", help="离线校验完整 DATA_DIR 快照")
+    backup_validate_parser.add_argument("--backup", required=True, help="要校验的快照 ZIP 文件")
+    backup_restore_parser = subparsers.add_parser("backup-restore", help="事务恢复完整 DATA_DIR 快照")
+    backup_restore_parser.add_argument("--backup", required=True, help="要恢复的快照 ZIP 文件")
+    backup_restore_parser.add_argument("--data-dir", default=str(DATA_DIR), help="目标数据目录，默认使用 DATA_DIR")
+    backup_restore_parser.add_argument("--replace", action="store_true", help="替换非空的目标 DATA_DIR")
+    backup_restore_parser.add_argument("--actor", default="", help="执行恢复的责任人；默认读取当前系统用户")
+    backup_restore_parser.add_argument(
+        "--maintenance-window",
+        action="store_true",
+        help="确认 API 已停止且目标 DATA_DIR 处于维护窗口",
+    )
     args = parser.parse_args()
 
     try:
@@ -157,7 +185,29 @@ def main() -> None:
                     activate=not args.no_activate,
                 )
             )
-    except (BuildPreflightError, KnowledgePackageError) as exc:
+        elif args.command == "backup-create":
+            print_json(
+                create_runtime_backup(
+                    Path(args.output),
+                    data_dir=Path(args.data_dir),
+                    overwrite=args.overwrite,
+                    actor=args.actor,
+                    maintenance_window=args.maintenance_window,
+                )
+            )
+        elif args.command == "backup-validate":
+            print_json(validate_runtime_backup(Path(args.backup)))
+        elif args.command == "backup-restore":
+            print_json(
+                restore_runtime_backup(
+                    Path(args.backup),
+                    data_dir=Path(args.data_dir),
+                    replace=args.replace,
+                    actor=args.actor,
+                    maintenance_window=args.maintenance_window,
+                )
+            )
+    except (BuildPreflightError, KnowledgePackageError, RuntimeBackupError) as exc:
         print_json({"ok": False, "error": str(exc)})
         raise SystemExit(1) from exc
 

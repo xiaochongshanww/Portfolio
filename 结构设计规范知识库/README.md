@@ -125,6 +125,15 @@ python -m uvicorn src.app.main:app --host 127.0.0.1 --port 8000
 
 运行包升级与回退必须在维护窗口使用完整 ZIP：保留上一版包及 SHA-256，停止 API 后以 `--replace` 导入，重启并核对包标识与数据版本；回退时重新导入上一版包，不手工编辑活动指针。完整步骤见 [部署运行手册](./docs/operations/部署运行手册.md) 与 [ADR 0009](./docs/adr/0009-运行知识恢复采用受控知识包重部署.md)。
 
+知识包不包含全部运行证据。主机级备份应在停止 API 的维护窗口创建完整 `DATA_DIR` 快照，并把 ZIP 存放在数据根之外：
+
+```bash
+python -m src.pipeline backup-create --output runtime-data-backup.zip --maintenance-window
+python -m src.pipeline backup-validate --backup runtime-data-backup.zip
+```
+
+灾难恢复使用 `backup-restore`，替换非空数据根需显式 `--replace`。快照可能包含原始 PDF、任务和审计，格式不加密且不代表允许对外分发；详见[运行数据快照格式规范](./docs/reference/运行数据快照格式规范.md)。
+
 ### 第三步：配置客户端并开始使用
 
 以 Open WebUI 或其他 OpenAI-compatible 客户端为例：

@@ -118,3 +118,16 @@ def test_repository_ci_covers_backend_frontend_and_container():
     assert "docker build --tag structural-spec-kb:ci ." in workflow
     assert "/static/index.html" in workflow
     assert "/health" in workflow
+
+
+def test_runtime_backup_cli_is_part_of_delivery_contract():
+    pipeline_cli = (PROJECT_ROOT / "src" / "pipeline" / "__main__.py").read_text(encoding="utf-8")
+    backup_module = PROJECT_ROOT / "src" / "pipeline" / "runtime_backup.py"
+
+    assert backup_module.is_file()
+    assert "create_runtime_backup" in pipeline_cli
+    assert "validate_runtime_backup" in pipeline_cli
+    assert "restore_runtime_backup" in pipeline_cli
+    assert '"backup-create"' in pipeline_cli
+    assert '"backup-validate"' in pipeline_cli
+    assert '"backup-restore"' in pipeline_cli
