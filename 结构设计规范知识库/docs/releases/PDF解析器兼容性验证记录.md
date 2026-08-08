@@ -1,11 +1,11 @@
 # PDF 解析器兼容性验证记录
 
-> 状态：验证中  
+> 状态：生效
 > 维护角色：工程负责人  
 > 文档更新：2026-08-08  
 > 代码/流程核对：2026-08-08  
-> 完整运行验证：本地代码、锁、真实 CLI 和前端门禁通过；远程容器与跨平台 CI 待执行  
-> 验证证据：`tests/test_mineru_compatibility.py`、`requirements-parser.txt`、本记录命令输出  
+> 完整运行验证：本地代码、锁、真实 CLI 和前端门禁通过；远程 CI #34 的 9 个任务全部成功
+> 验证证据：`tests/test_mineru_compatibility.py`、`requirements-parser.txt`、[Structural Spec KB CI #34](https://github.com/xiaochongshanww/Portfolio/actions/runs/31259467233)
 > 复核周期：解析器实现、版本、依赖锁、支持平台或输出 schema 变化时  
 > 关联路线图：I-017  
 > 关联决策：[ADR 0010](../adr/0010-PDF解析器采用显式兼容契约.md)
@@ -74,8 +74,17 @@ success
 
 参考上游：[magic-pdf PyPI](https://pypi.org/project/magic-pdf/)、[MinerU Quick Start](https://opendatalab.github.io/MinerU/quick_start/)、[MinerU CLI 文档](https://github.com/opendatalab/MinerU/blob/master/docs/en/usage/cli_tools.md)。
 
-## 待完成证据
+## 远程证据
 
-- 远程依赖锁任务从空目录重新生成三份锁并确认无漂移。
-- Windows/Linux 后端矩阵、前端、容器和知识包任务全部通过。
-- 远程证据写回本记录、实施清单、路线图和文档中心后关闭 I-017。
+CI #34 在提交 `0566cd7` 上完成 9 个任务：
+
+| 任务 | 结果 | 证明范围 |
+| --- | --- | --- |
+| Dependency lock | success | Linux 从空目录重新生成运行、开发和知识生产三份锁，无漂移 |
+| Backend tests（Ubuntu/Windows） | success | 两个平台按开发哈希锁安装并各通过 253 项测试 |
+| Frontend tests and build | success | 组件测试、类型检查、安全审计和生产构建通过 |
+| Container smoke test | success | Linux 运行镜像构建、API 健康检查和静态控制台通过，未安装重型解析器 |
+| Package producer（Ubuntu/Windows） | success | 两个平台真实 Chroma 产包与 A→B→A 恢复探针通过 |
+| Package portability（双向） | success | Windows→Linux、Linux→Windows 的包校验、Chroma 探测和 API 冷启动通过 |
+
+上述证据关闭 I-017 的工程兼容目标。真实扫描 PDF 的全量 OCR 性能、解析器新主版本迁移和在线回答质量仍按各自质量流程独立验证。
