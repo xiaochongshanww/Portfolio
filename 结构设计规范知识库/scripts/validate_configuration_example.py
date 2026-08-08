@@ -37,6 +37,54 @@ SENSITIVE_SUFFIXES = (
     "_TOKENS",
 )
 ENV_NAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+EXPECTED_EXAMPLE_KEYS = {
+    "ANSWER_EVALUATION_API_BASE",
+    "API_AUTH_ENABLED",
+    "API_KEYS",
+    "ASSET_SIGNING_KEY",
+    "ASSET_URL_TTL_SECONDS",
+    "CORS_ALLOW_CREDENTIALS",
+    "CORS_ORIGINS",
+    "DATA_DIR",
+    "DB_DIR",
+    "EMBEDDING_MODEL",
+    "IMG_BASE_URL",
+    "JOB_HEARTBEAT_SECONDS",
+    "JOB_STALE_AFTER_SECONDS",
+    "LLM_TIMEOUT_SECONDS",
+    "LOG_FORMAT",
+    "LOG_LEVEL",
+    "MAX_REQUEST_BYTES",
+    "MIMO_API_KEY",
+    "MIMO_BASE_URL",
+    "MIMO_MODEL",
+    "MINERU_ARGS",
+    "MINERU_BIN",
+    "MINERU_COMPATIBILITY_POLICY",
+    "OPENWEBUI_API_KEY",
+    "OPENWEBUI_AUTH",
+    "PDF_PARSER_BACKEND",
+    "PUBLIC_ASSET_BASE_URL",
+    "QUALITY_API_KEY",
+    "RAG_MIN_SCORE",
+    "RAG_TOP_K",
+    "RATE_LIMIT_ENABLED",
+    "RATE_LIMIT_PER_MINUTE",
+    "RERANK_ENABLED",
+    "RERANK_PROVIDER",
+    "RETRIEVAL_BM25_WEIGHT",
+    "RETRIEVAL_CLAUSE_BOOST",
+    "RETRIEVAL_DENSE_WEIGHT",
+    "STATIC_DIR",
+    "VERSION_RETENTION_FAILED_DAYS",
+    "VERSION_RETENTION_HIGH_WATERMARK_BYTES",
+    "VERSION_RETENTION_KEEP_RECENT_PASSED",
+    "VERSION_RETENTION_LOW_WATERMARK_BYTES",
+    "VERSION_RETENTION_MINIMUM_AGE_HOURS",
+    "VERSION_RETENTION_PLAN_TTL_MINUTES",
+    "VERSION_RETENTION_SUCCESS_DAYS",
+    "ZHIPUAI_API_KEY",
+}
 
 
 class ConfigurationExampleError(ValueError):
@@ -115,6 +163,19 @@ def parse_configuration_example(path: Path) -> ConfigurationExample:
         raise ConfigurationExampleError(f"无法读取配置示例：{resolved}") from exc
 
 
+def validate_example_key_contract(example: ConfigurationExample) -> None:
+    actual = set(example.values)
+    missing = sorted(EXPECTED_EXAMPLE_KEYS - actual)
+    unexpected = sorted(actual - EXPECTED_EXAMPLE_KEYS)
+    issues: list[str] = []
+    if missing:
+        issues.append("配置示例缺少约定变量：" + ", ".join(missing))
+    if unexpected:
+        issues.append("配置示例包含未知变量：" + ", ".join(unexpected))
+    if issues:
+        raise ConfigurationExampleError(issues)
+
+
 def _isolated_environment(values: dict[str, str]) -> dict[str, str]:
     environment = {
         name: value
@@ -149,6 +210,7 @@ def validate_application_configuration(example: ConfigurationExample) -> None:
 
 def validate_configuration_example(path: Path = DEFAULT_EXAMPLE_PATH) -> dict[str, object]:
     example = parse_configuration_example(path)
+    validate_example_key_contract(example)
     validate_application_configuration(example)
     return {
         "ok": True,

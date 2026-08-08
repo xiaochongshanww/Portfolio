@@ -112,6 +112,41 @@ def test_application_preflight_rejects_invalid_example_without_echoing_value(
     assert "999" not in str(error.value)
 
 
+def test_configuration_contract_rejects_unknown_typo_without_value():
+    example = validate_configuration_example.ConfigurationExample(
+        path=Path("typo.env"),
+        values={
+            **{name: "" for name in validate_configuration_example.EXPECTED_EXAMPLE_KEYS},
+            "RAG_TOPK": "sensitive-value",
+        },
+        sensitive_key_count=0,
+    )
+
+    with pytest.raises(
+        validate_configuration_example.ConfigurationExampleError,
+        match="包含未知变量：RAG_TOPK",
+    ) as error:
+        validate_configuration_example.validate_example_key_contract(example)
+
+    assert "sensitive-value" not in str(error.value)
+
+
+def test_configuration_contract_rejects_missing_expected_key():
+    values = {name: "" for name in validate_configuration_example.EXPECTED_EXAMPLE_KEYS}
+    values.pop("RAG_TOP_K")
+    example = validate_configuration_example.ConfigurationExample(
+        path=Path("missing.env"),
+        values=values,
+        sensitive_key_count=0,
+    )
+
+    with pytest.raises(
+        validate_configuration_example.ConfigurationExampleError,
+        match="缺少约定变量：RAG_TOP_K",
+    ):
+        validate_configuration_example.validate_example_key_contract(example)
+
+
 def test_configuration_example_cli_returns_safe_json():
     completed = subprocess.run(
         [sys.executable, "scripts/validate_configuration_example.py"],
