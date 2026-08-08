@@ -180,4 +180,4 @@ def status() -> dict[str, Any]:
 
 
 def print_json(data: dict[str, Any]) -> None:
-    print(json.dumps(data, ensure_ascii=False, indent=2))
+    print(json.dumps(data, ensure_ascii=True, indent=2))

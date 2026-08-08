@@ -63,7 +63,7 @@ def test_cross_platform_probe_requires_only_expected_os_warning(tmp_path: Path, 
     assert probe["warnings"][0].startswith("操作系统不同:")
 
 
-def test_portability_package_cli_output_is_ascii_safe(tmp_path: Path):
+def test_portability_cli_outputs_are_ascii_safe(tmp_path: Path):
     package = tmp_path / "中文兼容包.zip"
     environment = os.environ.copy()
     environment["PYTHONIOENCODING"] = "cp1252"
@@ -90,3 +90,25 @@ def test_portability_package_cli_output_is_ascii_safe(tmp_path: Path):
     payload = json.loads(result.stdout)
     assert payload["schema_version"] == 4
     assert package.exists()
+
+    validation = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "src.pipeline",
+            "package-validate",
+            "--package",
+            str(package),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="cp1252",
+        errors="strict",
+        cwd=PROJECT_ROOT,
+        env=environment,
+        timeout=120,
+    )
+
+    assert validation.returncode == 0, validation.stderr
+    assert json.loads(validation.stdout)["schema_version"] == 4
