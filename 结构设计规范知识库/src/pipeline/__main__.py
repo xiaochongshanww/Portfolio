@@ -11,7 +11,7 @@ from .knowledge_package import (
     probe_runtime_package,
     validate_runtime_package,
 )
-from .paths import RAW_DIR
+from .paths import DATA_DIR, RAW_DIR
 
 
 def _quality_age_hours(value: str) -> float:
@@ -72,7 +72,7 @@ def main() -> None:
     probe_parser.add_argument("--require-cross-platform", action="store_true", help="要求来源与本机平台不同且无非预期兼容警告")
     import_parser = subparsers.add_parser("package-import", help="导入并激活运行知识包")
     import_parser.add_argument("--package", required=True, help="知识包 ZIP 文件")
-    import_parser.add_argument("--data-dir", default="data", help="目标数据目录，默认 data")
+    import_parser.add_argument("--data-dir", default=str(DATA_DIR), help="目标数据目录，默认使用 DATA_DIR")
     import_parser.add_argument("--replace", action="store_true", help="覆盖同包版本和冲突资产")
     import_parser.add_argument("--no-activate", action="store_true", help="只安装版本，不更新活动数据库指针")
     args = parser.parse_args()

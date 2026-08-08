@@ -16,6 +16,9 @@ CONFIG_ENV_NAMES = {
     "ASSET_URL_TTL_SECONDS",
     "CORS_ALLOW_CREDENTIALS",
     "CORS_ORIGINS",
+    "DATA_DIR",
+    "DB_DIR",
+    "IMG_DIR",
     "LLM_TIMEOUT_SECONDS",
     "LOG_LEVEL",
     "LOG_FORMAT",
@@ -32,6 +35,8 @@ CONFIG_ENV_NAMES = {
     "RETRIEVAL_BM25_WEIGHT",
     "RETRIEVAL_CLAUSE_BOOST",
     "RETRIEVAL_DENSE_WEIGHT",
+    "SOURCE_METADATA_PATH",
+    "STATIC_DIR",
     "VERSION_RETENTION_FAILED_DAYS",
     "VERSION_RETENTION_HIGH_WATERMARK_BYTES",
     "VERSION_RETENTION_KEEP_RECENT_PASSED",
@@ -145,6 +150,33 @@ def test_valid_protected_configuration_is_accepted(monkeypatch):
 
     assert configured.api_auth_enabled is True
     assert configured.openwebui_api_key == "api-key-two"
+
+
+def test_runtime_paths_follow_data_dir_with_explicit_overrides(monkeypatch, tmp_path):
+    data_dir = tmp_path / "runtime-data"
+    configured = settings_from_env(monkeypatch, DATA_DIR=str(data_dir))
+
+    assert configured.data_dir == data_dir.resolve()
+    assert configured.img_dir == (data_dir / "images").resolve()
+    assert configured.source_metadata_path == (data_dir / "metadata" / "specs.json").resolve()
+    assert configured.db_dir == (PROJECT_ROOT / "db").resolve()
+
+    override_images = tmp_path / "separate-images"
+    override_metadata = tmp_path / "policies.json"
+    configured = settings_from_env(
+        monkeypatch,
+        DATA_DIR="runtime-data",
+        DB_DIR="legacy-db",
+        IMG_DIR=str(override_images),
+        SOURCE_METADATA_PATH=str(override_metadata),
+        STATIC_DIR="custom-static",
+    )
+
+    assert configured.data_dir == (PROJECT_ROOT / "runtime-data").resolve()
+    assert configured.db_dir == (PROJECT_ROOT / "legacy-db").resolve()
+    assert configured.img_dir == override_images.resolve()
+    assert configured.source_metadata_path == override_metadata.resolve()
+    assert configured.static_dir == (PROJECT_ROOT / "custom-static").resolve()
 
 
 def run_config_preflight(**values: str) -> subprocess.CompletedProcess[str]:

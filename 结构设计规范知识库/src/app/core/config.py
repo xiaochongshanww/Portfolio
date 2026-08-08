@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 from math import isfinite
 from pathlib import Path
 
+from src.pipeline.paths import configured_project_path
+
 try:
     from dotenv import load_dotenv
 except ImportError:
@@ -14,7 +16,6 @@ except ImportError:
 load_dotenv()
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
 TRUE_VALUES = {"1", "true", "yes", "on"}
 FALSE_VALUES = {"0", "false", "no", "off"}
 PLACEHOLDER_API_KEYS = {"change-me", "changeme", "not-needed", "your-api-key"}
@@ -30,10 +31,6 @@ class ConfigurationError(ValueError):
 
 def _split_csv(value: str) -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
-
-
-def _env_or_default(name: str, default: str) -> str:
-    return os.getenv(name) or default
 
 
 def _env_bool(name: str, default: str = "false") -> bool:
@@ -116,16 +113,23 @@ class Settings:
         default_factory=lambda: _env_int("VERSION_RETENTION_PLAN_TTL_MINUTES", "15")
     )
 
-    db_dir: Path = field(default_factory=lambda: Path(_env_or_default("DB_DIR", "db")))
-    img_dir: Path = field(default_factory=lambda: Path(_env_or_default("IMG_DIR", str(PROJECT_ROOT / "data" / "images"))))
+    data_dir: Path = field(default_factory=lambda: configured_project_path("DATA_DIR", "data"))
+    db_dir: Path = field(default_factory=lambda: configured_project_path("DB_DIR", "db"))
+    img_dir: Path = field(
+        default_factory=lambda: configured_project_path(
+            "IMG_DIR",
+            configured_project_path("DATA_DIR", "data") / "images",
+        )
+    )
     img_base_url: str = field(default_factory=lambda: os.getenv("IMG_BASE_URL", "/images"))
     public_asset_base_url: str = field(default_factory=lambda: os.getenv("PUBLIC_ASSET_BASE_URL", "").rstrip("/"))
     source_metadata_path: Path = field(
-        default_factory=lambda: Path(
-            _env_or_default("SOURCE_METADATA_PATH", str(PROJECT_ROOT / "data" / "metadata" / "specs.json"))
+        default_factory=lambda: configured_project_path(
+            "SOURCE_METADATA_PATH",
+            configured_project_path("DATA_DIR", "data") / "metadata" / "specs.json",
         )
     )
-    static_dir: Path = field(default_factory=lambda: Path(_env_or_default("STATIC_DIR", str(PROJECT_ROOT / "frontend" / "dist"))))
+    static_dir: Path = field(default_factory=lambda: configured_project_path("STATIC_DIR", "frontend/dist"))
 
     cors_origins: list[str] = field(
         default_factory=lambda: _split_csv(os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8080"))

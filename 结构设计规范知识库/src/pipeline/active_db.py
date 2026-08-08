@@ -16,7 +16,10 @@ from .paths import (
 
 def read_active_db(path: Path = ACTIVE_DB_PATH) -> dict[str, Any]:
     if not path.exists():
-        return {"active_db_dir": str(DB_DIR), "manifest": "data/manifest.json"}
+        return {
+            "active_db_dir": str(DB_DIR),
+            "manifest": str(path.parent / "manifest.json"),
+        }
     return json.loads(path.read_text(encoding="utf-8"))
 
 

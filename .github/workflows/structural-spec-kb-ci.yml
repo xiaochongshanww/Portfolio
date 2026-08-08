@@ -158,6 +158,12 @@ jobs:
           --package dist/portability-${{ matrix.source }}.zip
           --expect-source-platform ${{ matrix.source }}
           --require-cross-platform
+      - name: Cold start API from foreign package
+        run: >-
+          python -m scripts.verify_runtime_package_cold_start
+          --package dist/portability-${{ matrix.source }}.zip
+          --expect-source-platform ${{ matrix.source }}
+          --require-cross-platform
 
   container:
     name: Container smoke test

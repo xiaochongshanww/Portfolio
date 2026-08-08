@@ -9,6 +9,8 @@ services:
     env_file:
       - path: .env
         required: false
+    environment:
+      - DATA_DIR=/app/data
     volumes:
       - ./db:/app/db
       - ./logs:/app/logs

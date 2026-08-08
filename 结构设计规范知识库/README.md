@@ -118,7 +118,7 @@ python -m src.pipeline package-import --package knowledge-runtime.zip
 python -m uvicorn src.app.main:app --host 127.0.0.1 --port 8000
 ```
 
-知识包默认不包含原始 PDF；此时系统不会提供无法访问的动态页面截图链接。完整格式、兼容与内容权利边界见 [知识包格式规范](./docs/reference/知识包格式规范.md)。
+知识包默认导入 `.env` 中 `DATA_DIR` 指向的运行数据根；显式使用 `--data-dir` 时，API 启动前必须把 `DATA_DIR` 设置为同一目录。知识包默认不包含原始 PDF；此时系统不会提供无法访问的动态页面截图链接。完整格式、兼容与内容权利边界见 [知识包格式规范](./docs/reference/知识包格式规范.md)。
 
 维护者导出知识包前必须运行 `python scripts/verify_quality.py`。当前 v4 导出会复核数据版本、评估集哈希和报告年龄，携带来源访问策略，并把兼容性、能力和质量元数据绑定到包标识；失败时默认阻断，紧急豁免必须记录责任人和原因。`package-validate` 只证明格式与哈希完整，目标环境还应运行 `package-probe` 隔离导入并实际打开 Chroma。详见 [知识包格式规范](./docs/reference/知识包格式规范.md) 与 [ADR 0004](./docs/adr/0004-知识包采用受控兼容矩阵与运行探针.md)。
 
