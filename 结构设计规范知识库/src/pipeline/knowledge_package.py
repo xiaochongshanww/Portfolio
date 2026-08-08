@@ -18,7 +18,7 @@ from typing import Any, Iterable
 from src.app.core.config import settings
 from src.quality import DEFAULT_REPORT_MAX_AGE, evaluate_quality_gate
 
-from .active_db import read_active_db, write_active_db
+from .active_db import active_images_dir, read_active_db, write_active_db
 from .manifest import read_manifest
 from .metadata import load_metadata_overrides, parse_metadata_overrides
 from .paths import (
@@ -263,7 +263,7 @@ def export_runtime_package(
     active_db_path: Path = ACTIVE_DB_PATH,
     fallback_manifest_path: Path = MANIFEST_PATH,
     structured_tables_dir: Path = STRUCTURED_TABLES_DIR,
-    images_dir: Path = IMAGES_DIR,
+    images_dir: Path | None = None,
     metadata_dir: Path = METADATA_DIR,
     raw_dir: Path = RAW_DIR,
     include_source_pdfs: bool = False,
@@ -281,6 +281,7 @@ def export_runtime_package(
         raise KnowledgePackageError(f"输出文件已存在: {output_path}")
 
     active = read_active_db(active_db_path)
+    images_dir = images_dir or active_images_dir(active_db_path, IMAGES_DIR)
     db_dir = _resolve_pointer_path(str(active.get("active_db_dir") or ""), active_db_path, DB_DIR)
     manifest_path = _resolve_pointer_path(
         str(active.get("manifest") or ""),
@@ -836,6 +837,7 @@ def import_runtime_package(
                 write_active_db(
                     {
                         "active_db_dir": str((version_root / "db").resolve()),
+                        "images_dir": str((data_dir / "images").resolve()),
                         "manifest": str((version_root / "manifest.json").resolve()),
                         "package_id": package_id,
                         "data_version_hash": package_manifest["data_version_hash"],

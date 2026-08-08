@@ -3,7 +3,15 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 from .manifest import read_manifest
-from .paths import ACTIVE_DB_PATH, DB_DIR, MANIFEST_PATH
+from .paths import (
+    ACTIVE_DB_PATH,
+    AUDIT_DIR,
+    DB_DIR,
+    IMAGES_DIR,
+    MANIFEST_PATH,
+    MINERU_DIR,
+    PROCESSED_DIR,
+)
 
 
 def read_active_db(path: Path = ACTIVE_DB_PATH) -> dict[str, Any]:
@@ -60,7 +68,15 @@ def resolve_pointer_path(value: str | None, pointer_path: Path, default: Path) -
 def write_active_db(payload: dict[str, Any], path: Path = ACTIVE_DB_PATH) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     portable = dict(payload)
-    for key in ("active_db_dir", "manifest"):
+    for key in (
+        "active_db_dir",
+        "processed_dir",
+        "images_dir",
+        "mineru_dir",
+        "audit_dir",
+        "manifest",
+        "candidate_gate_report",
+    ):
         portable[key] = _portable_pointer_value(portable.get(key), path)
     temporary = path.with_suffix(f"{path.suffix}.tmp")
     temporary.write_text(json.dumps(portable, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -70,6 +86,27 @@ def write_active_db(payload: dict[str, Any], path: Path = ACTIVE_DB_PATH) -> Non
 def active_db_dir(path: Path = ACTIVE_DB_PATH) -> Path:
     payload = read_active_db(path)
     return resolve_pointer_path(payload.get("active_db_dir"), path, DB_DIR)
+
+
+def _active_runtime_dir(key: str, path: Path, default: Path) -> Path:
+    payload = read_active_db(path)
+    return resolve_pointer_path(payload.get(key), path, default)
+
+
+def active_processed_dir(path: Path = ACTIVE_DB_PATH, default: Path = PROCESSED_DIR) -> Path:
+    return _active_runtime_dir("processed_dir", path, default)
+
+
+def active_images_dir(path: Path = ACTIVE_DB_PATH, default: Path = IMAGES_DIR) -> Path:
+    return _active_runtime_dir("images_dir", path, default)
+
+
+def active_mineru_dir(path: Path = ACTIVE_DB_PATH, default: Path = MINERU_DIR) -> Path:
+    return _active_runtime_dir("mineru_dir", path, default)
+
+
+def active_audit_dir(path: Path = ACTIVE_DB_PATH, default: Path = AUDIT_DIR) -> Path:
+    return _active_runtime_dir("audit_dir", path, default)
 
 
 def read_active_manifest(

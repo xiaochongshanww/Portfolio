@@ -168,7 +168,7 @@ API 服务已按分层结构组织：
 # 只查看将处理哪些 PDF，不写入 processed/images/mineru/db
 python -m src.pipeline build --dry-run
 
-# 全量重建知识库：清理旧 processed/images/mineru/db，使用 MinerU 解析、向量化入库并写 manifest
+# 命令行基础重建；生产控制台重建会隔离候选运行资产、执行预激活门禁后再切换活动指针
 python -m src.pipeline rebuild --source data/raw
 
 # 临时使用旧 PyMuPDF 解析后端

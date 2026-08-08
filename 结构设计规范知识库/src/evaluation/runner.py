@@ -7,6 +7,7 @@ from typing import Any
 
 from src.app.retrieval.models import RetrievalResult
 from src.app.retrieval.hybrid_search import (
+    RetrievalState,
     infer_is_table,
     infer_section_type,
     retrieval_state,
@@ -19,6 +20,7 @@ from src.app.rag.structured_tables import (
     find_structured_table_matches,
 )
 from src.pipeline.active_db import read_active_manifest
+from src.pipeline.manifest import read_manifest
 
 
 DEFAULT_EVAL_PATH = Path(__file__).resolve().parents[2] / "data" / "evaluation" / "queries.jsonl"
@@ -343,17 +345,24 @@ def summarize_results(
     }
 
 
-def run_evaluation(path: Path = DEFAULT_EVAL_PATH, top_k: int = 5) -> dict[str, Any]:
+def run_evaluation(
+    path: Path = DEFAULT_EVAL_PATH,
+    top_k: int = 5,
+    *,
+    state: RetrievalState | None = None,
+    manifest_path: Path | None = None,
+) -> dict[str, Any]:
     cases = load_cases(path)
+    evaluation_state = state or retrieval_state
     requires_hybrid = any(case.type != "structured_table" for case in cases)
-    if requires_hybrid and not retrieval_state.ready:
-        retrieval_state.initialize()
+    if state is None and requires_hybrid and not evaluation_state.ready:
+        evaluation_state.initialize()
 
-    if requires_hybrid and not retrieval_state.ready:
+    if requires_hybrid and not evaluation_state.ready:
         return {"ok": False, "error": "知识库检索服务未就绪，请先启动并完成 ChromaDB/ZhipuAI 初始化"}
 
     results_by_id = {
-        case.id: retrieval_state.hybrid_search(case.query, top_k) if case.type != "structured_table" else []
+        case.id: evaluation_state.hybrid_search(case.query, top_k) if case.type != "structured_table" else []
         for case in cases
     }
     structured_by_id = {
@@ -362,7 +371,7 @@ def run_evaluation(path: Path = DEFAULT_EVAL_PATH, top_k: int = 5) -> dict[str, 
         if case.expected_table_id
     }
     summary = summarize_results(cases, results_by_id, structured_by_id)
-    manifest = read_active_manifest()
+    manifest = (read_manifest(manifest_path) or {}) if manifest_path else read_active_manifest()
     data_version_hash = str(manifest.get("data_version_hash") or "")
     if not data_version_hash and cases and all(case.type == "structured_table" for case in cases):
         data_version_hash = structured_data_version_hash()

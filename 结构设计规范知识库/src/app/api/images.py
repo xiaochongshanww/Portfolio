@@ -9,6 +9,7 @@ from ..core.content_access import asset_access_scope
 from ..core.errors import ErrorCode, error_response
 from ..core.security import is_asset_request_allowed
 from src.pipeline.audit.multimodal import find_source_pdf, render_pdf_pages
+from src.pipeline.active_db import active_images_dir
 from src.pipeline.paths import AUDIT_DIR, RAW_DIR
 
 router = APIRouter()
@@ -35,7 +36,7 @@ async def serve_image(filename: str, request: Request):
     scope = asset_access_scope("image", decoded)
     if not is_asset_request_allowed(request, scope):
         return error_response(403, ErrorCode.ASSET_ACCESS_DENIED, "当前来源不允许访问提取图片")
-    root = settings.img_dir.resolve()
+    root = active_images_dir(default=settings.img_dir).resolve()
     decoded_path = (root / decoded).resolve()
     if decoded_path.is_relative_to(root) and decoded_path.is_file():
         return FileResponse(

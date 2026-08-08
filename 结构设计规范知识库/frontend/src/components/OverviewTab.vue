@@ -52,7 +52,13 @@
               <div class="flex justify-between"><span>截图可访问率</span><strong>{{ percent(quality.answer_evaluation?.image_http_rate) }}</strong></div>
               <div class="flex justify-between"><span>阻断建议</span><strong>{{ quality.blocked_suggestion_count ?? 0 }}</strong></div>
               <div class="flex justify-between">
-                <span>自动质量门禁</span>
+                <span>候选版本激活门禁</span>
+                <strong :class="quality.candidate_activation?.passed ? 'text-emerald-700' : 'text-slate-500'">
+                  {{ quality.candidate_activation?.available ? (quality.candidate_activation?.passed ? '通过' : '未通过') : '无记录' }}
+                </strong>
+              </div>
+              <div class="flex justify-between">
+                <span>自动质量门禁（完整发布）</span>
                 <strong :class="quality.quality_gate?.passed ? 'text-emerald-700' : 'text-rose-700'">
                   {{ quality.quality_gate?.passed ? '通过' : '未通过' }}
                 </strong>

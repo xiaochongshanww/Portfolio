@@ -28,11 +28,27 @@ def list_pdf_files(source_dir: Path) -> list[Path]:
 DEFAULT_PARSER_BACKEND = os.environ.get("PDF_PARSER_BACKEND", "mineru")
 
 
-def clean_generated_outputs(*, db_dir: Path = DB_DIR, manifest_path: Path = MANIFEST_PATH) -> None:
-    for path in [PROCESSED_DIR, IMAGES_DIR, MINERU_DIR, AUDIT_DIR, db_dir]:
+def clean_generated_outputs(
+    *,
+    db_dir: Path = DB_DIR,
+    manifest_path: Path = MANIFEST_PATH,
+    processed_dir: Path = PROCESSED_DIR,
+    images_dir: Path = IMAGES_DIR,
+    mineru_dir: Path = MINERU_DIR,
+    audit_dir: Path = AUDIT_DIR,
+) -> None:
+    for path in [processed_dir, images_dir, mineru_dir, audit_dir, db_dir]:
         if path.exists():
             shutil.rmtree(path)
-    for path in [PROCESSED_DIR, IMAGES_DIR, MINERU_DIR, AUDIT_DIR, db_dir, CORRECTIONS_DIR / "candidates", CORRECTIONS_DIR / "approved"]:
+    for path in [
+        processed_dir,
+        images_dir,
+        mineru_dir,
+        audit_dir,
+        db_dir,
+        CORRECTIONS_DIR / "candidates",
+        CORRECTIONS_DIR / "approved",
+    ]:
         path.mkdir(parents=True, exist_ok=True)
     if manifest_path.exists():
         manifest_path.unlink()
@@ -63,6 +79,10 @@ def rebuild(
     apply_corrections: bool = True,
     db_dir: Path = DB_DIR,
     manifest_path: Path = MANIFEST_PATH,
+    processed_dir: Path = PROCESSED_DIR,
+    images_dir: Path = IMAGES_DIR,
+    mineru_output_dir: Path = MINERU_DIR,
+    audit_dir: Path = AUDIT_DIR,
 ) -> dict[str, Any]:
     configure_pipeline_logging()
     source_dir = source_dir.resolve()
@@ -76,7 +96,14 @@ def rebuild(
         raise BuildPreflightError("ZHIPUAI_API_KEY 未设置，无法执行全量构建和向量化入库")
     validate_parser_backend(parser_backend)
 
-    clean_generated_outputs(db_dir=db_dir, manifest_path=manifest_path)
+    clean_generated_outputs(
+        db_dir=db_dir,
+        manifest_path=manifest_path,
+        processed_dir=processed_dir,
+        images_dir=images_dir,
+        mineru_dir=mineru_output_dir,
+        audit_dir=audit_dir,
+    )
 
     from .load_to_db import load_chunks_to_db
     from .process_documents import process_pdfs
@@ -84,16 +111,16 @@ def rebuild(
     processed_by_file = process_pdfs(
         pdf_files,
         metadata,
-        PROCESSED_DIR,
-        IMAGES_DIR,
+        processed_dir,
+        images_dir,
         parser_backend=parser_backend,
-        mineru_output_dir=MINERU_DIR,
+        mineru_output_dir=mineru_output_dir,
         apply_corrections=apply_corrections,
     )
     chunks_by_file = {source_file: result["chunks"] for source_file, result in processed_by_file.items()}
     total_loaded = load_chunks_to_db(chunks_by_file, db_dir)
     chunk_counts = {source_file: len(chunks) for source_file, chunks in chunks_by_file.items()}
-    image_count = len([path for path in IMAGES_DIR.glob("*") if path.is_file()])
+    image_count = len([path for path in images_dir.glob("*") if path.is_file()])
     manifest = build_manifest(
         pdf_files=pdf_files,
         metadata=metadata,
@@ -113,7 +140,10 @@ def rebuild(
             "source_dir": str(source_dir),
             "mode": "rebuild",
             "parser_backend": parser_backend,
-            "mineru_output_dir": str(MINERU_DIR),
+            "processed_dir": str(processed_dir),
+            "images_dir": str(images_dir),
+            "mineru_output_dir": str(mineru_output_dir),
+            "audit_dir": str(audit_dir),
             "db_dir": str(db_dir),
             "mineru_args": os.environ.get("MINERU_ARGS", ""),
             "apply_corrections": apply_corrections,

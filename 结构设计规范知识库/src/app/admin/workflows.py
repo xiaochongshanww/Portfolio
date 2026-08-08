@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import Any
 
@@ -10,7 +11,7 @@ from src.evaluation.answer_runner import (
 from src.app.core.config import settings
 from src.app.retrieval.hybrid_search import retrieval_state
 from src.pipeline import builder
-from src.pipeline.active_db import write_active_db
+from src.pipeline.active_db import active_processed_dir, write_active_db
 from src.pipeline.manifest import write_manifest
 from src.pipeline.paths import ACTIVE_DB_PATH, AUDIT_DIR, DB_VERSIONS_DIR, MANIFEST_PATH, RAW_DIR
 from src.pipeline.audit.structuring_ai import generate_structuring_suggestion
@@ -19,10 +20,37 @@ from src.pipeline.audit.manual_structuring import (
     build_manual_structuring_draft,
     list_manual_structuring_files,
     read_manual_structuring_file,
+    write_manual_structuring_queue,
 )
+from src.quality import assess_candidate_activation, write_candidate_activation_artifacts
 
 from .models import Job
 from .storage import JobStore
+
+
+class CandidateActivationBlocked(RuntimeError):
+    pass
+
+
+def _snapshot_file(path: Path) -> bytes | None:
+    return path.read_bytes() if path.exists() else None
+
+
+def _restore_file(path: Path, content: bytes | None) -> None:
+    if content is None:
+        path.unlink(missing_ok=True)
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(f"{path.suffix}.rollback.tmp")
+    temporary.write_bytes(content)
+    temporary.replace(path)
+
+
+def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(f"{path.suffix}.tmp")
+    temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    temporary.replace(path)
 
 
 def _set_step(job: Job, store: JobStore, step: str, message: str, **progress: Any) -> None:
@@ -46,6 +74,11 @@ def rebuild_workflow(job: Job, store: JobStore) -> dict[str, Any]:
     _set_step(job, store, "rebuild", "开始重建知识库", source=str(source), parser_backend=parser_backend)
     version_dir = DB_VERSIONS_DIR / job.job_id
     db_dir = version_dir / "db"
+    processed_dir = version_dir / "processed"
+    images_dir = version_dir / "images"
+    mineru_dir = version_dir / "mineru"
+    audit_dir = version_dir / "audit"
+    quality_dir = version_dir / "quality"
     manifest_path = version_dir / "manifest.json"
     _set_step(job, store, "build_version", "构建到临时版本目录", db_dir=str(db_dir))
     manifest = builder.rebuild(
@@ -54,22 +87,85 @@ def rebuild_workflow(job: Job, store: JobStore) -> dict[str, Any]:
         apply_corrections=apply_corrections,
         db_dir=db_dir,
         manifest_path=manifest_path,
+        processed_dir=processed_dir,
+        images_dir=images_dir,
+        mineru_output_dir=mineru_dir,
+        audit_dir=audit_dir,
     )
-    _set_step(job, store, "activate_version", "切换 active 知识库版本", db_dir=str(db_dir))
-    write_active_db(
-        {
-            "active_db_dir": str(db_dir),
-            "manifest": str(manifest_path),
-            "job_id": job.job_id,
-            "data_version_hash": manifest.get("data_version_hash", ""),
-            "chunk_count": manifest.get("chunk_count", 0),
-            "activated_at": manifest.get("built_at", ""),
-        },
-        ACTIVE_DB_PATH,
+    _set_step(
+        job,
+        store,
+        "candidate_gate",
+        "验证候选运行时并执行预激活评估",
+        regular_cases=100,
+        structured_cases=12,
     )
-    write_manifest(MANIFEST_PATH, manifest)
-    _set_step(job, store, "reload", "重载在线检索状态", db_dir=str(db_dir))
-    retrieval_state.reload(db_dir)
+    assessment = assess_candidate_activation(
+        manifest_path=manifest_path,
+        db_dir=db_dir,
+        processed_dir=processed_dir,
+        images_dir=images_dir,
+    )
+    gate_artifacts = write_candidate_activation_artifacts(assessment, quality_dir)
+    if not assessment.result["passed"] or assessment.retrieval_state is None:
+        failed = ", ".join(assessment.result.get("failed_checks", [])) or "candidate_runtime"
+        store.append_log(
+            job.job_id,
+            "error",
+            "候选版本未通过预激活门禁，旧活动版本保持不变",
+            failed_checks=assessment.result.get("failed_checks", []),
+            gate_report=gate_artifacts["gate_report"],
+        )
+        raise CandidateActivationBlocked(f"候选版本未通过预激活门禁: {failed}")
+
+    pointer_payload = {
+        "active_db_dir": str(db_dir),
+        "processed_dir": str(processed_dir),
+        "images_dir": str(images_dir),
+        "mineru_dir": str(mineru_dir),
+        "audit_dir": str(audit_dir),
+        "manifest": str(manifest_path),
+        "job_id": job.job_id,
+        "data_version_hash": manifest.get("data_version_hash", ""),
+        "chunk_count": manifest.get("chunk_count", 0),
+        "activated_at": assessment.result.get("generated_at", ""),
+        "candidate_gate_report": gate_artifacts["gate_report"],
+    }
+    old_manifest = _snapshot_file(MANIFEST_PATH)
+    old_pointer = _snapshot_file(ACTIVE_DB_PATH)
+    _set_step(job, store, "activate_version", "提交候选版本并切换活动指针", db_dir=str(db_dir))
+    try:
+        write_manifest(MANIFEST_PATH, manifest)
+        write_active_db(pointer_payload, ACTIVE_DB_PATH)
+        retrieval_state.adopt(assessment.retrieval_state)
+    except Exception:
+        _restore_file(ACTIVE_DB_PATH, old_pointer)
+        _restore_file(MANIFEST_PATH, old_manifest)
+        raise
+
+    reports_dir = AUDIT_DIR / "reports"
+    latest_reports_published = True
+    try:
+        _write_json_atomic(reports_dir / "evaluation_latest.json", assessment.regular_evaluation)
+        _write_json_atomic(reports_dir / "evaluation_structured_latest.json", assessment.structured_evaluation)
+    except Exception as exc:
+        latest_reports_published = False
+        store.append_log(
+            job.job_id,
+            "warning",
+            "活动版本已切换，但最新检索评估报告发布失败；完整发布门禁将保持阻断",
+            error=str(exc),
+        )
+    try:
+        write_manual_structuring_queue(processed_dir)
+    except Exception as exc:
+        store.append_log(
+            job.job_id,
+            "warning",
+            "活动版本已切换，但复杂表人工队列刷新失败",
+            error=str(exc),
+        )
+    _set_step(job, store, "active", "候选版本已通过门禁并成为活动版本", db_dir=str(db_dir))
     return {
         "manifest": str(MANIFEST_PATH),
         "version_manifest": str(manifest_path),
@@ -79,12 +175,16 @@ def rebuild_workflow(job: Job, store: JobStore) -> dict[str, Any]:
         "image_count": manifest.get("image_count", 0),
         "data_version_hash": manifest.get("data_version_hash", ""),
         "applied_correction_count": manifest.get("correction_status", {}).get("applied_count", 0),
+        "candidate_gate": assessment.result,
+        "candidate_gate_report": gate_artifacts["gate_report"],
+        "answer_evaluation_required": True,
+        "latest_reports_published": latest_reports_published,
     }
 
 
 def audit_workflow(job: Job, store: JobStore) -> dict[str, Any]:
     _set_step(job, store, "audit", "开始规则审计")
-    report = builder.audit()
+    report = builder.audit(active_processed_dir())
     return {
         "report_path": report.get("report_path", ""),
         "document_count": report.get("document_count", 0),
@@ -97,7 +197,7 @@ def review_workflow(job: Job, store: JobStore) -> dict[str, Any]:
     doc = str(job.params.get("doc", ""))
     pages = str(job.params.get("pages", ""))
     _set_step(job, store, "review", "开始 AI 校对", doc=doc, pages=pages)
-    return builder.review(doc, pages=pages)
+    return builder.review(doc, pages=pages, processed_dir=active_processed_dir())
 
 
 def structuring_suggestion_workflow(job: Job, store: JobStore) -> dict[str, Any]:

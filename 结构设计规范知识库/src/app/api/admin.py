@@ -29,12 +29,12 @@ from src.pipeline.audit.manual_structuring import (
 )
 from src.pipeline.audit.multimodal import find_source_pdf, render_pdf_pages
 from src.pipeline.audit.structuring_ai import read_structuring_suggestion
-from src.pipeline.active_db import read_active_db, read_active_manifest
+from src.pipeline.active_db import active_processed_dir, read_active_db, read_active_manifest, resolve_pointer_path
 from src.pipeline.paths import (
+    ACTIVE_DB_PATH,
     AUDIT_DIR,
     CORRECTIONS_DIR,
     MANUAL_STRUCTURING_DIR,
-    PROCESSED_DIR,
     RAW_DIR,
     STRUCTURED_TABLES_DIR,
 )
@@ -108,7 +108,7 @@ def _approved_path(doc: str) -> Path:
 
 def _load_processed_doc(doc: str) -> dict[str, Any]:
     stem = _safe_doc_stem(doc)
-    candidates = sorted(PROCESSED_DIR.glob(f"*{stem}*.json"))
+    candidates = sorted(active_processed_dir().glob(f"*{stem}*.json"))
     candidates = [path for path in candidates if not path.name.endswith("_chunks.json")]
     if not candidates:
         raise FileNotFoundError(f"processed document not found: {doc}")
@@ -262,6 +262,18 @@ async def admin_quality_status():
     latest = json.loads(latest_path.read_text(encoding="utf-8")) if latest_path.exists() else {}
     structured = json.loads(structured_path.read_text(encoding="utf-8")) if structured_path.exists() else {}
     answer = json.loads(answer_path.read_text(encoding="utf-8")) if answer_path.exists() else {}
+    active_db = read_active_db()
+    candidate_gate_value = str(active_db.get("candidate_gate_report") or "")
+    candidate_gate_path = (
+        resolve_pointer_path(candidate_gate_value, ACTIVE_DB_PATH, AUDIT_DIR / "missing-candidate-gate.json")
+        if candidate_gate_value
+        else None
+    )
+    candidate_gate = (
+        json.loads(candidate_gate_path.read_text(encoding="utf-8"))
+        if candidate_gate_path and candidate_gate_path.exists()
+        else {}
+    )
     return {
         "logical_task_count": sum(int(item.get("task_count", 0)) for item in documents),
         "pending_task_count": sum(int(item.get("pending_task_count", 0)) for item in documents),
@@ -275,6 +287,14 @@ async def admin_quality_status():
         "historical_failed_job_count": job_status["historical_failed_count"],
         "stale_active_job_count": job_status["stale_active_count"],
         "quality_gate": quality_gate,
+        "candidate_activation": {
+            "available": bool(candidate_gate),
+            "passed": candidate_gate.get("passed"),
+            "failed_checks": candidate_gate.get("failed_checks", []),
+            "generated_at": candidate_gate.get("generated_at"),
+            "data_version_hash": candidate_gate.get("data_version_hash"),
+            "answer_evaluation_included": candidate_gate.get("answer_evaluation_included", False),
+        },
         "regular_evaluation": {
             "case_count": latest.get("case_count", 0),
             "authority_hit_rate": latest.get("authority_hit_rate"),
@@ -322,7 +342,7 @@ async def admin_candidate_update(doc: str, candidate_id: str, request: Candidate
 
 @router.post("/manual-structuring/scan")
 async def admin_manual_structuring_scan():
-    return write_manual_structuring_queue(PROCESSED_DIR)
+    return write_manual_structuring_queue(active_processed_dir())
 
 
 @router.post("/manual-structuring/ai-suggestions/batch")

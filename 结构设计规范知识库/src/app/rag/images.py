@@ -3,6 +3,7 @@ import mimetypes
 from pathlib import Path
 
 from ..core.config import settings
+from src.pipeline.active_db import active_images_dir
 from src.pipeline.audit.multimodal import find_source_pdf, render_pdf_pages
 from src.pipeline.paths import AUDIT_DIR, RAW_DIR
 
@@ -14,25 +15,27 @@ def _data_url(image_path: Path) -> str:
 
 
 def load_images_by_name(filenames: list[str]) -> list[str]:
-    if not settings.img_dir.is_dir():
+    image_dir = active_images_dir(default=settings.img_dir)
+    if not image_dir.is_dir():
         return []
 
     images: list[str] = []
     for filename in filenames:
-        image_path = settings.img_dir / Path(filename).name
+        image_path = image_dir / Path(filename).name
         if image_path.exists():
             images.append(_data_url(image_path))
     return images
 
 
 def page_image_filenames(source: str, pages: list[int]) -> list[str]:
-    if not settings.img_dir.is_dir():
+    image_dir = active_images_dir(default=settings.img_dir)
+    if not image_dir.is_dir():
         return []
 
     name_part = Path(source).stem
     filenames: list[str] = []
     for page in pages:
-        for image_path in settings.img_dir.glob(f"{name_part}_p{page:04d}.*"):
+        for image_path in image_dir.glob(f"{name_part}_p{page:04d}.*"):
             if image_path.is_file():
                 filenames.append(image_path.name)
                 break
@@ -55,6 +58,7 @@ def load_page_images(source: str, pages: list[int]) -> list[str]:
     if images:
         return images
 
+    image_dir = active_images_dir(default=settings.img_dir)
     for filename in page_image_filenames(source, pages):
-        images.append(_data_url(settings.img_dir / filename))
+        images.append(_data_url(image_dir / filename))
     return images

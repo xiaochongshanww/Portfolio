@@ -15,6 +15,11 @@ REGULAR_REPORT_PATH = AUDIT_DIR / "reports" / "evaluation_latest.json"
 STRUCTURED_REPORT_PATH = AUDIT_DIR / "reports" / "evaluation_structured_latest.json"
 ANSWER_REPORT_PATH = AUDIT_DIR / "reports" / "evaluation_answer_latest.json"
 DEFAULT_REPORT_MAX_AGE = timedelta(days=7)
+MIN_REGULAR_CASES = 100
+MIN_STRUCTURED_CASES = 12
+MIN_TOP1_SOURCE_HIT_RATE = 0.95
+MIN_AUTHORITY_HIT_RATE = 0.95
+MIN_STRUCTURED_TABLE_HIT_RATE = 0.95
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -165,10 +170,10 @@ def evaluate_quality_gate(
     regular_failures = len(regular.get("failures", []))
     regular_ok = (
         regular.get("ok") is True
-        and int(regular.get("case_count", 0)) >= 100
+        and int(regular.get("case_count", 0)) >= MIN_REGULAR_CASES
         and regular_failures == 0
-        and float(regular.get("top1_source_hit_rate", 0)) >= 0.95
-        and float(regular.get("authority_hit_rate", 0)) >= 0.95
+        and float(regular.get("top1_source_hit_rate", 0)) >= MIN_TOP1_SOURCE_HIT_RATE
+        and float(regular.get("authority_hit_rate", 0)) >= MIN_AUTHORITY_HIT_RATE
     )
     check(
         "regular_evaluation",
@@ -180,9 +185,9 @@ def evaluate_quality_gate(
     structured_failures = len(structured.get("failures", []))
     structured_ok = (
         structured.get("ok") is True
-        and int(structured.get("case_count", 0)) >= 12
+        and int(structured.get("case_count", 0)) >= MIN_STRUCTURED_CASES
         and structured_failures == 0
-        and float(structured.get("structured_table_hit_rate", 0)) >= 0.95
+        and float(structured.get("structured_table_hit_rate", 0)) >= MIN_STRUCTURED_TABLE_HIT_RATE
     )
     check(
         "structured_evaluation",

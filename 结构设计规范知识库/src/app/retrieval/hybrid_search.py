@@ -1,6 +1,7 @@
 import logging
 import re
 from pathlib import Path
+from threading import RLock
 from typing import Any
 
 try:
@@ -130,6 +131,7 @@ def asks_for_table_identifier(query_info: QueryInfo) -> bool:
 class RetrievalState:
     def __init__(self, config: Settings = settings) -> None:
         self.config = config
+        self._state_lock = RLock()
         self.zhipu_client: Any = None
         self.chroma_client: Any = None
         self.chroma_collection: Any = None
@@ -168,25 +170,29 @@ class RetrievalState:
         if chromadb is None:
             logging.error("ChromaDB 未安装，无法初始化知识库")
             return
-        self.chroma_collection = None
-        self.bm25_index = None
-        self.bm25_texts = []
-        self.chroma_client = chromadb.PersistentClient(path=str(db_dir))
-        self.db_dir = db_dir
-        self.chroma_collection = self.chroma_client.get_or_create_collection(name=self.config.collection_name)
-        count = self.chroma_collection.count()
+        chroma_client = chromadb.PersistentClient(path=str(db_dir))
+        chroma_collection = chroma_client.get_or_create_collection(name=self.config.collection_name)
+        count = chroma_collection.count()
         logging.info("ChromaDB: %s 条 (%s)", count, db_dir)
 
+        bm25_index = None
+        bm25_texts: list[str] = []
         if count > 0:
             if BM25Okapi is None:
                 logging.error("rank-bm25 未安装，跳过 BM25 索引构建")
-                return
-            all_data = self.chroma_collection.get()
-            all_texts = [doc or "" for doc in all_data["documents"]]
-            tokenized = [tokenize_chinese(text) for text in all_texts]
-            self.bm25_index = BM25Okapi(tokenized)
-            self.bm25_texts = all_texts
-            logging.info("BM25 索引构建完成: %s 条", len(self.bm25_texts))
+            else:
+                all_data = chroma_collection.get()
+                bm25_texts = [doc or "" for doc in all_data["documents"]]
+                tokenized = [tokenize_chinese(text) for text in bm25_texts]
+                bm25_index = BM25Okapi(tokenized)
+                logging.info("BM25 索引构建完成: %s 条", len(bm25_texts))
+
+        with self._state_lock:
+            self.chroma_client = chroma_client
+            self.chroma_collection = chroma_collection
+            self.bm25_index = bm25_index
+            self.bm25_texts = bm25_texts
+            self.db_dir = db_dir
 
     def reload(self, db_dir: Path | None = None) -> None:
         target = db_dir or active_db_dir()
@@ -197,19 +203,45 @@ class RetrievalState:
             logging.error("ChromaDB/BM25 重载失败: %s", exc)
             raise
 
+    @classmethod
+    def load_candidate(cls, db_dir: Path, config: Settings = settings) -> "RetrievalState":
+        candidate = cls(config)
+        candidate._initialize_embedding_client()
+        candidate.reload(db_dir)
+        return candidate
+
+    def adopt(self, candidate: "RetrievalState") -> None:
+        if candidate.config.collection_name != self.config.collection_name:
+            raise ValueError("候选检索状态的 collection_name 与运行配置不一致")
+        if not candidate.chroma_collection:
+            raise ValueError("候选检索状态没有可用的 Chroma collection")
+        with self._state_lock:
+            self.zhipu_client = candidate.zhipu_client
+            self.chroma_client = candidate.chroma_client
+            self.chroma_collection = candidate.chroma_collection
+            self.bm25_index = candidate.bm25_index
+            self.bm25_texts = candidate.bm25_texts
+            self.db_dir = candidate.db_dir
+
     @property
     def ready(self) -> bool:
-        return bool(self.chroma_collection and self.zhipu_client)
+        with self._state_lock:
+            return bool(self.chroma_collection and self.zhipu_client)
 
     def chroma_count(self) -> int:
-        if not self.chroma_collection:
-            return -1
-        try:
-            return self.chroma_collection.count()
-        except Exception:
-            return -1
+        with self._state_lock:
+            if not self.chroma_collection:
+                return -1
+            try:
+                return self.chroma_collection.count()
+            except Exception:
+                return -1
 
     def hybrid_search(self, query: str, top_k: int) -> list[RetrievalResult]:
+        with self._state_lock:
+            return self._hybrid_search_unlocked(query, top_k)
+
+    def _hybrid_search_unlocked(self, query: str, top_k: int) -> list[RetrievalResult]:
         if not self.chroma_collection:
             return []
 

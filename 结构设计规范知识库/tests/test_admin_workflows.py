@@ -4,7 +4,14 @@ from pathlib import Path
 from src.app.admin.models import Job
 from src.app.admin.storage import JobStore
 from src.app.admin.workflows import dry_run_workflow
-from src.pipeline.active_db import active_db_dir, read_active_db, read_active_manifest, write_active_db
+from src.pipeline.active_db import (
+    active_db_dir,
+    active_images_dir,
+    active_processed_dir,
+    read_active_db,
+    read_active_manifest,
+    write_active_db,
+)
 
 
 def test_job_store_persists_status_and_logs(tmp_path: Path):
@@ -61,6 +68,23 @@ def test_active_db_pointer_round_trips(tmp_path: Path):
     manifest.write_text('{"chunk_count": 7}', encoding="utf-8")
     write_active_db({"active_db_dir": str(db_dir), "manifest": str(manifest)}, pointer)
     assert read_active_manifest(pointer)["chunk_count"] == 7
+
+
+def test_active_db_pointer_resolves_versioned_runtime_directories(tmp_path: Path):
+    pointer = tmp_path / "data" / "active_db.json"
+    version = tmp_path / "data" / "db_versions" / "v3"
+    write_active_db(
+        {
+            "active_db_dir": str(version / "db"),
+            "processed_dir": str(version / "processed"),
+            "images_dir": str(version / "images"),
+            "manifest": str(version / "manifest.json"),
+        },
+        pointer,
+    )
+
+    assert active_processed_dir(pointer) == version / "processed"
+    assert active_images_dir(pointer) == version / "images"
 
 
 def test_active_db_pointer_resolves_legacy_windows_paths_on_linux_layout(tmp_path: Path):

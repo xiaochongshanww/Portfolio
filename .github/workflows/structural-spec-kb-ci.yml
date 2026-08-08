@@ -74,6 +74,8 @@ jobs:
           cache-dependency-path: 结构设计规范知识库/frontend/package-lock.json
       - name: Install dependencies
         run: npm ci
+      - name: Audit dependency graph
+        run: npm audit --audit-level=high
       - name: Build production console
         run: npm run build
 
