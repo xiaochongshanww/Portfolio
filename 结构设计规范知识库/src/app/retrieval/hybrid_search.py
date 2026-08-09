@@ -15,9 +15,9 @@ except ImportError:
     BM25Okapi = None
 
 try:
-    from zhipuai import ZhipuAI
+    from zai import ZhipuAiClient
 except ImportError:
-    ZhipuAI = None
+    ZhipuAiClient = None
 
 from src.pipeline.active_db import active_db_dir
 from src.pipeline.chunks import extract_table_info
@@ -157,11 +157,11 @@ class RetrievalState:
     def _initialize_embedding_client(self) -> None:
         if not self.config.zhipuai_api_key:
             return
-        if ZhipuAI is None:
+        if ZhipuAiClient is None:
             logging.error("ZhipuAI SDK 未安装，无法初始化向量检索客户端")
             return
         try:
-            self.zhipu_client = ZhipuAI(api_key=self.config.zhipuai_api_key)
+            self.zhipu_client = ZhipuAiClient(api_key=self.config.zhipuai_api_key)
             logging.info("ZhipuAI 初始化成功")
         except Exception as exc:
             logging.error("ZhipuAI 初始化失败: %s", exc)

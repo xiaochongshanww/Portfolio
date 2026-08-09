@@ -47,7 +47,7 @@ def _metadata_for_chroma(chunk: dict[str, Any]) -> dict[str, Any]:
 def load_chunks_to_db(chunks_by_file: dict[str, list[dict[str, Any]]], db_dir: Path) -> int:
     try:
         import chromadb
-        from zhipuai import ZhipuAI
+        from zai import ZhipuAiClient
     except ImportError as exc:
         raise PipelineError(f"缺少入库依赖: {exc}") from exc
 
@@ -55,7 +55,7 @@ def load_chunks_to_db(chunks_by_file: dict[str, list[dict[str, Any]]], db_dir: P
     if not api_key:
         raise PipelineError("ZHIPUAI_API_KEY 未设置，无法执行向量化入库")
 
-    zhipu = ZhipuAI(api_key=api_key)
+    zhipu = ZhipuAiClient(api_key=api_key)
     db = chromadb.PersistentClient(path=str(db_dir))
     try:
         db.delete_collection(settings.collection_name)

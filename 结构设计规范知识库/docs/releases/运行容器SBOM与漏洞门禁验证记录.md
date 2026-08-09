@@ -35,6 +35,9 @@
 - `python scripts/validate_container_security.py --check-remote` 已实际查询上游，固定 `v0.73.0`、不可变标记与 Linux amd64 资产 SHA-256 当前一致。
 - Ruff 检查与格式、459 项后端测试（另 1 项按既有条件跳过）、Python 依赖锁、配置示例、Compose 渲染、质量证据、Action、镜像身份和容器安全策略门禁通过。
 - 前端 9 项组件测试、类型检查、`npm audit --audit-level=high` 和生产构建通过，审计结果为 0 个已知高危及以上漏洞。
+- 首次远程真实扫描 [CI #86](https://github.com/xiaochongshanww/Portfolio/actions/runs/31298835837) 已成功生成并上传 SBOM 与完整报告，门禁按设计发现 4 条具有修复版本的 HIGH 发现：`PyJWT 2.8.0` 两条、`jaraco.context 5.3.0` 一条、`wheel 0.45.1` 一条。
+- 旧 `zhipuai 2.1.5.20250825` 将 PyJWT 限制为 `<2.9.0`，不能得到安全修复；代码已迁移到[官方长期维护 SDK](https://github.com/zai-org/z-ai-sdk-python) `zai-sdk 0.2.3` 并固定 `PyJWT 2.13.0`。最终镜像同时移除只用于构建的 pip、setuptools、wheel 和辅助包，不登记漏洞例外。
+- 修复后的本地锁生成、锁漂移检查与定向测试通过；本地 Docker 构建在下载 `chromadb` wheel 时因 TLS record-layer 中断失败，属于外部下载瞬时故障，不能替代待执行的远程镜像复扫。
 
 ## 待完成证据
 

@@ -4,7 +4,7 @@ uvicorn[standard]
 
 # 检索与模型服务
 chromadb
-zhipuai
+zai-sdk==0.2.3
 httpx
 rank-bm25
 
@@ -12,3 +12,6 @@ rank-bm25
 python-dotenv
 sniffio
 PyMuPDF
+
+# 新版官方 SDK 允许使用已修复的认证依赖版本。
+PyJWT>=2.13.0

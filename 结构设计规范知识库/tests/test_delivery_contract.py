@@ -21,9 +21,13 @@ def test_runtime_image_bundles_console_and_runtime_assets():
     assert "COPY data/evaluation/ data/evaluation/" in dockerfile
     assert "COPY data/metadata/ data/metadata/" in dockerfile
     assert "--require-hashes -r requirements-runtime.txt" in dockerfile
+    assert "pip uninstall --yes jaraco.context wheel setuptools pip" in dockerfile
     assert "!data/evaluation/**" in dockerignore
     assert "!data/metadata/**" in dockerignore
     assert "pymupdf==" in runtime_requirements.casefold()
+    assert "zai-sdk==0.2.3" in runtime_requirements.casefold()
+    assert "zhipuai==" not in runtime_requirements.casefold()
+    assert "pyjwt==2.13.0" in runtime_requirements.casefold()
     assert frontend_package["packageManager"] == "npm@10.9.8"
     assert frontend_package["engines"] == {"node": "22.x", "npm": "10.9.8"}
     assert "engine-strict=true" in frontend_npmrc.splitlines()

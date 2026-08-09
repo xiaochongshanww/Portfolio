@@ -225,7 +225,7 @@ build==1.5.0 \
 cachetools==7.1.7 \
     --hash=sha256:a3e2a00b14d8f8a6b70c1dae7b4685e7ad3bc965c5b42124a2d6ce895da6cf50 \
     --hash=sha256:ef98ef375ad188819ef2f9b3645e3987f4b8c5b7550e436ad998c2de78296df0
-    # via zhipuai
+    # via zai-sdk
 certifi==2026.7.22 \
     --hash=sha256:62f22742b58a1a33014a2b6b706588a8d7e2a88ae7bd1a6ebe8c992928483775 \
     --hash=sha256:741e2c3b351ddf169a738da9f2c048608ff7f2c5cc02f1ebc6b118bb090d5d55
@@ -652,7 +652,7 @@ httpx==0.28.1 \
     #   -r requirements-runtime.in
     #   chromadb
     #   huggingface-hub
-    #   zhipuai
+    #   zai-sdk
 huggingface-hub==1.27.0 \
     --hash=sha256:7df6827c2f956c60fbaa64646e979e566db76f619dd0a9729dfb8c5a3eb4f68d \
     --hash=sha256:c1fed40ea82a6b41b477f5243546549b792ae0a93abcea608cff66089bf8f8df
@@ -1594,7 +1594,7 @@ pydantic==2.13.4 \
     #   chromadb
     #   fastapi
     #   pydantic-settings
-    #   zhipuai
+    #   zai-sdk
 pydantic-core==2.46.4 \
     --hash=sha256:00c603d540afdd6b80eb39f078f33ebd46211f02f33e34a32d9f053bba711de0 \
     --hash=sha256:0186750b482eefa11d7f435892b09c5c606193ef3375bcf94aa00ae6bfb66262 \
@@ -1718,7 +1718,7 @@ pydantic-core==2.46.4 \
     --hash=sha256:fd8b3d9fd264be37976686c7f65cd52a83f5e84f4bfd2adf9c1d469676bbb6ae
     # via
     #   pydantic
-    #   zhipuai
+    #   zai-sdk
 pydantic-settings==2.15.0 \
     --hash=sha256:0ba092c291c94baceb5eff768aa0d56400a457585bc0175925a5a5510303da42 \
     --hash=sha256:694b793e84f766ba76a90ebdefc01d0a9a045dab0382bee70393da93712ad117
@@ -1729,10 +1729,12 @@ pygments==2.20.0 \
     # via
     #   pytest
     #   rich
-pyjwt==2.8.0 \
-    --hash=sha256:57e28d156e3d5c10088e0c68abb90bfac3df82b40a71bd0daa20c65ccd5c23de \
-    --hash=sha256:59127c392cc44c2da5bb3192169a91f429924e17aff6534d70fdc02ab3e04320
-    # via zhipuai
+pyjwt==2.13.0 \
+    --hash=sha256:41571c89ca91598c79e8ef18a2d07367d4810fbbd6f637794879baf1b7703423 \
+    --hash=sha256:66adcc2aff09b3f1bbd95fc1e1577df8ac8723c978552fd43304c8a290ac5728
+    # via
+    #   -r requirements-runtime.in
+    #   zai-sdk
 pymupdf==1.28.2 \
     --hash=sha256:2e1b574c0fd2cb238021033fd3c0f9c4388816638df064e4bfb56d9d81736dc8 \
     --hash=sha256:3050a233dde1211efe89ada74e2add6238436434159f46097a1423aad2842545 \
@@ -2027,7 +2029,9 @@ six==1.17.0 \
 sniffio==1.3.1 \
     --hash=sha256:2f6da418d1f1e0fddd844478f41680e794e6051915791a034ff65e5f100525a2 \
     --hash=sha256:f4324edc670a0f49750a81b895f35c3adb843cca46f0530f79fc1babb23789dc
-    # via -r requirements-runtime.in
+    # via
+    #   -r requirements-runtime.in
+    #   zai-sdk
 starlette==1.4.1 \
     --hash=sha256:7d078e0fbefae0d2cecfb80a799d6fb84b1c0c6acd4f14ac79d17d0e7ec27f19 \
     --hash=sha256:b7332de6e9375593a29ba9eee1e6ecfeb3eb2043e2e19a13b4b71da73ff35540
@@ -2484,7 +2488,7 @@ yarl==1.24.5 \
     --hash=sha256:ff405d91509d88e8d44129cd87b18d70acd1f0c1aeabd7bc3c46792b1fe2acba \
     --hash=sha256:ffcd54362564dc1a30fb74d8b8a6e5a6b11ebd5e27266adc3b7427a21a6c9104
     # via aiohttp
-zhipuai==2.1.5.20250825 \
-    --hash=sha256:50fc3982565ee631bd640b1166a1d223de227958026a74a1dd0e26dbd58d729c \
-    --hash=sha256:aaad19881e514a4682598f07503b82d60b8b9a91cd83f9bcda988b94853c830d
+zai-sdk==0.2.3 \
+    --hash=sha256:1481f6db746e64fe9e7e0da9a3727fd083890613f9eb8e1d14139ff76ef68a57 \
+    --hash=sha256:f8d6417f8cff58d5b6cba5c27577ee55aa817ae825c6c88fe883f6f6f9265d90
     # via -r requirements-runtime.in
