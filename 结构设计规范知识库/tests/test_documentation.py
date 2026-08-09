@@ -184,6 +184,22 @@ def test_active_architecture_and_release_entry_points_are_current():
     assert managed_command in release_checklist
 
 
+def test_compose_pull_resilience_is_documented():
+    readme = Path("README.md").read_text(encoding="utf-8")
+    deployment = Path("docs/operations/部署运行手册.md").read_text(encoding="utf-8")
+    detailed_design = Path("docs/architecture/系统详细设计.md").read_text(encoding="utf-8")
+    release_checklist = Path("docs/releases/发布检查单.md").read_text(encoding="utf-8")
+
+    pull_command = "python scripts/pull_compose_images.py open-webui"
+    start_contract = "--pull never"
+    assert pull_command in readme
+    assert pull_command in deployment
+    assert start_contract in readme
+    assert start_contract in deployment
+    assert "scripts/pull_compose_images.py" in detailed_design
+    assert "python scripts/pull_compose_images.py <service>" in release_checklist
+
+
 def test_rag_system_card_matches_latest_quality_evidence():
     system_card = Path("docs/quality/检索增强生成系统卡.md").read_text(encoding="utf-8")
     snapshot = json.loads(Path("docs/quality/质量证据状态.json").read_text(encoding="utf-8"))

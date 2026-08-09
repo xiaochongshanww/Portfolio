@@ -236,8 +236,17 @@ jobs:
           EOF
       - name: Build shared application image
         run: docker build --tag structural-spec-kb:ci-openwebui .
+      - name: Pull external Compose images with bounded retry
+        run: >-
+          python scripts/pull_compose_images.py
+          --attempts 5
+          --initial-delay 2
+          --max-delay 30
+          --attempt-timeout 600
+          --policy always
+          open-webui
       - name: Start authenticated Compose stack
-        run: docker compose up --no-build --detach open-webui
+        run: docker compose up --no-build --pull never --detach open-webui
       - name: Verify preflight and OpenWebUI model discovery
         run: |
           test "$(docker inspect --format '{{.State.ExitCode}}' openwebui-preflight)" = "0"

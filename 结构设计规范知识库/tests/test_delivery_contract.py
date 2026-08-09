@@ -120,7 +120,13 @@ def test_repository_ci_covers_backend_frontend_and_container():
     assert "docker build --tag structural-spec-kb:ci ." in workflow
     assert "OpenWebUI authenticated integration" in workflow
     assert "docker build --tag structural-spec-kb:ci-openwebui ." in workflow
-    assert "docker compose up --no-build --detach open-webui" in workflow
+    assert "python scripts/pull_compose_images.py" in workflow
+    assert "--attempt-timeout 600" in workflow
+    assert "--policy always" in workflow
+    assert "docker compose up --no-build --pull never --detach open-webui" in workflow
+    assert workflow.index("python scripts/pull_compose_images.py") < workflow.index(
+        "docker compose up --no-build --pull never --detach open-webui"
+    )
     assert "http://127.0.0.1:3000/api/v1/auths/signin" in workflow
     assert "Authorization: Bearer $OPENWEBUI_TOKEN" in workflow
     assert "http://127.0.0.1:3000/api/models" in workflow
