@@ -2,6 +2,46 @@
   "schema_version": 1,
   "entries": [
     {
+      "archive_path": "docs/quality/质量证据历史/20260809T100808Z-e644955a96e3.json",
+      "snapshot_sha256": "e644955a96e3c0e8a58950cfd4381cf49ec9128ed56a6417b963e48bf8605366",
+      "release_quality_status": "not_passed",
+      "verification_generated_at": "2026-08-09T10:08:08.613788+00:00",
+      "quality_gate_generated_at": "2026-08-09T10:08:08.090372+00:00",
+      "failed_checks": [
+        "regular_evaluation",
+        "structured_evaluation",
+        "answer_evaluation",
+        "regular_report_freshness",
+        "structured_report_freshness",
+        "answer_report_freshness"
+      ],
+      "evaluation_case_counts": {
+        "regular": 100,
+        "structured": 12,
+        "answer": 24
+      }
+    },
+    {
+      "archive_path": "docs/quality/质量证据历史/20260809T094457Z-52bb24756b72.json",
+      "snapshot_sha256": "52bb24756b727106e64ad3e90fc4dadd371f46f3375253aa2b560be89c06f9b5",
+      "release_quality_status": "not_passed",
+      "verification_generated_at": "2026-08-09T09:44:57.636058+00:00",
+      "quality_gate_generated_at": "2026-08-09T09:44:57.262979+00:00",
+      "failed_checks": [
+        "regular_evaluation",
+        "structured_evaluation",
+        "answer_evaluation",
+        "regular_report_freshness",
+        "structured_report_freshness",
+        "answer_report_freshness"
+      ],
+      "evaluation_case_counts": {
+        "regular": 100,
+        "structured": 12,
+        "answer": 24
+      }
+    },
+    {
       "archive_path": "docs/quality/质量证据历史/20260808T173642Z-e040b43ca589.json",
       "snapshot_sha256": "e040b43ca58979c16c23c6da4950acf56e7946c1594fe823b0115d14b37e8038",
       "release_quality_status": "not_passed",
