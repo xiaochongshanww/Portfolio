@@ -1,10 +1,10 @@
 # CI 外部 Action 供应链验证记录
 
-> 状态：验证中
+> 状态：已完成
 > 维护角色：工程负责人
 > 文档更新：2026-08-09
 > 代码/流程核对：2026-08-09
-> 完整运行验证：本地 381 项后端测试、完整工程门禁及 14 个外部引用校验通过；远程 CI 待完成
+> 完整运行验证：本地 381 项后端测试、完整工程门禁及 14 个外部引用校验通过；[CI #67](https://github.com/xiaochongshanww/Portfolio/actions/runs/31290399694) 十项任务全部通过且无运行时弃用警告
 > 验证证据：[实施清单](../architecture/CI外部Action供应链实施清单.md)、[ADR 0018](../adr/0018-CI外部Action采用不可变引用与自动维护.md)、`tests/test_ci_actions.py`
 > 复核周期：I-028 收口或 CI action 基线变化时
 
@@ -37,12 +37,14 @@
 | 前端组件、类型、安全审计与构建 | 9 项测试通过；类型检查通过；high 级审计 0 漏洞；生产构建通过 |
 | 三套 Python 依赖锁 | runtime、dev、parser 均无漂移 |
 | 配置示例、Compose 与质量证据 | 46 个键、6 个空敏感键、实际配置预检、Compose 渲染及脱敏快照校验通过 |
-| 远程 CI | 待运行 |
+| 远程 CI | [CI #67](https://github.com/xiaochongshanww/Portfolio/actions/runs/31290399694) 十项任务全部通过，提交 `3b43d22` |
+
+远程矩阵使用固定 SHA 的 action 分别在 Linux 和 Windows 生成真实 Chroma 知识包，并完成 Windows→Linux、Linux→Windows 双向导入、探测和 API 冷启动。运行产出两份制品，全部任务成功；摘要没有 `Annotations`，相较 CI #66 的 4 条 Node.js 20 警告已清零。
 
 ## 收口检查
 
 - [x] 实现与专项测试完成。
 - [x] 本地全量门禁通过并记录结果。
-- [ ] 实现提交推送且远程 CI 全部通过。
-- [ ] 远程运行不再出现 Node.js 20 action 弃用警告。
-- [ ] 路线图、文档中心和实施清单标记为完成。
+- [x] 实现提交推送且远程 CI 全部通过。
+- [x] 远程运行不再出现 Node.js 20 action 弃用警告。
+- [x] 路线图、文档中心和实施清单标记为完成。

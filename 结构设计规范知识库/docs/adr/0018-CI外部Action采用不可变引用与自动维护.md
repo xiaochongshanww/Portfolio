@@ -4,8 +4,8 @@
 > 维护角色：工程负责人
 > 文档更新：2026-08-09
 > 代码/流程核对：2026-08-09，已核对唯一生效 workflow、官方 action 标签、提交与运行时元数据
-> 完整运行验证：本地 381 项后端测试、完整工程门禁及 14 个外部引用校验通过；远程 CI 待 I-028 收口
-> 验证证据：[实施清单](../architecture/CI外部Action供应链实施清单.md)、[验证记录](../releases/CI外部Action供应链验证记录.md)、`scripts/validate_ci_actions.py`
+> 完整运行验证：本地 381 项后端测试、完整工程门禁及 14 个外部引用校验通过；[CI #67](https://github.com/xiaochongshanww/Portfolio/actions/runs/31290399694) 十项任务全部通过且无运行时弃用警告
+> 验证证据：[实施清单](../architecture/CI外部Action供应链实施清单.md)、[验证记录](../releases/CI外部Action供应链验证记录.md)、提交 `3b43d22`、[CI #67](https://github.com/xiaochongshanww/Portfolio/actions/runs/31290399694)
 > 复核周期：GitHub Actions 引用、Runner 运行时或 Dependabot 策略变化时
 > 决策日期：2026-08-09
 
