@@ -410,7 +410,11 @@ async def admin_quality_status():
             "failure_count": answer.get("failure_count", 0),
         },
         "external_dependencies": {
-            "learned_reranker": "not_configured",
+            "learned_reranker": (
+                f"enabled:{settings.rerank_provider}"
+                if settings.rerank_enabled
+                else "available_disabled"
+            ),
             "parser_upgrade": "external_infrastructure",
         },
     }

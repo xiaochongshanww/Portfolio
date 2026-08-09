@@ -23,6 +23,7 @@ from src.pipeline.active_db import active_db_dir
 from src.pipeline.chunks import extract_table_info
 
 from ..core.config import Settings, settings
+from ..rerank.base import BaseReranker
 from ..rerank.factory import get_reranker
 from .models import RetrievalCandidate, RetrievalResult
 from .query import QueryInfo, analyze_query
@@ -140,8 +141,14 @@ def asks_for_table_identifier(query_info: QueryInfo) -> bool:
 
 
 class RetrievalState:
-    def __init__(self, config: Settings = settings) -> None:
+    def __init__(
+        self,
+        config: Settings = settings,
+        *,
+        reranker: BaseReranker | None = None,
+    ) -> None:
         self.config = config
+        self.reranker = reranker or get_reranker(config)
         self._state_lock = RLock()
         self.zhipu_client: Any = None
         self.chroma_client: Any = None
@@ -256,21 +263,45 @@ class RetrievalState:
         if not self.chroma_collection:
             return []
 
+        candidate_limit = top_k
+        if self.config.rerank_enabled:
+            candidate_limit = min(
+                128,
+                max(top_k, top_k * self.config.rerank_candidate_multiplier),
+            )
+        normalized_query, results = self._retrieve_candidates_unlocked(query, candidate_limit)
+        return self.reranker.rerank(normalized_query, results, top_n=top_k)
+
+    def retrieve_candidates(
+        self, query: str, candidate_limit: int
+    ) -> tuple[str, list[RetrievalResult]]:
+        """Return one deterministic candidate pool before optional learned reranking."""
+        if not 1 <= candidate_limit <= 128:
+            raise ValueError("candidate_limit 必须在 1 到 128 之间")
+        with self._state_lock:
+            if not self.chroma_collection:
+                return query.strip(), []
+            return self._retrieve_candidates_unlocked(query, candidate_limit)
+
+    def _retrieve_candidates_unlocked(
+        self, query: str, candidate_limit: int
+    ) -> tuple[str, list[RetrievalResult]]:
         query_info = analyze_query(query)
         all_data = self.chroma_collection.get()
         id_to_doc = dict(zip(all_data["ids"], all_data["documents"], strict=True))
         id_to_meta = dict(zip(all_data["ids"], all_data["metadatas"], strict=True))
         results_pool: dict[str, RetrievalCandidate] = {}
 
-        if self.zhipu_client:
+        if self.zhipu_client and all_data["ids"]:
             try:
                 response = self.zhipu_client.embeddings.create(
                     model=self.config.embedding_model,
                     input=[query],
                 )
                 embedding = response.data[0].embedding
+                dense_limit = min(candidate_limit * 5, len(all_data["ids"]))
                 results = self.chroma_collection.query(
-                    query_embeddings=[embedding], n_results=top_k * 5
+                    query_embeddings=[embedding], n_results=dense_limit
                 )
                 for doc_id, distance in zip(
                     results["ids"][0], results["distances"][0], strict=True
@@ -288,18 +319,20 @@ class RetrievalState:
                 logging.error("向量检索失败: %s", exc)
 
         self._add_clause_matches(query_info, all_data, id_to_doc, id_to_meta, results_pool)
-        self._add_bm25_matches(query_info, top_k, all_data, id_to_doc, id_to_meta, results_pool)
+        self._add_bm25_matches(
+            query_info, candidate_limit, all_data, id_to_doc, id_to_meta, results_pool
+        )
         self._add_table_intent_matches(
-            query_info, top_k, all_data, id_to_doc, id_to_meta, results_pool
+            query_info, candidate_limit, all_data, id_to_doc, id_to_meta, results_pool
         )
         self._add_value_table_matches(
-            query_info, top_k, all_data, id_to_doc, id_to_meta, results_pool
+            query_info, candidate_limit, all_data, id_to_doc, id_to_meta, results_pool
         )
         self._apply_domain_ranking(query_info, results_pool)
 
         results = [candidate.to_result() for candidate in results_pool.values()]
-        results = sorted(results, key=lambda item: item.score, reverse=True)[:top_k]
-        return get_reranker().rerank(query_info.normalized, results)
+        results = sorted(results, key=lambda item: item.score, reverse=True)[:candidate_limit]
+        return query_info.normalized, results
 
     def hybrid_search_legacy(
         self, query: str, top_k: int

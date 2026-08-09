@@ -30,7 +30,12 @@ CONFIG_ENV_NAMES = {
     "RATE_LIMIT_ENABLED",
     "RATE_LIMIT_PER_MINUTE",
     "RERANK_ENABLED",
+    "RERANK_BASE_URL",
+    "RERANK_CANDIDATE_MULTIPLIER",
+    "RERANK_MODEL",
+    "RERANK_MODEL_WEIGHT",
     "RERANK_PROVIDER",
+    "RERANK_TIMEOUT_SECONDS",
     "RETRIEVAL_BM25_WEIGHT",
     "RETRIEVAL_CLAUSE_BOOST",
     "RETRIEVAL_DENSE_WEIGHT",
@@ -131,9 +136,43 @@ def test_invalid_numeric_ranges_are_rejected(monkeypatch, values, message):
         settings_from_env(monkeypatch, **values)
 
 
-def test_unimplemented_reranker_cannot_be_silently_enabled(monkeypatch):
-    with pytest.raises(ConfigurationError, match="尚未实现可用 reranker"):
+def test_reranker_requires_provider_and_credentials(monkeypatch):
+    with pytest.raises(ConfigurationError, match="RERANK_PROVIDER 不能为 none"):
         settings_from_env(monkeypatch, RERANK_ENABLED="true", RERANK_PROVIDER="none")
+
+    with pytest.raises(ConfigurationError, match="ZHIPUAI_API_KEY 不能为空"):
+        settings_from_env(monkeypatch, RERANK_ENABLED="true", RERANK_PROVIDER="zhipu")
+
+    with pytest.raises(ConfigurationError, match="不能使用示例占位值"):
+        settings_from_env(
+            monkeypatch,
+            RERANK_ENABLED="true",
+            RERANK_PROVIDER="zhipu",
+            ZHIPUAI_API_KEY="change-me",
+        )
+
+    configured = settings_from_env(
+        monkeypatch,
+        RERANK_ENABLED="true",
+        RERANK_PROVIDER="zhipu",
+        ZHIPUAI_API_KEY="test-key",
+    )
+    assert configured.rerank_enabled is True
+    assert configured.rerank_provider == "zhipu"
+
+
+@pytest.mark.parametrize(
+    ("values", "message"),
+    [
+        ({"RERANK_PROVIDER": "unknown"}, "RERANK_PROVIDER 必须是"),
+        ({"RERANK_TIMEOUT_SECONDS": "0"}, "必须在 1 到 180"),
+        ({"RERANK_CANDIDATE_MULTIPLIER": "11"}, "必须在 1 到 10"),
+        ({"RERANK_MODEL_WEIGHT": "1.1"}, "必须在 0 到 1"),
+    ],
+)
+def test_invalid_reranker_configuration_is_rejected(monkeypatch, values, message):
+    with pytest.raises(ConfigurationError, match=message):
+        settings_from_env(monkeypatch, **values)
 
 
 def test_valid_protected_configuration_is_accepted(monkeypatch):

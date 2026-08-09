@@ -326,7 +326,7 @@ GB 50011-2010_建筑抗震设计规范_2016年版.pdf
 
 ## 🎯 检索质量评估
 
-阶段三提供了标准化检索结果、查询解析、可插拔 reranker 接口和轻量评估 CLI。
+当前提供标准化检索结果、查询解析、规范权威基线排序，以及默认关闭、失败可降级的智谱学习型精排。精排会在扩展候选池上融合基线与模型位次，不会直接覆盖规范权威规则。
 
 ```bash
 # 运行检索评估，不调用 MiMo，只测试 retrieval
@@ -339,7 +339,18 @@ python -m src.evaluation run --top-k 5
 {"id":"case-id","query":"问题","expected_sources":["规范名或编号"],"expected_clause":"8.2.1","expected_keywords":["关键词"],"type":"clause"}
 ```
 
-输出会包含 source hit、clause hit、keyword hit 和失败样例。若知识库尚未构建或检索服务未初始化，会返回明确错误。
+输出会包含 source hit、clause hit、keyword hit、首个合格依据位次、Hit@K、MRR 和失败样例。若知识库尚未构建或检索服务未初始化，会返回明确错误。
+
+启用精排的受控环境可在同一候选池上生成基线/精排对照报告：
+
+```powershell
+python -m src.evaluation compare-rerank `
+  --top-k 5 `
+  --json-output data/audit/reports/rerank_comparison_latest.json `
+  --markdown-output data/audit/reports/rerank_comparison_latest.md
+```
+
+该命令要求 `RERANK_ENABLED=true`、`RERANK_PROVIDER=zhipu` 和受控的 `ZHIPUAI_API_KEY`。对照报告通过不替代回答级盲测；缺少真实凭据时保持默认关闭。
 
 完整验证前先执行无模型调用、无质量报告写入的前置条件预检：
 

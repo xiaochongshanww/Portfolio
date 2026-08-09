@@ -220,6 +220,65 @@ def _authority_hit(case: EvaluationCase, results: list[RetrievalResult]) -> bool
     return top_section != "explanation"
 
 
+def _result_is_qualified(case: EvaluationCase, result: RetrievalResult) -> bool:
+    source_text = " ".join(str(result.meta.get(key, "")) for key in ("source_file", "code", "name"))
+    if case.expected_sources and not any(source in source_text for source in case.expected_sources):
+        return False
+    if case.expected_clause and not any(
+        (
+            case.expected_clause == str(result.meta.get("clause_number", "")),
+            case.expected_clause == str(result.meta.get("matched_clause_number", "")),
+            text_contains_clause_heading(str(result.meta.get("title", "")), case.expected_clause),
+            text_contains_clause_heading(result.text, case.expected_clause),
+            text_mentions_clause(result.text, case.expected_clause),
+        )
+    ):
+        return False
+    if case.keyword_required and case.expected_keywords:
+        keyword_text = "\n".join(
+            [
+                result.text,
+                str(result.meta.get("title", "")),
+                str(result.meta.get("table_name", "")),
+                str(result.meta.get("name", "")),
+                str(result.meta.get("code", "")),
+            ]
+        )
+        if not any(keyword in keyword_text for keyword in case.expected_keywords):
+            return False
+    if case.type == "table" and not infer_is_table(result.meta, result.text):
+        return False
+    if case.expected_table_id and str(result.meta.get("table_id") or "") != case.expected_table_id:
+        return False
+
+    section_type = infer_section_type(result.meta, result.text)
+    expected = case.expected_authority_type
+    if expected == "body_table":
+        return section_type == "body_table" or infer_is_table(result.meta, result.text)
+    if expected == "body":
+        return section_type == "body"
+    if expected == "body_or_table":
+        return section_type in {"body", "body_table"} or infer_is_table(result.meta, result.text)
+    if expected == "explanation":
+        return section_type == "explanation"
+    if expected == "non_explanation":
+        return section_type != "explanation"
+    if expected == "any":
+        return True
+    if case.type == "table":
+        return section_type == "body_table" or infer_is_table(result.meta, result.text)
+    if case.type == "clause":
+        return section_type in {"body", "body_table"}
+    return section_type != "explanation"
+
+
+def _first_qualified_rank(case: EvaluationCase, results: list[RetrievalResult]) -> int | None:
+    for rank, result in enumerate(results, start=1):
+        if _result_is_qualified(case, result):
+            return rank
+    return None
+
+
 def summarize_results(
     cases: list[EvaluationCase],
     results_by_id: dict[str, list[RetrievalResult]],
@@ -235,6 +294,13 @@ def summarize_results(
     authority_hits = 0
     structured_hits = 0
     structured_case_count = 0
+    qualified_case_count = 0
+    qualified_hits = 0
+    qualified_top1_hits = 0
+    qualified_hit_at_3 = 0
+    qualified_hit_at_5 = 0
+    reciprocal_rank_total = 0.0
+    ranking_cases: list[dict[str, Any]] = []
     cases_by_type: dict[str, int] = {}
     failures_by_type: dict[str, int] = {}
     failures_by_check = {
@@ -264,6 +330,22 @@ def summarize_results(
         if case.expected_table_id:
             structured_case_count += 1
             structured_hits += int(structured_ok)
+        if case.type != "structured_table":
+            qualified_case_count += 1
+            qualified_rank = _first_qualified_rank(case, results)
+            qualified_hits += int(qualified_rank is not None)
+            qualified_top1_hits += int(qualified_rank == 1)
+            qualified_hit_at_3 += int(qualified_rank is not None and qualified_rank <= 3)
+            qualified_hit_at_5 += int(qualified_rank is not None and qualified_rank <= 5)
+            reciprocal_rank_total += 1 / qualified_rank if qualified_rank else 0
+            ranking_cases.append(
+                {
+                    "id": case.id,
+                    "type": case.type,
+                    "query": case.query,
+                    "first_qualified_rank": qualified_rank,
+                }
+            )
         failed_checks = [
             name
             for name, ok in (
@@ -341,6 +423,21 @@ def summarize_results(
         "structured_table_hit_rate": structured_hits / structured_case_count
         if structured_case_count
         else 1,
+        "qualified_case_count": qualified_case_count,
+        "qualified_hit_rate": qualified_hits / qualified_case_count if qualified_case_count else 1,
+        "qualified_top1_hit_rate": qualified_top1_hits / qualified_case_count
+        if qualified_case_count
+        else 1,
+        "qualified_hit_at_3": qualified_hit_at_3 / qualified_case_count
+        if qualified_case_count
+        else 1,
+        "qualified_hit_at_5": qualified_hit_at_5 / qualified_case_count
+        if qualified_case_count
+        else 1,
+        "qualified_mrr": reciprocal_rank_total / qualified_case_count
+        if qualified_case_count
+        else 1,
+        "ranking_cases": ranking_cases,
         "cases_by_type": cases_by_type,
         "failures_by_type": failures_by_type,
         "failures_by_check": failures_by_check,
@@ -405,6 +502,10 @@ def render_evaluation_markdown(result: dict[str, Any], title: str = "检索评�
         f"- 关键词命中率：{result.get('keyword_hit_rate', 0):.1%}",
         f"- 权威性命中率：{result.get('authority_hit_rate', 0):.1%}",
         f"- 结构化表命中率：{result.get('structured_table_hit_rate', 1):.1%}",
+        f"- 合格依据 Top1 命中率：{result.get('qualified_top1_hit_rate', 0):.1%}",
+        f"- 合格依据 Hit@3：{result.get('qualified_hit_at_3', 0):.1%}",
+        f"- 合格依据 Hit@5：{result.get('qualified_hit_at_5', 0):.1%}",
+        f"- 合格依据 MRR：{result.get('qualified_mrr', 0):.4f}",
         f"- 失败数：{len(result.get('failures', []))}",
         "",
     ]

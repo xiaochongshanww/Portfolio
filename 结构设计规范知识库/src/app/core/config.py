@@ -24,6 +24,7 @@ FALSE_VALUES = {"0", "false", "no", "off"}
 PLACEHOLDER_API_KEYS = {"change-me", "changeme", "not-needed", "your-api-key"}
 VALID_LOG_LEVELS = {"CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"}
 VALID_LOG_FORMATS = {"json", "text"}
+VALID_RERANK_PROVIDERS = {"none", "zhipu"}
 
 
 class ConfigurationError(ValueError):
@@ -102,7 +103,24 @@ class Settings:
         default_factory=lambda: _env_float("RETRIEVAL_CLAUSE_BOOST", "5.0")
     )
     rerank_enabled: bool = field(default_factory=lambda: _env_bool("RERANK_ENABLED", "false"))
-    rerank_provider: str = field(default_factory=lambda: os.getenv("RERANK_PROVIDER", "none"))
+    rerank_provider: str = field(
+        default_factory=lambda: os.getenv("RERANK_PROVIDER", "none").strip().lower()
+    )
+    rerank_base_url: str = field(
+        default_factory=lambda: _env_http_base_url(
+            "RERANK_BASE_URL", "https://open.bigmodel.cn/api/paas/v4"
+        )
+    )
+    rerank_model: str = field(default_factory=lambda: os.getenv("RERANK_MODEL", "rerank").strip())
+    rerank_timeout_seconds: int = field(
+        default_factory=lambda: _env_int("RERANK_TIMEOUT_SECONDS", "10")
+    )
+    rerank_candidate_multiplier: int = field(
+        default_factory=lambda: _env_int("RERANK_CANDIDATE_MULTIPLIER", "3")
+    )
+    rerank_model_weight: float = field(
+        default_factory=lambda: _env_float("RERANK_MODEL_WEIGHT", "0.35")
+    )
     api_auth_enabled: bool = field(default_factory=lambda: _env_bool("API_AUTH_ENABLED", "false"))
     api_keys: list[str] = field(default_factory=lambda: _split_csv(os.getenv("API_KEYS", "")))
     openwebui_api_key: str = field(
@@ -246,8 +264,25 @@ class Settings:
                 issues.append("启用 API 鉴权时 ASSET_SIGNING_KEY 至少需要 32 个字符")
         if self.cors_allow_credentials and "*" in self.cors_origins:
             issues.append("CORS_ALLOW_CREDENTIALS=true 时 CORS_ORIGINS 不能包含通配符 *")
+        if self.rerank_provider not in VALID_RERANK_PROVIDERS:
+            issues.append(
+                f"RERANK_PROVIDER 必须是 {', '.join(sorted(VALID_RERANK_PROVIDERS))} 之一"
+            )
+        if not 1 <= self.rerank_timeout_seconds <= 180:
+            issues.append("RERANK_TIMEOUT_SECONDS 必须在 1 到 180 之间")
+        if not 1 <= self.rerank_candidate_multiplier <= 10:
+            issues.append("RERANK_CANDIDATE_MULTIPLIER 必须在 1 到 10 之间")
+        if not 0 <= self.rerank_model_weight <= 1:
+            issues.append("RERANK_MODEL_WEIGHT 必须在 0 到 1 之间")
         if self.rerank_enabled:
-            issues.append("当前版本尚未实现可用 reranker，不能启用 RERANK_ENABLED")
+            if self.rerank_provider == "none":
+                issues.append("启用 RERANK_ENABLED 时 RERANK_PROVIDER 不能为 none")
+            if not self.rerank_model:
+                issues.append("启用 RERANK_ENABLED 时 RERANK_MODEL 不能为空")
+            if not self.zhipuai_api_key:
+                issues.append("启用智谱 reranker 时 ZHIPUAI_API_KEY 不能为空")
+            elif self.zhipuai_api_key.casefold() in PLACEHOLDER_API_KEYS:
+                issues.append("启用智谱 reranker 时 ZHIPUAI_API_KEY 不能使用示例占位值")
         if self.log_level not in VALID_LOG_LEVELS:
             issues.append(f"LOG_LEVEL 必须是 {', '.join(sorted(VALID_LOG_LEVELS))} 之一")
         if self.log_format not in VALID_LOG_FORMATS:

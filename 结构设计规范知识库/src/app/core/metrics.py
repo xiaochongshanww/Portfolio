@@ -33,6 +33,9 @@ class Metrics:
         self.chat_requests_total = 0
         self.chat_errors_total = 0
         self.retrieval_errors_total = 0
+        self.rerank_requests_total = 0
+        self.rerank_success_total = 0
+        self.rerank_fallback_total = 0
         self.llm_errors_total = 0
         self.errors_total = 0
         self.last_error = ""
@@ -43,6 +46,9 @@ class Metrics:
         self._duration_count = 0
         self._duration_total_ms = 0
         self._duration_max_ms = 0
+        self._rerank_duration_count = 0
+        self._rerank_duration_total_ms = 0
+        self._rerank_duration_max_ms = 0
 
     def request_started(self, path: str) -> None:
         with self._lock:
@@ -79,11 +85,28 @@ class Metrics:
             if code in {"LLM_REQUEST_FAILED", "LLM_STREAM_FAILED"}:
                 self.llm_errors_total += 1
 
+    def record_rerank(self, *, success: bool, duration_ms: int) -> None:
+        with self._lock:
+            self.rerank_requests_total += 1
+            if success:
+                self.rerank_success_total += 1
+            else:
+                self.rerank_fallback_total += 1
+            normalized_duration = max(0, duration_ms)
+            self._rerank_duration_count += 1
+            self._rerank_duration_total_ms += normalized_duration
+            self._rerank_duration_max_ms = max(self._rerank_duration_max_ms, normalized_duration)
+
     def snapshot(self) -> dict:
         with self._lock:
             average = (
                 round(self._duration_total_ms / self._duration_count, 2)
                 if self._duration_count
+                else 0
+            )
+            rerank_average = (
+                round(self._rerank_duration_total_ms / self._rerank_duration_count, 2)
+                if self._rerank_duration_count
                 else 0
             )
             return {
@@ -95,6 +118,9 @@ class Metrics:
                 "chat_requests_total": self.chat_requests_total,
                 "chat_errors_total": self.chat_errors_total,
                 "retrieval_errors_total": self.retrieval_errors_total,
+                "rerank_requests_total": self.rerank_requests_total,
+                "rerank_success_total": self.rerank_success_total,
+                "rerank_fallback_total": self.rerank_fallback_total,
                 "llm_errors_total": self.llm_errors_total,
                 "errors_total": self.errors_total,
                 "last_error": self.last_error,
@@ -106,6 +132,11 @@ class Metrics:
                     "count": self._duration_count,
                     "average": average,
                     "max": self._duration_max_ms,
+                },
+                "rerank_duration_ms": {
+                    "count": self._rerank_duration_count,
+                    "average": rerank_average,
+                    "max": self._rerank_duration_max_ms,
                 },
             }
 
