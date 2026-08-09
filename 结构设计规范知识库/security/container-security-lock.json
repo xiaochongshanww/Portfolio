@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "scanner": {
+    "name": "trivy",
+    "repository": "aquasecurity/trivy",
+    "version": "v0.73.0",
+    "release_url": "https://github.com/aquasecurity/trivy/releases/tag/v0.73.0",
+    "release_immutable": true,
+    "linux_amd64_asset_name": "trivy_0.73.0_Linux-64bit.tar.gz",
+    "linux_amd64_archive_sha256": "2edd39da482bb4e9831962487b68f68e3928ec3137794757f54d00383d79547b",
+    "incident_advisory": "https://github.com/aquasecurity/trivy/security/advisories/GHSA-69fq-xp46-6x23",
+    "setup_action": {
+      "source": "aquasecurity/setup-trivy",
+      "ref": "3fb12ec12f41e471780db15c232d5dd185dcb514",
+      "version": "v0.2.6"
+    }
+  },
+  "policy": {
+    "image": "structural-spec-kb:ci",
+    "severities": [
+      "HIGH",
+      "CRITICAL"
+    ],
+    "package_types": [
+      "os",
+      "library"
+    ],
+    "ignore_unfixed": true,
+    "timeout": "10m",
+    "artifact_retention_days": 14,
+    "maximum_exception_days": 90
+  }
+}

@@ -315,6 +315,27 @@ def test_container_image_identity_contract_is_documented():
     assert verification.is_file()
 
 
+def test_container_security_contract_is_documented():
+    readme = Path("README.md").read_text(encoding="utf-8")
+    operations = Path("docs/operations/部署运行手册.md").read_text(encoding="utf-8")
+    detailed_design = Path("docs/architecture/系统详细设计.md").read_text(encoding="utf-8")
+    release_checklist = Path("docs/releases/发布检查单.md").read_text(encoding="utf-8")
+    decision = Path("docs/adr/0023-运行容器采用SBOM与时效化漏洞门禁.md")
+    implementation = Path("docs/architecture/运行容器SBOM与漏洞门禁实施清单.md")
+    verification = Path("docs/releases/运行容器SBOM与漏洞门禁验证记录.md")
+    command = "python scripts/validate_container_security.py"
+
+    assert command in readme
+    assert command in operations
+    assert f"{command} --check-remote" in operations
+    assert command in release_checklist
+    assert "SPDX JSON" in detailed_design
+    assert "HIGH/CRITICAL" in decision.read_text(encoding="utf-8")
+    assert decision.is_file()
+    assert implementation.is_file()
+    assert verification.is_file()
+
+
 def test_runtime_backup_and_disaster_recovery_contract_is_documented():
     readme = Path("README.md").read_text(encoding="utf-8")
     operations = Path("docs/operations/部署运行手册.md").read_text(encoding="utf-8")

@@ -1,4 +1,4 @@
-name: Container Image Drift
+name: Container Supply Chain Drift
 
 on:
   schedule:
@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   drift:
-    name: Resolve pinned image tags
+    name: Resolve pinned image and scanner releases
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -27,3 +27,5 @@ jobs:
           python-version: "3.11"
       - name: Compare pinned and remote multi-platform digests
         run: python scripts/validate_container_images.py --check-remote
+      - name: Compare pinned and remote scanner release
+        run: python scripts/validate_container_security.py --check-remote

@@ -111,6 +111,7 @@ def test_repository_ci_covers_backend_frontend_and_container():
     assert "actions/download-artifact@" in workflow
     assert "python scripts/validate_ci_actions.py" in workflow
     assert "python scripts/validate_container_images.py" in workflow
+    assert "python scripts/validate_container_security.py" in workflow
     assert "--require-cross-platform" in workflow
     assert "python -m scripts.verify_runtime_package_cold_start" in workflow
     assert "python -m scripts.verify_runtime_package_recovery" in workflow
@@ -134,6 +135,13 @@ def test_repository_ci_covers_backend_frontend_and_container():
     assert "ci-openwebui-connection-key" in workflow
     assert "/static/index.html" in workflow
     assert "/health" in workflow
+    assert "aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514" in workflow
+    assert "version: v0.73.0" in workflow
+    assert "--format spdx-json" in workflow
+    assert "container-vulnerabilities.json" in workflow
+    assert "--severity HIGH,CRITICAL" in workflow
+    assert "--ignorefile .trivyignore.yaml" in workflow
+    assert "--exit-code 1" in workflow
 
 
 def test_external_container_images_are_immutable_and_maintained():
@@ -155,8 +163,22 @@ def test_external_container_images_are_immutable_and_maintained():
     assert "schedule:" in drift_workflow
     assert "workflow_dispatch:" in drift_workflow
     assert "python scripts/validate_container_images.py --check-remote" in drift_workflow
+    assert "python scripts/validate_container_security.py --check-remote" in drift_workflow
     assert "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" in drift_workflow
     assert "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97" in drift_workflow
+
+
+def test_container_security_policy_is_machine_readable():
+    lock = json.loads(
+        (PROJECT_ROOT / "security" / "container-security-lock.json").read_text(encoding="utf-8")
+    )
+    exceptions = json.loads((PROJECT_ROOT / ".trivyignore.yaml").read_text(encoding="utf-8"))
+
+    assert lock["scanner"]["version"] == "v0.73.0"
+    assert len(lock["scanner"]["linux_amd64_archive_sha256"]) == 64
+    assert lock["policy"]["severities"] == ["HIGH", "CRITICAL"]
+    assert lock["policy"]["ignore_unfixed"] is True
+    assert exceptions == {"vulnerabilities": []}
 
 
 def test_runtime_backup_cli_is_part_of_delivery_contract():

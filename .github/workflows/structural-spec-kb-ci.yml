@@ -10,6 +10,8 @@ on:
       - "结构设计规范知识库/**"
       - ".github/workflows/structural-spec-kb-ci.yml"
   workflow_dispatch:
+  schedule:
+    - cron: "43 4 * * 2"
 
 permissions:
   contents: read
@@ -40,6 +42,8 @@ jobs:
         run: python scripts/validate_ci_actions.py
       - name: Validate immutable container image references
         run: python scripts/validate_container_images.py
+      - name: Validate container security policy
+        run: python scripts/validate_container_security.py
 
   backend:
     name: Backend tests (${{ matrix.os }})
@@ -207,6 +211,52 @@ jobs:
             sleep 2
           done
           curl --fail --silent http://127.0.0.1:8000/static/index.html >/dev/null
+      - name: Prepare container security artifacts
+        run: mkdir -p artifacts/container-security
+      - name: Install pinned Trivy scanner
+        uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6
+        with:
+          version: v0.73.0
+          cache: true
+      - name: Record scanner identity
+        run: |
+          trivy version > artifacts/container-security/trivy-version.txt
+          cat artifacts/container-security/trivy-version.txt
+      - name: Generate runtime image SPDX SBOM
+        run: >-
+          trivy image
+          --format spdx-json
+          --output artifacts/container-security/container-sbom.spdx.json
+          --timeout 10m
+          structural-spec-kb:ci
+      - name: Capture complete runtime vulnerability report
+        run: >-
+          trivy image
+          --scanners vuln
+          --pkg-types os,library
+          --format json
+          --output artifacts/container-security/container-vulnerabilities.json
+          --timeout 10m
+          structural-spec-kb:ci
+      - name: Enforce fixable high and critical vulnerability gate
+        run: >-
+          trivy image
+          --scanners vuln
+          --pkg-types os,library
+          --severity HIGH,CRITICAL
+          --ignore-unfixed
+          --ignorefile .trivyignore.yaml
+          --exit-code 1
+          --timeout 10m
+          structural-spec-kb:ci
+      - name: Upload container SBOM and vulnerability evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: container-security-${{ github.sha }}
+          path: 结构设计规范知识库/artifacts/container-security/
+          if-no-files-found: warn
+          retention-days: 14
       - name: Show container logs on failure
         if: failure()
         run: docker logs structural-spec-kb-ci
