@@ -304,7 +304,7 @@ def test_rebuild_keeps_activation_success_when_latest_report_copy_fails(
     monkeypatch.setattr(workflows.retrieval_state, "adopt", lambda _state: None)
     monkeypatch.setattr(
         workflows,
-        "_write_json_atomic",
+        "atomic_write_json",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("report disk full")),
     )
     store = JobStore(tmp_path / "jobs")

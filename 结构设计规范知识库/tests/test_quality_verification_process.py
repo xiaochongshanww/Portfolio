@@ -127,6 +127,25 @@ def test_custom_port_preflight_and_evaluation_failure_semantics(tmp_path: Path):
                     encoding="utf-8"
                 )
             )
+            reports_dir = data_dir / "audit" / "reports"
+            pointer = json.loads(
+                (reports_dir / "quality_run_latest.json").read_text(encoding="utf-8")
+            )
+            assert pointer["verification_run_id"] == report["verification_run_id"]
+            run_dir = reports_dir / "runs" / pointer["verification_run_id"]
+            assert {
+                "evaluation.json",
+                "evaluation.md",
+                "evaluation_structured.json",
+                "evaluation_structured.md",
+                "evaluation_answer.json",
+                "evaluation_answer.md",
+                "quality_gate.json",
+                "quality_gate.md",
+                "verification.json",
+                "verification.md",
+                "manifest.json",
+            } <= {path.name for path in run_dir.iterdir()}
             preflight = next(
                 step for step in report["steps"] if step["name"] == "目标 API 就绪预检"
             )

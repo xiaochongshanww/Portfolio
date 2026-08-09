@@ -4,6 +4,7 @@ import argparse
 import ipaddress
 import json
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -35,19 +36,25 @@ from src.evaluation.runner import (  # noqa: E402
 )
 from src.pipeline.paths import AUDIT_DIR  # noqa: E402
 from src.quality import (  # noqa: E402
+    QualityReportStoreError,
+    atomic_write_json,
     current_evidence_context,
     evaluate_quality_gate,
+    finalize_quality_run,
     new_verification_run_id,
+    quality_run_artifact_path,
+    read_json_object,
     render_quality_gate_markdown,
     validate_runtime_config_hash,
     validate_verification_run_id,
+    write_quality_report,
 )
 
 REPORTS_DIR = AUDIT_DIR / "reports"
 LEGACY_API_KEY_PATH = PROJECT_ROOT / ".runtime_api_key"
 MANAGED_API_LOG_NAME = "managed_quality_api_latest.log"
 VERIFICATION_JSON_NAME = "verification_latest.json"
-VERIFICATION_MARKDOWN_NAME = "verification_latest.md"
+DEFERRED_RESULT_FILE_PATTERN = re.compile(r"^managed_child_result_[0-9a-f]{32}\.json$")
 SECRET_ENV_NAMES = (
     "ZHIPUAI_API_KEY",
     "MIMO_API_KEY",
@@ -317,14 +324,13 @@ def _run_evaluation(
     result["evaluation_set_id"] = evaluation_set_id
     if verification_run_id:
         result["verification_run_id"] = validate_verification_run_id(verification_run_id)
-    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-    (REPORTS_DIR / f"{stem}.json").write_text(
-        json.dumps(result, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
-    (REPORTS_DIR / f"{stem}.md").write_text(
+    report_kind = "structured" if evaluation_set_id == "structured" else "regular"
+    report_path, markdown_path = write_quality_report(
+        REPORTS_DIR,
+        report_kind,
+        result,
         render_evaluation_markdown(result, title),
-        encoding="utf-8",
+        verification_run_id=verification_run_id or None,
     )
     failure_count = len(result.get("failures", []))
     passed = result.get("ok") is True and failure_count == 0
@@ -334,6 +340,8 @@ def _run_evaluation(
         "case_count": result.get("case_count", 0),
         "failure_count": failure_count,
         "evaluation_set_id": evaluation_set_id,
+        "report_path": str(report_path),
+        "markdown_report_path": str(markdown_path),
         "error": (
             result.get("error")
             or (f"检索评估完成但有 {failure_count} 个失败用例" if failure_count else "")
@@ -525,6 +533,12 @@ def _run_api_evaluation(
         current = _api_json(f"{api_base}/admin/jobs/{job_id}", api_key=api_key)
         if current.get("status") == "succeeded":
             outputs = current.get("outputs", {})
+            _write_api_evaluation_report(
+                evaluation_set_id,
+                outputs,
+                verification_run_id=verification_run_id,
+                expected_runtime_config_hash=expected_runtime_config_hash,
+            )
             failure_count = len(outputs.get("failures", []))
             context_matches = (
                 (not verification_run_id)
@@ -556,6 +570,12 @@ def _run_api_evaluation(
             }
         if current.get("status") == "failed":
             outputs = current.get("outputs", {})
+            _write_api_evaluation_report(
+                evaluation_set_id,
+                outputs,
+                verification_run_id=verification_run_id,
+                expected_runtime_config_hash=expected_runtime_config_hash,
+            )
             return {
                 "ok": False,
                 "duration_seconds": round(time.monotonic() - started, 2),
@@ -570,6 +590,53 @@ def _run_api_evaluation(
         "error": "评估后台任务等待超时",
         "job_id": job_id,
     }
+
+
+def _write_api_evaluation_report(
+    evaluation_set_id: str,
+    outputs: Any,
+    *,
+    verification_run_id: str,
+    expected_runtime_config_hash: str,
+) -> None:
+    if not isinstance(outputs, dict) or not outputs:
+        return
+    report = {
+        key: value
+        for key, value in outputs.items()
+        if key not in {"report_path", "markdown_report_path"}
+    }
+    report.setdefault("generated_at", datetime.now(UTC).isoformat())
+    report.setdefault("evaluation_set_id", evaluation_set_id)
+    report.setdefault(
+        "evidence_context_schema",
+        current_evidence_context()["evidence_context_schema"],
+    )
+    if verification_run_id:
+        run_id = validate_verification_run_id(verification_run_id)
+        source_run_id = str(report.get("verification_run_id") or "")
+        if source_run_id and source_run_id != run_id:
+            report["source_verification_run_id"] = source_run_id
+            report["ok"] = False
+            report["error"] = "评估任务返回的验证运行身份不一致"
+        report["verification_run_id"] = run_id
+    if expected_runtime_config_hash:
+        runtime_hash = validate_runtime_config_hash(expected_runtime_config_hash)
+        source_runtime_hash = str(report.get("runtime_config_hash") or "")
+        if source_runtime_hash and source_runtime_hash != runtime_hash:
+            report["source_runtime_config_hash"] = source_runtime_hash
+            report["ok"] = False
+            report["error"] = "评估任务返回的运行配置指纹不一致"
+        report["runtime_config_hash"] = runtime_hash
+    report_kind = "structured" if evaluation_set_id == "structured" else "regular"
+    title = "结构化检索专项评估" if report_kind == "structured" else "检索评估报告"
+    write_quality_report(
+        REPORTS_DIR,
+        report_kind,
+        report,
+        render_evaluation_markdown(report, title),
+        verification_run_id=verification_run_id or None,
+    )
 
 
 def _run_answer_evaluation_against_api(
@@ -591,14 +658,12 @@ def _run_answer_evaluation_against_api(
     if verification_run_id:
         result["verification_run_id"] = validate_verification_run_id(verification_run_id)
     result["evaluation_set_id"] = "answer"
-    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-    (REPORTS_DIR / "evaluation_answer_latest.json").write_text(
-        json.dumps(result, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
-    (REPORTS_DIR / "evaluation_answer_latest.md").write_text(
+    report_path, markdown_path = write_quality_report(
+        REPORTS_DIR,
+        "answer",
+        result,
         render_answer_evaluation_markdown(result),
-        encoding="utf-8",
+        verification_run_id=verification_run_id or None,
     )
     pass_rate = float(result.get("pass_rate", 0))
     passed = result.get("ok") is True and pass_rate >= 0.90
@@ -612,6 +677,8 @@ def _run_answer_evaluation_against_api(
         "evaluation_set_id": "answer",
         "verification_run_id": result.get("verification_run_id"),
         "runtime_config_hash": result.get("runtime_config_hash"),
+        "report_path": str(report_path),
+        "markdown_report_path": str(markdown_path),
         "error": (
             result.get("error")
             or (f"回答级盲测通过率 {pass_rate:.1%}，低于 90.0%" if not passed else "")
@@ -661,42 +728,125 @@ def _render_verification_markdown(result: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _write_verification_result(result: dict[str, Any]) -> str:
-    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-    (REPORTS_DIR / VERIFICATION_JSON_NAME).write_text(
-        json.dumps(result, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+def _write_verification_result(
+    result: dict[str, Any],
+    *,
+    verification_run_id: str | None = None,
+) -> str:
     markdown = _render_verification_markdown(result)
-    (REPORTS_DIR / VERIFICATION_MARKDOWN_NAME).write_text(markdown, encoding="utf-8")
+    write_quality_report(
+        REPORTS_DIR,
+        "verification",
+        result,
+        markdown,
+        verification_run_id=verification_run_id,
+    )
     return markdown
+
+
+def _ensure_quality_run_reports(
+    verification_run_id: str,
+    runtime_config_hash: str,
+    steps: list[dict[str, Any]],
+) -> None:
+    step_names = {
+        "regular": "常规检索评估",
+        "structured": "结构化专项评估",
+        "answer": "回答级盲测",
+    }
+    step_by_name = {str(step.get("name")): step for step in steps}
+    context = current_evidence_context()
+    for report_kind, step_name in step_names.items():
+        report_path = quality_run_artifact_path(
+            REPORTS_DIR,
+            verification_run_id,
+            f"{report_kind}_json",
+        )
+        if report_path.is_file():
+            continue
+        step = step_by_name.get(step_name, {})
+        error = str(step.get("error") or "未执行：完整验证显式跳过该评估")
+        report: dict[str, Any] = {
+            "ok": False,
+            "generated_at": datetime.now(UTC).isoformat(),
+            "evidence_context_schema": context["evidence_context_schema"],
+            "runtime_config_hash": validate_runtime_config_hash(runtime_config_hash),
+            "verification_run_id": validate_verification_run_id(verification_run_id),
+            "evaluation_set_id": report_kind,
+            "execution_status": "skipped",
+            "case_count": 0,
+            "failure_count": 0,
+            "failures": [],
+            "error": error,
+        }
+        if report_kind == "answer":
+            report.update(
+                {
+                    "passed_count": 0,
+                    "pass_rate": 0,
+                    "check_rates": {},
+                    "refusal_pass_rate": 0,
+                    "results": [],
+                }
+            )
+            markdown = render_answer_evaluation_markdown(report)
+        else:
+            title = "结构化检索专项评估" if report_kind == "structured" else "检索评估报告"
+            markdown = render_evaluation_markdown(report, title)
+        write_quality_report(
+            REPORTS_DIR,
+            report_kind,
+            report,
+            markdown,
+            verification_run_id=verification_run_id,
+        )
 
 
 def _managed_child_args(argv: list[str]) -> list[str]:
     return [value for value in argv if value != "--manage-api"]
 
 
-def _report_fingerprint(path: Path) -> tuple[int, int] | None:
-    try:
-        stat = path.stat()
-    except OSError:
-        return None
-    return stat.st_mtime_ns, stat.st_size
+def _validate_deferred_result_file(path: Path) -> Path:
+    resolved = path.resolve()
+    if resolved.parent != REPORTS_DIR.resolve() or not DEFERRED_RESULT_FILE_PATTERN.fullmatch(
+        resolved.name
+    ):
+        raise ValueError("托管子进程结果文件必须位于质量报告目录并使用受控名称")
+    return resolved
 
 
-def _load_fresh_verification_result(
+def _load_deferred_verification_result(path: Path) -> tuple[str, dict[str, Any]]:
+    handoff = read_json_object(path)
+    if handoff.get("schema_version") != 1:
+        raise QualityReportStoreError("托管子进程结果契约版本无效")
+    run_id = validate_verification_run_id(str(handoff.get("verification_run_id") or ""))
+    expected_relative = Path("runs", run_id, "verification.json").as_posix()
+    if handoff.get("verification_report") != expected_relative:
+        raise QualityReportStoreError("托管子进程验证报告路径无效")
+    report_path = quality_run_artifact_path(
+        REPORTS_DIR,
+        run_id,
+        "verification_json",
+    )
+    result = read_json_object(report_path)
+    if result.get("verification_run_id") != run_id:
+        raise QualityReportStoreError("托管子进程验证报告运行身份不一致")
+    return run_id, result
+
+
+def _write_deferred_verification_result(
     path: Path,
-    *,
-    previous_fingerprint: tuple[int, int] | None,
-) -> dict[str, Any] | None:
-    current_fingerprint = _report_fingerprint(path)
-    if current_fingerprint is None or current_fingerprint == previous_fingerprint:
-        return None
-    try:
-        result = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return None
-    return result if isinstance(result, dict) else None
+    verification_run_id: str,
+) -> None:
+    run_id = validate_verification_run_id(verification_run_id)
+    atomic_write_json(
+        _validate_deferred_result_file(path),
+        {
+            "schema_version": 1,
+            "verification_run_id": run_id,
+            "verification_report": Path("runs", run_id, "verification.json").as_posix(),
+        },
+    )
 
 
 def _run_managed_verification(
@@ -710,8 +860,8 @@ def _run_managed_verification(
         target=target,
         log_path=REPORTS_DIR / MANAGED_API_LOG_NAME,
     )
-    report_path = REPORTS_DIR / VERIFICATION_JSON_NAME
-    previous_fingerprint = _report_fingerprint(report_path)
+    handoff_path = REPORTS_DIR / f"managed_child_result_{new_verification_run_id()}.json"
+    handoff_path.unlink(missing_ok=True)
     started_at = time.monotonic()
     startup_step: dict[str, Any]
     cleanup_step: dict[str, Any] | None = None
@@ -761,7 +911,14 @@ def _run_managed_verification(
         child_environment = dict(os.environ)
         child_environment["ANSWER_EVALUATION_API_BASE"] = api_base
         child = subprocess.run(
-            [sys.executable, str(Path(__file__).resolve()), *_managed_child_args(argv)],
+            [
+                sys.executable,
+                str(Path(__file__).resolve()),
+                *_managed_child_args(argv),
+                "--defer-quality-publish",
+                "--deferred-result-file",
+                str(handoff_path),
+            ],
             cwd=PROJECT_ROOT,
             env=child_environment,
             text=True,
@@ -783,10 +940,13 @@ def _run_managed_verification(
             **cleanup,
         }
 
-    result = _load_fresh_verification_result(
-        report_path,
-        previous_fingerprint=previous_fingerprint,
-    )
+    verification_run_id: str | None = None
+    try:
+        verification_run_id, result = _load_deferred_verification_result(handoff_path)
+    except (OSError, QualityReportStoreError, ValueError):
+        result = None
+    finally:
+        handoff_path.unlink(missing_ok=True)
     if result is None:
         environment = manager._child_environment()
         output_tail = ""
@@ -851,7 +1011,33 @@ def _run_managed_verification(
         and cleanup_step.get("ok") is True
         and not interrupted
     )
-    print(_write_verification_result(result))
+    if verification_run_id:
+        result["verification_run_id"] = verification_run_id
+        markdown = _write_verification_result(
+            result,
+            verification_run_id=verification_run_id,
+        )
+        try:
+            finalize_quality_run(
+                REPORTS_DIR,
+                verification_run_id,
+                passed=result["passed"],
+                completed_at=datetime.now(UTC).isoformat(),
+            )
+        except (OSError, QualityReportStoreError) as exc:
+            result["passed"] = False
+            result["steps"].append(
+                {
+                    "name": "质量证据原子发布",
+                    "ok": False,
+                    "duration_seconds": 0,
+                    "error": str(exc),
+                }
+            )
+            markdown = _render_verification_markdown(result)
+    else:
+        markdown = _write_verification_result(result)
+    print(markdown)
     if interrupted:
         return 130
     return 0 if result["passed"] else 1
@@ -956,6 +1142,16 @@ def main() -> None:
         action="store_true",
         help="只检查目标 API 就绪与鉴权，不执行测试、评估、门禁或写入质量报告",
     )
+    parser.add_argument(
+        "--defer-quality-publish",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "--deferred-result-file",
+        type=Path,
+        help=argparse.SUPPRESS,
+    )
     credential_group = parser.add_mutually_exclusive_group()
     credential_group.add_argument(
         "--api-key-file",
@@ -973,6 +1169,15 @@ def main() -> None:
         help="默认通过已运行 API 执行评估，以复用其模型配置",
     )
     args = parser.parse_args()
+    if args.defer_quality_publish != (args.deferred_result_file is not None):
+        parser.error("托管子进程延迟发布参数必须成对使用")
+    if args.defer_quality_publish and (args.manage_api or args.preflight_only):
+        parser.error("延迟发布只允许由托管父进程启动的完整验证子进程使用")
+    if args.deferred_result_file is not None:
+        try:
+            args.deferred_result_file = _validate_deferred_result_file(args.deferred_result_file)
+        except ValueError as exc:
+            parser.error(str(exc))
     try:
         api_base = normalize_http_base_url(args.api_base, field_name="--api-base")
     except ValueError as exc:
@@ -1116,6 +1321,17 @@ def main() -> None:
                     ),
                 )
             )
+    else:
+        for name in ("常规检索评估", "结构化专项评估"):
+            steps.append(
+                {
+                    "name": name,
+                    "ok": False,
+                    "skipped": True,
+                    "duration_seconds": 0,
+                    "error": "未执行：命令显式跳过检索评估",
+                }
+            )
     if not args.skip_answer_evaluation:
         if not api_available:
             steps.append(
@@ -1139,19 +1355,36 @@ def main() -> None:
                     ),
                 )
             )
-    suite_attempted = not args.skip_evaluations or not args.skip_answer_evaluation
+    else:
+        steps.append(
+            {
+                "name": "回答级盲测",
+                "ok": False,
+                "skipped": True,
+                "duration_seconds": 0,
+                "error": "未执行：命令显式跳过回答级盲测",
+            }
+        )
+    _ensure_quality_run_reports(verification_run_id, runtime_hash, steps)
     gate_result = evaluate_quality_gate(
-        expected_verification_run_id=(verification_run_id if suite_attempted else None),
+        regular_report_path=quality_run_artifact_path(
+            REPORTS_DIR, verification_run_id, "regular_json"
+        ),
+        structured_report_path=quality_run_artifact_path(
+            REPORTS_DIR, verification_run_id, "structured_json"
+        ),
+        answer_report_path=quality_run_artifact_path(
+            REPORTS_DIR, verification_run_id, "answer_json"
+        ),
+        expected_verification_run_id=verification_run_id,
         expected_runtime_config_hash=runtime_hash,
     )
-    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-    (REPORTS_DIR / "quality_gate_latest.json").write_text(
-        json.dumps(gate_result, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
-    (REPORTS_DIR / "quality_gate_latest.md").write_text(
+    write_quality_report(
+        REPORTS_DIR,
+        "gate",
+        gate_result,
         render_quality_gate_markdown(gate_result),
-        encoding="utf-8",
+        verification_run_id=verification_run_id,
     )
     failed_gate_checks = [str(value) for value in gate_result.get("failed_checks", [])]
     steps.append(
@@ -1174,7 +1407,37 @@ def main() -> None:
         "runtime_config_hash": runtime_hash,
         "steps": steps,
     }
-    markdown = _write_verification_result(result)
+    markdown = _write_verification_result(
+        result,
+        verification_run_id=verification_run_id,
+    )
+    if args.defer_quality_publish:
+        _write_deferred_verification_result(
+            args.deferred_result_file,
+            verification_run_id,
+        )
+        print(markdown)
+        if not result["passed"]:
+            raise SystemExit(1)
+        return
+    try:
+        finalize_quality_run(
+            REPORTS_DIR,
+            verification_run_id,
+            passed=result["passed"],
+            completed_at=result["generated_at"],
+        )
+    except (OSError, QualityReportStoreError) as exc:
+        result["passed"] = False
+        result["steps"].append(
+            {
+                "name": "质量证据原子发布",
+                "ok": False,
+                "duration_seconds": 0,
+                "error": str(exc),
+            }
+        )
+        markdown = _render_verification_markdown(result)
     print(markdown)
     if not result["passed"]:
         raise SystemExit(1)

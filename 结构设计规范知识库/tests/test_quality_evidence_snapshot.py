@@ -18,6 +18,9 @@ from scripts.snapshot_quality_evidence import (
     validate_snapshot,
     write_snapshot,
 )
+from src.quality.report_store import finalize_quality_run, write_quality_report
+
+RUN_ID = "a" * 32
 
 
 def _write_quality_source_fixture(project: Path) -> None:
@@ -46,6 +49,35 @@ def _write_quality_source_fixture(project: Path) -> None:
         target = project / relative_path
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(relative_path.read_bytes())
+
+
+def _write_atomic_quality_source_fixture(project: Path) -> None:
+    _write_quality_source_fixture(project)
+    reports_dir = project / "data/audit/reports"
+    for kind in ("regular", "structured", "answer", "gate", "verification"):
+        payload = {
+            "generated_at": "2026-08-09T01:00:00+00:00",
+            "verification_run_id": RUN_ID,
+        }
+        if kind == "gate":
+            payload.update({"passed": False, "failed_checks": ["regular_evaluation"]})
+        elif kind == "verification":
+            payload.update({"passed": False, "steps": []})
+        else:
+            payload.update({"ok": False, "failures": []})
+        write_quality_report(
+            reports_dir,
+            kind,
+            payload,
+            f"# {kind}\n",
+            verification_run_id=RUN_ID,
+        )
+    finalize_quality_run(
+        reports_dir,
+        RUN_ID,
+        passed=False,
+        completed_at="2026-08-09T01:00:00+00:00",
+    )
 
 
 def _copy_committed_history(project: Path) -> None:
@@ -83,6 +115,30 @@ def test_build_snapshot_contains_only_sanitized_summaries(tmp_path: Path):
     assert "query" not in serialized
     assert "error" not in serialized
     assert "F:\\" not in serialized
+
+
+def test_build_snapshot_uses_one_validated_atomic_run(tmp_path: Path):
+    project = tmp_path / "project"
+    _write_atomic_quality_source_fixture(project)
+
+    snapshot = build_snapshot(project)
+
+    assert snapshot["reports"]["verification"]["path"] == (
+        f"data/audit/reports/runs/{RUN_ID}/verification.json"
+    )
+    assert snapshot["reports"]["quality_gate"]["path"] == (
+        f"data/audit/reports/runs/{RUN_ID}/quality_gate.json"
+    )
+
+
+def test_snapshot_rejects_tampered_atomic_run_artifact(tmp_path: Path):
+    project = tmp_path / "project"
+    _write_atomic_quality_source_fixture(project)
+    report = project / f"data/audit/reports/runs/{RUN_ID}/evaluation.json"
+    report.write_text("{}", encoding="utf-8")
+
+    with pytest.raises(EvidenceSnapshotError, match="完整性校验失败"):
+        build_snapshot(project)
 
 
 def test_snapshot_history_write_is_idempotent_and_deterministic(tmp_path: Path):

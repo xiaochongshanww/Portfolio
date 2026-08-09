@@ -16,9 +16,27 @@ DEFAULT_SNAPSHOT = Path("docs/quality/质量证据状态.json")
 DEFAULT_SYSTEM_CARD = Path("docs/quality/检索增强生成系统卡.md")
 DEFAULT_HISTORY_DIR = Path("docs/quality/质量证据历史")
 DEFAULT_HISTORY_INDEX = Path("docs/quality/质量证据历史索引.json")
-REPORT_PATHS = {
+LEGACY_REPORT_PATHS = {
     "verification": Path("data/audit/reports/verification_latest.json"),
     "quality_gate": Path("data/audit/reports/quality_gate_latest.json"),
+}
+QUALITY_REPORTS_DIR = Path("data/audit/reports")
+QUALITY_RUN_POINTER = QUALITY_REPORTS_DIR / "quality_run_latest.json"
+QUALITY_RUN_ARTIFACTS = {
+    "regular_json": "evaluation.json",
+    "regular_markdown": "evaluation.md",
+    "structured_json": "evaluation_structured.json",
+    "structured_markdown": "evaluation_structured.md",
+    "answer_json": "evaluation_answer.json",
+    "answer_markdown": "evaluation_answer.md",
+    "gate_json": "quality_gate.json",
+    "gate_markdown": "quality_gate.md",
+    "verification_json": "verification.json",
+    "verification_markdown": "verification.md",
+}
+REPORT_ARTIFACT_KEYS = {
+    "verification": "verification_json",
+    "quality_gate": "gate_json",
 }
 EVALUATION_PATHS = {
     "regular": Path("data/evaluation/queries.jsonl"),
@@ -26,6 +44,7 @@ EVALUATION_PATHS = {
     "answer": Path("data/evaluation/answer_holdout.jsonl"),
 }
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+RUN_ID_RE = re.compile(r"^[0-9a-f]{32}$")
 
 
 class EvidenceSnapshotError(ValueError):
@@ -102,6 +121,94 @@ def _case_count(path: Path) -> int:
         raise EvidenceSnapshotError(f"无法读取评估集：{path}") from exc
 
 
+def _validate_completed_at(value: Any) -> str:
+    if not isinstance(value, str) or not value:
+        raise EvidenceSnapshotError("质量运行完成时间无效")
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise EvidenceSnapshotError("质量运行完成时间无效") from exc
+    if parsed.tzinfo is None:
+        raise EvidenceSnapshotError("质量运行完成时间必须包含时区")
+    return value
+
+
+def _run_relative_path(run_id: str, filename: str) -> Path:
+    return QUALITY_REPORTS_DIR / "runs" / run_id / filename
+
+
+def _resolve_source_report_paths(project_root: Path) -> dict[str, Path]:
+    pointer_path = project_root / QUALITY_RUN_POINTER
+    if not pointer_path.exists():
+        return dict(LEGACY_REPORT_PATHS)
+
+    pointer = _read_json(pointer_path)
+    if pointer.get("schema_version") != 1:
+        raise EvidenceSnapshotError("不支持的质量运行指针版本")
+    run_id = pointer.get("verification_run_id")
+    if not isinstance(run_id, str) or not RUN_ID_RE.fullmatch(run_id):
+        raise EvidenceSnapshotError("质量运行指针身份无效")
+    if pointer.get("status") != "complete":
+        raise EvidenceSnapshotError("质量运行指针状态无效")
+    completed_at = _validate_completed_at(pointer.get("completed_at"))
+    if not isinstance(pointer.get("passed"), bool):
+        raise EvidenceSnapshotError("质量运行指针状态无效")
+
+    expected_manifest = Path("runs") / run_id / "manifest.json"
+    if pointer.get("manifest") != expected_manifest.as_posix():
+        raise EvidenceSnapshotError("质量运行指针清单路径无效")
+    manifest_path = project_root / QUALITY_REPORTS_DIR / expected_manifest
+    manifest = _read_json(manifest_path)
+    manifest_hash = pointer.get("manifest_sha256")
+    if not isinstance(manifest_hash, str) or not SHA256_RE.fullmatch(manifest_hash):
+        raise EvidenceSnapshotError("质量运行指针清单哈希无效")
+    if _sha256(manifest_path) != manifest_hash:
+        raise EvidenceSnapshotError("质量运行清单哈希与指针不一致")
+    if (
+        manifest.get("schema_version") != 1
+        or manifest.get("status") != "complete"
+        or manifest.get("verification_run_id") != run_id
+        or _validate_completed_at(manifest.get("completed_at")) != completed_at
+        or manifest.get("passed") != pointer.get("passed")
+    ):
+        raise EvidenceSnapshotError("质量运行清单身份与指针不一致")
+
+    pointer_artifacts = pointer.get("artifacts")
+    manifest_artifacts = manifest.get("artifacts")
+    required = set(QUALITY_RUN_ARTIFACTS)
+    if not isinstance(pointer_artifacts, dict) or set(pointer_artifacts) != required:
+        raise EvidenceSnapshotError("质量运行指针产物集合不完整")
+    if not isinstance(manifest_artifacts, dict) or set(manifest_artifacts) != required:
+        raise EvidenceSnapshotError("质量运行清单产物集合不完整")
+
+    for artifact_key, filename in QUALITY_RUN_ARTIFACTS.items():
+        relative_from_reports = Path("runs") / run_id / filename
+        if pointer_artifacts.get(artifact_key) != relative_from_reports.as_posix():
+            raise EvidenceSnapshotError(f"质量运行产物路径无效：{artifact_key}")
+        artifact_path = project_root / QUALITY_REPORTS_DIR / relative_from_reports
+        metadata = manifest_artifacts.get(artifact_key)
+        if not isinstance(metadata, dict) or metadata.get("filename") != filename:
+            raise EvidenceSnapshotError(f"质量运行产物元数据无效：{artifact_key}")
+        size = metadata.get("size_bytes")
+        digest = metadata.get("sha256")
+        if (
+            not isinstance(size, int)
+            or size < 0
+            or not isinstance(digest, str)
+            or not SHA256_RE.fullmatch(digest)
+        ):
+            raise EvidenceSnapshotError(f"质量运行产物完整性元数据无效：{artifact_key}")
+        if not artifact_path.is_file():
+            raise EvidenceSnapshotError(f"质量运行产物不存在：{artifact_key}")
+        if artifact_path.stat().st_size != size or _sha256(artifact_path) != digest:
+            raise EvidenceSnapshotError(f"质量运行产物完整性校验失败：{artifact_key}")
+
+    return {
+        name: _run_relative_path(run_id, QUALITY_RUN_ARTIFACTS[artifact_key])
+        for name, artifact_key in REPORT_ARTIFACT_KEYS.items()
+    }
+
+
 def _report_summary(
     relative_path: Path,
     absolute_path: Path,
@@ -125,7 +232,8 @@ def _report_summary(
 def build_snapshot(project_root: Path = PROJECT_ROOT) -> dict[str, Any]:
     reports: dict[str, dict[str, Any]] = {}
     raw_reports: dict[str, dict[str, Any]] = {}
-    for name, relative_path in REPORT_PATHS.items():
+    report_paths = _resolve_source_report_paths(project_root)
+    for name, relative_path in report_paths.items():
         absolute_path = project_root / relative_path
         payload = _read_json(absolute_path)
         raw_reports[name] = payload
@@ -166,7 +274,15 @@ def _require_mapping(payload: dict[str, Any], key: str) -> dict[str, Any]:
 
 
 def _validate_report_entry(name: str, report: dict[str, Any]) -> None:
-    if report.get("path") != REPORT_PATHS[name].as_posix():
+    path_value = report.get("path")
+    legacy_path = LEGACY_REPORT_PATHS[name].as_posix()
+    artifact_filename = QUALITY_RUN_ARTIFACTS[REPORT_ARTIFACT_KEYS[name]]
+    canonical_pattern = re.compile(
+        rf"^data/audit/reports/runs/[0-9a-f]{{32}}/{re.escape(artifact_filename)}$"
+    )
+    if not isinstance(path_value, str) or (
+        path_value != legacy_path and not canonical_pattern.fullmatch(path_value)
+    ):
         raise EvidenceSnapshotError(f"报告路径不符合契约：{name}")
     if not isinstance(report.get("generated_at"), str):
         raise EvidenceSnapshotError(f"报告时间无效：{name}")
@@ -183,7 +299,7 @@ def _validate_snapshot_structure(snapshot: dict[str, Any]) -> str:
         raise EvidenceSnapshotError("不支持的质量证据快照版本")
 
     reports = _require_mapping(snapshot, "reports")
-    if set(reports) != set(REPORT_PATHS):
+    if set(reports) != set(LEGACY_REPORT_PATHS):
         raise EvidenceSnapshotError("质量报告集合与契约不一致")
     for name, report in reports.items():
         if not isinstance(report, dict):
@@ -268,7 +384,13 @@ def validate_snapshot(
             raise EvidenceSnapshotError(f"评估集摘要已漂移：{name}")
 
     verified_source_reports = 0
-    for name, relative_path in REPORT_PATHS.items():
+    evidence_exists = (project_root / QUALITY_RUN_POINTER).exists() or any(
+        (project_root / path).exists() for path in LEGACY_REPORT_PATHS.values()
+    )
+    source_report_paths = _resolve_source_report_paths(project_root) if evidence_exists else {}
+    for name, relative_path in source_report_paths.items():
+        if reports[name].get("path") != relative_path.as_posix():
+            raise EvidenceSnapshotError(f"本地质量运行与快照路径不一致：{name}")
         absolute_path = project_root / relative_path
         if not absolute_path.is_file():
             continue

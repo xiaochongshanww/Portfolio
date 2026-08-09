@@ -51,7 +51,13 @@ from src.pipeline.version_retention import (
     retention_policy_from_settings,
     set_version_pin,
 )
-from src.quality import current_evidence_context, evaluate_quality_gate
+from src.quality import (
+    QualityReportStoreError,
+    current_evidence_context,
+    evaluate_quality_gate,
+    read_json_object,
+    resolve_latest_quality_artifacts,
+)
 
 from ..admin.job_diagnostics import diagnose_job, diagnose_jobs
 from ..admin.jobs import job_manager
@@ -71,6 +77,28 @@ from ..core.config import settings
 from ..retrieval.hybrid_search import retrieval_state
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+QUALITY_REPORTS_DIR = AUDIT_DIR / "reports"
+
+
+def _read_latest_quality_reports(
+    artifact_keys: tuple[str, ...],
+) -> tuple[dict[str, dict[str, Any] | None], dict[str, str]]:
+    try:
+        paths = resolve_latest_quality_artifacts(QUALITY_REPORTS_DIR, artifact_keys)
+    except (OSError, QualityReportStoreError, ValueError):
+        return (
+            {artifact_key: None for artifact_key in artifact_keys},
+            {artifact_key: "quality_evidence_unavailable" for artifact_key in artifact_keys},
+        )
+    reports: dict[str, dict[str, Any] | None] = {}
+    errors: dict[str, str] = {}
+    for artifact_key, path in paths.items():
+        try:
+            reports[artifact_key] = read_json_object(path)
+        except (OSError, QualityReportStoreError, ValueError):
+            reports[artifact_key] = None
+            errors[artifact_key] = "quality_evidence_unavailable"
+    return reports, errors
 
 
 def _diagnosed_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -299,20 +327,14 @@ async def admin_evaluation_status():
     by_type: dict[str, int] = {}
     for case in cases:
         by_type[case.type] = by_type.get(case.type, 0) + 1
-    latest_path = Path("data/audit/reports/evaluation_latest.json")
-    latest = json.loads(latest_path.read_text(encoding="utf-8")) if latest_path.exists() else None
+    reports, report_errors = _read_latest_quality_reports(
+        ("regular_json", "structured_json", "answer_json")
+    )
+    latest = reports["regular_json"]
     structured_cases = load_cases(STRUCTURED_EVAL_PATH)
-    structured_path = Path("data/audit/reports/evaluation_structured_latest.json")
-    structured_latest = (
-        json.loads(structured_path.read_text(encoding="utf-8"))
-        if structured_path.exists()
-        else None
-    )
+    structured_latest = reports["structured_json"]
     answer_cases = load_answer_cases(ANSWER_EVAL_PATH)
-    answer_path = Path("data/audit/reports/evaluation_answer_latest.json")
-    answer_latest = (
-        json.loads(answer_path.read_text(encoding="utf-8")) if answer_path.exists() else None
-    )
+    answer_latest = reports["answer_json"]
     return {
         "case_count": len(cases),
         "by_type": by_type,
@@ -321,6 +343,15 @@ async def admin_evaluation_status():
         "structured_latest": structured_latest,
         "answer_case_count": len(answer_cases),
         "answer_latest": answer_latest,
+        "quality_evidence_errors": {
+            name: report_errors[key]
+            for name, key in {
+                "regular": "regular_json",
+                "structured": "structured_json",
+                "answer": "answer_json",
+            }.items()
+            if key in report_errors
+        },
     }
 
 
@@ -349,14 +380,15 @@ async def admin_quality_status():
         job_stale_after=timedelta(seconds=settings.job_stale_after_seconds),
     )
     job_status = quality_gate["jobs"]
-    latest_path = AUDIT_DIR / "reports" / "evaluation_latest.json"
-    structured_path = AUDIT_DIR / "reports" / "evaluation_structured_latest.json"
-    answer_path = AUDIT_DIR / "reports" / "evaluation_answer_latest.json"
-    latest = json.loads(latest_path.read_text(encoding="utf-8")) if latest_path.exists() else {}
-    structured = (
-        json.loads(structured_path.read_text(encoding="utf-8")) if structured_path.exists() else {}
+    reports, report_errors = _read_latest_quality_reports(
+        ("regular_json", "structured_json", "answer_json")
     )
-    answer = json.loads(answer_path.read_text(encoding="utf-8")) if answer_path.exists() else {}
+    latest_report = reports["regular_json"]
+    structured_report = reports["structured_json"]
+    answer_report = reports["answer_json"]
+    latest = latest_report or {}
+    structured = structured_report or {}
+    answer = answer_report or {}
     active_db = read_active_db()
     candidate_gate_value = str(active_db.get("candidate_gate_report") or "")
     candidate_gate_path = (
@@ -386,6 +418,15 @@ async def admin_quality_status():
         "historical_failed_job_count": job_status["historical_failed_count"],
         "stale_active_job_count": job_status["stale_active_count"],
         "quality_gate": quality_gate,
+        "quality_evidence_errors": {
+            name: report_errors[key]
+            for name, key in {
+                "regular": "regular_json",
+                "structured": "structured_json",
+                "answer": "answer_json",
+            }.items()
+            if key in report_errors
+        },
         "candidate_activation": {
             "available": bool(candidate_gate),
             "passed": candidate_gate.get("passed"),

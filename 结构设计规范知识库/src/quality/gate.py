@@ -16,10 +16,8 @@ from .evidence_context import (
     validate_runtime_config_hash,
     validate_verification_run_id,
 )
+from .report_store import QualityReportStoreError, resolve_latest_quality_artifacts
 
-REGULAR_REPORT_PATH = AUDIT_DIR / "reports" / "evaluation_latest.json"
-STRUCTURED_REPORT_PATH = AUDIT_DIR / "reports" / "evaluation_structured_latest.json"
-ANSWER_REPORT_PATH = AUDIT_DIR / "reports" / "evaluation_answer_latest.json"
 DEFAULT_REPORT_MAX_AGE = timedelta(days=7)
 MIN_REGULAR_CASES = 100
 MIN_STRUCTURED_CASES = 12
@@ -107,12 +105,32 @@ def summarize_jobs(
     }
 
 
+def _read_evaluation_report(
+    path: Path | None,
+    *,
+    resolution_error: str | None = None,
+) -> tuple[dict[str, Any], str | None]:
+    if resolution_error:
+        return {}, resolution_error
+    if path is None:
+        return {}, "missing"
+    if not path.is_file():
+        return {}, "missing"
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return {}, "unreadable"
+    if not isinstance(payload, dict):
+        return {}, "not_object"
+    return payload, None
+
+
 def evaluate_quality_gate(
     *,
     manifest_path: Path = MANIFEST_PATH,
-    regular_report_path: Path = REGULAR_REPORT_PATH,
-    structured_report_path: Path = STRUCTURED_REPORT_PATH,
-    answer_report_path: Path = ANSWER_REPORT_PATH,
+    regular_report_path: Path | None = None,
+    structured_report_path: Path | None = None,
+    answer_report_path: Path | None = None,
     regular_eval_path: Path = DEFAULT_EVAL_PATH,
     structured_eval_path: Path = STRUCTURED_EVAL_PATH,
     answer_eval_path: Path = ANSWER_EVAL_PATH,
@@ -136,9 +154,31 @@ def evaluate_quality_gate(
     if not active_manifest_path.is_absolute():
         active_manifest_path = active_db_path.resolve().parents[1] / active_manifest_path
     active_manifest = _read_json(active_manifest_path) or manifest
-    regular = _read_json(regular_report_path)
-    structured = _read_json(structured_report_path)
-    answer = _read_json(answer_report_path)
+    reports_dir = AUDIT_DIR / "reports"
+    report_paths = {
+        "regular_json": regular_report_path,
+        "structured_json": structured_report_path,
+        "answer_json": answer_report_path,
+    }
+    unresolved_keys = [key for key, path in report_paths.items() if path is None]
+    resolution_error: str | None = None
+    if unresolved_keys:
+        try:
+            report_paths.update(resolve_latest_quality_artifacts(reports_dir, unresolved_keys))
+        except (OSError, QualityReportStoreError, ValueError):
+            resolution_error = "latest_pointer_invalid"
+    regular, regular_error = _read_evaluation_report(
+        report_paths["regular_json"],
+        resolution_error=resolution_error if regular_report_path is None else None,
+    )
+    structured, structured_error = _read_evaluation_report(
+        report_paths["structured_json"],
+        resolution_error=resolution_error if structured_report_path is None else None,
+    )
+    answer, answer_error = _read_evaluation_report(
+        report_paths["answer_json"],
+        resolution_error=resolution_error if answer_report_path is None else None,
+    )
     reports = (regular, structured, answer)
     if expected_verification_run_id is not None:
         expected_verification_run_id = validate_verification_run_id(expected_verification_run_id)
@@ -162,6 +202,23 @@ def evaluate_quality_gate(
                 "details": details,
             }
         )
+
+    report_errors = {
+        "regular": regular_error,
+        "structured": structured_error,
+        "answer": answer_error,
+    }
+    report_integrity_ok = not any(report_errors.values())
+    check(
+        "evaluation_report_integrity",
+        report_integrity_ok,
+        (
+            "三类评估报告均可读取且来源指针完整"
+            if report_integrity_ok
+            else "评估报告缺失、损坏或最新运行指针无效"
+        ),
+        errors={key: value for key, value in report_errors.items() if value},
+    )
 
     check(
         "manifest",

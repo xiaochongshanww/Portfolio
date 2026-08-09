@@ -25,6 +25,8 @@ _RUNTIME_SOURCE_FILES = (
     "src/app/core/config.py",
     "src/quality/evidence_context.py",
     "src/quality/gate.py",
+    "src/quality/report_store.py",
+    "scripts/verify_quality.py",
 )
 
 

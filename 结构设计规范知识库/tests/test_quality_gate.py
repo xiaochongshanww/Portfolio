@@ -2,6 +2,7 @@ import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import src.quality.gate as quality_gate_module
 from src.quality.gate import evaluate_quality_gate, render_quality_gate_markdown, summarize_jobs
 
 
@@ -251,4 +252,45 @@ def test_quality_gate_rejects_stale_report(tmp_path: Path):
     )
 
     assert result["passed"] is False
+    assert "evaluation_report_integrity" in result["failed_checks"]
     assert "regular_report_freshness" in result["failed_checks"]
+
+
+def test_quality_gate_rejects_corrupt_latest_run_pointer(tmp_path: Path, monkeypatch):
+    audit_dir = tmp_path / "audit"
+    reports_dir = audit_dir / "reports"
+    reports_dir.mkdir(parents=True)
+    (reports_dir / "quality_run_latest.json").write_text("not-json", encoding="utf-8")
+    manifest = tmp_path / "manifest.json"
+    active_db = tmp_path / "active_db.json"
+    _write_json(
+        manifest,
+        {
+            "document_count": 1,
+            "chunk_count": 1,
+            "data_version_hash": "version",
+            "artifact_status": {"missing_required_count": 0},
+            "audit_status": {"high_risk_count": 0},
+        },
+    )
+    _write_json(
+        active_db,
+        {"manifest": str(manifest), "data_version_hash": "version"},
+    )
+    monkeypatch.setattr(quality_gate_module, "AUDIT_DIR", audit_dir)
+
+    result = evaluate_quality_gate(
+        manifest_path=manifest,
+        active_db_path=active_db,
+        regular_eval_path=tmp_path / "regular.jsonl",
+        structured_eval_path=tmp_path / "structured.jsonl",
+        answer_eval_path=tmp_path / "answer.jsonl",
+        jobs=[],
+    )
+
+    assert result["passed"] is False
+    integrity = next(
+        check for check in result["checks"] if check["name"] == "evaluation_report_integrity"
+    )
+    assert integrity["status"] == "failed"
+    assert set(integrity["details"]["errors"].values()) == {"latest_pointer_invalid"}

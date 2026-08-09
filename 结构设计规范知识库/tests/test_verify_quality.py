@@ -113,6 +113,78 @@ def test_api_evaluation_rejects_mismatched_evidence_context(monkeypatch):
     assert "证据上下文" in result["error"]
 
 
+def test_failed_api_evaluation_is_preserved_in_current_run(monkeypatch, tmp_path: Path):
+    responses = iter(
+        [
+            {"job_id": "job-1"},
+            {
+                "status": "failed",
+                "error": "检索服务未就绪",
+                "outputs": {
+                    "ok": False,
+                    "error": "检索服务未就绪",
+                    "report_path": "remote/report.json",
+                },
+            },
+        ]
+    )
+    monkeypatch.setattr(verify_quality, "REPORTS_DIR", tmp_path / "reports")
+    monkeypatch.setattr(verify_quality, "_api_json", lambda *args, **kwargs: next(responses))
+
+    result = verify_quality._run_api_evaluation(
+        "regular",
+        "http://127.0.0.1:8017",
+        "key",
+        "a" * 32,
+        "b" * 64,
+    )
+
+    report_path = tmp_path / "reports" / "runs" / ("a" * 32) / "evaluation.json"
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert result["ok"] is False
+    assert report["verification_run_id"] == "a" * 32
+    assert report["runtime_config_hash"] == "b" * 64
+    assert report["error"] == "检索服务未就绪"
+    assert "report_path" not in report
+    assert not (tmp_path / "reports" / "evaluation_latest.json").exists()
+
+
+def test_missing_evaluations_create_same_run_placeholders_without_reusing_latest(
+    monkeypatch,
+    tmp_path: Path,
+):
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir()
+    (reports_dir / "evaluation_latest.json").write_text(
+        json.dumps({"ok": True, "verification_run_id": "c" * 32}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(verify_quality, "REPORTS_DIR", reports_dir)
+
+    verify_quality._ensure_quality_run_reports(
+        "a" * 32,
+        "b" * 64,
+        [
+            {
+                "name": "常规检索评估",
+                "ok": False,
+                "skipped": True,
+                "error": "显式跳过",
+            }
+        ],
+    )
+
+    run_dir = reports_dir / "runs" / ("a" * 32)
+    for name in ("evaluation.json", "evaluation_structured.json", "evaluation_answer.json"):
+        report = json.loads((run_dir / name).read_text(encoding="utf-8"))
+        assert report["verification_run_id"] == "a" * 32
+        assert report["runtime_config_hash"] == "b" * 64
+        assert report["execution_status"] == "skipped"
+        assert report["ok"] is False
+    legacy = json.loads((reports_dir / "evaluation_latest.json").read_text(encoding="utf-8"))
+    assert legacy["verification_run_id"] == "c" * 32
+
+
 def test_answer_evaluation_uses_explicit_target(monkeypatch, tmp_path: Path):
     captured = {}
 
@@ -525,6 +597,36 @@ def test_managed_child_args_only_removes_lifecycle_switch():
     assert verify_quality._managed_child_args(arguments) == arguments[1:]
 
 
+def _write_fake_deferred_run(command: list[str], reports: Path) -> None:
+    run_id = "a" * 32
+    verification = {
+        "generated_at": "fresh",
+        "passed": True,
+        "verification_run_id": run_id,
+        "steps": [{"name": "质量门禁", "ok": True}],
+    }
+    for kind in ("regular", "structured", "answer", "gate", "verification"):
+        payload = (
+            verification if kind == "verification" else {"verification_run_id": run_id, "ok": True}
+        )
+        verify_quality.write_quality_report(
+            reports,
+            kind,
+            payload,
+            f"# {kind}\n",
+            verification_run_id=run_id,
+        )
+    handoff = Path(command[command.index("--deferred-result-file") + 1])
+    verify_quality.atomic_write_json(
+        handoff,
+        {
+            "schema_version": 1,
+            "verification_run_id": run_id,
+            "verification_report": f"runs/{run_id}/verification.json",
+        },
+    )
+
+
 def test_managed_verification_reports_startup_failure_without_stale_evidence(
     monkeypatch,
     tmp_path: Path,
@@ -590,17 +692,7 @@ def test_managed_verification_forwards_custom_base_and_owns_cleanup(
     def fake_run(command, **kwargs):
         calls["command"] = command
         calls["environment"] = kwargs["env"]
-        reports.mkdir(parents=True, exist_ok=True)
-        (reports / verify_quality.VERIFICATION_JSON_NAME).write_text(
-            json.dumps(
-                {
-                    "generated_at": "fresh",
-                    "passed": True,
-                    "steps": [{"name": "质量门禁", "ok": True}],
-                }
-            ),
-            encoding="utf-8",
-        )
+        _write_fake_deferred_run(command, reports)
         return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
 
     monkeypatch.setattr(verify_quality, "REPORTS_DIR", reports)
@@ -621,10 +713,54 @@ def test_managed_verification_forwards_custom_base_and_owns_cleanup(
     assert calls["stopped"] is True
     assert calls["environment"]["ANSWER_EVALUATION_API_BASE"] == "http://127.0.0.1:8123"
     assert "--manage-api" not in calls["command"]
+    assert "--defer-quality-publish" in calls["command"]
     assert "http://127.0.0.1:8123" in calls["command"]
     assert result["passed"] is True
     assert result["steps"][0]["name"] == "托管 API 启动"
     assert result["steps"][-1]["name"] == "托管 API 回收"
+
+
+def test_managed_cleanup_failure_is_published_as_failed_atomic_run(
+    monkeypatch,
+    tmp_path: Path,
+):
+    reports = tmp_path / "reports"
+
+    class FakeManager:
+        def __init__(self, *, target, log_path):
+            self.target = target
+            self.log_path = log_path
+
+        def _child_environment(self):
+            return dict(os.environ)
+
+        def start(self, *, timeout_seconds):
+            return {"api_base": self.target.api_base, "log_path": str(self.log_path)}
+
+        def stop(self, *, timeout_seconds=10):
+            return {"ok": False, "forced": False, "error": "cleanup failed"}
+
+    def fake_run(command, **kwargs):
+        _write_fake_deferred_run(command, reports)
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(verify_quality, "REPORTS_DIR", reports)
+    monkeypatch.setattr(verify_quality, "ManagedApiProcess", FakeManager)
+    monkeypatch.setattr(verify_quality.subprocess, "run", fake_run)
+
+    exit_code = verify_quality._run_managed_verification(
+        "http://127.0.0.1:8123",
+        ["--manage-api", "--api-base", "http://127.0.0.1:8123"],
+        startup_timeout_seconds=7,
+    )
+    pointer = json.loads((reports / "quality_run_latest.json").read_text(encoding="utf-8"))
+    verification = json.loads((reports / "verification_latest.json").read_text(encoding="utf-8"))
+
+    assert exit_code == 1
+    assert pointer["passed"] is False
+    assert verification["passed"] is False
+    assert verification["steps"][-1]["name"] == "托管 API 回收"
+    assert verification["steps"][-1]["ok"] is False
 
 
 def test_managed_verification_interrupts_with_cleanup_and_fresh_failure_report(

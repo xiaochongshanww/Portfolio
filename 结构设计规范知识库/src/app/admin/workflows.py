@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 from typing import Any
 
@@ -32,9 +31,11 @@ from src.pipeline.paths import ACTIVE_DB_PATH, AUDIT_DIR, DB_VERSIONS_DIR, MANIF
 from src.pipeline.version_retention import execute_cleanup_plan, retention_policy_from_settings
 from src.quality import (
     assess_candidate_activation,
+    atomic_write_json,
     current_evidence_context,
     validate_verification_run_id,
     write_candidate_activation_artifacts,
+    write_quality_report,
 )
 
 from .models import Job, utc_now
@@ -60,13 +61,6 @@ def _restore_file(path: Path, content: bytes | None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(f"{path.suffix}.rollback.tmp")
     temporary.write_bytes(content)
-    temporary.replace(path)
-
-
-def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(f"{path.suffix}.tmp")
-    temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     temporary.replace(path)
 
 
@@ -185,8 +179,8 @@ def rebuild_workflow(job: Job, store: JobStore) -> dict[str, Any]:
     reports_dir = AUDIT_DIR / "reports"
     latest_reports_published = True
     try:
-        _write_json_atomic(reports_dir / "evaluation_latest.json", assessment.regular_evaluation)
-        _write_json_atomic(
+        atomic_write_json(reports_dir / "evaluation_latest.json", assessment.regular_evaluation)
+        atomic_write_json(
             reports_dir / "evaluation_structured_latest.json", assessment.structured_evaluation
         )
     except Exception as exc:
@@ -375,19 +369,15 @@ def evaluate_workflow(job: Job, store: JobStore) -> dict[str, Any]:
     if run_id:
         result["verification_run_id"] = validate_verification_run_id(run_id)
     out_dir = AUDIT_DIR / "reports"
-    out_dir.mkdir(parents=True, exist_ok=True)
     is_structured = eval_file.resolve() == STRUCTURED_EVAL_PATH.resolve()
-    stem = "evaluation_structured_latest" if is_structured else "evaluation_latest"
-    out_path = out_dir / f"{stem}.json"
-    markdown_path = out_dir / f"{stem}.md"
-    import json
-
-    out_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
-    markdown_path.write_text(
+    out_path, markdown_path = write_quality_report(
+        out_dir,
+        "structured" if is_structured else "regular",
+        result,
         render_evaluation_markdown(
             result, "结构化检索专项评估" if is_structured else "检索评估报告"
         ),
-        encoding="utf-8",
+        verification_run_id=run_id or None,
     )
     output = {
         **result,
@@ -469,13 +459,13 @@ def answer_evaluate_workflow(job: Job, store: JobStore) -> dict[str, Any]:
     if run_id:
         result["verification_run_id"] = validate_verification_run_id(run_id)
     out_dir = AUDIT_DIR / "reports"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / "evaluation_answer_latest.json"
-    markdown_path = out_dir / "evaluation_answer_latest.md"
-    import json
-
-    out_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
-    markdown_path.write_text(render_answer_evaluation_markdown(result), encoding="utf-8")
+    out_path, markdown_path = write_quality_report(
+        out_dir,
+        "answer",
+        result,
+        render_answer_evaluation_markdown(result),
+        verification_run_id=run_id or None,
+    )
     output = {
         **result,
         "report_path": str(out_path),
