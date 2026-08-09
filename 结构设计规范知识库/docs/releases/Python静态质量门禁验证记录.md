@@ -1,11 +1,11 @@
 # Python 静态质量门禁验证记录
 
-> 状态：远程验证待完成  
-> 维护角色：工程负责人  
-> 文档更新：2026-08-09  
-> 代码/流程核对：2026-08-09，配置、依赖锁、零存量迁移、CI 命令和契约测试已核对  
-> 完整运行验证：本地 400 项后端测试、9 项前端测试及完整工程门禁通过；远程 CI 待执行  
-> 验证证据：[实施清单](../architecture/Python静态质量门禁实施清单.md)、[ADR 0020](../adr/0020-Python代码采用固定Ruff静态质量门禁.md)  
+> 状态：已完成
+> 维护角色：工程负责人
+> 文档更新：2026-08-09
+> 代码/流程核对：2026-08-09，配置、依赖锁、零存量迁移、CI 命令和契约测试已核对
+> 完整运行验证：本地 400 项后端测试、9 项前端测试及完整工程门禁通过；[CI #74](https://github.com/xiaochongshanww/Portfolio/actions/runs/31293167043) 十项任务全部通过
+> 验证证据：[实施清单](../architecture/Python静态质量门禁实施清单.md)、[ADR 0020](../adr/0020-Python代码采用固定Ruff静态质量门禁.md)、提交 `e498a49`、[CI #74](https://github.com/xiaochongshanww/Portfolio/actions/runs/31293167043)
 > 复核周期：I-030 收口或 Python/Ruff/CI 规则变化时
 
 ## 验证范围
@@ -45,13 +45,14 @@ I-030 为 `src`、`scripts`、`tests` 建立固定版本的静态检查与格式
 
 ## 远程验证
 
-实现提交推送后必须确认以下任务全部通过，才可补充运行链接并关闭 I-030：
+[CI #74](https://github.com/xiaochongshanww/Portfolio/actions/runs/31293167043) 对实现提交 `e498a49` 执行了完整矩阵，十项任务全部为 `success`：
 
-- Dependency lock；
-- Windows 与 Linux 后端，其中 Ruff lint、format check 和 400 项测试均执行；
-- 前端测试、类型检查、安全审计与构建；
-- API 容器、OpenWebUI 鉴权连接；
-- Windows/Linux 知识包生产与双向消费。
+| 任务组 | 结果 |
+| --- | --- |
+| 依赖与后端 | Dependency lock、Windows 后端、Linux 后端通过；两个后端均执行 Ruff lint、format check 和 400 项测试 |
+| 前端与容器 | 前端测试/类型/审计/构建、API 容器冒烟通过 |
+| OpenWebUI | 受保护连接真实集成通过 |
+| 知识包 | Windows/Linux 两个平台产包及 Linux→Windows、Windows→Linux 两条消费链通过 |
 
 远程任务不会注入真实模型凭据，也不改变当前质量证据的 `release_quality_status=not_passed`。
 
@@ -59,5 +60,5 @@ I-030 为 `src`、`scripts`、`tests` 建立固定版本的静态检查与格式
 
 - [x] 固定工具版本、集中配置和零存量迁移已完成。
 - [x] 本地静态、后端、前端、锁、配置、Compose、证据和供应链门禁已通过。
-- [ ] 远程完整矩阵通过并记录不可变运行链接。
-- [ ] 远程证据完成后同步实施清单、ADR、路线图和生效文档状态。
+- [x] 远程完整矩阵通过并记录不可变运行链接。
+- [x] 远程证据完成后同步实施清单、ADR、路线图和生效文档状态。
