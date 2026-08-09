@@ -3,6 +3,7 @@ import json
 import os
 import socket
 import subprocess
+import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -246,6 +247,101 @@ def test_access_probe_reports_auth_failure_without_secret(monkeypatch):
     assert result["credential_source"] == "environment"
     assert result["credential_supplied"] is True
     assert "secret-value" not in json.dumps(result, ensure_ascii=False)
+
+
+def test_api_preflight_combines_readiness_and_access_without_secret(monkeypatch):
+    monkeypatch.setenv("QUALITY_API_KEY", "secret-value")
+    monkeypatch.setattr(
+        verify_quality,
+        "probe_api_readiness",
+        lambda api_base: {
+            "ok": True,
+            "api_base": api_base,
+            "ready": True,
+            "checks": {"collection_count": 1636},
+        },
+    )
+    monkeypatch.setattr(
+        verify_quality,
+        "_probe_api_access",
+        lambda api_base, credential: {
+            "ok": True,
+            "credential_source": credential.source,
+            "credential_supplied": bool(credential.key),
+        },
+    )
+
+    result = verify_quality._run_api_preflight(
+        "http://127.0.0.1:8017",
+        api_key_file=None,
+        no_api_key=False,
+    )
+
+    assert result["ok"] is True
+    assert [step["name"] for step in result["steps"]] == [
+        "API 凭据加载",
+        "目标 API 就绪预检",
+        "目标 API 鉴权预检",
+    ]
+    assert "secret-value" not in json.dumps(result, ensure_ascii=False)
+
+
+def test_api_preflight_fails_closed_when_readiness_fails(monkeypatch):
+    monkeypatch.setattr(
+        verify_quality,
+        "probe_api_readiness",
+        lambda api_base: {
+            "ok": False,
+            "api_base": api_base,
+            "ready": False,
+            "reasons": ["缺少 MIMO API Key"],
+        },
+    )
+    monkeypatch.setattr(
+        verify_quality,
+        "_probe_api_access",
+        lambda api_base, credential: {"ok": True},
+    )
+
+    result = verify_quality._run_api_preflight(
+        "http://127.0.0.1:8017",
+        api_key_file=None,
+        no_api_key=True,
+    )
+
+    assert result["ok"] is False
+    assert result["steps"][1]["reasons"] == ["缺少 MIMO API Key"]
+
+
+def test_preflight_cli_is_ascii_safe_and_does_not_write_reports(tmp_path: Path):
+    port = _free_loopback_port()
+    environment = os.environ.copy()
+    environment["PYTHONIOENCODING"] = "ascii"
+    verification = verify_quality.REPORTS_DIR / verify_quality.VERIFICATION_JSON_NAME
+    before = verification.read_bytes() if verification.is_file() else None
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "scripts/verify_quality.py",
+            "--preflight-only",
+            "--api-base",
+            f"http://127.0.0.1:{port}",
+            "--no-api-key",
+        ],
+        cwd=Path.cwd(),
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 1
+    result = json.loads(completed.stdout)
+    assert result["ok"] is False
+    assert result["mode"] == "existing_api"
+    after = verification.read_bytes() if verification.is_file() else None
+    assert after == before
 
 
 @pytest.mark.parametrize(
@@ -530,6 +626,91 @@ def test_managed_verification_interrupts_with_cleanup_and_fresh_failure_report(
     assert result["managed_api"]["interrupted"] is True
     assert result["steps"][-1]["name"] == "托管 API 回收"
     assert result["steps"][-1]["ok"] is True
+
+
+def test_managed_preflight_owns_cleanup_without_overwriting_quality_report(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+):
+    reports = tmp_path / "reports"
+    reports.mkdir()
+    verification = reports / verify_quality.VERIFICATION_JSON_NAME
+    verification.write_text("existing-report", encoding="utf-8")
+    calls: dict[str, object] = {}
+
+    class FakeManager:
+        def __init__(self, *, target, log_path):
+            self.target = target
+            self.log_path = log_path
+
+        def _child_environment(self):
+            return dict(os.environ)
+
+        def start(self, *, timeout_seconds):
+            calls["start_timeout"] = timeout_seconds
+            return {
+                "api_base": self.target.api_base,
+                "log_path": str(self.log_path),
+            }
+
+        def stop(self, *, timeout_seconds=10):
+            calls["stopped"] = True
+            return {"ok": True, "forced": False, "exit_code": 0}
+
+    monkeypatch.setattr(verify_quality, "REPORTS_DIR", reports)
+    monkeypatch.setattr(verify_quality, "ManagedApiProcess", FakeManager)
+    monkeypatch.setattr(
+        verify_quality,
+        "_run_api_preflight",
+        lambda *args, **kwargs: {
+            "ok": True,
+            "steps": [
+                {"name": "目标 API 就绪预检", "ok": True},
+                {"name": "目标 API 鉴权预检", "ok": True},
+            ],
+        },
+    )
+
+    exit_code = verify_quality._run_managed_preflight(
+        "http://127.0.0.1:8123",
+        api_key_file=None,
+        no_api_key=True,
+        startup_timeout_seconds=7,
+    )
+    result = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert calls == {"start_timeout": 7, "stopped": True}
+    assert result["ok"] is True
+    assert result["writes_quality_reports"] is False
+    assert verification.read_text(encoding="utf-8") == "existing-report"
+
+
+def test_managed_preflight_startup_failure_does_not_create_quality_report(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+):
+    reports = tmp_path / "reports"
+
+    def fail_start(self, *, timeout_seconds):
+        raise verify_quality.ManagedApiError("startup failed")
+
+    monkeypatch.setattr(verify_quality, "REPORTS_DIR", reports)
+    monkeypatch.setattr(verify_quality.ManagedApiProcess, "start", fail_start)
+
+    exit_code = verify_quality._run_managed_preflight(
+        "http://127.0.0.1:8123",
+        api_key_file=None,
+        no_api_key=True,
+        startup_timeout_seconds=1,
+    )
+    result = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 1
+    assert result["ok"] is False
+    assert not (reports / verify_quality.VERIFICATION_JSON_NAME).exists()
 
 
 def test_managed_api_stop_forces_kill_after_timeout(tmp_path: Path):

@@ -312,7 +312,15 @@ python -m src.evaluation run --top-k 5
 
 输出会包含 source hit、clause hit、keyword hit 和失败样例。若知识库尚未构建或检索服务未初始化，会返回明确错误。
 
-完整的无人值守质量验证可通过以下命令执行：
+完整验证前先执行无模型调用、无质量报告写入的前置条件预检：
+
+```powershell
+python scripts/verify_quality.py --manage-api --preflight-only --api-base http://127.0.0.1:8017
+```
+
+预检只检查凭据来源、`/ready`、`/admin/status` 和托管进程回收，失败时用机器可读原因退出非零。它可能更新被 Git 忽略的托管 API 启动日志，但不会运行测试、评估或门禁，也不会覆盖任何 `*_latest` 质量报告。预检通过不代表质量通过。
+
+前置条件通过后，再执行完整的无人值守质量验证：
 
 ```powershell
 python scripts/verify_quality.py --manage-api --api-base http://127.0.0.1:8017

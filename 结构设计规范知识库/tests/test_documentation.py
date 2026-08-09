@@ -279,6 +279,35 @@ def test_quality_evidence_history_contract_is_documented():
     assert history_index.is_file()
 
 
+def test_quality_preflight_contract_is_documented():
+    readme = Path("README.md").read_text(encoding="utf-8")
+    config_reference = Path("docs/reference/配置参考.md").read_text(encoding="utf-8")
+    operations = Path("docs/operations/知识库维护与质量运营.md").read_text(
+        encoding="utf-8"
+    )
+    detailed_design = Path("docs/architecture/系统详细设计.md").read_text(
+        encoding="utf-8"
+    )
+    release_checklist = Path("docs/releases/发布检查单.md").read_text(
+        encoding="utf-8"
+    )
+    decision = Path("docs/adr/0017-质量验证采用无副作用前置条件预检.md")
+    checklist = Path("docs/architecture/质量验证无副作用预检实施清单.md")
+    command = (
+        "python scripts/verify_quality.py --manage-api --preflight-only "
+        "--api-base http://127.0.0.1:8017"
+    )
+
+    assert command in readme
+    assert "不运行测试、评估、门禁或写入质量报告" in config_reference
+    assert command in operations
+    assert "不写任何质量 `latest` 报告" in detailed_design
+    assert "--preflight-only" in release_checklist
+    assert "不能解释为模型内容质量失败" in decision.read_text(encoding="utf-8")
+    assert decision.is_file()
+    assert checklist.is_file()
+
+
 def test_runtime_backup_and_disaster_recovery_contract_is_documented():
     readme = Path("README.md").read_text(encoding="utf-8")
     operations = Path("docs/operations/部署运行手册.md").read_text(encoding="utf-8")

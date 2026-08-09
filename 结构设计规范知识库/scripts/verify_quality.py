@@ -408,6 +408,84 @@ def _probe_api_access(
     }
 
 
+def _collect_api_preflight(
+    api_base: str,
+    *,
+    api_key_file: str | None,
+    no_api_key: bool,
+) -> tuple[dict[str, Any], ApiCredential]:
+    steps: list[dict[str, Any]] = []
+    try:
+        credential = _resolve_api_credential(
+            api_key_file=api_key_file,
+            no_api_key=no_api_key,
+        )
+        steps.append(
+            {
+                "name": "API 凭据加载",
+                "ok": True,
+                "credential_source": credential.source,
+                "credential_supplied": bool(credential.key),
+                "duration_seconds": 0,
+            }
+        )
+        credential_loaded = True
+    except ValueError as exc:
+        credential = ApiCredential(key="", source="invalid")
+        steps.append(
+            {
+                "name": "API 凭据加载",
+                "ok": False,
+                "credential_source": "invalid",
+                "credential_supplied": False,
+                "duration_seconds": 0,
+                "error": str(exc),
+            }
+        )
+        credential_loaded = False
+
+    readiness = probe_api_readiness(api_base)
+    steps.append({"name": "目标 API 就绪预检", **readiness})
+    if credential_loaded:
+        access = _probe_api_access(api_base, credential)
+        steps.append({"name": "目标 API 鉴权预检", **access})
+    else:
+        steps.append(
+            {
+                "name": "目标 API 鉴权预检",
+                "ok": False,
+                "skipped": True,
+                "duration_seconds": 0,
+                "error": "未执行：API 凭据加载失败",
+            }
+        )
+
+    return (
+        {
+            "ok": all(step.get("ok") is True for step in steps),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "mode": "existing_api",
+            "api_base": api_base,
+            "steps": steps,
+        },
+        credential,
+    )
+
+
+def _run_api_preflight(
+    api_base: str,
+    *,
+    api_key_file: str | None,
+    no_api_key: bool,
+) -> dict[str, Any]:
+    result, _credential = _collect_api_preflight(
+        api_base,
+        api_key_file=api_key_file,
+        no_api_key=no_api_key,
+    )
+    return result
+
+
 def _run_api_evaluation(
     evaluation_set_id: str,
     api_base: str,
@@ -726,6 +804,82 @@ def _run_managed_verification(
     return 0 if result["passed"] else 1
 
 
+def _run_managed_preflight(
+    api_base: str,
+    *,
+    api_key_file: str | None,
+    no_api_key: bool,
+    startup_timeout_seconds: float,
+) -> int:
+    target = _parse_managed_api_target(api_base)
+    manager = ManagedApiProcess(
+        target=target,
+        log_path=REPORTS_DIR / MANAGED_API_LOG_NAME,
+    )
+    steps: list[dict[str, Any]] = []
+    started_at = time.monotonic()
+    interrupted = False
+    try:
+        startup = manager.start(timeout_seconds=startup_timeout_seconds)
+        steps.append(
+            {
+                "name": "托管 API 启动",
+                "ok": True,
+                "duration_seconds": round(time.monotonic() - started_at, 2),
+                "api_base": startup["api_base"],
+                "log_path": startup["log_path"],
+            }
+        )
+        preflight = _run_api_preflight(
+            api_base,
+            api_key_file=api_key_file,
+            no_api_key=no_api_key,
+        )
+        steps.extend(preflight["steps"])
+    except KeyboardInterrupt:
+        interrupted = True
+        steps.append(
+            {
+                "name": "托管 API 预检",
+                "ok": False,
+                "duration_seconds": round(time.monotonic() - started_at, 2),
+                "error": "托管 API 预检被中断",
+            }
+        )
+    except (ManagedApiError, OSError, subprocess.SubprocessError) as exc:
+        steps.append(
+            {
+                "name": "托管 API 启动",
+                "ok": False,
+                "duration_seconds": round(time.monotonic() - started_at, 2),
+                "error": _redact_secrets(str(exc), manager._child_environment()),
+            }
+        )
+    finally:
+        cleanup_started_at = time.monotonic()
+        cleanup = manager.stop()
+        steps.append(
+            {
+                "name": "托管 API 回收",
+                "duration_seconds": round(time.monotonic() - cleanup_started_at, 2),
+                **cleanup,
+            }
+        )
+
+    result = {
+        "ok": all(step.get("ok") is True for step in steps) and not interrupted,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "mode": "managed_api",
+        "api_base": api_base,
+        "writes_quality_reports": False,
+        "steps": steps,
+    }
+    print(json.dumps(result, ensure_ascii=True))
+    if interrupted:
+        return 130
+    return 0 if result["ok"] else 1
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="执行完整的无人值守质量验证")
     parser.add_argument("--skip-tests", action="store_true")
@@ -743,6 +897,11 @@ def main() -> None:
         type=float,
         default=60,
         help="托管模式等待本地 API /health 就绪的最长秒数",
+    )
+    parser.add_argument(
+        "--preflight-only",
+        action="store_true",
+        help="只检查目标 API 就绪与鉴权，不执行测试、评估、门禁或写入质量报告",
     )
     credential_group = parser.add_mutually_exclusive_group()
     credential_group.add_argument(
@@ -767,14 +926,31 @@ def main() -> None:
         parser.error(str(exc))
     if args.manage_api:
         try:
-            exit_code = _run_managed_verification(
-                api_base,
-                sys.argv[1:],
-                startup_timeout_seconds=args.api_start_timeout_seconds,
-            )
+            if args.preflight_only:
+                exit_code = _run_managed_preflight(
+                    api_base,
+                    api_key_file=args.api_key_file,
+                    no_api_key=args.no_api_key,
+                    startup_timeout_seconds=args.api_start_timeout_seconds,
+                )
+            else:
+                exit_code = _run_managed_verification(
+                    api_base,
+                    sys.argv[1:],
+                    startup_timeout_seconds=args.api_start_timeout_seconds,
+                )
         except ManagedApiError as exc:
             parser.error(str(exc))
         raise SystemExit(exit_code)
+
+    if args.preflight_only:
+        result = _run_api_preflight(
+            api_base,
+            api_key_file=args.api_key_file,
+            no_api_key=args.no_api_key,
+        )
+        print(json.dumps(result, ensure_ascii=True))
+        raise SystemExit(0 if result["ok"] else 1)
 
     steps: list[dict[str, Any]] = []
     api_required = (
@@ -785,51 +961,19 @@ def main() -> None:
     api_accessible = True
     credential = ApiCredential(key="", source="none")
     if api_required:
-        try:
-            credential = _resolve_api_credential(
-                api_key_file=args.api_key_file,
-                no_api_key=args.no_api_key,
-            )
-            steps.append(
-                {
-                    "name": "API 凭据加载",
-                    "ok": True,
-                    "duration_seconds": 0,
-                    "credential_source": credential.source,
-                    "credential_supplied": bool(credential.key),
-                }
-            )
-            credential_loaded = True
-        except ValueError as exc:
-            steps.append(
-                {
-                    "name": "API 凭据加载",
-                    "ok": False,
-                    "duration_seconds": 0,
-                    "error": str(exc),
-                }
-            )
-            credential_loaded = False
-        readiness_step = _execute_step(
-            "目标 API 就绪预检",
-            lambda: probe_api_readiness(api_base),
+        preflight, credential = _collect_api_preflight(
+            api_base,
+            api_key_file=args.api_key_file,
+            no_api_key=args.no_api_key,
         )
-        steps.append(readiness_step)
+        steps.extend(preflight["steps"])
+        readiness_step = next(
+            step for step in preflight["steps"] if step["name"] == "目标 API 就绪预检"
+        )
+        access_step = next(
+            step for step in preflight["steps"] if step["name"] == "目标 API 鉴权预检"
+        )
         api_ready = readiness_step.get("ok") is True
-        if credential_loaded:
-            access_step = _execute_step(
-                "目标 API 鉴权预检",
-                lambda: _probe_api_access(api_base, credential),
-            )
-        else:
-            access_step = {
-                "name": "目标 API 鉴权预检",
-                "ok": False,
-                "skipped": True,
-                "duration_seconds": 0,
-                "error": "未执行：API 凭据加载失败",
-            }
-        steps.append(access_step)
         api_accessible = access_step.get("ok") is True
 
     api_available = api_ready and api_accessible
