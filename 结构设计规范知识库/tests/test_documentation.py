@@ -294,6 +294,27 @@ def test_ci_action_supply_chain_contract_is_documented():
     assert dependabot.is_file()
 
 
+def test_container_image_identity_contract_is_documented():
+    readme = Path("README.md").read_text(encoding="utf-8")
+    operations = Path("docs/operations/部署运行手册.md").read_text(encoding="utf-8")
+    detailed_design = Path("docs/architecture/系统详细设计.md").read_text(encoding="utf-8")
+    release_checklist = Path("docs/releases/发布检查单.md").read_text(encoding="utf-8")
+    decision = Path("docs/adr/0022-外部容器镜像采用标签与多架构摘要双重固定.md")
+    implementation = Path("docs/architecture/容器镜像不可变身份与更新治理实施清单.md")
+    verification = Path("docs/releases/容器镜像不可变身份与更新治理验证记录.md")
+    command = "python scripts/validate_container_images.py"
+
+    assert command in readme
+    assert command in operations
+    assert f"{command} --check-remote" in operations
+    assert command in release_checklist
+    assert "docker compose config --format json" in detailed_design
+    assert "漏洞" in decision.read_text(encoding="utf-8")
+    assert decision.is_file()
+    assert implementation.is_file()
+    assert verification.is_file()
+
+
 def test_runtime_backup_and_disaster_recovery_contract_is_documented():
     readme = Path("README.md").read_text(encoding="utf-8")
     operations = Path("docs/operations/部署运行手册.md").read_text(encoding="utf-8")

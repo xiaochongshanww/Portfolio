@@ -1,7 +1,7 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1@sha256:87999aa3d42bdc6bea60565083ee17e86d1f3339802f543c0d03998580f9cb89
 
 # ---- Frontend builder ----
-FROM node:22-alpine AS frontend-builder
+FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS frontend-builder
 
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json ./
@@ -11,14 +11,14 @@ COPY frontend/ ./
 RUN npm run build
 
 # ---- Python dependency builder ----
-FROM python:3.11-slim AS python-builder
+FROM python:3.11-slim@sha256:90744cff8f32887f075c47d747a173ff333e9e98801667af93c357fa9f5e28ff AS python-builder
 
 WORKDIR /app
 COPY requirements-runtime.txt .
 RUN pip install --user --no-cache-dir --require-hashes -r requirements-runtime.txt
 
 # ---- Runtime ----
-FROM python:3.11-slim AS runtime
+FROM python:3.11-slim@sha256:90744cff8f32887f075c47d747a173ff333e9e98801667af93c357fa9f5e28ff AS runtime
 
 WORKDIR /app
 

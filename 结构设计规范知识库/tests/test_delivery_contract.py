@@ -14,7 +14,7 @@ def test_runtime_image_bundles_console_and_runtime_assets():
     )
     frontend_npmrc = (PROJECT_ROOT / "frontend" / ".npmrc").read_text(encoding="utf-8")
 
-    assert "FROM node:22-alpine AS frontend-builder" in dockerfile
+    assert "FROM node:22-alpine@sha256:" in dockerfile
     assert "RUN npm install --global npm@10.9.8" in dockerfile
     assert "RUN npm ci" in dockerfile
     assert "COPY --from=frontend-builder /app/frontend/dist frontend/dist/" in dockerfile
@@ -110,6 +110,7 @@ def test_repository_ci_covers_backend_frontend_and_container():
     assert "actions/upload-artifact@" in workflow
     assert "actions/download-artifact@" in workflow
     assert "python scripts/validate_ci_actions.py" in workflow
+    assert "python scripts/validate_container_images.py" in workflow
     assert "--require-cross-platform" in workflow
     assert "python -m scripts.verify_runtime_package_cold_start" in workflow
     assert "python -m scripts.verify_runtime_package_recovery" in workflow
@@ -133,6 +134,29 @@ def test_repository_ci_covers_backend_frontend_and_container():
     assert "ci-openwebui-connection-key" in workflow
     assert "/static/index.html" in workflow
     assert "/health" in workflow
+
+
+def test_external_container_images_are_immutable_and_maintained():
+    dockerfile = (PROJECT_ROOT / "Dockerfile").read_text(encoding="utf-8")
+    compose = (PROJECT_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+    dependabot = (REPOSITORY_ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
+    drift_workflow = (
+        REPOSITORY_ROOT / ".github" / "workflows" / "container-image-drift.yml"
+    ).read_text(encoding="utf-8")
+
+    assert dockerfile.startswith("# syntax=docker/dockerfile:1@sha256:")
+    assert dockerfile.count("@sha256:") == 4
+    assert dockerfile.count("FROM python:3.11-slim@sha256:") == 2
+    assert "ghcr.io/open-webui/open-webui:v0.9.5@sha256:" in compose
+    assert (PROJECT_ROOT / "scripts" / "validate_container_images.py").is_file()
+    assert 'package-ecosystem: "docker"' in dependabot
+    assert 'package-ecosystem: "docker-compose"' in dependabot
+    assert 'directory: "/结构设计规范知识库"' in dependabot
+    assert "schedule:" in drift_workflow
+    assert "workflow_dispatch:" in drift_workflow
+    assert "python scripts/validate_container_images.py --check-remote" in drift_workflow
+    assert "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" in drift_workflow
+    assert "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97" in drift_workflow
 
 
 def test_runtime_backup_cli_is_part_of_delivery_contract():

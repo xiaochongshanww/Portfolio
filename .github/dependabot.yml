@@ -11,3 +11,17 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
+  - package-ecosystem: "docker"
+    directory: "/结构设计规范知识库"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+  - package-ecosystem: "docker-compose"
+    directory: "/结构设计规范知识库"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"

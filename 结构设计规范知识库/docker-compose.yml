@@ -41,7 +41,7 @@ services:
       - rag-net
 
   open-webui:
-    image: ghcr.io/open-webui/open-webui:v0.9.5
+    image: ghcr.io/open-webui/open-webui:v0.9.5@sha256:e045bde3b004cc7f8c319412345eb56c87ea6ac57031534a31ca37ad5424beb3
     container_name: open-webui
     ports:
       - "3000:8080"
