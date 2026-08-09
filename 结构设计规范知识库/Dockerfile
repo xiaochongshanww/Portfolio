@@ -11,14 +11,14 @@ COPY frontend/ ./
 RUN npm run build
 
 # ---- Python dependency builder ----
-FROM python:3.11-slim@sha256:90744cff8f32887f075c47d747a173ff333e9e98801667af93c357fa9f5e28ff AS python-builder
+FROM python:3.14-slim@sha256:a7fb1e634c4a578f9e0bd6327f11a3cde11b7a9395f48e24360c0988bcc5c2bc AS python-builder
 
 WORKDIR /app
 COPY requirements-runtime.txt .
 RUN pip install --user --no-cache-dir --require-hashes -r requirements-runtime.txt
 
 # ---- Runtime ----
-FROM python:3.11-slim@sha256:90744cff8f32887f075c47d747a173ff333e9e98801667af93c357fa9f5e28ff AS runtime
+FROM python:3.14-slim@sha256:a7fb1e634c4a578f9e0bd6327f11a3cde11b7a9395f48e24360c0988bcc5c2bc AS runtime
 
 WORKDIR /app
 
