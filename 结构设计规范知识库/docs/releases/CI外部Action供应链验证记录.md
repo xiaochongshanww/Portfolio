@@ -4,7 +4,7 @@
 > 维护角色：工程负责人
 > 文档更新：2026-08-09
 > 代码/流程核对：2026-08-09
-> 完整运行验证：本地 381 项后端测试、完整工程门禁及 14 个外部引用校验通过；[CI #67](https://github.com/xiaochongshanww/Portfolio/actions/runs/31290399694) 十项任务全部通过且无运行时弃用警告
+> 完整运行验证：I-028 初始基线由本地 381 项测试及 CI #67 验证；首次 Dependabot 更新由 [PR #3](https://github.com/xiaochongshanww/Portfolio/pull/3) 与 [CI #71](https://github.com/xiaochongshanww/Portfolio/actions/runs/31291070542) 十项任务验证
 > 验证证据：[实施清单](../architecture/CI外部Action供应链实施清单.md)、[ADR 0018](../adr/0018-CI外部Action采用不可变引用与自动维护.md)、`tests/test_ci_actions.py`
 > 复核周期：I-028 收口或 CI action 基线变化时
 
@@ -40,6 +40,19 @@
 | 远程 CI | [CI #67](https://github.com/xiaochongshanww/Portfolio/actions/runs/31290399694) 十项任务全部通过，提交 `3b43d22` |
 
 远程矩阵使用固定 SHA 的 action 分别在 Linux 和 Windows 生成真实 Chroma 知识包，并完成 Windows→Linux、Linux→Windows 双向导入、探测和 API 冷启动。运行产出两份制品，全部任务成功；摘要没有 `Annotations`，相较 CI #66 的 4 条 Node.js 20 警告已清零。
+
+## 首次自动维护闭环
+
+Dependabot 按 `.github/dependabot.yml` 生成 [PR #3](https://github.com/xiaochongshanww/Portfolio/pull/3)，只修改生效 workflow 中的固定 SHA 和同行版本注释：
+
+| Action | 旧版本 | 新版本 | 新固定提交 |
+| --- | --- | --- | --- |
+| `actions/checkout` | v6.1.0 | v7.0.1 | `3d3c42e5aac5ba805825da76410c181273ba90b1` |
+| `actions/setup-python` | v6.3.0 | v7.0.0 | `5fda3b95a4ea91299a34e894583c3862153e4b97` |
+| `actions/upload-artifact` | v6.0.0 | v7.0.1 | `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a` |
+| `actions/download-artifact` | v7.0.0 | v8.0.1 | `3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c` |
+
+`actions/setup-node` 保持 v7.0.0 / `820762786026740c76f36085b0efc47a31fe5020`。更新分支的 push CI #68、PR CI #69 以及合并提交 `541bcc1` 的 [主分支 CI #71](https://github.com/xiaochongshanww/Portfolio/actions/runs/31291070542) 均成功；CI #71 的依赖锁、Windows/Linux 后端、前端、容器、OpenWebUI、双平台产包和双向消费共 10 项任务全部通过。这证明“发现更新 → 固定 SHA → 人工核对 → 完整矩阵 → 合并”的维护流程可执行，不代表后续主版本更新可免审自动合并。
 
 ## 收口检查
 

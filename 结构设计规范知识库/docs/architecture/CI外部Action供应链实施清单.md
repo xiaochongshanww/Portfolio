@@ -4,7 +4,7 @@
 > 维护角色：工程负责人
 > 文档更新：2026-08-09
 > 代码/流程核对：2026-08-09
-> 完整运行验证：本地 381 项后端测试、完整工程门禁及 14 个外部引用校验通过；[CI #67](https://github.com/xiaochongshanww/Portfolio/actions/runs/31290399694) 十项任务全部通过且无运行时弃用警告
+> 完整运行验证：初始基线由本地 381 项测试及 CI #67 验证；首次 Dependabot 更新由 [PR #3](https://github.com/xiaochongshanww/Portfolio/pull/3) 与 [CI #71](https://github.com/xiaochongshanww/Portfolio/actions/runs/31291070542) 十项任务验证
 > 验证证据：[ADR 0018](../adr/0018-CI外部Action采用不可变引用与自动维护.md)、[验证记录](../releases/CI外部Action供应链验证记录.md)、`scripts/validate_ci_actions.py`
 > 复核周期：每个实施项完成时及 CI 供应链策略变化时
 > 迭代编号：I-028

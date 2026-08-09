@@ -55,3 +55,7 @@ CI #65 虽然全部通过，但 `actions/upload-artifact@v4` 和 `actions/downlo
 - 本地校验器覆盖可变引用、缺失注释、旧运行时、本地 action 和容器 action。
 - Dependabot 能识别 GitHub Actions 生态并按周提出受控更新。
 - 文档、专项测试、全量工程门禁和远程 CI 证据齐全。
+
+## 维护记录
+
+2026-08-09，Dependabot 首次按本决策生成分组更新 [PR #3](https://github.com/xiaochongshanww/Portfolio/pull/3)，将 checkout、setup-python、upload-artifact 和 download-artifact 更新到新的固定 SHA。PR 与主分支完整矩阵均通过，当前活动基线及证据见 [CI 外部 Action 供应链验证记录](../releases/CI外部Action供应链验证记录.md)。本段记录决策的实际运行结果，不改变“不自动合并、每次升级完整验证”的原决策。

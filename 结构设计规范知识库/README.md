@@ -84,6 +84,18 @@ docker compose --env-file .env.example config --quiet
 
 第一条命令在隔离环境中用 `.env.example` 执行真实应用配置预检，输出不含配置值的 JSON；第二条命令验证同一示例能完成 Compose 变量替换与结构渲染。真实部署仍需从秘密管理系统注入 Key，不能把示例文件改成凭据文件。
 
+安装依赖并填写实际环境配置后，先运行统一只读自检。默认检查轻量问答运行环境；只有需要从 PDF 构建知识资产时才使用 `build` 配置：
+
+```bash
+python -m src.doctor
+python -m src.doctor --profile build
+
+# 自动化系统使用稳定 JSON；必需检查失败时退出码为 1
+python -m src.doctor --profile runtime --format json
+```
+
+自检不会创建目录、修改知识资产、启动服务或调用模型，也不会回显密钥。它通过只代表启动前静态条件成立；API 启动后仍须检查 `/ready`，发布仍须执行完整质量验证。
+
 CI 会从空临时目录重新解析并逐字比较三份锁，同时在 Ubuntu 和 Windows 上按哈希安装开发锁并运行完整测试。只有直接依赖、锁配置、对应锁文件和验证证据同时更新，依赖升级才算完成。
 
 ### 2. 配置模型 API Key
