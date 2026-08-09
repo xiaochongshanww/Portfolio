@@ -1,6 +1,6 @@
 # 运行容器 SBOM 与漏洞门禁验证记录
 
-> 状态：验证中
+> 状态：已完成
 >
 > 维护角色：工程负责人
 >
@@ -8,7 +8,7 @@
 >
 > 代码/流程核对：扫描器锁、策略校验、workflow、artifact 和例外边界已核对
 >
-> 完整运行验证：本地 459 项后端测试、9 项前端测试、完整工程门禁和真实上游发行版漂移校验通过；远程真实镜像扫描待完成
+> 完整运行验证：本地 459 项后端测试、9 项前端测试、完整工程门禁和真实上游发行版漂移校验通过；[CI #87](https://github.com/xiaochongshanww/Portfolio/actions/runs/31299823123) 十项任务与真实镜像扫描通过
 >
 > 验证证据：[实施清单](../architecture/运行容器SBOM与漏洞门禁实施清单.md)、[ADR 0023](../adr/0023-运行容器采用SBOM与时效化漏洞门禁.md)
 >
@@ -37,14 +37,10 @@
 - 前端 9 项组件测试、类型检查、`npm audit --audit-level=high` 和生产构建通过，审计结果为 0 个已知高危及以上漏洞。
 - 首次远程真实扫描 [CI #86](https://github.com/xiaochongshanww/Portfolio/actions/runs/31298835837) 已成功生成并上传 SBOM 与完整报告，门禁按设计发现 4 条具有修复版本的 HIGH 发现：`PyJWT 2.8.0` 两条、`jaraco.context 5.3.0` 一条、`wheel 0.45.1` 一条。
 - 旧 `zhipuai 2.1.5.20250825` 将 PyJWT 限制为 `<2.9.0`，不能得到安全修复；代码已迁移到[官方长期维护 SDK](https://github.com/zai-org/z-ai-sdk-python) `zai-sdk 0.2.3` 并固定 `PyJWT 2.13.0`。最终镜像同时移除只用于构建的 pip、setuptools、wheel 和辅助包，不登记漏洞例外。
-- 修复后的本地锁生成、锁漂移检查与定向测试通过；本地 Docker 构建在下载 `chromadb` wheel 时因 TLS record-layer 中断失败，属于外部下载瞬时故障，不能替代待执行的远程镜像复扫。
-
-## 待完成证据
-
-- GitHub Runner 上安装固定扫描器并取得实际 scanner version、非空 SPDX SBOM 和完整漏洞 JSON artifact。
-- 若门禁发现可修复 HIGH/CRITICAL，完成依赖/基础镜像升级或建立满足范围和期限要求的例外。
-- 远程十任务矩阵通过并回写 CI run。
+- 修复后的本地锁生成、锁漂移检查与定向测试通过；本地 Docker 构建曾在下载 `chromadb` wheel 时因 TLS record-layer 中断失败，属于外部下载瞬时故障。后续 CI #87 已在独立 GitHub Runner 完成构建、健康检查与复扫，因此未把该本地失败误判为安全结论。
+- 修复提交 `5bba02e` 的 [CI #87](https://github.com/xiaochongshanww/Portfolio/actions/runs/31299823123) 十项任务全部通过；固定 Trivy `0.73.0` 对健康运行镜像完成复扫，未使用任何漏洞例外。
+- `container-security-5bba02e...` artifact 已下载复核：scanner version 文件 16 bytes，SPDX JSON 355,560 bytes、176 个 package，完整漏洞 JSON 847,850 bytes、174 条发现。HIGH/CRITICAL 共 24 条，均无上游修复版本；策略阻断范围内的可修复 HIGH/CRITICAL 为 0。
 
 ## 结论边界
 
-当前不能把 I-033 标记为完成。已实现的本地策略只证明门禁配置结构完整；尚未证明扫描器能分析真实镜像，也没有当次漏洞数据库结果。无论最终是否为零发现，本记录都不证明零漏洞、许可证合规、镜像签名、发布者身份、内容授权或模型回答质量通过。
+I-033 的工程目标已完成：最终镜像清单、完整漏洞可见性、可修复高危阻断、时效化例外和扫描器漂移维护均有本地与远程证据。完整报告仍有 24 条当前无修复版本的 HIGH/CRITICAL，须由每周扫描持续跟踪；本结论不证明零漏洞、许可证合规、镜像签名、发布者身份、内容授权或模型回答质量通过。
