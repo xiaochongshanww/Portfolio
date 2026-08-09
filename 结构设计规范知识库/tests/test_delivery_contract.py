@@ -114,8 +114,9 @@ def test_repository_ci_covers_backend_frontend_and_container():
     assert "python scripts/lock_dependencies.py --check" in workflow
     assert "--require-hashes -r requirements-dev.txt" in workflow
     assert "Package portability (${{ matrix.source }} -> ${{ matrix.target }})" in workflow
-    assert "actions/upload-artifact@v4" in workflow
-    assert "actions/download-artifact@v4" in workflow
+    assert "actions/upload-artifact@" in workflow
+    assert "actions/download-artifact@" in workflow
+    assert "python scripts/validate_ci_actions.py" in workflow
     assert "--require-cross-platform" in workflow
     assert "python -m scripts.verify_runtime_package_cold_start" in workflow
     assert "python -m scripts.verify_runtime_package_recovery" in workflow

@@ -67,6 +67,14 @@ python scripts/lock_dependencies.py --write
 python scripts/lock_dependencies.py --check
 ```
 
+GitHub Actions 外部执行代码也属于依赖。提交 workflow 变更前必须验证所有外部 action 都固定到完整提交 SHA、保留可读版本注释，并达到项目核验的运行时代际：
+
+```bash
+python scripts/validate_ci_actions.py
+```
+
+`.github/dependabot.yml` 每周为这些固定引用提出分组更新；更新仍须人工审阅并通过完整 CI，不自动合并。
+
 提交配置示例变更前必须验证 dotenv 语法、重复键、敏感占位和应用启动配置：
 
 ```powershell

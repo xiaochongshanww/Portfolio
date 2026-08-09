@@ -308,6 +308,30 @@ def test_quality_preflight_contract_is_documented():
     assert checklist.is_file()
 
 
+def test_ci_action_supply_chain_contract_is_documented():
+    readme = Path("README.md").read_text(encoding="utf-8")
+    governance = Path("docs/文档治理规则.md").read_text(encoding="utf-8")
+    detailed_design = Path("docs/architecture/系统详细设计.md").read_text(
+        encoding="utf-8"
+    )
+    release_checklist = Path("docs/releases/发布检查单.md").read_text(
+        encoding="utf-8"
+    )
+    decision = Path("docs/adr/0018-CI外部Action采用不可变引用与自动维护.md")
+    checklist = Path("docs/architecture/CI外部Action供应链实施清单.md")
+    dependabot = Path("../.github/dependabot.yml")
+    command = "python scripts/validate_ci_actions.py"
+
+    assert command in readme
+    assert command in governance
+    assert command in release_checklist
+    assert "完整提交 SHA" in detailed_design
+    assert "不自动合并" in decision.read_text(encoding="utf-8")
+    assert decision.is_file()
+    assert checklist.is_file()
+    assert dependabot.is_file()
+
+
 def test_runtime_backup_and_disaster_recovery_contract_is_documented():
     readme = Path("README.md").read_text(encoding="utf-8")
     operations = Path("docs/operations/部署运行手册.md").read_text(encoding="utf-8")
