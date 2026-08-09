@@ -2,7 +2,6 @@ import json
 import os
 import subprocess
 import sys
-from pathlib import Path
 
 from src.pipeline.paths import PROJECT_ROOT, configured_project_path
 
@@ -12,7 +11,10 @@ def test_configured_project_path_resolves_default_relative_and_absolute(monkeypa
     assert configured_project_path("TEST_RUNTIME_PATH", "data") == (PROJECT_ROOT / "data").resolve()
 
     monkeypatch.setenv("TEST_RUNTIME_PATH", "runtime-data")
-    assert configured_project_path("TEST_RUNTIME_PATH", "ignored") == (PROJECT_ROOT / "runtime-data").resolve()
+    assert (
+        configured_project_path("TEST_RUNTIME_PATH", "ignored")
+        == (PROJECT_ROOT / "runtime-data").resolve()
+    )
 
     absolute = tmp_path / "absolute-data"
     monkeypatch.setenv("TEST_RUNTIME_PATH", str(absolute))

@@ -1,3 +1,4 @@
 -r requirements-runtime.in
 
 pytest>=8.4,<9
+ruff==0.16.2

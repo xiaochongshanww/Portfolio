@@ -1,7 +1,6 @@
 import json
 from pathlib import Path
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY_ROOT = PROJECT_ROOT.parent
 
@@ -9,15 +8,11 @@ REPOSITORY_ROOT = PROJECT_ROOT.parent
 def test_runtime_image_bundles_console_and_runtime_assets():
     dockerfile = (PROJECT_ROOT / "Dockerfile").read_text(encoding="utf-8")
     dockerignore = (PROJECT_ROOT / ".dockerignore").read_text(encoding="utf-8")
-    runtime_requirements = (PROJECT_ROOT / "requirements-runtime.txt").read_text(
-        encoding="utf-8"
-    )
+    runtime_requirements = (PROJECT_ROOT / "requirements-runtime.txt").read_text(encoding="utf-8")
     frontend_package = json.loads(
         (PROJECT_ROOT / "frontend" / "package.json").read_text(encoding="utf-8")
     )
-    frontend_npmrc = (PROJECT_ROOT / "frontend" / ".npmrc").read_text(
-        encoding="utf-8"
-    )
+    frontend_npmrc = (PROJECT_ROOT / "frontend" / ".npmrc").read_text(encoding="utf-8")
 
     assert "FROM node:22-alpine AS frontend-builder" in dockerfile
     assert "RUN npm install --global npm@10.9.8" in dockerfile
@@ -41,9 +36,7 @@ def test_runtime_and_development_dependencies_are_locked():
         requirements = [
             line.strip().removesuffix("\\").strip()
             for line in lines
-            if line.strip()
-            and not line[0].isspace()
-            and not line.lstrip().startswith(("#", "-"))
+            if line.strip() and not line[0].isspace() and not line.lstrip().startswith(("#", "-"))
         ]
         hashes = [line.strip() for line in lines if line.strip().startswith("--hash=sha256:")]
         assert requirements
@@ -105,9 +98,9 @@ def test_compose_persists_runtime_data_and_uses_v1_backend():
 
 
 def test_repository_ci_covers_backend_frontend_and_container():
-    workflow = (
-        REPOSITORY_ROOT / ".github" / "workflows" / "structural-spec-kb-ci.yml"
-    ).read_text(encoding="utf-8")
+    workflow = (REPOSITORY_ROOT / ".github" / "workflows" / "structural-spec-kb-ci.yml").read_text(
+        encoding="utf-8"
+    )
 
     assert "python -m pytest -q" in workflow
     assert "os: [ubuntu-latest, windows-latest]" in workflow
@@ -129,7 +122,7 @@ def test_repository_ci_covers_backend_frontend_and_container():
     assert "docker build --tag structural-spec-kb:ci-openwebui ." in workflow
     assert "docker compose up --no-build --detach open-webui" in workflow
     assert "http://127.0.0.1:3000/api/v1/auths/signin" in workflow
-    assert 'Authorization: Bearer $OPENWEBUI_TOKEN' in workflow
+    assert "Authorization: Bearer $OPENWEBUI_TOKEN" in workflow
     assert "http://127.0.0.1:3000/api/models" in workflow
     assert "ci-openwebui-connection-key" in workflow
     assert "/static/index.html" in workflow

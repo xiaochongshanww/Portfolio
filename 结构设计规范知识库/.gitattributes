@@ -2,3 +2,5 @@
 /docs/quality/质量证据状态.json text eol=lf
 /docs/quality/质量证据历史/*.json text eol=lf
 /docs/quality/质量证据历史索引.json text eol=lf
+*.py text eol=lf
+pyproject.toml text eol=lf

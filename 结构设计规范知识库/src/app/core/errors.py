@@ -19,8 +19,16 @@ class ErrorCode(StrEnum):
     INTERNAL_ERROR = "INTERNAL_ERROR"
 
 
-def error_payload(code: ErrorCode | str, message: str, request_id: str | None = None) -> dict[str, Any]:
-    return {"error": {"code": str(code), "message": message, "request_id": request_id or get_request_id()}}
+def error_payload(
+    code: ErrorCode | str, message: str, request_id: str | None = None
+) -> dict[str, Any]:
+    return {
+        "error": {
+            "code": str(code),
+            "message": message,
+            "request_id": request_id or get_request_id(),
+        }
+    }
 
 
 def error_response(status_code: int, code: ErrorCode | str, message: str):

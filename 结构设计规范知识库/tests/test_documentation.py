@@ -2,7 +2,6 @@ import json
 import re
 from pathlib import Path
 
-
 MARKDOWN_LINK_RE = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
 ROOT_MARKDOWN_ALLOWLIST = {Path("README.md")}
 REQUIRED_METADATA = (
@@ -60,9 +59,7 @@ def test_documentation_files_have_governance_metadata():
     missing: list[str] = []
 
     for markdown_file in Path("docs").rglob("*.md"):
-        header = "\n".join(
-            markdown_file.read_text(encoding="utf-8").splitlines()[:30]
-        )
+        header = "\n".join(markdown_file.read_text(encoding="utf-8").splitlines()[:30])
         absent = [field for field in REQUIRED_METADATA if field not in header]
         if not CHECK_METADATA_RE.search(header):
             absent.append("代码/流程核对：")
@@ -132,19 +129,12 @@ def test_quality_verification_assets_and_credentials_are_documented():
 def test_managed_quality_api_lifecycle_is_documented():
     readme = Path("README.md").read_text(encoding="utf-8")
     config_reference = Path("docs/reference/配置参考.md").read_text(encoding="utf-8")
-    operations = Path("docs/operations/知识库维护与质量运营.md").read_text(
-        encoding="utf-8"
-    )
-    detailed_design = Path("docs/architecture/系统详细设计.md").read_text(
-        encoding="utf-8"
-    )
+    operations = Path("docs/operations/知识库维护与质量运营.md").read_text(encoding="utf-8")
+    detailed_design = Path("docs/architecture/系统详细设计.md").read_text(encoding="utf-8")
     decision = Path("docs/adr/0015-无人值守质量验证采用受控本地API生命周期.md")
     checklist = Path("docs/architecture/质量验证托管API生命周期实施清单.md")
 
-    command = (
-        "python scripts/verify_quality.py --manage-api "
-        "--api-base http://127.0.0.1:8017"
-    )
+    command = "python scripts/verify_quality.py --manage-api --api-base http://127.0.0.1:8017"
     assert command in readme
     assert "--api-start-timeout-seconds" in config_reference
     assert "managed_quality_api_latest.log" in operations
@@ -158,12 +148,8 @@ def test_configuration_example_validation_is_documented():
     config_reference = Path("docs/reference/配置参考.md").read_text(encoding="utf-8")
     operations = Path("docs/operations/部署运行手册.md").read_text(encoding="utf-8")
     governance = Path("docs/文档治理规则.md").read_text(encoding="utf-8")
-    detailed_design = Path("docs/architecture/系统详细设计.md").read_text(
-        encoding="utf-8"
-    )
-    release_checklist = Path("docs/releases/发布检查单.md").read_text(
-        encoding="utf-8"
-    )
+    detailed_design = Path("docs/architecture/系统详细设计.md").read_text(encoding="utf-8")
+    release_checklist = Path("docs/releases/发布检查单.md").read_text(encoding="utf-8")
     implementation = Path("docs/architecture/配置示例可执行验证实施清单.md")
     command = "python scripts/validate_configuration_example.py"
     compose_command = "docker compose --env-file .env.example config --quiet"
@@ -178,18 +164,10 @@ def test_configuration_example_validation_is_documented():
 
 
 def test_active_architecture_and_release_entry_points_are_current():
-    overview = Path("docs/architecture/系统架构概览.md").read_text(
-        encoding="utf-8"
-    )
-    detailed_design = Path("docs/architecture/系统详细设计.md").read_text(
-        encoding="utf-8"
-    )
-    deployment = Path("docs/operations/部署运行手册.md").read_text(
-        encoding="utf-8"
-    )
-    release_checklist = Path("docs/releases/发布检查单.md").read_text(
-        encoding="utf-8"
-    )
+    overview = Path("docs/architecture/系统架构概览.md").read_text(encoding="utf-8")
+    detailed_design = Path("docs/architecture/系统详细设计.md").read_text(encoding="utf-8")
+    deployment = Path("docs/operations/部署运行手册.md").read_text(encoding="utf-8")
+    release_checklist = Path("docs/releases/发布检查单.md").read_text(encoding="utf-8")
     decisions = sorted(Path("docs/adr").glob("[0-9][0-9][0-9][0-9]-*.md"))
 
     assert decisions
@@ -200,36 +178,22 @@ def test_active_architecture_and_release_entry_points_are_current():
     assert "openwebui-preflight" in overview
 
     managed_command = (
-        "python scripts/verify_quality.py --manage-api "
-        "--api-base http://127.0.0.1:8017"
+        "python scripts/verify_quality.py --manage-api --api-base http://127.0.0.1:8017"
     )
     assert managed_command in deployment
     assert managed_command in release_checklist
 
 
 def test_rag_system_card_matches_latest_quality_evidence():
-    system_card = Path("docs/quality/检索增强生成系统卡.md").read_text(
-        encoding="utf-8"
-    )
-    snapshot = json.loads(
-        Path("docs/quality/质量证据状态.json").read_text(encoding="utf-8")
-    )
+    system_card = Path("docs/quality/检索增强生成系统卡.md").read_text(encoding="utf-8")
+    snapshot = json.loads(Path("docs/quality/质量证据状态.json").read_text(encoding="utf-8"))
     verification = snapshot["reports"]["verification"]
     quality_gate = snapshot["reports"]["quality_gate"]
 
-    assert (
-        f"`verification.generated_at={verification['generated_at']}`"
-        in system_card
-    )
-    assert (
-        f"`verification.passed={str(verification['passed']).lower()}`"
-        in system_card
-    )
+    assert f"`verification.generated_at={verification['generated_at']}`" in system_card
+    assert f"`verification.passed={str(verification['passed']).lower()}`" in system_card
     assert f"`quality_gate.generated_at={quality_gate['generated_at']}`" in system_card
-    assert (
-        f"`quality_gate.passed={str(quality_gate['passed']).lower()}`"
-        in system_card
-    )
+    assert f"`quality_gate.passed={str(quality_gate['passed']).lower()}`" in system_card
     failed_checks = ",".join(snapshot["quality_gate_failed_checks"])
     assert f"`quality_gate.failed_checks={failed_checks}`" in system_card
 
@@ -252,18 +216,10 @@ def test_rag_system_card_matches_latest_quality_evidence():
 
 def test_quality_evidence_history_contract_is_documented():
     readme = Path("README.md").read_text(encoding="utf-8")
-    system_card = Path("docs/quality/检索增强生成系统卡.md").read_text(
-        encoding="utf-8"
-    )
-    detailed_design = Path("docs/architecture/系统详细设计.md").read_text(
-        encoding="utf-8"
-    )
-    operations = Path("docs/operations/知识库维护与质量运营.md").read_text(
-        encoding="utf-8"
-    )
-    release_checklist = Path("docs/releases/发布检查单.md").read_text(
-        encoding="utf-8"
-    )
+    system_card = Path("docs/quality/检索增强生成系统卡.md").read_text(encoding="utf-8")
+    detailed_design = Path("docs/architecture/系统详细设计.md").read_text(encoding="utf-8")
+    operations = Path("docs/operations/知识库维护与质量运营.md").read_text(encoding="utf-8")
+    release_checklist = Path("docs/releases/发布检查单.md").read_text(encoding="utf-8")
     decision = Path("docs/adr/0016-脱敏质量证据采用不可变历史归档.md")
     checklist = Path("docs/architecture/质量证据历史归档实施清单.md")
     history_index = Path("docs/quality/质量证据历史索引.json")
@@ -282,15 +238,9 @@ def test_quality_evidence_history_contract_is_documented():
 def test_quality_preflight_contract_is_documented():
     readme = Path("README.md").read_text(encoding="utf-8")
     config_reference = Path("docs/reference/配置参考.md").read_text(encoding="utf-8")
-    operations = Path("docs/operations/知识库维护与质量运营.md").read_text(
-        encoding="utf-8"
-    )
-    detailed_design = Path("docs/architecture/系统详细设计.md").read_text(
-        encoding="utf-8"
-    )
-    release_checklist = Path("docs/releases/发布检查单.md").read_text(
-        encoding="utf-8"
-    )
+    operations = Path("docs/operations/知识库维护与质量运营.md").read_text(encoding="utf-8")
+    detailed_design = Path("docs/architecture/系统详细设计.md").read_text(encoding="utf-8")
+    release_checklist = Path("docs/releases/发布检查单.md").read_text(encoding="utf-8")
     decision = Path("docs/adr/0017-质量验证采用无副作用前置条件预检.md")
     checklist = Path("docs/architecture/质量验证无副作用预检实施清单.md")
     command = (
@@ -311,12 +261,8 @@ def test_quality_preflight_contract_is_documented():
 def test_ci_action_supply_chain_contract_is_documented():
     readme = Path("README.md").read_text(encoding="utf-8")
     governance = Path("docs/文档治理规则.md").read_text(encoding="utf-8")
-    detailed_design = Path("docs/architecture/系统详细设计.md").read_text(
-        encoding="utf-8"
-    )
-    release_checklist = Path("docs/releases/发布检查单.md").read_text(
-        encoding="utf-8"
-    )
+    detailed_design = Path("docs/architecture/系统详细设计.md").read_text(encoding="utf-8")
+    release_checklist = Path("docs/releases/发布检查单.md").read_text(encoding="utf-8")
     decision = Path("docs/adr/0018-CI外部Action采用不可变引用与自动维护.md")
     checklist = Path("docs/architecture/CI外部Action供应链实施清单.md")
     dependabot = Path("../.github/dependabot.yml")

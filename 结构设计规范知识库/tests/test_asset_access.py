@@ -6,14 +6,15 @@ from urllib.parse import parse_qs, urlsplit
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from starlette.requests import Request
-
 from src.app.api import images
 from src.app.core import content_access, security
 from src.app.core.middleware import ServiceMiddleware
+from starlette.requests import Request
 
 
-def _request(path: str, *, query: str = "", host: str = "127.0.0.1", headers: dict | None = None) -> Request:
+def _request(
+    path: str, *, query: str = "", host: str = "127.0.0.1", headers: dict | None = None
+) -> Request:
     raw_headers = [
         (str(key).lower().encode("latin-1"), str(value).encode("latin-1"))
         for key, value in (headers or {}).items()
@@ -57,19 +58,29 @@ def _write_policy(path: Path) -> None:
     )
 
 
-def test_source_access_policy_matches_source_and_image_and_fails_closed(tmp_path: Path, monkeypatch):
+def test_source_access_policy_matches_source_and_image_and_fails_closed(
+    tmp_path: Path, monkeypatch
+):
     policy = tmp_path / "specs.json"
     _write_policy(policy)
     monkeypatch.setattr(content_access, "settings", SimpleNamespace(source_metadata_path=policy))
 
-    assert content_access.asset_access_scope("image", "GB 50009-2012_荷载规范_mineru_001.png") == "public"
-    assert content_access.asset_access_scope("page_image", "GB 50009-2012_荷载规范.pdf") == "disabled"
+    assert (
+        content_access.asset_access_scope("image", "GB 50009-2012_荷载规范_mineru_001.png")
+        == "public"
+    )
+    assert (
+        content_access.asset_access_scope("page_image", "GB 50009-2012_荷载规范.pdf") == "disabled"
+    )
     assert content_access.asset_access_scope("image", "unknown.png") == "authenticated"
 
     payload = json.loads(policy.read_text(encoding="utf-8"))
     payload["documents"][0]["image_access"] = "invalid"
     policy.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
-    assert content_access.asset_access_scope("image", "GB 50009-2012_荷载规范_mineru_001.png") == "disabled"
+    assert (
+        content_access.asset_access_scope("image", "GB 50009-2012_荷载规范_mineru_001.png")
+        == "disabled"
+    )
 
 
 def test_signed_asset_url_rejects_expiry_and_tampering(monkeypatch):
@@ -84,13 +95,27 @@ def test_signed_asset_url_rejects_expiry_and_tampering(monkeypatch):
     signed = security.sign_asset_url(path, now=1000)
     parsed = urlsplit(signed)
 
-    assert security.verify_signed_asset_request(_request(parsed.path, query=parsed.query), now=1000) is True
-    assert security.verify_signed_asset_request(_request(parsed.path, query=parsed.query), now=1301) is False
-    assert security.verify_signed_asset_request(_request("/images/other.png", query=parsed.query), now=1000) is False
+    assert (
+        security.verify_signed_asset_request(_request(parsed.path, query=parsed.query), now=1000)
+        is True
+    )
+    assert (
+        security.verify_signed_asset_request(_request(parsed.path, query=parsed.query), now=1301)
+        is False
+    )
+    assert (
+        security.verify_signed_asset_request(
+            _request("/images/other.png", query=parsed.query), now=1000
+        )
+        is False
+    )
 
     query = parse_qs(parsed.query)
     too_long = f"expires=2000&signature={query['signature'][0]}"
-    assert security.verify_signed_asset_request(_request(parsed.path, query=too_long), now=1000) is False
+    assert (
+        security.verify_signed_asset_request(_request(parsed.path, query=too_long), now=1000)
+        is False
+    )
 
 
 def test_middleware_authorizes_api_key_or_signed_asset(monkeypatch):
@@ -105,21 +130,30 @@ def test_middleware_authorizes_api_key_or_signed_asset(monkeypatch):
     signed = security.sign_asset_url("/images/evidence.png")
     parsed = urlsplit(signed)
 
-    assert security.is_authorized(_request(parsed.path, headers={"authorization": "Bearer api-key"})) is True
+    assert (
+        security.is_authorized(_request(parsed.path, headers={"authorization": "Bearer api-key"}))
+        is True
+    )
     assert security.is_authorized(_request(parsed.path, query=parsed.query)) is True
     assert security.is_authorized(_request(parsed.path)) is False
 
 
-def test_image_route_blocks_remote_authenticated_source_without_global_auth(tmp_path: Path, monkeypatch):
+def test_image_route_blocks_remote_authenticated_source_without_global_auth(
+    tmp_path: Path, monkeypatch
+):
     monkeypatch.setattr(images, "asset_access_scope", lambda *_: "authenticated")
     monkeypatch.setattr(images, "settings", SimpleNamespace(img_dir=tmp_path))
     monkeypatch.setattr(
         security,
         "settings",
-        SimpleNamespace(api_auth_enabled=False, api_keys=[], asset_signing_key="", asset_url_ttl_seconds=300),
+        SimpleNamespace(
+            api_auth_enabled=False, api_keys=[], asset_signing_key="", asset_url_ttl_seconds=300
+        ),
     )
 
-    response = asyncio.run(images.serve_image("preview.png", _request("/images/preview.png", host="203.0.113.8")))
+    response = asyncio.run(
+        images.serve_image("preview.png", _request("/images/preview.png", host="203.0.113.8"))
+    )
 
     assert response.status_code == 403
 
@@ -146,7 +180,11 @@ def test_asset_access_through_real_middleware_and_router(tmp_path: Path, monkeyp
         json.dumps(
             {
                 "documents": [
-                    {"source_file": "public_doc.pdf", "image_access": "public", "page_image_access": "public"},
+                    {
+                        "source_file": "public_doc.pdf",
+                        "image_access": "public",
+                        "page_image_access": "public",
+                    },
                     {
                         "source_file": "protected_doc.pdf",
                         "image_access": "authenticated",
@@ -180,13 +218,19 @@ def test_asset_access_through_real_middleware_and_router(tmp_path: Path, monkeyp
 
     assert client.get("/images/public_doc_preview.png").status_code == 200
     assert client.get("/images/protected_doc_preview.png").status_code == 401
-    assert client.get(
-        "/images/protected_doc_preview.png",
-        headers={"Authorization": "Bearer api-key"},
-    ).status_code == 200
+    assert (
+        client.get(
+            "/images/protected_doc_preview.png",
+            headers={"Authorization": "Bearer api-key"},
+        ).status_code
+        == 200
+    )
     signed = security.sign_asset_url("/images/protected_doc_preview.png")
     assert client.get(signed).status_code == 200
-    assert client.get(
-        "/images/disabled_doc_preview.png",
-        headers={"Authorization": "Bearer api-key"},
-    ).status_code == 403
+    assert (
+        client.get(
+            "/images/disabled_doc_preview.png",
+            headers={"Authorization": "Bearer api-key"},
+        ).status_code
+        == 403
+    )

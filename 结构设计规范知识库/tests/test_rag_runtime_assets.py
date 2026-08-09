@@ -66,7 +66,9 @@ def test_authenticated_page_image_url_is_signed(monkeypatch):
     )()
     monkeypatch.setattr(service, "settings", configured)
     monkeypatch.setattr(service, "asset_access_scope", lambda *_: "authenticated")
-    monkeypatch.setattr(service, "sign_asset_url", lambda path: f"{path}?expires=123&signature=signed")
+    monkeypatch.setattr(
+        service, "sign_asset_url", lambda path: f"{path}?expires=123&signature=signed"
+    )
 
     url = service._page_image_url("GB 50009-2012_荷载规范.pdf", 30)
 

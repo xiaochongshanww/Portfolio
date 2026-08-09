@@ -1,7 +1,7 @@
-from collections import Counter
-from datetime import datetime, timezone
-from threading import Lock
 import time
+from collections import Counter
+from datetime import UTC, datetime
+from threading import Lock
 
 
 def _route_group(path: str) -> str:
@@ -26,7 +26,7 @@ class Metrics:
     def __init__(self) -> None:
         self._lock = Lock()
         self._started_monotonic = time.monotonic()
-        self.started_at = datetime.now(timezone.utc).isoformat()
+        self.started_at = datetime.now(UTC).isoformat()
         self.requests_total = 0
         self.responses_total = 0
         self.requests_in_flight = 0
@@ -70,7 +70,7 @@ class Metrics:
             self.errors_total += 1
             normalized = str(code)
             self.last_error = normalized
-            self.last_error_at = datetime.now(timezone.utc).isoformat()
+            self.last_error_at = datetime.now(UTC).isoformat()
             self.errors_by_code[normalized] += 1
             if path.endswith("/chat/completions"):
                 self.chat_errors_total += 1
@@ -81,7 +81,11 @@ class Metrics:
 
     def snapshot(self) -> dict:
         with self._lock:
-            average = round(self._duration_total_ms / self._duration_count, 2) if self._duration_count else 0
+            average = (
+                round(self._duration_total_ms / self._duration_count, 2)
+                if self._duration_count
+                else 0
+            )
             return {
                 "started_at": self.started_at,
                 "uptime_seconds": int(time.monotonic() - self._started_monotonic),
@@ -107,4 +111,3 @@ class Metrics:
 
 
 metrics = Metrics()
-

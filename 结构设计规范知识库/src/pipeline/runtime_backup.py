@@ -9,13 +9,12 @@ import stat
 import tempfile
 import uuid
 import zipfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from getpass import getuser
 from pathlib import Path, PurePosixPath
 from typing import Any
 
 from .paths import DATA_DIR, PROJECT_ROOT
-
 
 BACKUP_FORMAT = "structural-spec-runtime-backup"
 BACKUP_SCHEMA_VERSION = 1
@@ -32,7 +31,7 @@ class RuntimeBackupError(RuntimeError):
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _actor(explicit_actor: str) -> str:

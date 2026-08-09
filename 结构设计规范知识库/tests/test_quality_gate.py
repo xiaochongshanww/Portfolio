@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from src.quality.gate import evaluate_quality_gate, render_quality_gate_markdown, summarize_jobs
@@ -11,7 +11,7 @@ def _write_json(path: Path, payload: dict):
 
 
 def test_job_summary_treats_later_success_as_resolution():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     jobs = [
         {
             "job_id": "old",
@@ -34,7 +34,7 @@ def test_job_summary_treats_later_success_as_resolution():
 
 
 def test_job_summary_detects_unresolved_and_stale_jobs():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     jobs = [
         {
             "job_id": "failed",
@@ -91,7 +91,7 @@ def test_quality_gate_passes_matching_artifacts(tmp_path: Path):
     )
     provenance = {
         "ok": True,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "data_version_hash": data_version,
     }
     _write_json(
@@ -150,7 +150,7 @@ def test_quality_gate_passes_matching_artifacts(tmp_path: Path):
     assert "结论：通过" in render_quality_gate_markdown(result)
 
     stale_regular = json.loads(regular.read_text(encoding="utf-8"))
-    stale_regular["generated_at"] = (datetime.now(timezone.utc) - timedelta(days=8)).isoformat()
+    stale_regular["generated_at"] = (datetime.now(UTC) - timedelta(days=8)).isoformat()
     _write_json(regular, stale_regular)
     stale_result = evaluate_quality_gate(
         manifest_path=manifest,

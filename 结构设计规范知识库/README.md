@@ -75,6 +75,15 @@ python scripts/validate_ci_actions.py
 
 `.github/dependabot.yml` 每周为这些固定引用提出分组更新；更新仍须人工审阅并通过完整 CI，不自动合并。
 
+开发锁固定 Ruff 版本，Python 修改在提交前必须通过同一组静态检查和格式检查：
+
+```bash
+python -m ruff check src scripts tests
+python -m ruff format --check src scripts tests
+```
+
+需要格式化时执行 `python -m ruff format src scripts tests`，随后重新运行两项只读检查。规则和行尾契约集中在 `pyproject.toml` 与 `.gitattributes`，不要在单个编辑器中另建冲突配置。
+
 提交配置示例变更前必须验证 dotenv 语法、重复键、敏感占位和应用启动配置：
 
 ```powershell
@@ -492,6 +501,7 @@ GET /admin/elements/{doc}/{element_index}
 ├── tests/               # 自动化测试
 ├── README.md            # 快速入口
 ├── dependency-lock.json # 锁生成器、Python 版本与时间截点契约
+├── pyproject.toml        # Ruff 静态检查与格式契约
 ├── requirements-tools.txt   # 固定版本的锁生成工具
 ├── requirements-runtime.in  # 轻量问答运行直接依赖
 ├── requirements-runtime.txt # 轻量问答运行精确锁

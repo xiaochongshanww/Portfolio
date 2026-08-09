@@ -4,11 +4,10 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
-from src.app.api import health
 from src.app.admin.jobs import JobManager
 from src.app.admin.models import Job
 from src.app.admin.storage import JobStore
+from src.app.api import health
 from src.app.core.logging import ContextTextFormatter, JsonFormatter
 from src.app.core.middleware import ServiceMiddleware
 from src.app.core.request_context import (
@@ -118,7 +117,9 @@ def test_job_manager_propagates_and_restores_request_context(tmp_path: Path):
     observed_request_ids = []
     job = Job(type="audit", request_id="request-789")
 
-    manager._run(job, lambda _job, _store: observed_request_ids.append(current_request_id()) or {"ok": True})
+    manager._run(
+        job, lambda _job, _store: observed_request_ids.append(current_request_id()) or {"ok": True}
+    )
 
     assert observed_request_ids == ["request-789"]
     assert job.status == "succeeded"

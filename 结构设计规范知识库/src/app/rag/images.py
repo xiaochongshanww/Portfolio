@@ -2,10 +2,11 @@ import base64
 import mimetypes
 from pathlib import Path
 
-from ..core.config import settings
 from src.pipeline.active_db import active_images_dir
 from src.pipeline.audit.multimodal import find_source_pdf, render_pdf_pages
 from src.pipeline.paths import AUDIT_DIR, RAW_DIR
+
+from ..core.config import settings
 
 
 def _data_url(image_path: Path) -> str:

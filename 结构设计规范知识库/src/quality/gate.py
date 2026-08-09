@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from src.evaluation.runner import DEFAULT_EVAL_PATH, STRUCTURED_EVAL_PATH
 from src.evaluation.answer_runner import ANSWER_EVAL_PATH
+from src.evaluation.runner import DEFAULT_EVAL_PATH, STRUCTURED_EVAL_PATH
 from src.pipeline.paths import ACTIVE_DB_PATH, AUDIT_DIR, DATA_DIR, MANIFEST_PATH
-
 
 REGULAR_REPORT_PATH = AUDIT_DIR / "reports" / "evaluation_latest.json"
 STRUCTURED_REPORT_PATH = AUDIT_DIR / "reports" / "evaluation_structured_latest.json"
@@ -40,8 +39,8 @@ def _parse_time(value: Any) -> datetime | None:
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def _load_jobs(jobs_dir: Path = DATA_DIR / "jobs") -> list[dict[str, Any]]:
@@ -60,12 +59,14 @@ def summarize_jobs(
     now: datetime | None = None,
     stale_after: timedelta = timedelta(hours=2),
 ) -> dict[str, Any]:
-    now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    now = (now or datetime.now(UTC)).astimezone(UTC)
     historical_failures = [job for job in jobs if job.get("status") == "failed"]
     latest_by_type: dict[str, dict[str, Any]] = {}
     for job in jobs:
         job_type = str(job.get("type") or "unknown")
-        timestamp = _parse_time(job.get("finished_at") or job.get("started_at") or job.get("created_at"))
+        timestamp = _parse_time(
+            job.get("finished_at") or job.get("started_at") or job.get("created_at")
+        )
         current = latest_by_type.get(job_type)
         current_time = _parse_time(
             (current or {}).get("finished_at")
@@ -74,19 +75,13 @@ def summarize_jobs(
         )
         if current is None or (timestamp and (current_time is None or timestamp > current_time)):
             latest_by_type[job_type] = job
-    unresolved = [
-        job
-        for job in latest_by_type.values()
-        if job.get("status") == "failed"
-    ]
+    unresolved = [job for job in latest_by_type.values() if job.get("status") == "failed"]
     stale = []
     for job in jobs:
         if job.get("status") not in {"queued", "running"}:
             continue
         started = _parse_time(
-            job.get("progress_at")
-            or job.get("started_at")
-            or job.get("created_at")
+            job.get("progress_at") or job.get("started_at") or job.get("created_at")
         )
         if started and now - started > stale_after:
             stale.append(job)
@@ -121,7 +116,7 @@ def evaluate_quality_gate(
     max_report_age: timedelta = DEFAULT_REPORT_MAX_AGE,
     job_stale_after: timedelta = timedelta(hours=2),
 ) -> dict[str, Any]:
-    gate_time = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    gate_time = (now or datetime.now(UTC)).astimezone(UTC)
     if max_report_age <= timedelta(0):
         raise ValueError("max_report_age 必须大于 0")
     if job_stale_after <= timedelta(0):
@@ -153,13 +148,20 @@ def evaluate_quality_gate(
             }
         )
 
-    check("manifest", bool(active_manifest), "活动版本 manifest 可读取" if active_manifest else "缺少活动版本 manifest")
+    check(
+        "manifest",
+        bool(active_manifest),
+        "活动版本 manifest 可读取" if active_manifest else "缺少活动版本 manifest",
+    )
     check(
         "knowledge_base",
-        int(active_manifest.get("document_count", 0)) > 0 and int(active_manifest.get("chunk_count", 0)) > 0,
+        int(active_manifest.get("document_count", 0)) > 0
+        and int(active_manifest.get("chunk_count", 0)) > 0,
         f"知识库包含 {active_manifest.get('document_count', 0)} 份文档、{active_manifest.get('chunk_count', 0)} 个 chunk",
     )
-    missing_required = int(active_manifest.get("artifact_status", {}).get("missing_required_count", 0))
+    missing_required = int(
+        active_manifest.get("artifact_status", {}).get("missing_required_count", 0)
+    )
     check("required_artifacts", missing_required == 0, f"缺失必需产物 {missing_required} 项")
     high_risk = int(active_manifest.get("audit_status", {}).get("high_risk_count", 0))
     check("high_risk_audit", high_risk == 0, f"高风险审计项 {high_risk} 项")
@@ -229,7 +231,9 @@ def evaluate_quality_gate(
 
     data_version = manifest_version
 
-    def report_is_fresh(report: dict[str, Any], evaluation_path: Path) -> tuple[bool, datetime | None]:
+    def report_is_fresh(
+        report: dict[str, Any], evaluation_path: Path
+    ) -> tuple[bool, datetime | None]:
         generated_at = _parse_time(report.get("generated_at"))
         age = gate_time - generated_at if generated_at else None
         fresh = (
@@ -301,9 +305,7 @@ def render_quality_gate_markdown(result: dict[str, Any]) -> str:
         "| --- | --- | --- |",
     ]
     for item in result.get("checks", []):
-        lines.append(
-            f"| `{item.get('name')}` | {item.get('status')} | {item.get('message', '')} |"
-        )
+        lines.append(f"| `{item.get('name')}` | {item.get('status')} | {item.get('message', '')} |")
     jobs = result.get("jobs", {})
     lines.extend(
         [

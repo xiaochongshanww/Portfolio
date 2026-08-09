@@ -7,8 +7,14 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.evaluation.runner import DEFAULT_EVAL_PATH, STRUCTURED_EVAL_PATH, load_cases
 from src.evaluation.answer_runner import ANSWER_EVAL_PATH, load_answer_cases
+from src.evaluation.runner import DEFAULT_EVAL_PATH, STRUCTURED_EVAL_PATH, load_cases
+from src.pipeline.active_db import (
+    active_processed_dir,
+    read_active_db,
+    read_active_manifest,
+    resolve_pointer_path,
+)
 from src.pipeline.audit.corrections import (
     list_candidate_files,
     promote_approved_candidates,
@@ -30,7 +36,6 @@ from src.pipeline.audit.manual_structuring import (
 )
 from src.pipeline.audit.multimodal import find_source_pdf, render_pdf_pages
 from src.pipeline.audit.structuring_ai import read_structuring_suggestion
-from src.pipeline.active_db import active_processed_dir, read_active_db, read_active_manifest, resolve_pointer_path
 from src.pipeline.paths import (
     ACTIVE_DB_PATH,
     AUDIT_DIR,
@@ -50,19 +55,19 @@ from src.quality import evaluate_quality_gate
 
 from ..admin.job_diagnostics import diagnose_job, diagnose_jobs
 from ..admin.jobs import job_manager
-from ..core.config import settings
 from ..admin.storage import job_store
 from ..admin.workflows import (
-    audit_workflow,
     answer_evaluate_workflow,
+    audit_workflow,
     cleanup_versions_workflow,
     dry_run_workflow,
     evaluate_workflow,
     rebuild_workflow,
     review_workflow,
-    structuring_suggestion_workflow,
     structuring_suggestion_batch_workflow,
+    structuring_suggestion_workflow,
 )
+from ..core.config import settings
 from ..retrieval.hybrid_search import retrieval_state
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -229,7 +234,9 @@ def admin_version_cleanup_plan():
 
 @router.post("/jobs/cleanup-versions")
 async def start_version_cleanup(request: VersionCleanupRequest):
-    return job_manager.submit("cleanup_versions", request.dict(), cleanup_versions_workflow).to_dict()
+    return job_manager.submit(
+        "cleanup_versions", request.dict(), cleanup_versions_workflow
+    ).to_dict()
 
 
 @router.post("/jobs/audit")
@@ -249,7 +256,9 @@ async def start_evaluate(request: EvaluateRequest):
 
 @router.post("/jobs/evaluate-answers")
 async def start_answer_evaluate(request: AnswerEvaluateRequest):
-    return job_manager.submit("answer_evaluate", request.model_dump(), answer_evaluate_workflow).to_dict()
+    return job_manager.submit(
+        "answer_evaluate", request.model_dump(), answer_evaluate_workflow
+    ).to_dict()
 
 
 @router.get("/jobs")
@@ -291,10 +300,16 @@ async def admin_evaluation_status():
     latest = json.loads(latest_path.read_text(encoding="utf-8")) if latest_path.exists() else None
     structured_cases = load_cases(STRUCTURED_EVAL_PATH)
     structured_path = Path("data/audit/reports/evaluation_structured_latest.json")
-    structured_latest = json.loads(structured_path.read_text(encoding="utf-8")) if structured_path.exists() else None
+    structured_latest = (
+        json.loads(structured_path.read_text(encoding="utf-8"))
+        if structured_path.exists()
+        else None
+    )
     answer_cases = load_answer_cases(ANSWER_EVAL_PATH)
     answer_path = Path("data/audit/reports/evaluation_answer_latest.json")
-    answer_latest = json.loads(answer_path.read_text(encoding="utf-8")) if answer_path.exists() else None
+    answer_latest = (
+        json.loads(answer_path.read_text(encoding="utf-8")) if answer_path.exists() else None
+    )
     return {
         "case_count": len(cases),
         "by_type": by_type,
@@ -335,12 +350,16 @@ async def admin_quality_status():
     structured_path = AUDIT_DIR / "reports" / "evaluation_structured_latest.json"
     answer_path = AUDIT_DIR / "reports" / "evaluation_answer_latest.json"
     latest = json.loads(latest_path.read_text(encoding="utf-8")) if latest_path.exists() else {}
-    structured = json.loads(structured_path.read_text(encoding="utf-8")) if structured_path.exists() else {}
+    structured = (
+        json.loads(structured_path.read_text(encoding="utf-8")) if structured_path.exists() else {}
+    )
     answer = json.loads(answer_path.read_text(encoding="utf-8")) if answer_path.exists() else {}
     active_db = read_active_db()
     candidate_gate_value = str(active_db.get("candidate_gate_report") or "")
     candidate_gate_path = (
-        resolve_pointer_path(candidate_gate_value, ACTIVE_DB_PATH, AUDIT_DIR / "missing-candidate-gate.json")
+        resolve_pointer_path(
+            candidate_gate_value, ACTIVE_DB_PATH, AUDIT_DIR / "missing-candidate-gate.json"
+        )
         if candidate_gate_value
         else None
     )
@@ -353,7 +372,9 @@ async def admin_quality_status():
         "logical_task_count": sum(int(item.get("task_count", 0)) for item in documents),
         "pending_task_count": sum(int(item.get("pending_task_count", 0)) for item in documents),
         "suggestion_count": sum(int(item.get("suggestion_count", 0)) for item in documents),
-        "suggestion_missing_count": sum(int(item.get("suggestion_missing_count", 0)) for item in documents),
+        "suggestion_missing_count": sum(
+            int(item.get("suggestion_missing_count", 0)) for item in documents
+        ),
         "blocked_suggestion_count": blocked_suggestions,
         "draft_statuses": draft_statuses,
         "manual_publication_count": manual_publications,
@@ -466,7 +487,9 @@ async def admin_manual_structuring_read_draft(doc: str, item_id: str):
 
 
 @router.put("/manual-structuring/{doc}/{item_id}/draft")
-async def admin_manual_structuring_save_draft(doc: str, item_id: str, request: ManualStructuringDraftRequest):
+async def admin_manual_structuring_save_draft(
+    doc: str, item_id: str, request: ManualStructuringDraftRequest
+):
     try:
         return save_manual_structuring_draft(doc, item_id, request.draft)
     except KeyError as exc:
@@ -550,7 +573,11 @@ async def admin_add_approved(doc: str, request: ApprovedCorrectionRequest):
     by_id[request.id] = request.dict()
     payload["corrections"] = list(by_id.values())
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    return {"doc": _safe_doc_stem(doc), "approved_path": str(path), "correction_count": len(payload["corrections"])}
+    return {
+        "doc": _safe_doc_stem(doc),
+        "approved_path": str(path),
+        "correction_count": len(payload["corrections"]),
+    }
 
 
 @router.delete("/corrections/approved/{doc}/{correction_id}")

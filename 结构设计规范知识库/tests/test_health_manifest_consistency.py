@@ -2,7 +2,6 @@ import asyncio
 import importlib
 from types import SimpleNamespace
 
-
 health = importlib.import_module("src.app.api.health")
 
 

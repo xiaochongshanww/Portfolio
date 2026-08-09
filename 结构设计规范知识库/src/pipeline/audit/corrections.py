@@ -5,7 +5,6 @@ from typing import Any
 
 from src.pipeline.paths import CORRECTIONS_DIR
 
-
 SUPPORTED_ACTIONS = {"replace_text", "set_field", "delete_element", "insert_after", "merge_next"}
 
 
@@ -22,7 +21,9 @@ def _candidate_stems(doc: str) -> list[str]:
     return list(dict.fromkeys(stems))
 
 
-def load_approved_corrections(source_file: str, corrections_dir: Path = CORRECTIONS_DIR) -> list[dict[str, Any]]:
+def load_approved_corrections(
+    source_file: str, corrections_dir: Path = CORRECTIONS_DIR
+) -> list[dict[str, Any]]:
     approved_dir = corrections_dir / "approved"
     corrections: list[dict[str, Any]] = []
     for stem in _doc_stems(source_file):
@@ -47,7 +48,9 @@ def apply_approved_corrections(
     skipped: list[dict[str, Any]] = []
 
     for correction in corrections:
-        action = str(correction.get("action") or correction.get("suggested_patch", {}).get("action") or "")
+        action = str(
+            correction.get("action") or correction.get("suggested_patch", {}).get("action") or ""
+        )
         if action not in SUPPORTED_ACTIONS:
             skipped.append({"correction": correction, "reason": "unsupported_action"})
             continue
@@ -69,13 +72,17 @@ def apply_approved_corrections(
         elif action == "delete_element":
             corrected[index]["_deleted"] = True
         elif action == "insert_after":
-            new_element = dict(value) if isinstance(value, dict) else {"type": "Text", "text": str(value)}
+            new_element = (
+                dict(value) if isinstance(value, dict) else {"type": "Text", "text": str(value)}
+            )
             corrected.insert(index + 1, new_element)
         elif action == "merge_next":
             if index + 1 >= len(corrected):
                 skipped.append({"correction": correction, "reason": "missing_next_element"})
                 continue
-            corrected[index]["text"] = f"{corrected[index].get('text', '')}\n{corrected[index + 1].get('text', '')}".strip()
+            corrected[index]["text"] = (
+                f"{corrected[index].get('text', '')}\n{corrected[index + 1].get('text', '')}".strip()
+            )
             corrected[index + 1]["_deleted"] = True
 
         applied.append({"action": action, "target": target, "id": correction.get("id", "")})
@@ -91,7 +98,9 @@ def apply_approved_corrections(
     }
 
 
-def load_candidate_corrections(source_file: str, corrections_dir: Path = CORRECTIONS_DIR) -> list[dict[str, Any]]:
+def load_candidate_corrections(
+    source_file: str, corrections_dir: Path = CORRECTIONS_DIR
+) -> list[dict[str, Any]]:
     candidates_dir = corrections_dir / "candidates"
     corrections: list[dict[str, Any]] = []
     for stem in _candidate_stems(source_file):
@@ -140,10 +149,18 @@ def promote_approved_candidates(
         patch = candidate.get("suggested_patch", candidate)
         action = str(patch.get("action") or candidate.get("action") or "")
         if review_status != "approved" and not include_pending:
-            skipped.append({"id": candidate.get("id", ""), "reason": "not_approved", "review_status": review_status})
+            skipped.append(
+                {
+                    "id": candidate.get("id", ""),
+                    "reason": "not_approved",
+                    "review_status": review_status,
+                }
+            )
             continue
         if action not in SUPPORTED_ACTIONS:
-            skipped.append({"id": candidate.get("id", ""), "reason": "unsupported_action", "action": action})
+            skipped.append(
+                {"id": candidate.get("id", ""), "reason": "unsupported_action", "action": action}
+            )
             continue
         promoted.append(normalize_candidate(candidate))
 
@@ -183,16 +200,28 @@ def list_candidate_files(corrections_dir: Path = CORRECTIONS_DIR) -> list[dict[s
     files = []
     for path in sorted(candidates_dir.glob("*.json")):
         payload = json.loads(path.read_text(encoding="utf-8"))
-        corrections = payload.get("corrections", payload.get("candidates", [])) if isinstance(payload, dict) else payload
+        corrections = (
+            payload.get("corrections", payload.get("candidates", []))
+            if isinstance(payload, dict)
+            else payload
+        )
         files.append(
             {
                 "doc": path.stem,
                 "path": str(path),
-                "source_file": payload.get("source_file", path.name) if isinstance(payload, dict) else path.name,
+                "source_file": payload.get("source_file", path.name)
+                if isinstance(payload, dict)
+                else path.name,
                 "candidate_count": len(corrections),
-                "pending_count": sum(1 for item in corrections if item.get("review_status", "pending") == "pending"),
-                "approved_count": sum(1 for item in corrections if item.get("review_status") == "approved"),
-                "rejected_count": sum(1 for item in corrections if item.get("review_status") == "rejected"),
+                "pending_count": sum(
+                    1 for item in corrections if item.get("review_status", "pending") == "pending"
+                ),
+                "approved_count": sum(
+                    1 for item in corrections if item.get("review_status") == "approved"
+                ),
+                "rejected_count": sum(
+                    1 for item in corrections if item.get("review_status") == "rejected"
+                ),
             }
         )
     return files
@@ -232,7 +261,11 @@ def update_candidate_status(
     if not path:
         raise FileNotFoundError(f"candidate file not found: {doc}")
     payload = json.loads(path.read_text(encoding="utf-8"))
-    corrections = payload.get("corrections", payload.get("candidates", [])) if isinstance(payload, dict) else payload
+    corrections = (
+        payload.get("corrections", payload.get("candidates", []))
+        if isinstance(payload, dict)
+        else payload
+    )
     updated = False
     for index, item in enumerate(corrections):
         if str(item.get("id") or index) == candidate_id:

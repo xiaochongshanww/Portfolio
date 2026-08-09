@@ -127,7 +127,9 @@ def test_custom_port_preflight_and_evaluation_failure_semantics(tmp_path: Path):
                     encoding="utf-8"
                 )
             )
-            preflight = next(step for step in report["steps"] if step["name"] == "目标 API 就绪预检")
+            preflight = next(
+                step for step in report["steps"] if step["name"] == "目标 API 就绪预检"
+            )
             credential = next(step for step in report["steps"] if step["name"] == "API 凭据加载")
             access = next(step for step in report["steps"] if step["name"] == "目标 API 鉴权预检")
             answer = next(step for step in report["steps"] if step["name"] == "回答级盲测")

@@ -1,6 +1,6 @@
-import json
 import hashlib
 import html
+import json
 import re
 import time
 from pathlib import Path
@@ -8,7 +8,6 @@ from typing import Any
 
 from src.pipeline.metadata import parse_spec_filename
 from src.pipeline.paths import MANUAL_STRUCTURING_DIR, PROCESSED_DIR, STRUCTURED_TABLES_DIR
-
 
 DEFAULT_RULES_PATH = MANUAL_STRUCTURING_DIR / "rules.json"
 QUEUE_DIRNAME = "queue"
@@ -52,7 +51,14 @@ def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
 
 
 def _business_content(payload: dict[str, Any]) -> dict[str, Any]:
-    ignored = {"created_at", "updated_at", "draft_path", "draft_status", "validation", "publication"}
+    ignored = {
+        "created_at",
+        "updated_at",
+        "draft_path",
+        "draft_status",
+        "validation",
+        "publication",
+    }
     return {key: value for key, value in payload.items() if key not in ignored}
 
 
@@ -63,7 +69,9 @@ def _upgrade_draft_schema(payload: dict[str, Any]) -> bool:
         if column.get("value_type"):
             continue
         key = str(column.get("key") or "")
-        values = [row.get(key) for row in rows if isinstance(row, dict) and row.get(key) is not None]
+        values = [
+            row.get(key) for row in rows if isinstance(row, dict) and row.get(key) is not None
+        ]
         if key in {"aliases", "variables"} or any(isinstance(value, list) for value in values):
             value_type = "list"
         elif values and all(
@@ -76,7 +84,9 @@ def _upgrade_draft_schema(payload: dict[str, Any]) -> bool:
                 value = row.get(key) if isinstance(row, dict) else None
                 if isinstance(value, str) and NUMBER_TEXT_RE.fullmatch(value.strip()):
                     numeric = float(value)
-                    row[key] = int(numeric) if numeric.is_integer() and "." not in value else numeric
+                    row[key] = (
+                        int(numeric) if numeric.is_integer() and "." not in value else numeric
+                    )
         elif any(isinstance(value, dict) for value in values):
             value_type = "json"
         elif key == "value" and not values:
@@ -91,7 +101,9 @@ def _upgrade_draft_schema(payload: dict[str, Any]) -> bool:
 def _published_filename(draft: dict[str, Any], item_id: str) -> str:
     source = draft.get("source", {})
     code = re.sub(r"\W+", "_", str(source.get("code") or "spec"), flags=re.UNICODE).strip("_")
-    table_id = re.sub(r"\W+", "_", str(source.get("table_id") or "table"), flags=re.UNICODE).strip("_")
+    table_id = re.sub(r"\W+", "_", str(source.get("table_id") or "table"), flags=re.UNICODE).strip(
+        "_"
+    )
     fingerprint = hashlib.sha1(item_id.encode("utf-8")).hexdigest()[:10]
     return _safe_filename(f"manual_{code}_{table_id}_{fingerprint}.json")
 
@@ -127,7 +139,9 @@ def _publication_smoke_test(published: dict[str, Any], target_filename: str) -> 
     results = []
     for query in list(dict.fromkeys(queries)):
         matches = find_structured_table_matches(query, limit=5)
-        hit = any(Path(str(match.table.get("_path") or "")).name == target_filename for match in matches)
+        hit = any(
+            Path(str(match.table.get("_path") or "")).name == target_filename for match in matches
+        )
         results.append({"query": query, "hit": hit, "match_count": len(matches)})
     return {
         "passed": bool(results) and all(item["hit"] for item in results),
@@ -135,7 +149,9 @@ def _publication_smoke_test(published: dict[str, Any], target_filename: str) -> 
     }
 
 
-def _find_queue_item(doc: str, item_id: str, out_dir: Path = MANUAL_STRUCTURING_DIR) -> dict[str, Any]:
+def _find_queue_item(
+    doc: str, item_id: str, out_dir: Path = MANUAL_STRUCTURING_DIR
+) -> dict[str, Any]:
     payload = read_manual_structuring_file(doc, out_dir)
     for item in payload.get("items", []):
         if str(item.get("id")) == item_id:
@@ -196,7 +212,9 @@ def _table_header_signature(text: str) -> str:
 
 
 def _page_clusters(items: list[dict[str, Any]], *, max_gap: int = 1) -> list[list[dict[str, Any]]]:
-    ordered = sorted(items, key=lambda item: (int(item.get("page") or 0), int(item.get("element_index") or 0)))
+    ordered = sorted(
+        items, key=lambda item: (int(item.get("page") or 0), int(item.get("element_index") or 0))
+    )
     clusters: list[list[dict[str, Any]]] = []
     for item in ordered:
         page = int(item.get("page") or 0)
@@ -239,7 +257,9 @@ def _annotate_cross_page_groups(candidates: list[dict[str, Any]]) -> list[dict[s
             key=lambda item: (int(item.get("page") or 0), int(item.get("element_index") or 0)),
         )
         member_ids = [str(item["id"]) for item in ordered]
-        pages = sorted({int(item.get("page") or 0) for item in ordered if int(item.get("page") or 0) > 0})
+        pages = sorted(
+            {int(item.get("page") or 0) for item in ordered if int(item.get("page") or 0) > 0}
+        )
         fingerprint = hashlib.sha1("|".join(member_ids).encode("utf-8")).hexdigest()[:12]
         group_id = f"table_group_{fingerprint}"
         primary_id = member_ids[0]
@@ -303,7 +323,9 @@ def detect_manual_structuring_candidates(
             continue
         payload = json.loads(path.read_text(encoding="utf-8"))
         elements = payload.get("elements", payload if isinstance(payload, list) else [])
-        source_file = payload.get("source_file", path.name) if isinstance(payload, dict) else path.name
+        source_file = (
+            payload.get("source_file", path.name) if isinstance(payload, dict) else path.name
+        )
         doc = _doc_id(source_file, path.name)
         for index, element in enumerate(elements):
             text = str(element.get("text") or "")
@@ -390,7 +412,11 @@ def write_manual_structuring_queue(
     for path in sorted(queue_dir.glob("*.json")):
         if path.stem not in by_doc:
             path.unlink()
-    return {"document_count": len(written), "candidate_count": len(candidates), "documents": written}
+    return {
+        "document_count": len(written),
+        "candidate_count": len(candidates),
+        "documents": written,
+    }
 
 
 def list_manual_structuring_files(out_dir: Path = MANUAL_STRUCTURING_DIR) -> list[dict[str, Any]]:
@@ -405,13 +431,14 @@ def list_manual_structuring_files(out_dir: Path = MANUAL_STRUCTURING_DIR) -> lis
             str(item.get("group_id") or item.get("id")): item.get("review_status", "pending")
             for item in items
         }
-        task_owners = {
-            str(item.get("group_primary_item_id") or item.get("id"))
-            for item in items
-        }
-        suggestion_dir = out_dir / "suggestions" / _safe_filename(str(payload.get("doc", path.stem)))
+        task_owners = {str(item.get("group_primary_item_id") or item.get("id")) for item in items}
+        suggestion_dir = (
+            out_dir / "suggestions" / _safe_filename(str(payload.get("doc", path.stem)))
+        )
         suggestion_count = sum(
-            1 for owner_id in task_owners if (suggestion_dir / f"{_safe_filename(owner_id)}.json").exists()
+            1
+            for owner_id in task_owners
+            if (suggestion_dir / f"{_safe_filename(owner_id)}.json").exists()
         )
         documents.append(
             {
@@ -419,12 +446,24 @@ def list_manual_structuring_files(out_dir: Path = MANUAL_STRUCTURING_DIR) -> lis
                 "path": str(path),
                 "item_count": len(items),
                 "task_count": len(task_keys),
-                "pending_count": sum(1 for item in items if item.get("review_status", "pending") == "pending"),
-                "approved_count": sum(1 for item in items if item.get("review_status") == "approved"),
-                "rejected_count": sum(1 for item in items if item.get("review_status") == "rejected"),
-                "pending_task_count": sum(1 for status in task_keys.values() if status == "pending"),
-                "approved_task_count": sum(1 for status in task_keys.values() if status == "approved"),
-                "rejected_task_count": sum(1 for status in task_keys.values() if status == "rejected"),
+                "pending_count": sum(
+                    1 for item in items if item.get("review_status", "pending") == "pending"
+                ),
+                "approved_count": sum(
+                    1 for item in items if item.get("review_status") == "approved"
+                ),
+                "rejected_count": sum(
+                    1 for item in items if item.get("review_status") == "rejected"
+                ),
+                "pending_task_count": sum(
+                    1 for status in task_keys.values() if status == "pending"
+                ),
+                "approved_task_count": sum(
+                    1 for status in task_keys.values() if status == "approved"
+                ),
+                "rejected_task_count": sum(
+                    1 for status in task_keys.values() if status == "rejected"
+                ),
                 "suggestion_count": suggestion_count,
                 "suggestion_missing_count": max(len(task_keys) - suggestion_count, 0),
             }
@@ -432,7 +471,9 @@ def list_manual_structuring_files(out_dir: Path = MANUAL_STRUCTURING_DIR) -> lis
     return documents
 
 
-def read_manual_structuring_file(doc: str, out_dir: Path = MANUAL_STRUCTURING_DIR) -> dict[str, Any]:
+def read_manual_structuring_file(
+    doc: str, out_dir: Path = MANUAL_STRUCTURING_DIR
+) -> dict[str, Any]:
     queue_dir = out_dir / QUEUE_DIRNAME
     for stem in _candidate_stems(doc):
         path = queue_dir / f"{stem}.json"
@@ -511,7 +552,9 @@ def _review_context_for_group(
         "group_confidence": item.get("group_confidence", ""),
         "matched_rules": [rule for member in members for rule in member.get("matched_rules", [])],
         "generic_reasons": list(
-            dict.fromkeys(reason for member in members for reason in member.get("generic_reasons", []))
+            dict.fromkeys(
+                reason for member in members for reason in member.get("generic_reasons", [])
+            )
         ),
         "current_text": "\n\n".join(
             f"--- page {member.get('page')} · element {member.get('element_index')} ---\n"
@@ -556,7 +599,9 @@ def build_manual_structuring_draft(
     title = str(title_item.get("title") or "复杂表格")
     table_id = _infer_table_id(title)
     table_name = _infer_table_name(title, table_id)
-    pages = sorted({int(member.get("page") or 0) for member in members if int(member.get("page") or 0) > 0})
+    pages = sorted(
+        {int(member.get("page") or 0) for member in members if int(member.get("page") or 0) > 0}
+    )
     review_context = _review_context_for_group(doc, owner_id, item, title, pages, members)
     if path.exists() and not force:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -596,7 +641,9 @@ def build_manual_structuring_draft(
             {"key": "aliases", "label": "检索别名", "value_type": "list"},
         ],
         "rows": [],
-        "table_aliases": [alias for alias in [f"表{table_id}" if table_id else "", table_name] if alias],
+        "table_aliases": [
+            alias for alias in [f"表{table_id}" if table_id else "", table_name] if alias
+        ],
         "notes": [],
         "review_context": review_context,
     }
@@ -720,7 +767,8 @@ def validate_manual_structuring_draft(
             error("row_unknown_fields", f"rows[{index}]", f"存在未定义列：{', '.join(unknown)}")
         aliases = row.get("aliases", [])
         if "aliases" in row and (
-            not isinstance(aliases, list) or any(not isinstance(alias, str) or not alias.strip() for alias in aliases)
+            not isinstance(aliases, list)
+            or any(not isinstance(alias, str) or not alias.strip() for alias in aliases)
         ):
             error("aliases_invalid", f"rows[{index}].aliases", "aliases 必须是非空字符串数组")
         for key, value in row.items():
@@ -735,7 +783,11 @@ def validate_manual_structuring_draft(
                 error("cell_type_invalid", f"rows[{index}].{key}", "该单元格必须是数组")
             elif value_type == "text" and not isinstance(value, str):
                 error("cell_type_invalid", f"rows[{index}].{key}", "该单元格必须是文本")
-        content = {key: value for key, value in row.items() if key != "aliases" and value not in (None, "", [])}
+        content = {
+            key: value
+            for key, value in row.items()
+            if key != "aliases" and value not in (None, "", [])
+        }
         if not content:
             error("row_empty", f"rows[{index}]", "每行至少需要一个非 aliases 的有效值")
         fingerprint = json.dumps(content, ensure_ascii=False, sort_keys=True)
@@ -745,7 +797,9 @@ def validate_manual_structuring_draft(
 
     for field in ("table_aliases", "notes"):
         value = draft.get(field, [])
-        if not isinstance(value, list) or any(not isinstance(item, str) or not item.strip() for item in value):
+        if not isinstance(value, list) or any(
+            not isinstance(item, str) or not item.strip() for item in value
+        ):
             error(f"{field}_invalid", field, f"{field} 必须是非空字符串数组")
     if not draft.get("table_aliases"):
         warning("table_aliases_empty", "table_aliases", "建议填写表名、表号和常见问法别名")
@@ -921,10 +975,14 @@ def rollback_manual_structuring_publication(
     draft["publication"] = {
         **publication,
         "version_id": (
-            previous.get("publication", {}).get("version_id", version_id) if previous is not None else version_id
+            previous.get("publication", {}).get("version_id", version_id)
+            if previous is not None
+            else version_id
         ),
         "published_at": (
-            previous.get("publication", {}).get("published_at") if previous is not None else publication.get("published_at")
+            previous.get("publication", {}).get("published_at")
+            if previous is not None
+            else publication.get("published_at")
         ),
         "rolled_back_at": rolled_back_at,
         "rollback_action": action,

@@ -16,4 +16,3 @@ def format_result_context(result: RetrievalResult) -> str:
         f"命中原因：{result.reason}",
     ]
     return "\n".join(header) + "\n正文：\n" + result.text
-

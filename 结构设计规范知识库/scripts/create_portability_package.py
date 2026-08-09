@@ -13,10 +13,8 @@ from typing import Any
 
 import chromadb
 from chromadb.api.client import SharedSystemClient
-
 from src.app.core.config import settings
 from src.pipeline.knowledge_package import export_runtime_package, validate_runtime_package
-
 
 SOURCE_FILE = "GB 50009-2012_跨平台兼容测试规范.pdf"
 EMBEDDINGS = [

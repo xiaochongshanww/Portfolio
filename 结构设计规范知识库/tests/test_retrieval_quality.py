@@ -4,8 +4,6 @@ from pathlib import Path
 from src.app.rag.context import format_result_context
 from src.app.rag.service import _image_url
 from src.app.rerank.noop import NoopReranker
-from src.app.retrieval.models import RetrievalCandidate, RetrievalResult
-from src.app.retrieval.query import analyze_query, extract_content_keywords, extract_content_phrases
 from src.app.retrieval.hybrid_search import (
     RetrievalState,
     infer_is_table,
@@ -14,6 +12,8 @@ from src.app.retrieval.hybrid_search import (
     text_contains_clause_heading,
     text_mentions_clause,
 )
+from src.app.retrieval.models import RetrievalCandidate, RetrievalResult
+from src.app.retrieval.query import analyze_query, extract_content_keywords, extract_content_phrases
 from src.evaluation.runner import EvaluationCase, summarize_results
 
 
@@ -125,7 +125,12 @@ def test_domain_ranking_prefers_body_table_for_value_lookup():
     table = RetrievalCandidate(
         doc_id="table",
         text="表5.1.1 办公室 2.0",
-        meta={"name": "建筑结构荷载规范", "section_type": "body_table", "is_table": True, "table_id": "5.1.1"},
+        meta={
+            "name": "建筑结构荷载规范",
+            "section_type": "body_table",
+            "is_table": True,
+            "table_id": "5.1.1",
+        },
         score=1.0,
     )
     explanation = RetrievalCandidate(
@@ -169,7 +174,12 @@ def test_domain_ranking_prefers_exact_body_table_for_clause_queries():
     table = RetrievalCandidate(
         doc_id="table",
         text="表4.1.3 土的类型划分和剪切波速范围",
-        meta={"name": "建筑抗震设计规范", "section_type": "body_table", "is_table": True, "clause_match_kind": "heading"},
+        meta={
+            "name": "建筑抗震设计规范",
+            "section_type": "body_table",
+            "is_table": True,
+            "clause_match_kind": "heading",
+        },
         score=1.0,
     )
     body_reference = RetrievalCandidate(
@@ -229,12 +239,30 @@ def test_domain_ranking_prefers_formula_chunks_for_formula_queries():
 
 
 def test_domain_ranking_infers_legacy_table_metadata():
-    assert infer_section_type({"chunk_type": "table", "title": "表5.1.1 民用建筑楼面均布活荷载"}) == "body_table"
-    assert infer_is_table({"chunk_type": "text", "title": "表5.1.1 民用建筑楼面均布活荷载"}) is True
-    assert infer_is_table({"chunk_type": "text", "title": "5.1.2", "table_id": ""}, "本规范表5.1.1中楼面活荷载标准值") is False
-    assert infer_section_type({"chunk_type": "explanation", "title": "5.1民用建筑楼面均布活荷载"}) == "explanation"
     assert (
-        infer_section_type({"chunk_type": "table", "title": "表2全国部分城市建筑楼面活荷载统计分析表", "clause_number": "0.386"})
+        infer_section_type({"chunk_type": "table", "title": "表5.1.1 民用建筑楼面均布活荷载"})
+        == "body_table"
+    )
+    assert infer_is_table({"chunk_type": "text", "title": "表5.1.1 民用建筑楼面均布活荷载"}) is True
+    assert (
+        infer_is_table(
+            {"chunk_type": "text", "title": "5.1.2", "table_id": ""},
+            "本规范表5.1.1中楼面活荷载标准值",
+        )
+        is False
+    )
+    assert (
+        infer_section_type({"chunk_type": "explanation", "title": "5.1民用建筑楼面均布活荷载"})
+        == "explanation"
+    )
+    assert (
+        infer_section_type(
+            {
+                "chunk_type": "table",
+                "title": "表2全国部分城市建筑楼面活荷载统计分析表",
+                "clause_number": "0.386",
+            }
+        )
         == "explanation"
     )
 
@@ -245,15 +273,25 @@ def test_value_table_match_adds_relevant_body_table_candidate():
     all_data = {
         "ids": ["table", "explanation"],
         "metadatas": [
-            {"chunk_type": "table", "title": "表5.1.1 民用建筑楼面均布活荷载标准值", "clause_number": "5.1.1", "name": "建筑结构荷载规范"},
-            {"chunk_type": "table", "title": "表2全国部分城市建筑楼面活荷载统计分析表", "clause_number": "0.386", "name": "建筑结构荷载规范"},
+            {
+                "chunk_type": "table",
+                "title": "表5.1.1 民用建筑楼面均布活荷载标准值",
+                "clause_number": "5.1.1",
+                "name": "建筑结构荷载规范",
+            },
+            {
+                "chunk_type": "table",
+                "title": "表2全国部分城市建筑楼面活荷载统计分析表",
+                "clause_number": "0.386",
+                "name": "建筑结构荷载规范",
+            },
         ],
     }
     id_to_doc = {
         "table": "表5.1.1 民用建筑楼面均布活荷载标准值 办公楼 2.0",
         "explanation": "办公室 楼面活荷载 标准值 2.0",
     }
-    id_to_meta = dict(zip(all_data["ids"], all_data["metadatas"]))
+    id_to_meta = dict(zip(all_data["ids"], all_data["metadatas"], strict=True))
     pool: dict[str, RetrievalCandidate] = {}
     state._add_value_table_matches(query_info, 5, all_data, id_to_doc, id_to_meta, pool)
     assert "table" in pool
@@ -267,15 +305,25 @@ def test_table_intent_match_adds_classification_table_candidate():
     all_data = {
         "ids": ["clause", "table"],
         "metadatas": [
-            {"chunk_type": "text", "title": "4建筑工程质量验收的划分", "code": "GB 50300-2013", "name": "建筑工程施工质量验收统一标准"},
-            {"chunk_type": "table", "title": "表B建筑工程的分部工程、分项工程划分", "code": "GB 50300-2013", "name": "建筑工程施工质量验收统一标准"},
+            {
+                "chunk_type": "text",
+                "title": "4建筑工程质量验收的划分",
+                "code": "GB 50300-2013",
+                "name": "建筑工程施工质量验收统一标准",
+            },
+            {
+                "chunk_type": "table",
+                "title": "表B建筑工程的分部工程、分项工程划分",
+                "code": "GB 50300-2013",
+                "name": "建筑工程施工质量验收统一标准",
+            },
         ],
     }
     id_to_doc = {
         "clause": "4.0.1 建筑工程施工质量验收应划分为单位工程、分部工程、分项工程和检验批。",
         "table": "表B建筑工程的分部工程、分项工程划分 <table><tr><td>分部工程</td><td>分项工程</td></tr></table>",
     }
-    id_to_meta = dict(zip(all_data["ids"], all_data["metadatas"]))
+    id_to_meta = dict(zip(all_data["ids"], all_data["metadatas"], strict=True))
     pool: dict[str, RetrievalCandidate] = {}
     state._add_table_intent_matches(query_info, 5, all_data, id_to_doc, id_to_meta, pool)
     assert "table" in pool
@@ -295,7 +343,11 @@ def test_domain_ranking_prefers_table_when_query_asks_which_table():
     table = RetrievalCandidate(
         doc_id="table",
         text="表B建筑工程的分部工程、分项工程划分",
-        meta={"name": "建筑工程施工质量验收统一标准", "section_type": "body_table", "is_table": True},
+        meta={
+            "name": "建筑工程施工质量验收统一标准",
+            "section_type": "body_table",
+            "is_table": True,
+        },
         score=8.0,
     )
     pool = {"body": body, "table": table}
@@ -320,7 +372,7 @@ def test_value_table_match_uses_table_title_as_evidence():
         ],
     }
     id_to_doc = {"table": "<table><tr><td>1</td><td>0.9</td></tr></table>"}
-    id_to_meta = dict(zip(all_data["ids"], all_data["metadatas"]))
+    id_to_meta = dict(zip(all_data["ids"], all_data["metadatas"], strict=True))
     pool: dict[str, RetrievalCandidate] = {}
     state._add_value_table_matches(query_info, 5, all_data, id_to_doc, id_to_meta, pool)
     assert "table" in pool
@@ -350,7 +402,7 @@ def test_value_table_match_prioritizes_explicit_table_id():
         ],
     }
     id_to_doc = {"table-a": "折减系数", "table-b": "折减系数"}
-    id_to_meta = dict(zip(all_data["ids"], all_data["metadatas"]))
+    id_to_meta = dict(zip(all_data["ids"], all_data["metadatas"], strict=True))
     pool: dict[str, RetrievalCandidate] = {}
     state._add_value_table_matches(query_info, 5, all_data, id_to_doc, id_to_meta, pool)
     assert pool["table-b"].score > pool["table-a"].score
@@ -382,7 +434,9 @@ def test_value_lookup_evidence_ranking_prefers_content_keyword_match():
 def test_requested_spec_matching_filters_other_codes():
     query_info = analyze_query("GB50009 里的雪荷载怎么取值？")
     assert matches_requested_spec(query_info, {"code": "GB 50009-2012", "name": "建筑结构荷载规范"})
-    assert not matches_requested_spec(query_info, {"code": "GB 50011-2010", "name": "建筑抗震设计规范"})
+    assert not matches_requested_spec(
+        query_info, {"code": "GB 50011-2010", "name": "建筑抗震设计规范"}
+    )
 
 
 def test_domain_ranking_boosts_requested_spec_and_penalizes_other_specs():
@@ -397,7 +451,12 @@ def test_domain_ranking_boosts_requested_spec_and_penalizes_other_specs():
     other = RetrievalCandidate(
         doc_id="other",
         text="雪荷载标准值",
-        meta={"code": "GB 50011-2010", "name": "建筑抗震设计规范", "section_type": "body_table", "is_table": True},
+        meta={
+            "code": "GB 50011-2010",
+            "name": "建筑抗震设计规范",
+            "section_type": "body_table",
+            "is_table": True,
+        },
         score=6.0,
     )
     pool = {"requested": requested, "other": other}
@@ -436,7 +495,7 @@ def test_clause_reference_match_gets_weaker_boost_than_heading_match():
         "heading": "8.2.1 钢结构应按本节规定调整地震作用效应。",
         "reference": "本条可参照第8.2.1条执行。",
     }
-    id_to_meta = dict(zip(all_data["ids"], all_data["metadatas"]))
+    id_to_meta = dict(zip(all_data["ids"], all_data["metadatas"], strict=True))
     pool: dict[str, RetrievalCandidate] = {}
     state._add_clause_matches(query_info, all_data, id_to_doc, id_to_meta, pool)
     assert pool["heading"].score > pool["reference"].score
@@ -450,15 +509,25 @@ def test_clause_heading_does_not_treat_explanation_reference_as_exact_match():
     all_data = {
         "ids": ["explanation", "body"],
         "metadatas": [
-            {"title": "条文说明", "clause_number": "0.386", "chunk_type": "explanation", "name": "建筑结构荷载规范"},
-            {"title": "5.1民用建筑楼面均布活荷载", "clause_number": "5.1", "chunk_type": "text", "name": "建筑结构荷载规范"},
+            {
+                "title": "条文说明",
+                "clause_number": "0.386",
+                "chunk_type": "explanation",
+                "name": "建筑结构荷载规范",
+            },
+            {
+                "title": "5.1民用建筑楼面均布活荷载",
+                "clause_number": "5.1",
+                "chunk_type": "text",
+                "name": "建筑结构荷载规范",
+            },
         ],
     }
     id_to_doc = {
         "explanation": "本次修订单独列为第5.1.3条。5.1.3消防车荷载标准值很大。",
         "body": "5.1.2 活荷载折减。\n5.1.3 消防车活荷载折减应根据经验确定。",
     }
-    id_to_meta = dict(zip(all_data["ids"], all_data["metadatas"]))
+    id_to_meta = dict(zip(all_data["ids"], all_data["metadatas"], strict=True))
     pool: dict[str, RetrievalCandidate] = {}
     state._add_clause_matches(query_info, all_data, id_to_doc, id_to_meta, pool)
     assert pool["body"].score > pool["explanation"].score
@@ -577,7 +646,13 @@ def test_evaluation_summary_groups_failures():
         "authority": 1,
         "structured_table": 0,
     }
-    assert summary["failures"][0]["failed_checks"] == ["source", "top1_source", "keyword", "table", "authority"]
+    assert summary["failures"][0]["failed_checks"] == [
+        "source",
+        "top1_source",
+        "keyword",
+        "table",
+        "authority",
+    ]
 
 
 def test_evaluation_summary_can_relax_top1_for_cross_spec_cases():
@@ -644,7 +719,12 @@ def test_evaluation_summary_reports_top1_table_and_authority_metrics():
     result = RetrievalResult(
         doc_id="1",
         text="表5.1.1 民用建筑楼面均布活荷载标准值 办公楼 2.0",
-        meta={"name": "建筑结构荷载规范", "section_type": "body_table", "is_table": True, "table_id": "5.1.1"},
+        meta={
+            "name": "建筑结构荷载规范",
+            "section_type": "body_table",
+            "is_table": True,
+            "table_id": "5.1.1",
+        },
         score=10.0,
         source="table",
         reason="value lookup prefers body table",
@@ -667,7 +747,12 @@ def test_evaluation_summary_accepts_body_table_as_clause_authority():
     result = RetrievalResult(
         doc_id="1",
         text="表4.1.3 土的类型划分和剪切波速范围",
-        meta={"name": "建筑抗震设计规范", "section_type": "body_table", "is_table": True, "clause_number": "4.1.3"},
+        meta={
+            "name": "建筑抗震设计规范",
+            "section_type": "body_table",
+            "is_table": True,
+            "clause_number": "4.1.3",
+        },
         score=10.0,
         source="clause",
         reason="clause exact match",

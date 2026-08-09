@@ -1,7 +1,6 @@
 import re
 from urllib.parse import unquote, urlparse
 
-
 IMAGE_PATTERN = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)\)")
 CODE_PATTERN = re.compile(r"\bGB\s*\d{5}(?:[-—]\d{4})?\b", re.I)
 CLAUSE_PATTERN = re.compile(r"第\s*(\d+(?:\.\d+){2})\s*条")
@@ -35,14 +34,10 @@ def _code_supported(answer_code: str, trace_codes: set[str]) -> bool:
 def validate_trace_citations(answer: str, trace: dict) -> tuple[bool, dict[str, list[str]]]:
     sources = trace.get("sources", [])
     trace_codes = {
-        _normalize_code(str(source.get("code", "")))
-        for source in sources
-        if source.get("code")
+        _normalize_code(str(source.get("code", ""))) for source in sources if source.get("code")
     }
     trace_codes.update(
-        _normalize_code(str(value))
-        for value in trace.get("mentioned_codes", [])
-        if value
+        _normalize_code(str(value)) for value in trace.get("mentioned_codes", []) if value
     )
     trace_clauses = {
         str(value)
@@ -50,11 +45,7 @@ def validate_trace_citations(answer: str, trace: dict) -> tuple[bool, dict[str, 
         for value in (source.get("clause_number"), source.get("matched_clause_number"))
         if value
     }
-    trace_tables = {
-        str(source.get("table_id"))
-        for source in sources
-        if source.get("table_id")
-    }
+    trace_tables = {str(source.get("table_id")) for source in sources if source.get("table_id")}
     trace_clauses.update(str(value) for value in trace.get("mentioned_clauses", []))
     trace_tables.update(str(value) for value in trace.get("mentioned_tables", []))
     answer_codes = {_normalize_code(value) for value in CODE_PATTERN.findall(answer)}
@@ -102,5 +93,7 @@ def normalize_answer_citations(content: str, trace: dict) -> str:
         if code and code not in source_codes:
             source_codes.append(code)
     if source_codes and not any(code in normalized for code in source_codes):
-        normalized = normalized.rstrip() + "\n\n【来源引用】\n- 规范编号：" + "、".join(source_codes[:3])
+        normalized = (
+            normalized.rstrip() + "\n\n【来源引用】\n- 规范编号：" + "、".join(source_codes[:3])
+        )
     return normalized

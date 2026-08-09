@@ -1,16 +1,15 @@
 import json
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
-
+from src.app.admin import workflows
 from src.app.admin.models import Job
 from src.app.admin.storage import JobStore
-from src.app.admin import workflows
 from src.app.main import app
-from src.pipeline.active_db import write_active_db
 from src.pipeline import version_retention
+from src.pipeline.active_db import write_active_db
 from src.pipeline.version_retention import (
     UnsafeVersionPath,
     VersionRetentionError,
@@ -21,8 +20,7 @@ from src.pipeline.version_retention import (
     set_version_pin,
 )
 
-
-NOW = datetime(2026, 8, 8, 8, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 8, 8, 8, 0, tzinfo=UTC)
 
 
 def policy(**overrides: int) -> VersionRetentionPolicy:
@@ -91,10 +89,15 @@ def test_inventory_classifies_and_protects_operational_versions(tmp_path: Path):
     make_version(versions, "old-passed", gate_passed=True, days_old=40)
     make_version(versions, "old-failed", gate_passed=False, days_old=10)
     write_active_db(
-        {"active_db_dir": str(versions / "active" / "db"), "manifest": str(versions / "active" / "manifest.json")},
+        {
+            "active_db_dir": str(versions / "active" / "db"),
+            "manifest": str(versions / "active" / "manifest.json"),
+        },
         pointer,
     )
-    set_version_pin("pinned", pinned=True, note="保留故障证据", versions_dir=versions, audit_dir=audit)
+    set_version_pin(
+        "pinned", pinned=True, note="保留故障证据", versions_dir=versions, audit_dir=audit
+    )
     age_tree(versions / "pinned", days=60)
 
     result = inventory_versions(
@@ -295,7 +298,9 @@ def test_delete_failure_restores_visible_version(tmp_path: Path, monkeypatch):
         audit_dir=audit,
         now=NOW,
     )
-    monkeypatch.setattr(version_retention.shutil, "rmtree", lambda _path: (_ for _ in ()).throw(OSError("locked")))
+    monkeypatch.setattr(
+        version_retention.shutil, "rmtree", lambda _path: (_ for _ in ()).throw(OSError("locked"))
+    )
 
     result = execute_cleanup_plan(
         plan["plan_id"],
@@ -316,10 +321,15 @@ def test_pin_and_path_validation_block_arbitrary_targets(tmp_path: Path):
     versions, _pointer, audit = paths(tmp_path)
     make_version(versions, "kept", gate_passed=False, days_old=10)
 
-    result = set_version_pin("kept", pinned=True, note="调查中", versions_dir=versions, audit_dir=audit)
+    result = set_version_pin(
+        "kept", pinned=True, note="调查中", versions_dir=versions, audit_dir=audit
+    )
 
     assert result["pinned"] is True
-    assert json.loads((versions / "kept" / ".retention.json").read_text(encoding="utf-8"))["note"] == "调查中"
+    assert (
+        json.loads((versions / "kept" / ".retention.json").read_text(encoding="utf-8"))["note"]
+        == "调查中"
+    )
     with pytest.raises(UnsafeVersionPath):
         set_version_pin("../outside", pinned=True, versions_dir=versions, audit_dir=audit)
 

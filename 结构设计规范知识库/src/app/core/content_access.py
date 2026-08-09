@@ -1,10 +1,10 @@
-from pathlib import Path
 from functools import lru_cache
+from pathlib import Path
 from urllib.parse import unquote
 
-from .config import settings
 from src.pipeline.metadata import VALID_ASSET_ACCESS_SCOPES, load_metadata_overrides
 
+from .config import settings
 
 DEFAULT_ASSET_ACCESS = "authenticated"
 
@@ -32,7 +32,10 @@ def _record_for_source(source: str) -> dict | None:
         raise RuntimeError("来源访问策略不可用")
     for record in records:
         source_file = Path(str(record.get("source_file") or "")).name.casefold()
-        if decoded in {source_file, Path(source_file).stem} or decoded_stem == Path(source_file).stem:
+        if (
+            decoded in {source_file, Path(source_file).stem}
+            or decoded_stem == Path(source_file).stem
+        ):
             return record
     return None
 

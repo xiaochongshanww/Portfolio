@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -59,8 +59,16 @@ def assess_candidate_activation(
         )
 
     data_version = str(manifest.get("data_version_hash") or "")
-    check("manifest", bool(manifest), "候选版本 manifest 可读取" if manifest else "缺少候选版本 manifest")
-    check("data_version", bool(data_version), "候选版本具有数据版本哈希" if data_version else "候选版本缺少数据版本哈希")
+    check(
+        "manifest",
+        bool(manifest),
+        "候选版本 manifest 可读取" if manifest else "缺少候选版本 manifest",
+    )
+    check(
+        "data_version",
+        bool(data_version),
+        "候选版本具有数据版本哈希" if data_version else "候选版本缺少数据版本哈希",
+    )
     document_count = int(manifest.get("document_count", 0))
     chunk_count = int(manifest.get("chunk_count", 0))
     check(
@@ -87,7 +95,9 @@ def assess_candidate_activation(
     high_risk = int(manifest.get("audit_status", {}).get("high_risk_count", 0))
     check("high_risk_audit", high_risk == 0, f"高风险审计项 {high_risk} 项")
     if processed_dir is not None:
-        processed_chunks = list(processed_dir.glob("*_chunks.json")) if processed_dir.is_dir() else []
+        processed_chunks = (
+            list(processed_dir.glob("*_chunks.json")) if processed_dir.is_dir() else []
+        )
         quality_report = processed_dir / "build_quality.json"
         check(
             "processed_assets",
@@ -97,7 +107,9 @@ def assess_candidate_activation(
             build_quality_exists=quality_report.is_file(),
         )
     if images_dir is not None:
-        image_files = [path for path in images_dir.glob("*") if path.is_file()] if images_dir.is_dir() else []
+        image_files = (
+            [path for path in images_dir.glob("*") if path.is_file()] if images_dir.is_dir() else []
+        )
         expected_images = int(manifest.get("image_count", 0))
         check(
             "image_assets",
@@ -117,7 +129,9 @@ def assess_candidate_activation(
     check(
         "candidate_runtime",
         state_ready,
-        "候选检索状态可独立加载" if state_ready else f"候选检索状态不可用: {state_error or 'embedding 或 collection 未就绪'}",
+        "候选检索状态可独立加载"
+        if state_ready
+        else f"候选检索状态不可用: {state_error or 'embedding 或 collection 未就绪'}",
     )
     check(
         "runtime_collection",
@@ -187,7 +201,7 @@ def assess_candidate_activation(
     result = {
         "schema_version": 1,
         "gate": "candidate_activation",
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "passed": not failed_checks,
         "failed_checks": failed_checks,
         "checks": checks,
@@ -220,7 +234,9 @@ def write_candidate_activation_artifacts(
     }
     for key, payload in payloads.items():
         paths[key].write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    paths["gate_markdown"].write_text(render_candidate_activation_markdown(assessment.result), encoding="utf-8")
+    paths["gate_markdown"].write_text(
+        render_candidate_activation_markdown(assessment.result), encoding="utf-8"
+    )
     return {key: str(path) for key, path in paths.items()}
 
 

@@ -4,7 +4,6 @@ import zipfile
 from pathlib import Path
 
 import pytest
-
 import src.pipeline.knowledge_package as knowledge_package_module
 from src.pipeline.active_db import active_db_dir, read_active_manifest
 from src.pipeline.knowledge_package import (
@@ -75,7 +74,10 @@ def _source_runtime(tmp_path: Path) -> dict[str, Path]:
         },
     )
     structured = data / "structured_tables"
-    _write_json(structured / "table.json", {"schema_version": "0.1", "rows": [{"item": "办公室", "value": 2.0}]})
+    _write_json(
+        structured / "table.json",
+        {"schema_version": "0.1", "rows": [{"item": "办公室", "value": 2.0}]},
+    )
     images = data / "images"
     images.mkdir()
     (images / "preview.png").write_bytes(b"png-data")
@@ -150,7 +152,9 @@ def test_runtime_package_round_trip_without_source_pdfs(tmp_path: Path):
         names = set(archive.namelist())
         assert package_manifest["schema_version"] == 4
         audit_event_id = package_manifest["quality"]["audit_event_id"]
-        audit_record = tmp_path / "source" / "data" / "audit" / "package_exports" / f"{audit_event_id}.json"
+        audit_record = (
+            tmp_path / "source" / "data" / "audit" / "package_exports" / f"{audit_event_id}.json"
+        )
         assert json.loads(audit_record.read_text(encoding="utf-8"))["outcome"] == "exported"
         assert "knowledge-package.json" in names
         assert "runtime/manifest.json" in names
@@ -396,6 +400,7 @@ def test_runtime_package_requires_complete_source_access_policy(tmp_path: Path):
             metadata_dir=source["metadata"],
             raw_dir=source["raw"],
         )
+
 
 def test_runtime_package_allows_complete_audited_quality_waiver(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(

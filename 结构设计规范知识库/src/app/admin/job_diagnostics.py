@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Iterable
-
+from collections.abc import Iterable
+from datetime import UTC, datetime
+from typing import Any
 
 ACTIVE_STATUSES = {"queued", "running"}
 
@@ -15,8 +15,8 @@ def _parse_time(value: Any) -> datetime | None:
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def _age_seconds(value: Any, now: datetime) -> float | None:
@@ -35,13 +35,21 @@ def diagnose_job(
 ) -> dict[str, Any]:
     if stale_after_seconds <= 0 or heartbeat_timeout_seconds <= 0:
         raise ValueError("任务诊断阈值必须大于 0")
-    current_time = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    current_time = (now or datetime.now(UTC)).astimezone(UTC)
     status = str(job.get("status") or "")
     progress_anchor = job.get("progress_at") or job.get("started_at") or job.get("created_at")
     progress_age = _age_seconds(progress_anchor, current_time)
     heartbeat_age = _age_seconds(job.get("heartbeat_at"), current_time)
-    stalled = status in ACTIVE_STATUSES and progress_age is not None and progress_age > stale_after_seconds
-    heartbeat_stale = status == "running" and heartbeat_age is not None and heartbeat_age > heartbeat_timeout_seconds
+    stalled = (
+        status in ACTIVE_STATUSES
+        and progress_age is not None
+        and progress_age > stale_after_seconds
+    )
+    heartbeat_stale = (
+        status == "running"
+        and heartbeat_age is not None
+        and heartbeat_age > heartbeat_timeout_seconds
+    )
 
     reason = ""
     if job.get("error_code") == "PROCESS_RESTARTED":
@@ -74,7 +82,7 @@ def diagnose_jobs(
     heartbeat_timeout_seconds: int,
     now: datetime | None = None,
 ) -> list[dict[str, Any]]:
-    current_time = now or datetime.now(timezone.utc)
+    current_time = now or datetime.now(UTC)
     return [
         diagnose_job(
             job,

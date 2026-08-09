@@ -1,11 +1,15 @@
-import json
 import hashlib
+import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from src.app.retrieval.models import RetrievalResult
+from src.app.rag.structured_tables import (
+    STRUCTURED_TABLE_DIR,
+    StructuredTableMatch,
+    find_structured_table_matches,
+)
 from src.app.retrieval.hybrid_search import (
     RetrievalState,
     infer_is_table,
@@ -14,17 +18,14 @@ from src.app.retrieval.hybrid_search import (
     text_contains_clause_heading,
     text_mentions_clause,
 )
-from src.app.rag.structured_tables import (
-    STRUCTURED_TABLE_DIR,
-    StructuredTableMatch,
-    find_structured_table_matches,
-)
+from src.app.retrieval.models import RetrievalResult
 from src.pipeline.active_db import read_active_manifest
 from src.pipeline.manifest import read_manifest
 
-
 DEFAULT_EVAL_PATH = Path(__file__).resolve().parents[2] / "data" / "evaluation" / "queries.jsonl"
-STRUCTURED_EVAL_PATH = Path(__file__).resolve().parents[2] / "data" / "evaluation" / "complex_structured_tables.jsonl"
+STRUCTURED_EVAL_PATH = (
+    Path(__file__).resolve().parents[2] / "data" / "evaluation" / "complex_structured_tables.jsonl"
+)
 SUPPORTED_CASE_TYPES = {
     "alias",
     "classification",
@@ -203,7 +204,9 @@ def _authority_hit(case: EvaluationCase, results: list[RetrievalResult]) -> bool
         if case.expected_authority_type == "body":
             return top_section == "body"
         if case.expected_authority_type == "body_or_table":
-            return top_section in {"body", "body_table"} or infer_is_table(results[0].meta, results[0].text)
+            return top_section in {"body", "body_table"} or infer_is_table(
+                results[0].meta, results[0].text
+            )
         if case.expected_authority_type == "explanation":
             return top_section == "explanation"
         if case.expected_authority_type == "non_explanation":
@@ -254,12 +257,9 @@ def summarize_results(
         table_ok = _table_hit(case, results)
         authority_ok = _authority_hit(case, results)
         structured_matches = structured_by_id.get(case.id, [])
-        structured_ok = (
-            not case.expected_table_id
-            or any(
-                str(match.table.get("source", {}).get("table_id") or "") == case.expected_table_id
-                for match in structured_matches
-            )
+        structured_ok = not case.expected_table_id or any(
+            str(match.table.get("source", {}).get("table_id") or "") == case.expected_table_id
+            for match in structured_matches
         )
         if case.expected_table_id:
             structured_case_count += 1
@@ -305,7 +305,8 @@ def summarize_results(
                     "failed_checks": failed_checks,
                     "top_results": [
                         {
-                            "source_file": result.meta.get("source_file") or result.meta.get("source"),
+                            "source_file": result.meta.get("source_file")
+                            or result.meta.get("source"),
                             "clause_number": result.meta.get("clause_number"),
                             "matched_clause_number": result.meta.get("matched_clause_number"),
                             "section_type": result.meta.get("section_type"),
@@ -337,7 +338,9 @@ def summarize_results(
         "table_hit_rate": table_hits / total if total else 0,
         "authority_hit_rate": authority_hits / total if total else 0,
         "structured_case_count": structured_case_count,
-        "structured_table_hit_rate": structured_hits / structured_case_count if structured_case_count else 1,
+        "structured_table_hit_rate": structured_hits / structured_case_count
+        if structured_case_count
+        else 1,
         "cases_by_type": cases_by_type,
         "failures_by_type": failures_by_type,
         "failures_by_check": failures_by_check,
@@ -359,10 +362,15 @@ def run_evaluation(
         evaluation_state.initialize()
 
     if requires_hybrid and not evaluation_state.ready:
-        return {"ok": False, "error": "知识库检索服务未就绪，请先启动并完成 ChromaDB/ZhipuAI 初始化"}
+        return {
+            "ok": False,
+            "error": "知识库检索服务未就绪，请先启动并完成 ChromaDB/ZhipuAI 初始化",
+        }
 
     results_by_id = {
-        case.id: evaluation_state.hybrid_search(case.query, top_k) if case.type != "structured_table" else []
+        case.id: evaluation_state.hybrid_search(case.query, top_k)
+        if case.type != "structured_table"
+        else []
         for case in cases
     }
     structured_by_id = {
@@ -377,7 +385,7 @@ def run_evaluation(
         data_version_hash = structured_data_version_hash()
     return {
         "ok": True,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "evaluation_set": str(path.resolve()),
         "evaluation_set_hash": hashlib.sha256(path.read_bytes()).hexdigest(),
         "data_version_hash": data_version_hash,
@@ -420,4 +428,3 @@ def render_evaluation_markdown(result: dict[str, Any], title: str = "检索评�
             ]
         )
     return "\n".join(lines) + "\n"
-

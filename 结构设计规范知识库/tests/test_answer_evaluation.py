@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pytest
-
 from src.evaluation.answer_runner import (
     ANSWER_EVAL_PATH,
     AnswerEvaluationCase,
@@ -9,8 +8,8 @@ from src.evaluation.answer_runner import (
     extract_markdown_images,
     load_answer_cases,
     summarize_answer_results,
-    validate_trace_citations,
     validate_answer_cases,
+    validate_trace_citations,
 )
 
 
@@ -109,7 +108,9 @@ def test_refusal_case_accepts_equivalent_nonexistent_wording():
 
 
 def test_unit_check_accepts_latex_text_notation():
-    answer = "【结论】办公楼取2.0。 【依据】GB 50009-2012 表5.1.1。 【说明】单位为 $\\text{kN/m}^2$。"
+    answer = (
+        "【结论】办公楼取2.0。 【依据】GB 50009-2012 表5.1.1。 【说明】单位为 $\\text{kN/m}^2$。"
+    )
     result = evaluate_answer(
         _case(requires_image=False),
         answer,
@@ -147,7 +148,10 @@ def test_formula_check_normalizes_latex_formatting_and_greek_symbols():
 def test_markdown_image_parser_rejects_unsupported_route():
     images = extract_markdown_images("![图](https://example.com/fake.png)")
     assert images[0]["url"] == "https://example.com/fake.png"
-    result = evaluate_answer(_case(), "【结论】2.0 kN/m² 办公楼。【依据】GB 50009-2012 表5.1.1。【说明】。![图](https://example.com/fake.png)")
+    result = evaluate_answer(
+        _case(),
+        "【结论】2.0 kN/m² 办公楼。【依据】GB 50009-2012 表5.1.1。【说明】。![图](https://example.com/fake.png)",
+    )
     assert result["checks"]["image_routes"] is False
 
 
@@ -237,3 +241,11 @@ def test_answer_summary_keeps_assertion_failure_as_completed(tmp_path: Path):
 
     assert summary["ok"] is True
     assert summary["pass_rate"] == 0
+
+
+def test_answer_summary_rejects_case_and_result_count_mismatch(tmp_path: Path):
+    path = tmp_path / "answers.jsonl"
+    path.write_text("{}", encoding="utf-8")
+
+    with pytest.raises(ValueError, match=r"zip\(\) argument"):
+        summarize_answer_results([_case(id="missing-result")], [], path=path)

@@ -6,16 +6,16 @@ import os
 import re
 import shutil
 import stat
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from threading import Lock
-from typing import Any, Iterable
+from typing import Any
 from uuid import uuid4
 
 from .active_db import active_db_dir
 from .paths import ACTIVE_DB_PATH, AUDIT_DIR, DB_VERSIONS_DIR
-
 
 VERSION_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 PIN_FILENAME = ".retention.json"
@@ -73,11 +73,11 @@ def retention_policy_from_settings(config: Any) -> VersionRetentionPolicy:
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _iso(value: datetime) -> str:
-    return value.astimezone(timezone.utc).isoformat()
+    return value.astimezone(UTC).isoformat()
 
 
 def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
@@ -238,7 +238,7 @@ def inventory_versions(
         try:
             safe_path = _safe_version_path(versions_dir, path.name)
             scan = _scan_directory(safe_path)
-            modified_at = datetime.fromtimestamp(scan["newest_mtime_ns"] / 1_000_000_000, timezone.utc)
+            modified_at = datetime.fromtimestamp(scan["newest_mtime_ns"] / 1_000_000_000, UTC)
             state, gate = _version_state(
                 safe_path,
                 path.name == active_id,
@@ -473,7 +473,11 @@ def execute_cleanup_plan(
         _atomic_json(plan_path, plan)
         _append_audit(
             audit_dir,
-            {"event": "version_cleanup_invalidated", "plan_id": plan_id, "reason": "policy_changed"},
+            {
+                "event": "version_cleanup_invalidated",
+                "plan_id": plan_id,
+                "reason": "policy_changed",
+            },
         )
         raise VersionRetentionError("保留策略已变化，请重新生成清理计划")
 

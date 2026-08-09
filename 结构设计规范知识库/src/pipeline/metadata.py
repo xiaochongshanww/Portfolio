@@ -4,7 +4,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-
 SPEC_CODE_RE = re.compile(r"^(?P<prefix>[A-Z]{1,4})\s*(?P<number>\d{4,6}(?:-\d{4})?)")
 VALID_ASSET_ACCESS_SCOPES = {"public", "authenticated", "disabled"}
 

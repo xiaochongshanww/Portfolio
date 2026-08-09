@@ -1,6 +1,6 @@
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -55,12 +55,18 @@ def build_manifest(
                 "parser_metadata": parser_metadata_by_file.get(pdf.name, {}),
                 "audit": audit_by_file.get(pdf.name, {}),
                 "corrections": corrections_by_file.get(pdf.name, {}),
-                "missing_artifacts": [item["kind"] for item in artifacts if item.get("status") != "ok"],
+                "missing_artifacts": [
+                    item["kind"] for item in artifacts if item.get("status") != "ok"
+                ],
             }
         )
 
     missing_artifacts = [
-        {"source_file": doc["source_file"], "kind": artifact["kind"], "required": artifact["required"]}
+        {
+            "source_file": doc["source_file"],
+            "kind": artifact["kind"],
+            "required": artifact["required"],
+        }
         for doc in documents
         for artifact in doc.get("artifacts", [])
         if artifact.get("status") != "ok"
@@ -70,9 +76,15 @@ def build_manifest(
         "high_risk_count": sum(doc.get("audit", {}).get("high_risk_count", 0) for doc in documents),
     }
     correction_status = {
-        "approved_count": sum(doc.get("corrections", {}).get("approved_count", 0) for doc in documents),
-        "applied_count": sum(doc.get("corrections", {}).get("applied_count", 0) for doc in documents),
-        "skipped_count": sum(doc.get("corrections", {}).get("skipped_count", 0) for doc in documents),
+        "approved_count": sum(
+            doc.get("corrections", {}).get("approved_count", 0) for doc in documents
+        ),
+        "applied_count": sum(
+            doc.get("corrections", {}).get("applied_count", 0) for doc in documents
+        ),
+        "skipped_count": sum(
+            doc.get("corrections", {}).get("skipped_count", 0) for doc in documents
+        ),
     }
 
     version_payload = {
@@ -83,7 +95,7 @@ def build_manifest(
     }
     return {
         "schema_version": 1,
-        "built_at": datetime.now(timezone.utc).isoformat(),
+        "built_at": datetime.now(UTC).isoformat(),
         "documents": documents,
         "document_count": len(documents),
         "chunk_count": sum(chunk_counts.values()),
@@ -91,7 +103,9 @@ def build_manifest(
         "embedding_model": embedding_model,
         "collection_name": collection_name,
         "build_params": build_params,
-        "metadata_status": "partial" if any(doc["metadata_status"] == "partial" for doc in documents) else "complete",
+        "metadata_status": "partial"
+        if any(doc["metadata_status"] == "partial" for doc in documents)
+        else "complete",
         "audit_status": audit_status,
         "correction_status": correction_status,
         "artifact_status": {

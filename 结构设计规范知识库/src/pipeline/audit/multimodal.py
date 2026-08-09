@@ -37,7 +37,9 @@ def find_source_pdf(doc: str, source_dir: Path = RAW_DIR) -> Path | None:
     return None
 
 
-def load_processed_elements(source_file: str, processed_dir: Path = PROCESSED_DIR) -> list[dict[str, Any]]:
+def load_processed_elements(
+    source_file: str, processed_dir: Path = PROCESSED_DIR
+) -> list[dict[str, Any]]:
     path = processed_dir / f"{Path(source_file).stem}.json"
     if not path.exists():
         return []
@@ -103,18 +105,20 @@ def _review_prompt(source_file: str, page: int, elements: list[dict[str, Any]]) 
         "只找出有明确证据的解析错误，不要根据常识补全文字。"
         "表格数值、公式、强制性条文只能给出 needs_review 候选。"
         "输出严格 JSON，不要 Markdown。JSON 结构："
-        "{\"candidates\":[{\"id\":\"...\",\"source_file\":\"...\",\"page\":1,"
-        "\"issue_type\":\"ocr_error|table_misaligned|formula_error|title_level|split_merge|image_mapping|other\","
-        "\"severity\":\"low|medium|high\",\"confidence\":0.0,"
-        "\"target\":{\"element_index\":0,\"field\":\"text\"},"
-        "\"suggested_patch\":{\"action\":\"replace_text|set_field|delete_element|insert_after|merge_next\",\"value\":\"...\"},"
-        "\"review_status\":\"pending\",\"evidence\":{\"reason\":\"...\"}}]}"
+        '{"candidates":[{"id":"...","source_file":"...","page":1,'
+        '"issue_type":"ocr_error|table_misaligned|formula_error|title_level|split_merge|image_mapping|other",'
+        '"severity":"low|medium|high","confidence":0.0,'
+        '"target":{"element_index":0,"field":"text"},'
+        '"suggested_patch":{"action":"replace_text|set_field|delete_element|insert_after|merge_next","value":"..."},'
+        '"review_status":"pending","evidence":{"reason":"..."}}]}'
         f"\nsource_file={source_file}\npage={page}\nelements="
         f"{json.dumps(compact_elements, ensure_ascii=False)}"
     )
 
 
-def call_mimo_review(source_file: str, page: int, image_path: Path, elements: list[dict[str, Any]]) -> dict[str, Any]:
+def call_mimo_review(
+    source_file: str, page: int, image_path: Path, elements: list[dict[str, Any]]
+) -> dict[str, Any]:
     if not settings.mimo_api_key:
         return {
             "source_file": source_file,
@@ -143,13 +147,21 @@ def call_mimo_review(source_file: str, page: int, image_path: Path, elements: li
     response = httpx.post(
         f"{settings.mimo_base_url}/chat/completions",
         json=payload,
-        headers={"Authorization": f"Bearer {settings.mimo_api_key}", "Content-Type": "application/json"},
+        headers={
+            "Authorization": f"Bearer {settings.mimo_api_key}",
+            "Content-Type": "application/json",
+        },
         timeout=settings.llm_timeout_seconds,
     )
     response.raise_for_status()
     content = response.json()["choices"][0]["message"]["content"]
     parsed = _extract_json_object(content)
-    return {"source_file": source_file, "page": page, "status": "ok", "candidates": parsed.get("candidates", [])}
+    return {
+        "source_file": source_file,
+        "page": page,
+        "status": "ok",
+        "candidates": parsed.get("candidates", []),
+    }
 
 
 def write_review_report(report: dict[str, Any], out_dir: Path = AUDIT_DIR) -> Path:
@@ -160,11 +172,17 @@ def write_review_report(report: dict[str, Any], out_dir: Path = AUDIT_DIR) -> Pa
     return path
 
 
-def write_candidate_file(source_file: str, candidates: list[dict[str, Any]], corrections_dir: Path = CORRECTIONS_DIR) -> Path:
+def write_candidate_file(
+    source_file: str, candidates: list[dict[str, Any]], corrections_dir: Path = CORRECTIONS_DIR
+) -> Path:
     candidates_dir = corrections_dir / "candidates"
     candidates_dir.mkdir(parents=True, exist_ok=True)
     path = candidates_dir / f"{Path(source_file).stem}.json"
-    payload = {"source_file": source_file, "generated_at": int(time.time()), "corrections": candidates}
+    payload = {
+        "source_file": source_file,
+        "generated_at": int(time.time()),
+        "corrections": candidates,
+    }
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     return path
 
@@ -179,14 +197,22 @@ def run_multimodal_review(
 ) -> dict[str, Any]:
     pdf_path = find_source_pdf(doc, source_dir)
     if not pdf_path:
-        return {"source_file": doc, "pages": pages, "status": "not_found", "candidates": [], "message": "未找到匹配 PDF"}
+        return {
+            "source_file": doc,
+            "pages": pages,
+            "status": "not_found",
+            "candidates": [],
+            "message": "未找到匹配 PDF",
+        }
 
     requested_pages = parse_pages(pages)
     if not requested_pages:
         requested_pages = [1]
 
     elements = load_processed_elements(pdf_path.name, processed_dir)
-    indexed_elements = [{**element, "_element_index": index} for index, element in enumerate(elements)]
+    indexed_elements = [
+        {**element, "_element_index": index} for index, element in enumerate(elements)
+    ]
     try:
         rendered = render_pdf_pages(pdf_path, requested_pages, out_dir / "page_images")
     except RuntimeError as exc:
@@ -206,10 +232,19 @@ def run_multimodal_review(
     page_reports = []
     all_candidates: list[dict[str, Any]] = []
     for page in requested_pages:
-        page_elements = [element for element in indexed_elements if int(element.get("page") or 0) == page]
+        page_elements = [
+            element for element in indexed_elements if int(element.get("page") or 0) == page
+        ]
         image_path = rendered.get(page)
         if not image_path:
-            page_reports.append({"source_file": pdf_path.name, "page": page, "status": "page_not_rendered", "candidates": []})
+            page_reports.append(
+                {
+                    "source_file": pdf_path.name,
+                    "page": page,
+                    "status": "page_not_rendered",
+                    "candidates": [],
+                }
+            )
             continue
         page_report = call_mimo_review(pdf_path.name, page, image_path, page_elements)
         page_reports.append(page_report)
@@ -220,12 +255,18 @@ def run_multimodal_review(
             all_candidates.append(candidate)
 
     candidate_path = write_candidate_file(pdf_path.name, all_candidates) if all_candidates else ""
-    status = "ok" if any(report.get("status") == "ok" for report in page_reports) else page_reports[0].get("status", "not_configured")
+    status = (
+        "ok"
+        if any(report.get("status") == "ok" for report in page_reports)
+        else page_reports[0].get("status", "not_configured")
+    )
     report = {
         "source_file": pdf_path.name,
         "pages": pages,
         "status": status,
-        "model": os.environ.get("AI_REVIEW_MODEL", settings.mimo_model) if settings.mimo_api_key else "",
+        "model": os.environ.get("AI_REVIEW_MODEL", settings.mimo_model)
+        if settings.mimo_api_key
+        else "",
         "candidate_count": len(all_candidates),
         "candidate_path": str(candidate_path),
         "pages_reviewed": page_reports,

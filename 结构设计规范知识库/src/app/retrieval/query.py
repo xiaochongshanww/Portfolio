@@ -1,7 +1,6 @@
 import re
 from dataclasses import dataclass
 
-
 CLAUSE_RE = re.compile(r"(?<!\d)(\d+\.\d+(?:\.\d+)?(?:-\d+)?)(?!\d)")
 TABLE_ID_RE = re.compile(r"表\s*(\d+(?:\.\d+)+(?:-\d+)?)")
 SPEC_CODE_RE = re.compile(r"\b([A-Z]{1,4})\s*([0-9]{4,6}(?:-[0-9]{4})?)\b", re.I)
@@ -28,14 +27,35 @@ SPEC_ALIASES = {
     "分部工程": "建筑工程施工质量验收统一标准",
 }
 
-VALUE_INTENT_TERMS = ("取多少", "是多少", "限值", "系数", "取值", "数值", "荷载值", "怎么取", "如何取")
+VALUE_INTENT_TERMS = (
+    "取多少",
+    "是多少",
+    "限值",
+    "系数",
+    "取值",
+    "数值",
+    "荷载值",
+    "怎么取",
+    "如何取",
+)
 VALUE_REFERENCE_TERMS = ("标准值", "设计值")
 DEFINITION_INTENT_TERMS = ("是什么", "什么是", "定义", "含义", "什么意思", "关系", "区别")
 FORMULA_INTENT_TERMS = ("公式", "计算式", "表达式", "怎么算", "如何计算")
 REQUIREMENT_INTENT_TERMS = ("要求", "规定", "构造", "应", "不应", "宜")
 CLASSIFICATION_INTENT_TERMS = ("划分", "分为", "分成", "类别", "等级", "类型", "哪几类", "哪些类")
 TABLE_TERMS = ("表", "表格", "查表", "按表")
-QUESTION_TERMS = ("哪个", "哪些", "哪里", "在哪", "多少", "怎么", "如何", "有什么", "有哪些", "确定")
+QUESTION_TERMS = (
+    "哪个",
+    "哪些",
+    "哪里",
+    "在哪",
+    "多少",
+    "怎么",
+    "如何",
+    "有什么",
+    "有哪些",
+    "确定",
+)
 QUERY_STOP_TERMS = (
     VALUE_INTENT_TERMS
     + VALUE_REFERENCE_TERMS
@@ -95,8 +115,7 @@ def analyze_query(query: str) -> QueryInfo:
         if clause_number not in table_numbers
     ]
     spec_codes = [
-        normalize_spec_code(prefix, number)
-        for prefix, number in SPEC_CODE_RE.findall(normalized)
+        normalize_spec_code(prefix, number) for prefix, number in SPEC_CODE_RE.findall(normalized)
     ]
     spec_aliases = [alias for alias in SPEC_ALIASES if alias in normalized]
     spec_names = list(dict.fromkeys(SPEC_ALIASES[alias] for alias in spec_aliases))
@@ -139,4 +158,3 @@ def analyze_query(query: str) -> QueryInfo:
         content_phrases=content_phrases,
         content_keywords=extract_content_keywords(normalized),
     )
-

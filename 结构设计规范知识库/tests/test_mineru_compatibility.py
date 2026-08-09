@@ -3,7 +3,6 @@ import subprocess
 from pathlib import Path
 
 import pytest
-
 from src.pipeline import builder
 from src.pipeline.parsers.base import ParserUnavailableError
 from src.pipeline.parsers.mineru import (
@@ -13,12 +12,16 @@ from src.pipeline.parsers.mineru import (
 )
 
 
-def _completed(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:
+def _completed(
+    stdout: str = "", stderr: str = "", returncode: int = 0
+) -> subprocess.CompletedProcess[str]:
     return subprocess.CompletedProcess(["parser", "--version"], returncode, stdout, stderr)
 
 
 def test_verified_magic_pdf_version_is_accepted(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setattr("src.pipeline.parsers.mineru.shutil.which", lambda _binary: "/tools/magic-pdf")
+    monkeypatch.setattr(
+        "src.pipeline.parsers.mineru.shutil.which", lambda _binary: "/tools/magic-pdf"
+    )
     monkeypatch.setattr(
         "src.pipeline.parsers.mineru.subprocess.run",
         lambda *_args, **_kwargs: _completed(stdout="magic-pdf, version 1.3.12\n"),
@@ -88,7 +91,9 @@ def test_version_probe_rejects_invalid_results(
     message: str,
 ):
     monkeypatch.setattr("src.pipeline.parsers.mineru.shutil.which", lambda _binary: "/tools/parser")
-    monkeypatch.setattr("src.pipeline.parsers.mineru.subprocess.run", lambda *_args, **_kwargs: completed)
+    monkeypatch.setattr(
+        "src.pipeline.parsers.mineru.subprocess.run", lambda *_args, **_kwargs: completed
+    )
 
     with pytest.raises(ParserUnavailableError, match=message):
         probe_mineru_cli("parser")

@@ -9,7 +9,6 @@ import urllib.request
 from pathlib import Path
 
 import pytest
-
 from scripts import verify_quality
 
 
@@ -385,9 +384,7 @@ def test_managed_api_refuses_occupied_port(tmp_path: Path):
         listener.listen()
         port = int(listener.getsockname()[1])
         manager = verify_quality.ManagedApiProcess(
-            target=verify_quality._parse_managed_api_target(
-                f"http://127.0.0.1:{port}"
-            ),
+            target=verify_quality._parse_managed_api_target(f"http://127.0.0.1:{port}"),
             log_path=tmp_path / "api.log",
         )
 
@@ -411,9 +408,7 @@ def test_managed_api_real_process_starts_and_stops(tmp_path: Path):
     port = _free_loopback_port()
     environment = dict(os.environ)
     environment["PYTHONPATH"] = os.pathsep.join(
-        value
-        for value in (str(tmp_path), environment.get("PYTHONPATH", ""))
-        if value
+        value for value in (str(tmp_path), environment.get("PYTHONPATH", "")) if value
     )
     manager = verify_quality.ManagedApiProcess(
         target=verify_quality._parse_managed_api_target(f"http://127.0.0.1:{port}"),
@@ -437,17 +432,14 @@ def test_managed_api_real_process_starts_and_stops(tmp_path: Path):
 def test_managed_api_failed_start_redacts_environment_secret(tmp_path: Path):
     module_path = tmp_path / "failed_fixture.py"
     module_path.write_text(
-        "import os\n"
-        "raise RuntimeError('credential=' + os.environ['ZHIPUAI_API_KEY'])\n",
+        "import os\nraise RuntimeError('credential=' + os.environ['ZHIPUAI_API_KEY'])\n",
         encoding="utf-8",
     )
     port = _free_loopback_port()
     environment = dict(os.environ)
     environment["ZHIPUAI_API_KEY"] = "secret-must-not-leak"
     environment["PYTHONPATH"] = os.pathsep.join(
-        value
-        for value in (str(tmp_path), environment.get("PYTHONPATH", ""))
-        if value
+        value for value in (str(tmp_path), environment.get("PYTHONPATH", "")) if value
     )
     manager = verify_quality.ManagedApiProcess(
         target=verify_quality._parse_managed_api_target(f"http://127.0.0.1:{port}"),

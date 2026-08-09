@@ -11,8 +11,10 @@ from src.pipeline.paths import configured_project_path
 try:
     from dotenv import load_dotenv
 except ImportError:
+
     def load_dotenv() -> bool:
         return False
+
 
 load_dotenv()
 
@@ -40,7 +42,9 @@ def _env_bool(name: str, default: str = "false") -> bool:
         return True
     if value in FALSE_VALUES:
         return False
-    raise ConfigurationError(f"{name} 必须是布尔值（true/false、1/0、yes/no 或 on/off），当前为 {value!r}")
+    raise ConfigurationError(
+        f"{name} 必须是布尔值（true/false、1/0、yes/no 或 on/off），当前为 {value!r}"
+    )
 
 
 def _env_int(name: str, default: str) -> int:
@@ -77,28 +81,52 @@ class Settings:
 
     zhipuai_api_key: str = field(default_factory=lambda: os.getenv("ZHIPUAI_API_KEY", ""))
     mimo_api_key: str = field(default_factory=lambda: os.getenv("MIMO_API_KEY", ""))
-    mimo_base_url: str = field(default_factory=lambda: os.getenv("MIMO_BASE_URL", "https://api.xiaomimimo.com/v1"))
+    mimo_base_url: str = field(
+        default_factory=lambda: os.getenv("MIMO_BASE_URL", "https://api.xiaomimimo.com/v1")
+    )
     mimo_model: str = field(default_factory=lambda: os.getenv("MIMO_MODEL", "mimo-v2.5"))
     llm_timeout_seconds: int = field(default_factory=lambda: _env_int("LLM_TIMEOUT_SECONDS", "180"))
 
     rag_top_k: int = field(default_factory=lambda: _env_int("RAG_TOP_K", "12"))
     rag_min_score: float = field(default_factory=lambda: _env_float("RAG_MIN_SCORE", "0.65"))
-    embedding_model: str = field(default_factory=lambda: os.getenv("EMBEDDING_MODEL", "embedding-2"))
-    retrieval_dense_weight: float = field(default_factory=lambda: _env_float("RETRIEVAL_DENSE_WEIGHT", "1.0"))
-    retrieval_bm25_weight: float = field(default_factory=lambda: _env_float("RETRIEVAL_BM25_WEIGHT", "0.18"))
-    retrieval_clause_boost: float = field(default_factory=lambda: _env_float("RETRIEVAL_CLAUSE_BOOST", "5.0"))
+    embedding_model: str = field(
+        default_factory=lambda: os.getenv("EMBEDDING_MODEL", "embedding-2")
+    )
+    retrieval_dense_weight: float = field(
+        default_factory=lambda: _env_float("RETRIEVAL_DENSE_WEIGHT", "1.0")
+    )
+    retrieval_bm25_weight: float = field(
+        default_factory=lambda: _env_float("RETRIEVAL_BM25_WEIGHT", "0.18")
+    )
+    retrieval_clause_boost: float = field(
+        default_factory=lambda: _env_float("RETRIEVAL_CLAUSE_BOOST", "5.0")
+    )
     rerank_enabled: bool = field(default_factory=lambda: _env_bool("RERANK_ENABLED", "false"))
     rerank_provider: str = field(default_factory=lambda: os.getenv("RERANK_PROVIDER", "none"))
     api_auth_enabled: bool = field(default_factory=lambda: _env_bool("API_AUTH_ENABLED", "false"))
     api_keys: list[str] = field(default_factory=lambda: _split_csv(os.getenv("API_KEYS", "")))
-    openwebui_api_key: str = field(default_factory=lambda: os.getenv("OPENWEBUI_API_KEY", "").strip())
-    asset_signing_key: str = field(default_factory=lambda: os.getenv("ASSET_SIGNING_KEY", "").strip())
-    asset_url_ttl_seconds: int = field(default_factory=lambda: _env_int("ASSET_URL_TTL_SECONDS", "3600"))
+    openwebui_api_key: str = field(
+        default_factory=lambda: os.getenv("OPENWEBUI_API_KEY", "").strip()
+    )
+    asset_signing_key: str = field(
+        default_factory=lambda: os.getenv("ASSET_SIGNING_KEY", "").strip()
+    )
+    asset_url_ttl_seconds: int = field(
+        default_factory=lambda: _env_int("ASSET_URL_TTL_SECONDS", "3600")
+    )
     max_request_bytes: int = field(default_factory=lambda: _env_int("MAX_REQUEST_BYTES", "1048576"))
-    rate_limit_enabled: bool = field(default_factory=lambda: _env_bool("RATE_LIMIT_ENABLED", "true"))
-    rate_limit_per_minute: int = field(default_factory=lambda: _env_int("RATE_LIMIT_PER_MINUTE", "30"))
-    job_heartbeat_seconds: int = field(default_factory=lambda: _env_int("JOB_HEARTBEAT_SECONDS", "15"))
-    job_stale_after_seconds: int = field(default_factory=lambda: _env_int("JOB_STALE_AFTER_SECONDS", "7200"))
+    rate_limit_enabled: bool = field(
+        default_factory=lambda: _env_bool("RATE_LIMIT_ENABLED", "true")
+    )
+    rate_limit_per_minute: int = field(
+        default_factory=lambda: _env_int("RATE_LIMIT_PER_MINUTE", "30")
+    )
+    job_heartbeat_seconds: int = field(
+        default_factory=lambda: _env_int("JOB_HEARTBEAT_SECONDS", "15")
+    )
+    job_stale_after_seconds: int = field(
+        default_factory=lambda: _env_int("JOB_STALE_AFTER_SECONDS", "7200")
+    )
     answer_evaluation_api_base: str = field(
         default_factory=lambda: _env_http_base_url(
             "ANSWER_EVALUATION_API_BASE",
@@ -118,7 +146,9 @@ class Settings:
         default_factory=lambda: _env_int("VERSION_RETENTION_MINIMUM_AGE_HOURS", "24")
     )
     version_retention_high_watermark_bytes: int = field(
-        default_factory=lambda: _env_int("VERSION_RETENTION_HIGH_WATERMARK_BYTES", str(20 * 1024**3))
+        default_factory=lambda: _env_int(
+            "VERSION_RETENTION_HIGH_WATERMARK_BYTES", str(20 * 1024**3)
+        )
     )
     version_retention_low_watermark_bytes: int = field(
         default_factory=lambda: _env_int("VERSION_RETENTION_LOW_WATERMARK_BYTES", str(16 * 1024**3))
@@ -136,17 +166,23 @@ class Settings:
         )
     )
     img_base_url: str = field(default_factory=lambda: os.getenv("IMG_BASE_URL", "/images"))
-    public_asset_base_url: str = field(default_factory=lambda: os.getenv("PUBLIC_ASSET_BASE_URL", "").rstrip("/"))
+    public_asset_base_url: str = field(
+        default_factory=lambda: os.getenv("PUBLIC_ASSET_BASE_URL", "").rstrip("/")
+    )
     source_metadata_path: Path = field(
         default_factory=lambda: configured_project_path(
             "SOURCE_METADATA_PATH",
             configured_project_path("DATA_DIR", "data") / "metadata" / "specs.json",
         )
     )
-    static_dir: Path = field(default_factory=lambda: configured_project_path("STATIC_DIR", "frontend/dist"))
+    static_dir: Path = field(
+        default_factory=lambda: configured_project_path("STATIC_DIR", "frontend/dist")
+    )
 
     cors_origins: list[str] = field(
-        default_factory=lambda: _split_csv(os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8080"))
+        default_factory=lambda: _split_csv(
+            os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8080")
+        )
     )
     cors_allow_credentials: bool = field(
         default_factory=lambda: _env_bool("CORS_ALLOW_CREDENTIALS", "false")
@@ -185,7 +221,9 @@ class Settings:
             "VERSION_RETENTION_MINIMUM_AGE_HOURS": self.version_retention_minimum_age_hours,
             "VERSION_RETENTION_LOW_WATERMARK_BYTES": self.version_retention_low_watermark_bytes,
         }
-        issues.extend(f"{name} 不能小于 0" for name, value in retention_non_negative.items() if value < 0)
+        issues.extend(
+            f"{name} 不能小于 0" for name, value in retention_non_negative.items() if value < 0
+        )
         if self.version_retention_high_watermark_bytes <= 0:
             issues.append("VERSION_RETENTION_HIGH_WATERMARK_BYTES 必须大于 0")
         if self.version_retention_low_watermark_bytes > self.version_retention_high_watermark_bytes:
@@ -197,7 +235,9 @@ class Settings:
         if self.api_auth_enabled:
             if not self.api_keys:
                 issues.append("启用 API 鉴权时 API_KEYS 至少需要一个非空 Key")
-            placeholders = sorted(key for key in self.api_keys if key.casefold() in PLACEHOLDER_API_KEYS)
+            placeholders = sorted(
+                key for key in self.api_keys if key.casefold() in PLACEHOLDER_API_KEYS
+            )
             if placeholders:
                 issues.append("API_KEYS 不能使用示例占位值")
             if self.openwebui_api_key and self.openwebui_api_key not in self.api_keys:

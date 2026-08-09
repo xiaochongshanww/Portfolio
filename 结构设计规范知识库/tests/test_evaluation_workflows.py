@@ -5,10 +5,9 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
-
+from src.app.admin import workflows
 from src.app.admin.models import Job
 from src.app.admin.storage import JobStore
-from src.app.admin import workflows
 from src.app.api.admin import AnswerEvaluateRequest, EvaluateRequest, router
 
 
@@ -74,7 +73,9 @@ def test_retrieval_evaluation_execution_failure_marks_workflow_failed(monkeypatc
     assert Path(persisted["outputs"]["report_path"]).is_file()
     report = Path(persisted["outputs"]["report_path"]).read_text(encoding="utf-8")
     assert '"evaluation_set_id": "regular"' in report
-    assert "执行错误" in Path(persisted["outputs"]["markdown_report_path"]).read_text(encoding="utf-8")
+    assert "执行错误" in Path(persisted["outputs"]["markdown_report_path"]).read_text(
+        encoding="utf-8"
+    )
 
 
 def test_answer_evaluation_unready_target_fails_before_cases(monkeypatch, tmp_path: Path):

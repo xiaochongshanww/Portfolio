@@ -4,13 +4,14 @@ from urllib.parse import unquote
 from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse
 
+from src.pipeline.active_db import active_images_dir
+from src.pipeline.audit.multimodal import find_source_pdf, render_pdf_pages
+from src.pipeline.paths import AUDIT_DIR, RAW_DIR
+
 from ..core.config import settings
 from ..core.content_access import asset_access_scope
 from ..core.errors import ErrorCode, error_response
 from ..core.security import is_asset_request_allowed
-from src.pipeline.audit.multimodal import find_source_pdf, render_pdf_pages
-from src.pipeline.active_db import active_images_dir
-from src.pipeline.paths import AUDIT_DIR, RAW_DIR
 
 router = APIRouter()
 
@@ -26,7 +27,9 @@ async def serve_page_image(doc: str, page: int, request: Request):
     rendered = render_pdf_pages(pdf_path, [page], AUDIT_DIR / "page_images")
     image_path = rendered.get(page)
     if not image_path or not image_path.exists():
-        return error_response(404, ErrorCode.IMAGE_NOT_FOUND, f"页截图不存在: {decoded_doc} page {page}")
+        return error_response(
+            404, ErrorCode.IMAGE_NOT_FOUND, f"页截图不存在: {decoded_doc} page {page}"
+        )
     return FileResponse(image_path, media_type="image/png")
 
 

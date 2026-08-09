@@ -4,9 +4,10 @@ from typing import Any
 
 from .metadata import SpecMetadata
 
-
 CLAUSE_RE = re.compile(r"(?P<clause>\d+\.\d+(?:\.\d+)?(?:-\d+)?)")
-TABLE_RE = re.compile(r"(^|\n)\s*表\s*(?P<table_id>\d+(?:\.\d+)+(?:-\d+)?)\s*(?P<table_name>[^\n<]*)")
+TABLE_RE = re.compile(
+    r"(^|\n)\s*表\s*(?P<table_id>\d+(?:\.\d+)+(?:-\d+)?)\s*(?P<table_name>[^\n<]*)"
+)
 
 
 def extract_clause_number(title: str, text: str) -> str:
@@ -30,7 +31,11 @@ def detect_chunk_type(title: str, fallback: str = "text") -> str:
 
 def detect_section_type(title: str, text: str, chunk_type: str, clause_number: str = "") -> str:
     combined = f"{title}\n{text}".strip()
-    if clause_number.startswith("0.") or "条文说明" in combined or re.search(r"^\s*说明\s*$", title or ""):
+    if (
+        clause_number.startswith("0.")
+        or "条文说明" in combined
+        or re.search(r"^\s*说明\s*$", title or "")
+    ):
         return "explanation"
     if re.match(r"^\s*附录[A-ZＡ-Ｚ一二三四五六七八九十]", title or ""):
         return "appendix"
@@ -66,7 +71,7 @@ def extract_table_info(title: str, text: str) -> tuple[str, str]:
 
 
 def stable_chunk_id(source_file: str, index: int, text: str) -> str:
-    digest = hashlib.sha256(f"{source_file}\n{index}\n{text}".encode("utf-8")).hexdigest()
+    digest = hashlib.sha256(f"{source_file}\n{index}\n{text}".encode()).hexdigest()
     return digest[:24]
 
 

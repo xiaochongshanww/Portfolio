@@ -9,8 +9,8 @@ from fastapi.responses import JSONResponse
 from ..core.config import settings
 from ..core.errors import ErrorCode, error_response, stream_error
 from ..core.metrics import metrics
-from ..rag.service import build_mimo_payload
 from ..rag.citations import normalize_answer_citations
+from ..rag.service import build_mimo_payload
 from ..schemas.chat import ChatCompletionRequest
 
 
@@ -22,7 +22,9 @@ async def generate_non_stream(request: ChatCompletionRequest):
     result = await build_mimo_payload(request)
     if isinstance(result, dict) and "error" in result:
         metrics.increment_error(result["error"]["code"], "/v1/chat/completions")
-        return JSONResponse(status_code=result.get("status_code", 500), content={"error": result["error"]})
+        return JSONResponse(
+            status_code=result.get("status_code", 500), content={"error": result["error"]}
+        )
 
     payload, _images, trace = result
     try:

@@ -1,12 +1,11 @@
 import json
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
-
 import scripts.snapshot_quality_evidence as quality_evidence
 from scripts.snapshot_quality_evidence import (
     DEFAULT_HISTORY_DIR,
@@ -99,9 +98,7 @@ def test_snapshot_history_write_is_idempotent_and_deterministic(tmp_path: Path):
     assert (project / DEFAULT_HISTORY_INDEX).read_bytes() == first_index
     assert validate_history(project)["history_entry_count"] == 1
 
-    verification_path = (
-        project / "data/audit/reports/verification_latest.json"
-    )
+    verification_path = project / "data/audit/reports/verification_latest.json"
     verification = json.loads(verification_path.read_text(encoding="utf-8"))
     verification["generated_at"] = "2026-08-09T01:00:00+00:00"
     verification_path.write_text(json.dumps(verification), encoding="utf-8")
@@ -115,8 +112,7 @@ def test_snapshot_history_write_is_idempotent_and_deterministic(tmp_path: Path):
     ]
     assert index == build_history_index(project)
     archive_text = "\n".join(
-        path.read_text(encoding="utf-8")
-        for path in (project / DEFAULT_HISTORY_DIR).glob("*.json")
+        path.read_text(encoding="utf-8") for path in (project / DEFAULT_HISTORY_DIR).glob("*.json")
     )
     assert "sensitive execution detail" not in archive_text
     assert "sensitive query" not in archive_text
@@ -151,9 +147,7 @@ def test_history_validation_rejects_tampered_archive(tmp_path: Path):
     _copy_committed_history(project)
     archive = next((project / DEFAULT_HISTORY_DIR).glob("*.json"))
     payload = json.loads(archive.read_text(encoding="utf-8"))
-    payload["reports"]["verification"]["generated_at"] = (
-        "2026-08-09T00:00:00+00:00"
-    )
+    payload["reports"]["verification"]["generated_at"] = "2026-08-09T00:00:00+00:00"
     archive.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
 
     with pytest.raises(EvidenceSnapshotError, match="文件名与内容指纹不一致"):
@@ -178,9 +172,7 @@ def test_history_validation_requires_current_snapshot_to_be_archived(
     project = tmp_path / "project"
     _copy_committed_history(project)
     snapshot = json.loads((project / DEFAULT_SNAPSHOT).read_text(encoding="utf-8"))
-    snapshot["reports"]["verification"]["generated_at"] = (
-        "2026-08-09T00:00:00+00:00"
-    )
+    snapshot["reports"]["verification"]["generated_at"] = "2026-08-09T00:00:00+00:00"
     (project / DEFAULT_SNAPSHOT).write_text(
         json.dumps(snapshot, ensure_ascii=False),
         encoding="utf-8",
@@ -266,9 +258,7 @@ def test_snapshot_validation_rejects_missing_system_card_marker(tmp_path: Path):
 
     card = project / "docs/quality/检索增强生成系统卡.md"
     card.write_text(
-        card.read_text(encoding="utf-8").replace(
-            "`verification.passed=false`", ""
-        ),
+        card.read_text(encoding="utf-8").replace("`verification.passed=false`", ""),
         encoding="utf-8",
     )
 

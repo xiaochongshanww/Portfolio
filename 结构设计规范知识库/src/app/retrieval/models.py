@@ -53,4 +53,3 @@ class RetrievalResult:
     @property
     def distance(self) -> float:
         return self.meta.get("_distance", 1.0)
-

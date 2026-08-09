@@ -1,19 +1,18 @@
 import asyncio
 import json
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from threading import Event, Thread
 from types import SimpleNamespace
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
-from src.app.api import admin
 from src.app.admin.job_diagnostics import diagnose_job
 from src.app.admin.jobs import JobManager
 from src.app.admin.models import Job
 from src.app.admin.storage import INTERRUPTED_ERROR_CODE, JobStore
+from src.app.api import admin
 from src.app.main import lifespan
 from src.quality.gate import summarize_jobs
 
@@ -139,19 +138,11 @@ def test_job_manager_writes_live_heartbeat_and_stops_at_terminal_state(tmp_path:
     assert started.wait(1)
     initial = store.read(job.job_id)["heartbeat_at"]
     updated = _wait_for(
-        lambda: (
-            payload
-            if (payload := store.read(job.job_id))["heartbeat_at"] > initial
-            else None
-        )
+        lambda: payload if (payload := store.read(job.job_id))["heartbeat_at"] > initial else None
     )
     release.set()
     finished = _wait_for(
-        lambda: (
-            payload
-            if (payload := store.read(job.job_id))["status"] == "succeeded"
-            else None
-        )
+        lambda: payload if (payload := store.read(job.job_id))["status"] == "succeeded" else None
     )
     manager.executor.shutdown(wait=True)
 
@@ -163,7 +154,7 @@ def test_job_manager_writes_live_heartbeat_and_stops_at_terminal_state(tmp_path:
 
 
 def test_diagnostics_separate_progress_stall_from_worker_heartbeat():
-    now = datetime(2026, 8, 8, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 8, 12, 0, tzinfo=UTC)
     job = {
         "job_id": "abc",
         "type": "rebuild",
@@ -187,7 +178,7 @@ def test_diagnostics_separate_progress_stall_from_worker_heartbeat():
 
 
 def test_diagnostics_and_quality_gate_fall_back_for_legacy_jobs():
-    now = datetime(2026, 8, 8, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 8, 12, 0, tzinfo=UTC)
     legacy = {
         "job_id": "legacy",
         "type": "rebuild",

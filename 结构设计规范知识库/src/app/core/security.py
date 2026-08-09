@@ -9,7 +9,6 @@ from fastapi import Request
 from .config import settings
 from .content_access import asset_scope_from_path
 
-
 PUBLIC_PATHS = {"/", "/health", "/ready", "/metrics", "/models", "/v1/models"}
 
 
@@ -39,7 +38,9 @@ def is_authorized(request: Request) -> bool:
     if scope in {"public", "disabled"}:
         return True
     key = extract_api_key(request)
-    return bool(key and key in settings.api_keys) or (scope == "authenticated" and verify_signed_asset_request(request))
+    return bool(key and key in settings.api_keys) or (
+        scope == "authenticated" and verify_signed_asset_request(request)
+    )
 
 
 def _canonical_asset_path(path: str) -> str:
@@ -48,7 +49,7 @@ def _canonical_asset_path(path: str) -> str:
 
 
 def _asset_signature(path: str, expires: int) -> str:
-    message = f"GET\n{_canonical_asset_path(path)}\n{expires}".encode("utf-8")
+    message = f"GET\n{_canonical_asset_path(path)}\n{expires}".encode()
     return hmac.new(settings.asset_signing_key.encode("utf-8"), message, hashlib.sha256).hexdigest()
 
 

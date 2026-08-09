@@ -8,11 +8,22 @@ from typing import Any
 from src.app.core.config import settings
 
 from .active_db import read_active_manifest
-from .manifest import build_manifest, read_manifest, write_manifest
+from .manifest import build_manifest, write_manifest
 from .metadata import load_spec_metadata
 from .parsers.base import ParserUnavailableError
 from .parsers.mineru import DEFAULT_MINERU_BINARY, probe_mineru_cli
-from .paths import ACTIVE_DB_PATH, AUDIT_DIR, CORRECTIONS_DIR, DB_DIR, IMAGES_DIR, MANIFEST_PATH, METADATA_DIR, MINERU_DIR, PROCESSED_DIR, RAW_DIR
+from .paths import (
+    ACTIVE_DB_PATH,
+    AUDIT_DIR,
+    CORRECTIONS_DIR,
+    DB_DIR,
+    IMAGES_DIR,
+    MANIFEST_PATH,
+    METADATA_DIR,
+    MINERU_DIR,
+    PROCESSED_DIR,
+    RAW_DIR,
+)
 
 
 class BuildPreflightError(RuntimeError):
@@ -24,7 +35,9 @@ def configure_pipeline_logging() -> None:
 
 
 def list_pdf_files(source_dir: Path) -> list[Path]:
-    return sorted(path for path in source_dir.iterdir() if path.is_file() and path.suffix.lower() == ".pdf")
+    return sorted(
+        path for path in source_dir.iterdir() if path.is_file() and path.suffix.lower() == ".pdf"
+    )
 
 
 DEFAULT_PARSER_BACKEND = os.environ.get("PDF_PARSER_BACKEND", "mineru")
@@ -56,7 +69,9 @@ def clean_generated_outputs(
         manifest_path.unlink()
 
 
-def dry_run(source_dir: Path = RAW_DIR, *, parser_backend: str = DEFAULT_PARSER_BACKEND) -> dict[str, Any]:
+def dry_run(
+    source_dir: Path = RAW_DIR, *, parser_backend: str = DEFAULT_PARSER_BACKEND
+) -> dict[str, Any]:
     pdf_files = list_pdf_files(source_dir)
     metadata = load_spec_metadata(pdf_files, METADATA_DIR / "specs.json")
     return {
@@ -135,7 +150,9 @@ def rebuild(
         mineru_output_dir=mineru_output_dir,
         apply_corrections=apply_corrections,
     )
-    chunks_by_file = {source_file: result["chunks"] for source_file, result in processed_by_file.items()}
+    chunks_by_file = {
+        source_file: result["chunks"] for source_file, result in processed_by_file.items()
+    }
     total_loaded = load_chunks_to_db(chunks_by_file, db_dir)
     chunk_counts = {source_file: len(chunks) for source_file, chunks in chunks_by_file.items()}
     image_count = len([path for path in images_dir.glob("*") if path.is_file()])
@@ -146,10 +163,22 @@ def rebuild(
         image_count=image_count,
         embedding_model=settings.embedding_model,
         collection_name=settings.collection_name,
-        artifacts_by_file={source_file: result.get("artifacts", []) for source_file, result in processed_by_file.items()},
-        parser_metadata_by_file={source_file: result.get("parser_metadata", {}) for source_file, result in processed_by_file.items()},
-        audit_by_file={source_file: result.get("audit", {}) for source_file, result in processed_by_file.items()},
-        corrections_by_file={source_file: result.get("corrections", {}) for source_file, result in processed_by_file.items()},
+        artifacts_by_file={
+            source_file: result.get("artifacts", [])
+            for source_file, result in processed_by_file.items()
+        },
+        parser_metadata_by_file={
+            source_file: result.get("parser_metadata", {})
+            for source_file, result in processed_by_file.items()
+        },
+        audit_by_file={
+            source_file: result.get("audit", {})
+            for source_file, result in processed_by_file.items()
+        },
+        corrections_by_file={
+            source_file: result.get("corrections", {})
+            for source_file, result in processed_by_file.items()
+        },
         chunk_hashes_by_file={
             source_file: [chunk["chunk_id"] for chunk in result.get("chunks", [])]
             for source_file, result in processed_by_file.items()
@@ -197,10 +226,14 @@ def audit(processed_dir: Path = PROCESSED_DIR) -> dict[str, Any]:
     return {**report, "report_path": str(report_path)}
 
 
-def review(doc: str, pages: str = "", source_dir: Path = RAW_DIR, processed_dir: Path = PROCESSED_DIR) -> dict[str, Any]:
+def review(
+    doc: str, pages: str = "", source_dir: Path = RAW_DIR, processed_dir: Path = PROCESSED_DIR
+) -> dict[str, Any]:
     from .audit.multimodal import run_multimodal_review
 
-    return run_multimodal_review(doc, pages, source_dir=source_dir, processed_dir=processed_dir, out_dir=AUDIT_DIR)
+    return run_multimodal_review(
+        doc, pages, source_dir=source_dir, processed_dir=processed_dir, out_dir=AUDIT_DIR
+    )
 
 
 def promote_corrections(doc: str, *, include_pending: bool = False) -> dict[str, Any]:

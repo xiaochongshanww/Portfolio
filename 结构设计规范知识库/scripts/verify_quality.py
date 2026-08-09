@@ -10,32 +10,31 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 from urllib.parse import urlsplit
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.evaluation.runner import (  # noqa: E402
-    DEFAULT_EVAL_PATH,
-    STRUCTURED_EVAL_PATH,
-    render_evaluation_markdown,
-    run_evaluation,
-)
+from src.app.core.urls import normalize_http_base_url  # noqa: E402
 from src.evaluation.answer_runner import (  # noqa: E402
     ANSWER_EVAL_PATH,
     render_answer_evaluation_markdown,
     run_answer_evaluation,
 )
 from src.evaluation.api_target import probe_api_readiness  # noqa: E402
-from src.app.core.urls import normalize_http_base_url  # noqa: E402
+from src.evaluation.runner import (  # noqa: E402
+    DEFAULT_EVAL_PATH,
+    STRUCTURED_EVAL_PATH,
+    render_evaluation_markdown,
+    run_evaluation,
+)
 from src.pipeline.paths import AUDIT_DIR  # noqa: E402
 from src.quality import evaluate_quality_gate, render_quality_gate_markdown  # noqa: E402
-
 
 REPORTS_DIR = AUDIT_DIR / "reports"
 LEGACY_API_KEY_PATH = PROJECT_ROOT / ".runtime_api_key"
@@ -187,9 +186,7 @@ class ManagedApiProcess:
                 if exit_code is not None:
                     tail = _read_log_tail(self.log_path, environ=environment)
                     detail = f"；日志摘要：{tail}" if tail else ""
-                    raise ManagedApiError(
-                        f"托管 API 在健康检查前退出，退出码 {exit_code}{detail}"
-                    )
+                    raise ManagedApiError(f"托管 API 在健康检查前退出，退出码 {exit_code}{detail}")
                 try:
                     with urllib.request.urlopen(
                         f"{self.target.api_base}/health",
@@ -463,7 +460,7 @@ def _collect_api_preflight(
     return (
         {
             "ok": all(step.get("ok") is True for step in steps),
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "mode": "existing_api",
             "api_base": api_base,
             "steps": steps,
@@ -596,14 +593,17 @@ def _render_verification_markdown(result: dict[str, Any]) -> str:
     ]
     for step in result.get("steps", []):
         status = "跳过" if step.get("skipped") else ("通过" if step.get("ok") else "失败")
-        lines.append(
-            f"| {step.get('name')} | {status} | {step.get('duration_seconds', '-')} s |"
-        )
+        lines.append(f"| {step.get('name')} | {status} | {step.get('duration_seconds', '-')} s |")
     failed = [step for step in result.get("steps", []) if not step.get("ok")]
     if failed:
         lines.extend(["", "## 失败详情", ""])
         for step in failed:
-            detail = step.get("error") or step.get("stderr_tail") or step.get("stdout_tail") or "未知错误"
+            detail = (
+                step.get("error")
+                or step.get("stderr_tail")
+                or step.get("stdout_tail")
+                or "未知错误"
+            )
             lines.extend([f"### {step.get('name')}", "", "```text", str(detail).strip(), "```", ""])
     return "\n".join(lines)
 
@@ -680,7 +680,7 @@ def _run_managed_verification(
             **cleanup,
         }
         result = {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "passed": False,
             "managed_api": {
                 "enabled": True,
@@ -740,7 +740,7 @@ def _run_managed_verification(
         if child is not None:
             output_tail = (child.stderr or child.stdout or "")[-4000:]
         result = {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "passed": False,
             "steps": [
                 {
@@ -868,7 +868,7 @@ def _run_managed_preflight(
 
     result = {
         "ok": all(step.get("ok") is True for step in steps) and not interrupted,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "mode": "managed_api",
         "api_base": api_base,
         "writes_quality_reports": False,
@@ -954,9 +954,8 @@ def main() -> None:
 
     steps: list[dict[str, Any]] = []
     api_required = (
-        (not args.skip_evaluations and args.evaluation_mode == "api")
-        or not args.skip_answer_evaluation
-    )
+        not args.skip_evaluations and args.evaluation_mode == "api"
+    ) or not args.skip_answer_evaluation
     api_ready = True
     api_accessible = True
     credential = ApiCredential(key="", source="none")
@@ -1000,6 +999,7 @@ def main() -> None:
             )
         )
     if not args.skip_evaluations:
+
         def evaluation_action(
             evaluation_set_id: str,
             path: Path,
@@ -1093,7 +1093,7 @@ def main() -> None:
     )
 
     result = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "passed": all(step.get("ok") for step in steps),
         "steps": steps,
     }

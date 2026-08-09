@@ -7,12 +7,13 @@ import zipfile
 from pathlib import Path
 
 import pytest
-
 import scripts.verify_runtime_package_cold_start as cold_start_module
 from scripts.create_portability_package import create_portability_package
-from scripts.verify_runtime_package_cold_start import RuntimePackageColdStartError, verify_runtime_package_cold_start
+from scripts.verify_runtime_package_cold_start import (
+    RuntimePackageColdStartError,
+    verify_runtime_package_cold_start,
+)
 from src.pipeline.knowledge_package import probe_runtime_package, validate_runtime_package
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -93,12 +94,8 @@ def test_portability_variants_keep_asset_paths_and_change_runtime_identity(tmp_p
             "runtime/images/",
             "runtime/metadata/",
         )
-        runtime_paths_a = {
-            name for name in archive_a.namelist() if name.startswith(asset_prefixes)
-        }
-        runtime_paths_b = {
-            name for name in archive_b.namelist() if name.startswith(asset_prefixes)
-        }
+        runtime_paths_a = {name for name in archive_a.namelist() if name.startswith(asset_prefixes)}
+        runtime_paths_b = {name for name in archive_b.namelist() if name.startswith(asset_prefixes)}
         table_a = json.loads(archive_a.read("runtime/structured_tables/表5.1.1-活荷载.json"))
         table_b = json.loads(archive_b.read("runtime/structured_tables/表5.1.1-活荷载.json"))
         image_a = archive_a.read("runtime/images/第1页-示意图.png")

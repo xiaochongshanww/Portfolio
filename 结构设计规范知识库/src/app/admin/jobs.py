@@ -1,14 +1,14 @@
 import logging
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event, Lock, Thread
-from typing import Any, Callable
+from typing import Any
 from uuid import uuid4
 
-from .models import Job, utc_now
-from .storage import JobStore, job_store
 from ..core.config import settings
 from ..core.request_context import current_request_id, reset_request_id, set_request_id
-
+from .models import Job, utc_now
+from .storage import JobStore, job_store
 
 Workflow = Callable[[Job, JobStore], dict[str, Any]]
 

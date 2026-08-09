@@ -11,7 +11,6 @@ from src.pipeline.paths import AUDIT_DIR, MANUAL_STRUCTURING_DIR, RAW_DIR
 from .manual_structuring import read_manual_structuring_draft
 from .multimodal import _data_url, _extract_json_object, find_source_pdf, render_pdf_pages
 
-
 SUGGESTION_DIRNAME = "suggestions"
 UNSAFE_FILENAME_RE = re.compile(r'[<>:"/\\|?*]+')
 
@@ -152,7 +151,9 @@ def _apply_quality_gate(draft: dict[str, Any], proposal: dict[str, Any]) -> bool
     original = json.dumps(proposal, ensure_ascii=False, sort_keys=True)
     assumptions = [str(item) for item in proposal.get("assumptions", []) if str(item)]
     rows = proposal.get("rows", [])
-    null_count = sum(value is None for row in rows if isinstance(row, dict) for value in row.values())
+    null_count = sum(
+        value is None for row in rows if isinstance(row, dict) for value in row.values()
+    )
     evidence = str(draft.get("review_context", {}).get("current_text") or "")
     numeric_values = {
         str(value)
@@ -249,7 +250,10 @@ def generate_structuring_suggestion(
     response = httpx.post(
         f"{settings.mimo_base_url}/chat/completions",
         json=request_payload,
-        headers={"Authorization": f"Bearer {settings.mimo_api_key}", "Content-Type": "application/json"},
+        headers={
+            "Authorization": f"Bearer {settings.mimo_api_key}",
+            "Content-Type": "application/json",
+        },
         timeout=settings.llm_timeout_seconds,
     )
     response.raise_for_status()
@@ -294,7 +298,9 @@ def read_structuring_suggestion(
     if "model_confidence" not in proposal and payload.get("raw_response"):
         try:
             raw = _extract_json_object(str(payload["raw_response"]))
-            proposal["model_confidence"] = float(raw.get("confidence", proposal.get("confidence", 0)) or 0)
+            proposal["model_confidence"] = float(
+                raw.get("confidence", proposal.get("confidence", 0)) or 0
+            )
         except (json.JSONDecodeError, TypeError, ValueError):
             proposal["model_confidence"] = float(proposal.get("confidence", 0) or 0)
     if _apply_quality_gate(draft, proposal):

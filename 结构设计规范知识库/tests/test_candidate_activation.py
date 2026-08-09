@@ -4,7 +4,6 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-
 from src.app.admin.models import Job
 from src.app.admin.storage import JobStore
 from src.app.admin.workflows import CandidateActivationBlocked, rebuild_workflow
@@ -44,7 +43,9 @@ def _evaluation(path: Path, *, structured: bool = False) -> dict:
     }
 
 
-def _assessment(*, passed: bool, candidate_state: object | None = None) -> CandidateActivationAssessment:
+def _assessment(
+    *, passed: bool, candidate_state: object | None = None
+) -> CandidateActivationAssessment:
     failed = [] if passed else ["regular_evaluation"]
     return CandidateActivationAssessment(
         result={
@@ -74,7 +75,9 @@ def _patch_workflow_paths(monkeypatch, tmp_path: Path) -> tuple[Path, Path]:
     return pointer, root_manifest
 
 
-def test_candidate_gate_evaluates_injected_database_without_active_state(tmp_path: Path, monkeypatch):
+def test_candidate_gate_evaluates_injected_database_without_active_state(
+    tmp_path: Path, monkeypatch
+):
     manifest_path = tmp_path / "candidate" / "manifest.json"
     _manifest(manifest_path)
     regular_path = tmp_path / "regular.jsonl"
@@ -106,7 +109,9 @@ def test_candidate_gate_evaluates_injected_database_without_active_state(tmp_pat
     assert result.result["answer_evaluation_included"] is False
 
 
-def test_candidate_gate_turns_evaluation_exceptions_into_blocking_evidence(tmp_path: Path, monkeypatch):
+def test_candidate_gate_turns_evaluation_exceptions_into_blocking_evidence(
+    tmp_path: Path, monkeypatch
+):
     manifest_path = tmp_path / "candidate" / "manifest.json"
     _manifest(manifest_path)
     regular_path = tmp_path / "regular.jsonl"
@@ -188,7 +193,9 @@ def test_rebuild_gate_failure_preserves_active_files(tmp_path: Path, monkeypatch
         return _manifest(kwargs["manifest_path"])
 
     monkeypatch.setattr(workflows.builder, "rebuild", fake_rebuild)
-    monkeypatch.setattr(workflows, "assess_candidate_activation", lambda **_kwargs: _assessment(passed=False))
+    monkeypatch.setattr(
+        workflows, "assess_candidate_activation", lambda **_kwargs: _assessment(passed=False)
+    )
     store = JobStore(tmp_path / "jobs")
     job = Job(type="rebuild", params={}, job_id="candidate-fail")
 
@@ -197,7 +204,14 @@ def test_rebuild_gate_failure_preserves_active_files(tmp_path: Path, monkeypatch
 
     assert pointer.read_bytes() == old_pointer
     assert root_manifest.read_bytes() == old_manifest
-    assert (tmp_path / "data" / "db_versions" / "candidate-fail" / "quality" / "candidate_activation_gate.json").is_file()
+    assert (
+        tmp_path
+        / "data"
+        / "db_versions"
+        / "candidate-fail"
+        / "quality"
+        / "candidate_activation_gate.json"
+    ).is_file()
 
 
 def test_rebuild_activation_failure_rolls_back_pointer_and_manifest(tmp_path: Path, monkeypatch):
@@ -220,7 +234,11 @@ def test_rebuild_activation_failure_rolls_back_pointer_and_manifest(tmp_path: Pa
         "assess_candidate_activation",
         lambda **_kwargs: _assessment(passed=True, candidate_state=candidate_state),
     )
-    monkeypatch.setattr(workflows.retrieval_state, "adopt", lambda _state: (_ for _ in ()).throw(RuntimeError("swap failed")))
+    monkeypatch.setattr(
+        workflows.retrieval_state,
+        "adopt",
+        lambda _state: (_ for _ in ()).throw(RuntimeError("swap failed")),
+    )
     store = JobStore(tmp_path / "jobs")
     job = Job(type="rebuild", params={}, job_id="activation-fail")
 
@@ -265,7 +283,9 @@ def test_rebuild_success_activates_all_versioned_runtime_paths(tmp_path: Path, m
     assert json.loads(root_manifest.read_text(encoding="utf-8"))["data_version_hash"] == "a" * 64
 
 
-def test_rebuild_keeps_activation_success_when_latest_report_copy_fails(tmp_path: Path, monkeypatch):
+def test_rebuild_keeps_activation_success_when_latest_report_copy_fails(
+    tmp_path: Path, monkeypatch
+):
     import src.app.admin.workflows as workflows
 
     _patch_workflow_paths(monkeypatch, tmp_path)
@@ -308,7 +328,13 @@ def test_retrieval_reload_failure_preserves_previous_state(tmp_path: Path, monke
     state.bm25_index = old_bm25
     state.bm25_texts = ["old"]
     state.db_dir = tmp_path / "old"
-    monkeypatch.setattr(hybrid, "chromadb", SimpleNamespace(PersistentClient=lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("open failed"))))
+    monkeypatch.setattr(
+        hybrid,
+        "chromadb",
+        SimpleNamespace(
+            PersistentClient=lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("open failed"))
+        ),
+    )
 
     with pytest.raises(RuntimeError, match="open failed"):
         state.reload(tmp_path / "candidate")

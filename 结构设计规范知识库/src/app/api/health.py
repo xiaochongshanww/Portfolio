@@ -1,14 +1,15 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from src.pipeline.active_db import read_active_manifest
+
 from ..core.config import settings
 from ..core.metrics import metrics
 from ..retrieval.hybrid_search import retrieval_state
-from src.pipeline.active_db import read_active_manifest
 
 router = APIRouter()
 
@@ -49,12 +50,16 @@ def readiness_snapshot() -> dict[str, Any]:
         "chroma": "ok" if retrieval_state.chroma_collection else "missing",
         "collection_count": count,
         "manifest_chunk_count": manifest_chunk_count,
-        "collection_count_match": "ok" if not manifest or count == manifest_chunk_count else "mismatch",
+        "collection_count_match": "ok"
+        if not manifest or count == manifest_chunk_count
+        else "mismatch",
         "zhipuai_key": "ok" if settings.zhipuai_api_key else "missing",
         "mimo_key": "ok" if settings.mimo_api_key else "missing",
         "bm25": "ok" if retrieval_state.bm25_index is not None else "missing",
         "manifest": "ok" if manifest else "missing",
-        "collection_name": "ok" if not manifest or manifest.get("collection_name") == settings.collection_name else "mismatch",
+        "collection_name": "ok"
+        if not manifest or manifest.get("collection_name") == settings.collection_name
+        else "mismatch",
     }
     is_ready = (
         checks["chroma"] == "ok"
@@ -87,7 +92,7 @@ def readiness_snapshot() -> dict[str, Any]:
         "ready": is_ready,
         "status": "ready" if is_ready else "not_ready",
         "version": settings.app_version,
-        "checked_at": datetime.now(timezone.utc).isoformat(),
+        "checked_at": datetime.now(UTC).isoformat(),
         "reasons": reasons,
         "data_version_hash": str(manifest.get("data_version_hash") or "") if manifest else "",
         "built_at": str(manifest.get("built_at") or "") if manifest else "",

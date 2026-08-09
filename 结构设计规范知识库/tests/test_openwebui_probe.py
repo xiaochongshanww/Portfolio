@@ -12,9 +12,7 @@ from pathlib import Path
 from typing import Any, TextIO
 
 import pytest
-
 from src.app.core.openwebui_probe import OpenWebUIProbeError, load_probe_config
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 

@@ -2,7 +2,6 @@ import contextvars
 import re
 import uuid
 
-
 request_id_var = contextvars.ContextVar("request_id", default="")
 REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 
@@ -30,4 +29,3 @@ def current_request_id() -> str:
 
 def get_request_id() -> str:
     return request_id_var.get() or new_request_id()
-

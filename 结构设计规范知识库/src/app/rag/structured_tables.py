@@ -8,7 +8,6 @@ from typing import Any
 from ..retrieval.hybrid_search import evidence_contains
 from ..retrieval.query import QueryInfo, analyze_query
 
-
 STRUCTURED_TABLE_DIR = Path(__file__).resolve().parents[3] / "data" / "structured_tables"
 RANGE_RE = re.compile(r"(\d+)\s*(?:到|至|~|-)\s*(\d+)")
 
@@ -82,7 +81,9 @@ def _normalized_query_terms(text: str) -> list[str]:
     return list(dict.fromkeys(terms))
 
 
-def _score_row(query_info: QueryInfo, table: dict[str, Any], row: dict[str, Any]) -> tuple[float, list[str]]:
+def _score_row(
+    query_info: QueryInfo, table: dict[str, Any], row: dict[str, Any]
+) -> tuple[float, list[str]]:
     source = table.get("source", {})
     table_id = str(source.get("table_id") or "")
     table_evidence = _table_evidence(table)
@@ -128,7 +129,11 @@ def _score_row(query_info: QueryInfo, table: dict[str, Any], row: dict[str, Any]
 
 def find_structured_table_matches(query: str, limit: int = 3) -> list[StructuredTableMatch]:
     query_info = analyze_query(query)
-    if not query_info.wants_table and query_info.intent not in {"value_lookup", "classification", "formula"}:
+    if not query_info.wants_table and query_info.intent not in {
+        "value_lookup",
+        "classification",
+        "formula",
+    }:
         return []
 
     matches: list[StructuredTableMatch] = []

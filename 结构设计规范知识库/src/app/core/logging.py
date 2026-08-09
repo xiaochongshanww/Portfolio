@@ -1,11 +1,10 @@
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from .config import settings
 from .request_context import current_request_id
-
 
 RESERVED_FIELDS = {"timestamp", "level", "logger", "event", "request_id", "exception"}
 
@@ -13,7 +12,7 @@ RESERVED_FIELDS = {"timestamp", "level", "logger", "event", "request_id", "excep
 class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         payload: dict[str, Any] = {
-            "timestamp": datetime.fromtimestamp(record.created, timezone.utc).isoformat(),
+            "timestamp": datetime.fromtimestamp(record.created, UTC).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "event": record.getMessage(),
@@ -41,7 +40,11 @@ class ContextTextFormatter(logging.Formatter):
         extra = getattr(record, "extra_data", None)
         if isinstance(extra, dict):
             details.update(extra)
-        return f"{rendered} {json.dumps(details, ensure_ascii=False, default=str)}" if details else rendered
+        return (
+            f"{rendered} {json.dumps(details, ensure_ascii=False, default=str)}"
+            if details
+            else rendered
+        )
 
 
 def configure_logging() -> None:
@@ -56,4 +59,3 @@ def configure_logging() -> None:
     root.handlers.clear()
     root.addHandler(handler)
     root.setLevel(getattr(logging, settings.log_level, logging.INFO))
-

@@ -4,15 +4,20 @@ from typing import Any
 from urllib.parse import quote
 
 from ..core.config import settings
+from ..core.content_access import asset_access_scope
 from ..core.errors import ErrorCode, error_payload
+from ..core.security import sign_asset_url
 from ..retrieval.hybrid_search import retrieval_state
 from ..schemas.chat import ChatCompletionRequest
-from .images import load_images_by_name, load_page_images, page_image_filenames, source_pdf_available
-from .prompt import SYSTEM_PROMPT
 from .context import format_result_context
+from .images import (
+    load_images_by_name,
+    load_page_images,
+    page_image_filenames,
+    source_pdf_available,
+)
+from .prompt import SYSTEM_PROMPT
 from .structured_tables import find_structured_table_matches, format_structured_table_context
-from ..core.content_access import asset_access_scope
-from ..core.security import sign_asset_url
 
 
 def _parse_pages(pages_str: str) -> list[int]:
@@ -60,7 +65,9 @@ async def build_mimo_payload(
     request: ChatCompletionRequest,
 ) -> tuple[dict[str, Any], list[str], dict[str, Any]] | dict[str, Any]:
     if not retrieval_state.ready:
-        return error_payload(ErrorCode.KNOWLEDGE_BASE_NOT_READY, "知识库尚未就绪") | {"status_code": 503}
+        return error_payload(ErrorCode.KNOWLEDGE_BASE_NOT_READY, "知识库尚未就绪") | {
+            "status_code": 503
+        }
 
     current_query = request.messages[-1].content
     enhanced_query = _enhance_query(request)
@@ -72,7 +79,9 @@ async def build_mimo_payload(
     results = retrieval_state.hybrid_search(enhanced_query, settings.rag_top_k)
     structured_matches = find_structured_table_matches(enhanced_query, limit=3)
     if not results:
-        return error_payload(ErrorCode.NO_RETRIEVAL_RESULTS, "知识库中未找到相关条目") | {"status_code": 404}
+        return error_payload(ErrorCode.NO_RETRIEVAL_RESULTS, "知识库中未找到相关条目") | {
+            "status_code": 404
+        }
 
     logging.info(
         "retrieval_completed",
@@ -94,7 +103,9 @@ async def build_mimo_payload(
     for result in results:
         meta = result.meta
         context_parts.append(format_result_context(result))
-        distance = result.meta.get("_distance", 0.1 if result.clause_match else 0.45 if result.bm25_score else 1.0)
+        distance = result.meta.get(
+            "_distance", 0.1 if result.clause_match else 0.45 if result.bm25_score else 1.0
+        )
         if distance < settings.rag_min_score:
             for image in load_images_by_name(_parse_images(meta.get("images", ""))):
                 if image not in seen_imgs:
@@ -151,7 +162,8 @@ async def build_mimo_payload(
 
     context = "\n\n---\n\n".join(context_parts[:20])
     screenshot_text = (
-        "已随消息附上。以下为截图列表，你可以在回答末尾用 Markdown 格式引用它们：\n" + "\n".join(image_list)
+        "已随消息附上。以下为截图列表，你可以在回答末尾用 Markdown 格式引用它们：\n"
+        + "\n".join(image_list)
         if image_list
         else "当前知识包未提供可引用的页面截图，请仅依据检索文本回答，不要编造图片路径。"
     )
@@ -218,8 +230,12 @@ async def build_mimo_payload(
         "query": enhanced_query,
         "sources": trace_sources,
         "image_urls": list(dict.fromkeys(offered_image_urls)),
-        "mentioned_codes": sorted(set(re.findall(r"\bGB\s*\d{5}(?:[-—]\d{4})?\b", evidence_text, re.I))),
-        "mentioned_clauses": sorted(set(re.findall(r"(?<!\d)(\d+(?:\.\d+){2})(?!\d)", evidence_text))),
+        "mentioned_codes": sorted(
+            set(re.findall(r"\bGB\s*\d{5}(?:[-—]\d{4})?\b", evidence_text, re.I))
+        ),
+        "mentioned_clauses": sorted(
+            set(re.findall(r"(?<!\d)(\d+(?:\.\d+){2})(?!\d)", evidence_text))
+        ),
         "mentioned_tables": sorted(set(re.findall(r"表\s*(\d+(?:\.\d+){1,2})", evidence_text))),
     }
     return payload, imgs_to_send, trace

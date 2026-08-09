@@ -8,4 +8,3 @@ def get_reranker() -> BaseReranker:
         return NoopReranker()
     # Stage 3 only establishes the extension point. Unknown providers degrade safely.
     return NoopReranker()
-

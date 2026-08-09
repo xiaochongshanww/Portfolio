@@ -3,7 +3,6 @@ from pathlib import Path
 
 from .base import ParseResult, ParserUnavailableError
 
-
 CLAUSE_RE = re.compile(r"^(\d+\.\d+[\d\.\-]*(\s+[A-Z]|\s+[一-鿿])?)")
 APPENDIX_RE = re.compile(r"^(附录|Appendix)\s+[A-Z]")
 TABLE_RE = re.compile(r"^(表|图)\s+[\d\.]+")
@@ -39,7 +38,9 @@ class PyMuPdfParser:
         try:
             import fitz
         except ImportError as exc:
-            raise ParserUnavailableError("缺少 PyMuPDF 依赖，请先安装 requirements-runtime.txt") from exc
+            raise ParserUnavailableError(
+                "缺少 PyMuPDF 依赖，请先安装 requirements-runtime.txt"
+            ) from exc
 
         image_dir.mkdir(parents=True, exist_ok=True)
         doc = fitz.open(pdf_path)
@@ -67,7 +68,9 @@ class PyMuPdfParser:
                     font_size = block["lines"][0]["spans"][0]["size"]
                     elements.append(
                         {
-                            "type": "Title" if is_title_block(text, len(lines), font_size) else "Text",
+                            "type": "Title"
+                            if is_title_block(text, len(lines), font_size)
+                            else "Text",
                             "text": text,
                             "page": page_index + 1,
                             "img": image_name,

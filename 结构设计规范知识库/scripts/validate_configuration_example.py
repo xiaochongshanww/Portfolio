@@ -12,7 +12,6 @@ from typing import TextIO
 
 from dotenv.parser import parse_stream
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_EXAMPLE_PATH = PROJECT_ROOT / ".env.example"
 PASSTHROUGH_ENV_NAMES = {
@@ -178,9 +177,7 @@ def validate_example_key_contract(example: ConfigurationExample) -> None:
 
 def _isolated_environment(values: dict[str, str]) -> dict[str, str]:
     environment = {
-        name: value
-        for name, value in os.environ.items()
-        if name.upper() in PASSTHROUGH_ENV_NAMES
+        name: value for name, value in os.environ.items() if name.upper() in PASSTHROUGH_ENV_NAMES
     }
     environment.update(values)
     environment["PYTHON_DOTENV_DISABLED"] = "1"

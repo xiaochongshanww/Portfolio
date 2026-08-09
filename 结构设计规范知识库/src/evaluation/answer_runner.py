@@ -5,19 +5,20 @@ import json
 import re
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlparse
 
+from src.app.core.config import settings
+from src.app.rag.citations import validate_trace_citations
 from src.pipeline.active_db import read_active_manifest
 from src.pipeline.audit.multimodal import find_source_pdf
 from src.pipeline.paths import RAW_DIR
-from src.app.core.config import settings
-from src.app.rag.citations import validate_trace_citations
 
-
-ANSWER_EVAL_PATH = Path(__file__).resolve().parents[2] / "data" / "evaluation" / "answer_holdout.jsonl"
+ANSWER_EVAL_PATH = (
+    Path(__file__).resolve().parents[2] / "data" / "evaluation" / "answer_holdout.jsonl"
+)
 ANSWER_CASE_TYPES = {"direct_value", "formula", "boundary", "false_premise", "no_evidence"}
 REFUSAL_TERMS = (
     "当前材料中未找到明确依据",
@@ -107,8 +108,7 @@ def load_answer_cases(path: Path = ANSWER_EVAL_PATH) -> list[AnswerEvaluationCas
                 type=str(data["type"]),
                 expected_all=[str(value) for value in data.get("expected_all", [])],
                 expected_any_groups=[
-                    [str(value) for value in group]
-                    for group in data.get("expected_any_groups", [])
+                    [str(value) for value in group] for group in data.get("expected_any_groups", [])
                 ],
                 forbidden_terms=[str(value) for value in data.get("forbidden_terms", [])],
                 expected_citations=[str(value) for value in data.get("expected_citations", [])],
@@ -130,7 +130,9 @@ def load_answer_cases(path: Path = ANSWER_EVAL_PATH) -> list[AnswerEvaluationCas
 
 
 def extract_markdown_images(answer: str) -> list[dict[str, str]]:
-    return [{"alt": match.group(1), "url": match.group(2)} for match in IMAGE_PATTERN.finditer(answer)]
+    return [
+        {"alt": match.group(1), "url": match.group(2)} for match in IMAGE_PATTERN.finditer(answer)
+    ]
 
 
 def validate_image_reference(url: str) -> tuple[bool, str]:
@@ -165,6 +167,7 @@ def validate_image_reference(url: str) -> tuple[bool, str]:
 
 def _contains_term(answer: str, term: str) -> bool:
     if "kN/m" in term:
+
         def normalize_unit(value: str) -> str:
             normalized = value.replace("\\text", "").replace("\\mathrm", "")
             normalized = normalized.replace("{", "").replace("}", "").replace(" ", "")
@@ -179,6 +182,7 @@ def _contains_term(answer: str, term: str) -> bool:
             for value in re.findall(r"(?<![\d.])-?\d+(?:\.\d+)?(?![\d.])", answer)
         )
     if SYMBOLIC_TERM_PATTERN.search(term):
+
         def normalize_symbolic(value: str) -> str:
             normalized = LATEX_FORMAT_COMMAND_PATTERN.sub("", value)
             for symbol, name in GREEK_SYMBOL_NAMES.items():
@@ -209,7 +213,9 @@ def probe_image_url(
         response = httpx.get(target, timeout=60)
         content_type = response.headers.get("content-type", "")
         result = (
-            response.status_code == 200 and content_type.startswith("image/") and len(response.content) > 100,
+            response.status_code == 200
+            and content_type.startswith("image/")
+            and len(response.content) > 100,
             "" if response.status_code == 200 else f"HTTP {response.status_code}",
         )
     except Exception as exc:
@@ -228,10 +234,16 @@ def evaluate_answer(
     checks: dict[str, bool] = {
         "format": all(section in answer for section in ("【结论】", "【依据】", "【说明】")),
         "facts_all": all(_contains_term(answer, term) for term in case.expected_all),
-        "facts_any": all(any(_contains_term(answer, term) for term in group) for group in case.expected_any_groups),
+        "facts_any": all(
+            any(_contains_term(answer, term) for term in group)
+            for group in case.expected_any_groups
+        ),
         "forbidden": all(term not in answer for term in case.forbidden_terms),
         "citations": all(term in answer for term in case.expected_citations),
-        "units": all(any(_contains_term(answer, term) for term in group) for group in case.expected_unit_groups),
+        "units": all(
+            any(_contains_term(answer, term) for term in group)
+            for group in case.expected_unit_groups
+        ),
         "refusal": any(term in answer for term in REFUSAL_TERMS) if case.requires_refusal else True,
     }
     images = extract_markdown_images(answer)
@@ -241,7 +253,9 @@ def evaluate_answer(
         for valid, error in [validate_image_reference(image["url"])]
     ]
     checks["image_present"] = bool(images) if case.requires_image else True
-    checks["image_routes"] = all(item["valid"] for item in image_results) if images else not case.requires_image
+    checks["image_routes"] = (
+        all(item["valid"] for item in image_results) if images else not case.requires_image
+    )
     unsupported_citations: dict[str, Any] = {}
     if trace is not None:
         checks["citation_grounded"], unsupported_citations = validate_trace_citations(answer, trace)
@@ -252,8 +266,7 @@ def evaluate_answer(
         offered = set(trace.get("image_urls", []))
         offered_paths = {unquote(urlparse(url).path) for url in offered}
         checks["image_offered"] = all(
-            unquote(urlparse(image["url"]).path) in offered_paths
-            for image in images
+            unquote(urlparse(image["url"]).path) in offered_paths for image in images
         )
     if image_probe is not None:
         for item in image_results:
@@ -352,13 +365,9 @@ def summarize_answer_results(
     total = len(cases)
     passed = sum(1 for item in case_results if item.get("passed"))
     request_failures = [
-        item
-        for item in case_results
-        if item.get("checks", {}).get("request") is False
+        item for item in case_results if item.get("checks", {}).get("request") is False
     ]
-    check_names = sorted(
-        {name for item in case_results for name in item.get("checks", {})}
-    )
+    check_names = sorted({name for item in case_results for name in item.get("checks", {})})
     check_rates = {
         name: (
             sum(1 for item in case_results if item.get("checks", {}).get(name)) / total
@@ -374,13 +383,11 @@ def summarize_answer_results(
         bucket["passed_count"] += int(item["passed"])
     manifest = read_active_manifest()
     refusal_results = [
-        result
-        for case, result in zip(cases, case_results)
-        if case.requires_refusal
+        result for case, result in zip(cases, case_results, strict=True) if case.requires_refusal
     ]
     result = {
         "ok": not request_failures,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "evaluation_set": str(path.resolve()),
         "evaluation_set_hash": hashlib.sha256(path.read_bytes()).hexdigest(),
         "data_version_hash": manifest.get("data_version_hash", ""),
@@ -403,8 +410,7 @@ def summarize_answer_results(
     if request_failures:
         sample_error = str(request_failures[0].get("error") or "请求失败")
         result["error"] = (
-            f"回答级盲测有 {len(request_failures)}/{total} 个请求未完成；"
-            f"首个错误：{sample_error}"
+            f"回答级盲测有 {len(request_failures)}/{total} 个请求未完成；首个错误：{sample_error}"
         )
     return result
 

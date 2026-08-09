@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pytest
-
 from src.evaluation.runner import (
     DEFAULT_EVAL_PATH,
     STRUCTURED_EVAL_PATH,

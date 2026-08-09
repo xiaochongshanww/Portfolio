@@ -2,7 +2,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from src.evaluation.runner import STRUCTURED_EVAL_PATH, render_evaluation_markdown, run_evaluation
+from src.app.core.config import settings
+from src.app.retrieval.hybrid_search import retrieval_state
 from src.evaluation.answer_runner import (
     render_answer_evaluation_markdown,
     run_answer_evaluation,
@@ -13,21 +14,22 @@ from src.evaluation.assets import (
     RETRIEVAL_EVALUATION_SET_IDS,
     resolve_evaluation_asset,
 )
-from src.app.core.config import settings
-from src.app.retrieval.hybrid_search import retrieval_state
+from src.evaluation.runner import STRUCTURED_EVAL_PATH, render_evaluation_markdown, run_evaluation
 from src.pipeline import builder
 from src.pipeline.active_db import active_processed_dir, write_active_db
-from src.pipeline.manifest import write_manifest
-from src.pipeline.paths import ACTIVE_DB_PATH, AUDIT_DIR, DB_VERSIONS_DIR, MANIFEST_PATH, RAW_DIR
-from src.pipeline.version_retention import execute_cleanup_plan, retention_policy_from_settings
-from src.pipeline.audit.structuring_ai import generate_structuring_suggestion
-from src.pipeline.audit.structuring_ai import read_structuring_suggestion
 from src.pipeline.audit.manual_structuring import (
     build_manual_structuring_draft,
     list_manual_structuring_files,
     read_manual_structuring_file,
     write_manual_structuring_queue,
 )
+from src.pipeline.audit.structuring_ai import (
+    generate_structuring_suggestion,
+    read_structuring_suggestion,
+)
+from src.pipeline.manifest import write_manifest
+from src.pipeline.paths import ACTIVE_DB_PATH, AUDIT_DIR, DB_VERSIONS_DIR, MANIFEST_PATH, RAW_DIR
+from src.pipeline.version_retention import execute_cleanup_plan, retention_policy_from_settings
 from src.quality import assess_candidate_activation, write_candidate_activation_artifacts
 
 from .models import Job, utc_now
@@ -101,7 +103,9 @@ def rebuild_workflow(job: Job, store: JobStore) -> dict[str, Any]:
     source = Path(job.params.get("source", RAW_DIR))
     parser_backend = str(job.params.get("parser_backend", builder.DEFAULT_PARSER_BACKEND))
     apply_corrections = bool(job.params.get("apply_corrections", True))
-    _set_step(job, store, "rebuild", "开始重建知识库", source=str(source), parser_backend=parser_backend)
+    _set_step(
+        job, store, "rebuild", "开始重建知识库", source=str(source), parser_backend=parser_backend
+    )
     version_dir = DB_VERSIONS_DIR / job.job_id
     db_dir = version_dir / "db"
     processed_dir = version_dir / "processed"
@@ -177,7 +181,9 @@ def rebuild_workflow(job: Job, store: JobStore) -> dict[str, Any]:
     latest_reports_published = True
     try:
         _write_json_atomic(reports_dir / "evaluation_latest.json", assessment.regular_evaluation)
-        _write_json_atomic(reports_dir / "evaluation_structured_latest.json", assessment.structured_evaluation)
+        _write_json_atomic(
+            reports_dir / "evaluation_structured_latest.json", assessment.structured_evaluation
+        )
     except Exception as exc:
         latest_reports_published = False
         store.append_log(
@@ -369,7 +375,9 @@ def evaluate_workflow(job: Job, store: JobStore) -> dict[str, Any]:
 
     out_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     markdown_path.write_text(
-        render_evaluation_markdown(result, "结构化检索专项评估" if is_structured else "检索评估报告"),
+        render_evaluation_markdown(
+            result, "结构化检索专项评估" if is_structured else "检索评估报告"
+        ),
         encoding="utf-8",
     )
     output = {

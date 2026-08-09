@@ -16,7 +16,6 @@ from urllib.request import urlopen
 
 from src.pipeline.knowledge_package import import_runtime_package, validate_runtime_package
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -44,7 +43,9 @@ def _read_json(base_url: str, path: str) -> dict[str, Any]:
     return payload
 
 
-def _wait_for_health(process: subprocess.Popen[Any], base_url: str, log_path: Path, timeout: float) -> None:
+def _wait_for_health(
+    process: subprocess.Popen[Any], base_url: str, log_path: Path, timeout: float
+) -> None:
     deadline = time.monotonic() + timeout
     last_error = ""
     while time.monotonic() < deadline:
@@ -145,8 +146,10 @@ def verify_imported_runtime_api(
         "collection_count": int(active.get("collection_count", -1)) == expected_count,
         "manifest_chunk_count": int(documents.get("chunk_count", -1)) == expected_count,
         "document_count": int(documents.get("document_count", -1)) == expected_document_count,
-        "data_version_hash": documents.get("data_version_hash") == validation.get("data_version_hash"),
-        "active_data_version_hash": active.get("data_version_hash") == validation.get("data_version_hash"),
+        "data_version_hash": documents.get("data_version_hash")
+        == validation.get("data_version_hash"),
+        "active_data_version_hash": active.get("data_version_hash")
+        == validation.get("data_version_hash"),
         "active_package_id": active.get("package_id") == validation.get("package_id"),
         "loaded_expected_db": loaded_db_dir == expected_db_dir,
         "loaded_within_data_dir": loaded_db_dir.is_relative_to(data_dir),
@@ -185,9 +188,7 @@ def verify_runtime_package_cold_start(
             f"知识包来源平台不匹配: expected={expected_source_platform.lower()}, actual={source_platform}"
         )
     if require_cross_platform and source_platform == target_platform:
-        raise RuntimePackageColdStartError(
-            f"要求跨平台冷启动，但来源和目标均为 {target_platform}"
-        )
+        raise RuntimePackageColdStartError(f"要求跨平台冷启动，但来源和目标均为 {target_platform}")
 
     with tempfile.TemporaryDirectory(prefix="knowledge-package-api-") as temporary_name:
         runtime_root = Path(temporary_name)
@@ -220,7 +221,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="导入运行知识包并在隔离数据根冷启动 API")
     parser.add_argument("--package", required=True, type=Path, help="知识包 ZIP 文件")
     parser.add_argument("--expect-source-platform", default="", help="要求的来源平台")
-    parser.add_argument("--require-cross-platform", action="store_true", help="要求来源平台与本机不同")
+    parser.add_argument(
+        "--require-cross-platform", action="store_true", help="要求来源平台与本机不同"
+    )
     parser.add_argument("--startup-timeout", type=float, default=60, help="API 启动超时秒数")
     args = parser.parse_args()
     try:

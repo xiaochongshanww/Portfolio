@@ -5,7 +5,6 @@ from pathlib import Path
 from src.evaluation.answer_runner import ANSWER_EVAL_PATH
 from src.evaluation.runner import DEFAULT_EVAL_PATH, STRUCTURED_EVAL_PATH
 
-
 BUILTIN_EVALUATION_ASSETS: dict[str, Path] = {
     "regular": DEFAULT_EVAL_PATH,
     "structured": STRUCTURED_EVAL_PATH,

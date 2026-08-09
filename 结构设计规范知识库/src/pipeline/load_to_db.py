@@ -6,8 +6,10 @@ from typing import Any
 try:
     from dotenv import load_dotenv
 except ImportError:
+
     def load_dotenv() -> bool:
         return False
+
 
 from src.app.core.config import settings
 
@@ -76,7 +78,9 @@ def load_chunks_to_db(chunks_by_file: dict[str, list[dict[str, Any]]], db_dir: P
                 collection.add(embeddings=embeddings, documents=texts, metadatas=metadatas, ids=ids)
                 total += len(batch)
             except Exception as exc:
-                raise PipelineError(f"{source_file} 批次 {index // 10 + 1} 入库失败: {exc}") from exc
+                raise PipelineError(
+                    f"{source_file} 批次 {index // 10 + 1} 入库失败: {exc}"
+                ) from exc
 
     logging.info("入库完成: %s 条, 集合总条目: %s", total, collection.count())
     try:

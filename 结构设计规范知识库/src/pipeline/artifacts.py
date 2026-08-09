@@ -3,7 +3,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 REQUIRED_MINERU_KINDS = {"content_list", "markdown"}
 OPTIONAL_MINERU_KINDS = {"middle", "model", "media"}
 
@@ -72,13 +71,19 @@ def scan_mineru_artifacts(doc_dir: Path) -> list[dict[str, Any]]:
     return sorted(found, key=lambda item: (item["kind"], item["relative_path"]))
 
 
-def write_artifact_index(path: Path, source_file: str, artifacts: list[dict[str, Any]], metadata: dict[str, Any]) -> None:
+def write_artifact_index(
+    path: Path, source_file: str, artifacts: list[dict[str, Any]], metadata: dict[str, Any]
+) -> None:
     payload = {
         "source_file": source_file,
         "artifacts": artifacts,
         "metadata": metadata,
-        "missing_required": [item["kind"] for item in artifacts if item["required"] and item["status"] != "ok"],
-        "missing_optional": [item["kind"] for item in artifacts if not item["required"] and item["status"] != "ok"],
+        "missing_required": [
+            item["kind"] for item in artifacts if item["required"] and item["status"] != "ok"
+        ],
+        "missing_optional": [
+            item["kind"] for item in artifacts if not item["required"] and item["status"] != "ok"
+        ],
     }
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

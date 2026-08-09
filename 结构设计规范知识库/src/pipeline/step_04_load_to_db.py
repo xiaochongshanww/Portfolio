@@ -1,4 +1,5 @@
 """兼容入口：加载 data/processed 中的标准化 chunks 到 ChromaDB。"""
+
 import json
 import logging
 import sys

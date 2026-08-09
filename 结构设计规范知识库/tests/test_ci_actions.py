@@ -45,9 +45,7 @@ def test_deprecated_action_runtime_generation_is_rejected(tmp_path: Path):
     report = build_report(workflows)
 
     assert report["ok"] is False
-    assert [error["code"] for error in report["errors"]] == [
-        "ACTION_RUNTIME_DEPRECATED"
-    ]
+    assert [error["code"] for error in report["errors"]] == ["ACTION_RUNTIME_DEPRECATED"]
 
 
 def test_local_and_container_actions_do_not_require_git_commit_refs(tmp_path: Path):

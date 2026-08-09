@@ -1,8 +1,7 @@
 import json
 from pathlib import Path
-import pytest
 
-from src.pipeline.chunks import normalize_chunks
+import pytest
 from src.pipeline.artifacts import require_artifacts, scan_mineru_artifacts
 from src.pipeline.audit.corrections import (
     apply_approved_corrections,
@@ -16,8 +15,8 @@ from src.pipeline.audit.manual_structuring import (
     list_manual_structuring_files,
     list_manual_structuring_versions,
     publish_manual_structuring_draft,
-    read_manual_structuring_file,
     read_manual_structuring_draft,
+    read_manual_structuring_file,
     rollback_manual_structuring_publication,
     save_manual_structuring_draft,
     update_manual_structuring_status,
@@ -25,12 +24,13 @@ from src.pipeline.audit.manual_structuring import (
     write_manual_structuring_queue,
 )
 from src.pipeline.audit.multimodal import _extract_json_object, parse_pages, run_multimodal_review
-from src.pipeline.audit.structuring_ai import normalize_structuring_suggestion
 from src.pipeline.audit.rules import audit_elements
+from src.pipeline.audit.structuring_ai import normalize_structuring_suggestion
+from src.pipeline.chunks import normalize_chunks
 from src.pipeline.manifest import build_manifest
 from src.pipeline.metadata import apply_metadata_override, parse_spec_filename
-from src.pipeline.parsers.mineru import content_list_to_elements
 from src.pipeline.parsers.base import ParseResult
+from src.pipeline.parsers.mineru import content_list_to_elements
 from src.pipeline.process_documents import chunk_to_paragraphs, process_pdf
 
 
@@ -57,7 +57,9 @@ def test_parse_unstructured_filename_is_partial():
 
 def test_metadata_override_wins():
     base = parse_spec_filename("GB 50009-2012_.建筑结构荷载规范.pdf")
-    spec = apply_metadata_override(base, {"name": "覆盖名称", "status": "retired", "aliases": ["荷载"]})
+    spec = apply_metadata_override(
+        base, {"name": "覆盖名称", "status": "retired", "aliases": ["荷载"]}
+    )
     assert spec.name == "覆盖名称"
     assert spec.status == "retired"
     assert spec.aliases == ["荷载"]
@@ -65,7 +67,9 @@ def test_metadata_override_wins():
 
 def test_metadata_override_validates_asset_access_scope():
     base = parse_spec_filename("GB 50009-2012_.建筑结构荷载规范.pdf")
-    spec = apply_metadata_override(base, {"image_access": "public", "page_image_access": "disabled"})
+    spec = apply_metadata_override(
+        base, {"image_access": "public", "page_image_access": "disabled"}
+    )
     assert spec.image_access == "public"
     assert spec.page_image_access == "disabled"
 
@@ -76,7 +80,14 @@ def test_metadata_override_validates_asset_access_scope():
 def test_normalize_chunk_contains_required_metadata():
     spec = parse_spec_filename("GB 50011-2010_建筑抗震设计规范_2016年版.pdf")
     chunks = normalize_chunks(
-        [{"title": "8.2.1 构件要求", "text": "8.2.1 应符合要求", "pages": [10], "images": ["a.png"]}],
+        [
+            {
+                "title": "8.2.1 构件要求",
+                "text": "8.2.1 应符合要求",
+                "pages": [10],
+                "images": ["a.png"],
+            }
+        ],
         spec,
     )
     chunk = chunks[0]
@@ -176,7 +187,9 @@ def test_mineru_content_list_converts_tables_and_formulas(tmp_path: Path):
 
     elements = content_list_to_elements(content, artifact_dir, image_dir, "doc")
     chunks = chunk_to_paragraphs(elements)
-    normalized = normalize_chunks(chunks, parse_spec_filename("GB 50009-2012_.建筑结构荷载规范.pdf"))
+    normalized = normalize_chunks(
+        chunks, parse_spec_filename("GB 50009-2012_.建筑结构荷载规范.pdf")
+    )
 
     assert elements[0]["type"] == "Title"
     assert any(element["chunk_type"] == "table" for element in elements)
@@ -208,7 +221,9 @@ def test_mineru_artifact_scan_marks_missing_required_outputs(tmp_path: Path):
     doc_dir.mkdir(parents=True)
 
     artifacts = scan_mineru_artifacts(doc_dir)
-    missing_required = [item["kind"] for item in artifacts if item["required"] and item["status"] == "missing"]
+    missing_required = [
+        item["kind"] for item in artifacts if item["required"] and item["status"] == "missing"
+    ]
 
     assert missing_required == ["content_list", "markdown"]
     try:
@@ -226,8 +241,20 @@ def test_process_pdf_writes_quality_report_shape(tmp_path: Path):
         def parse(self, pdf_path: Path, image_dir: Path):
             return ParseResult(
                 elements=[
-                    {"type": "Title", "text": "表 1 测试表", "page": 1, "img": "table.png", "chunk_type": "table"},
-                    {"type": "Text", "text": "x", "page": 1, "img": "table.png", "chunk_type": "table"},
+                    {
+                        "type": "Title",
+                        "text": "表 1 测试表",
+                        "page": 1,
+                        "img": "table.png",
+                        "chunk_type": "table",
+                    },
+                    {
+                        "type": "Text",
+                        "text": "x",
+                        "page": 1,
+                        "img": "table.png",
+                        "chunk_type": "table",
+                    },
                 ],
                 artifacts=[
                     {"kind": "content_list", "required": True, "status": "ok"},
@@ -238,7 +265,13 @@ def test_process_pdf_writes_quality_report_shape(tmp_path: Path):
 
     pdf = tmp_path / "GB 50009-2012_.建筑结构荷载规范.pdf"
     pdf.write_bytes(b"pdf")
-    result = process_pdf(pdf, parse_spec_filename(pdf.name), tmp_path / "processed", tmp_path / "images", FakeParser())
+    result = process_pdf(
+        pdf,
+        parse_spec_filename(pdf.name),
+        tmp_path / "processed",
+        tmp_path / "images",
+        FakeParser(),
+    )
 
     assert result["quality"]["table_count"] == 2
     assert result["quality"]["missing_artifacts"] == ["middle"]
@@ -325,7 +358,11 @@ def test_candidate_status_workbench_helpers(tmp_path: Path):
             {
                 "source_file": "doc.pdf",
                 "corrections": [
-                    {"id": "c1", "review_status": "pending", "suggested_patch": {"action": "replace_text", "value": "x"}}
+                    {
+                        "id": "c1",
+                        "review_status": "pending",
+                        "suggested_patch": {"action": "replace_text", "value": "x"},
+                    }
                 ],
             },
             ensure_ascii=False,
@@ -338,7 +375,9 @@ def test_candidate_status_workbench_helpers(tmp_path: Path):
     assert read_candidate_file("doc", corrections_dir)["corrections"][0]["id"] == "c1"
     result = update_candidate_status("doc", "c1", "approved", corrections_dir)
     assert result["review_status"] == "approved"
-    assert read_candidate_file("doc", corrections_dir)["corrections"][0]["review_status"] == "approved"
+    assert (
+        read_candidate_file("doc", corrections_dir)["corrections"][0]["review_status"] == "approved"
+    )
 
 
 def test_candidate_helpers_keep_dots_inside_chinese_doc_names(tmp_path: Path):
@@ -351,7 +390,11 @@ def test_candidate_helpers_keep_dots_inside_chinese_doc_names(tmp_path: Path):
             {
                 "source_file": f"{doc}.pdf",
                 "corrections": [
-                    {"id": "c1", "review_status": "pending", "suggested_patch": {"action": "replace_text", "value": "x"}}
+                    {
+                        "id": "c1",
+                        "review_status": "pending",
+                        "suggested_patch": {"action": "replace_text", "value": "x"},
+                    }
                 ],
             },
             ensure_ascii=False,
@@ -362,7 +405,9 @@ def test_candidate_helpers_keep_dots_inside_chinese_doc_names(tmp_path: Path):
     detail = read_candidate_file(doc, corrections_dir)
     assert detail["corrections"][0]["id"] == "c1"
     update_candidate_status(doc, "c1", "approved", corrections_dir)
-    assert read_candidate_file(doc, corrections_dir)["corrections"][0]["review_status"] == "approved"
+    assert (
+        read_candidate_file(doc, corrections_dir)["corrections"][0]["review_status"] == "approved"
+    )
 
 
 def test_manual_structuring_queue_detects_complex_tables(tmp_path: Path):
@@ -397,7 +442,7 @@ def test_manual_structuring_queue_detects_complex_tables(tmp_path: Path):
                         "page": 7,
                         "chunk_type": "table",
                         "img": "page7.png",
-                        "text": "表7.2.1 屋面积雪分布系数\n<table><tr><td colspan=\"2\">图形□</td></tr></table>",
+                        "text": '表7.2.1 屋面积雪分布系数\n<table><tr><td colspan="2">图形□</td></tr></table>',
                     }
                 ],
             },
@@ -410,7 +455,9 @@ def test_manual_structuring_queue_detects_complex_tables(tmp_path: Path):
     documents = list_manual_structuring_files(manual_dir)
     detail = read_manual_structuring_file("doc", manual_dir)
     item_id = detail["items"][0]["id"]
-    status = update_manual_structuring_status("doc", item_id, "approved", manual_dir, notes="已转结构化表")
+    status = update_manual_structuring_status(
+        "doc", item_id, "approved", manual_dir, notes="已转结构化表"
+    )
 
     assert result["candidate_count"] == 1
     assert documents[0]["pending_count"] == 1
@@ -538,7 +585,10 @@ def test_manual_structuring_draft_can_be_generated_and_saved(tmp_path: Path):
     assert loaded["source"]["table_id"] == "7.2.1"
     assert loaded["source"]["table_name"] == "屋面积雪分布系数"
     assert loaded["rows"][0]["item"] == "单跨单坡屋面"
-    assert next(column for column in loaded["columns"] if column["key"] == "value")["value_type"] == "number"
+    assert (
+        next(column for column in loaded["columns"] if column["key"] == "value")["value_type"]
+        == "number"
+    )
 
     stored_path = Path(saved["draft_path"])
     legacy = json.loads(stored_path.read_text(encoding="utf-8"))
@@ -546,8 +596,14 @@ def test_manual_structuring_draft_can_be_generated_and_saved(tmp_path: Path):
         column.pop("value_type", None)
     stored_path.write_text(json.dumps(legacy, ensure_ascii=False, indent=2), encoding="utf-8")
     migrated = read_manual_structuring_draft(doc, item_id, manual_dir)
-    assert next(column for column in migrated["columns"] if column["key"] == "value")["value_type"] == "number"
-    assert next(column for column in migrated["columns"] if column["key"] == "aliases")["value_type"] == "list"
+    assert (
+        next(column for column in migrated["columns"] if column["key"] == "value")["value_type"]
+        == "number"
+    )
+    assert (
+        next(column for column in migrated["columns"] if column["key"] == "aliases")["value_type"]
+        == "list"
+    )
 
 
 def test_manual_structuring_draft_validation_publish_and_rollback(tmp_path: Path, monkeypatch):
@@ -588,7 +644,9 @@ def test_manual_structuring_draft_validation_publish_and_rollback(tmp_path: Path
     assert invalid["valid"] is False
     assert any(error["path"] == "rows" for error in invalid["errors"])
 
-    draft["rows"] = [{"item": "单跨单坡屋面", "condition": "均匀分布", "value": "1.0", "aliases": ["单坡屋面"]}]
+    draft["rows"] = [
+        {"item": "单跨单坡屋面", "condition": "均匀分布", "value": "1.0", "aliases": ["单坡屋面"]}
+    ]
     saved = save_manual_structuring_draft(doc, item_id, draft, manual_dir)
     assert saved["draft_status"] == "needs_review"
     typed_invalid = validate_manual_structuring_draft(doc, item_id, manual_dir)
@@ -615,7 +673,10 @@ def test_manual_structuring_draft_validation_publish_and_rollback(tmp_path: Path
         publish_manual_structuring_draft(doc, item_id, manual_dir, structured_dir)
     assert list(structured_dir.glob("*.json")) == []
     assert read_manual_structuring_draft(doc, item_id, manual_dir)["draft_status"] == "validated"
-    assert read_manual_structuring_file(doc, manual_dir)["items"][0].get("review_status", "pending") == "pending"
+    assert (
+        read_manual_structuring_file(doc, manual_dir)["items"][0].get("review_status", "pending")
+        == "pending"
+    )
     monkeypatch.setattr(manual_structuring, "_publication_smoke_test", real_smoke_test)
 
     first = publish_manual_structuring_draft(doc, item_id, manual_dir, structured_dir)
@@ -666,7 +727,12 @@ def test_ai_structuring_suggestion_is_normalized_without_overwriting_source():
             {"key": "item", "label": "重复字段", "value_type": "text"},
         ],
         "rows": [
-            {"item": "机械厂铸造车间", "value": "0.50", "aliases": "铸造车间, 冲天炉", "unknown": "drop"},
+            {
+                "item": "机械厂铸造车间",
+                "value": "0.50",
+                "aliases": "铸造车间, 冲天炉",
+                "unknown": "drop",
+            },
             {"item": "待确认", "value": None, "aliases": []},
         ],
         "table_aliases": ["表5.4.1-1", "表5.4.1-1"],
@@ -723,7 +789,9 @@ def test_multimodal_review_without_key_writes_not_configured_report(tmp_path: Pa
         return {page: image for page in pages}
 
     monkeypatch.setattr("src.pipeline.audit.multimodal.render_pdf_pages", fake_render)
-    result = run_multimodal_review("doc", "1", source_dir=source_dir, processed_dir=processed_dir, out_dir=tmp_path / "audit")
+    result = run_multimodal_review(
+        "doc", "1", source_dir=source_dir, processed_dir=processed_dir, out_dir=tmp_path / "audit"
+    )
 
     assert result["status"] == "not_configured"
     assert result["candidate_count"] == 0
@@ -755,7 +823,9 @@ def test_manifest_hash_is_stable(tmp_path: Path):
             ]
         },
         "audit_by_file": {pdf.name: {"finding_count": 2, "high_risk_count": 1}},
-        "corrections_by_file": {pdf.name: {"approved_count": 1, "applied_count": 1, "skipped_count": 0}},
+        "corrections_by_file": {
+            pdf.name: {"approved_count": 1, "applied_count": 1, "skipped_count": 0}
+        },
         "chunk_hashes_by_file": {pdf.name: ["chunk-a", "chunk-b"]},
         "build_params": {"mode": "rebuild"},
     }

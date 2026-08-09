@@ -1,4 +1,5 @@
 """PDF 解析、chunk 生成和中间产物写入。"""
+
 import json
 import logging
 import os
@@ -8,12 +9,18 @@ from pathlib import Path
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from src.pipeline.chunks import normalize_chunks
 from src.pipeline.audit import apply_approved_corrections, audit_elements
+from src.pipeline.chunks import normalize_chunks
 from src.pipeline.metadata import SpecMetadata, load_spec_metadata
 from src.pipeline.parsers import PdfParser, create_parser
-from src.pipeline.paths import CORRECTIONS_DIR, IMAGES_DIR, METADATA_DIR, MINERU_DIR, PROCESSED_DIR, RAW_DIR
-
+from src.pipeline.paths import (
+    CORRECTIONS_DIR,
+    IMAGES_DIR,
+    METADATA_DIR,
+    MINERU_DIR,
+    PROCESSED_DIR,
+    RAW_DIR,
+)
 
 DEFAULT_PARSER_BACKEND = os.environ.get("PDF_PARSER_BACKEND", "mineru")
 
@@ -117,7 +124,11 @@ def build_quality_entry(
         "figure_count": counts.get("figure", 0),
         "empty_text_ratio": round(empty_text / total_elements, 4) if total_elements else 0,
         "missing_artifacts": missing,
-        "missing_required_artifacts": [item["kind"] for item in artifacts if item.get("required") and item.get("status") != "ok"],
+        "missing_required_artifacts": [
+            item["kind"]
+            for item in artifacts
+            if item.get("required") and item.get("status") != "ok"
+        ],
     }
 
 
@@ -146,7 +157,9 @@ def process_pdf(
         "skipped": [],
     }
     if apply_corrections:
-        elements, correction_summary = apply_approved_corrections(elements, pdf_path.name, CORRECTIONS_DIR)
+        elements, correction_summary = apply_approved_corrections(
+            elements, pdf_path.name, CORRECTIONS_DIR
+        )
 
     raw_chunks = chunk_to_paragraphs(elements)
     chunks = normalize_chunks(raw_chunks, spec)
@@ -172,8 +185,12 @@ def process_pdf(
         "corrections": correction_summary,
         "elements": elements,
     }
-    (out_dir / f"{basename}.json").write_text(json.dumps(elements_payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    (out_dir / f"{basename}_chunks.json").write_text(json.dumps(chunks, ensure_ascii=False, indent=2), encoding="utf-8")
+    (out_dir / f"{basename}.json").write_text(
+        json.dumps(elements_payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    (out_dir / f"{basename}_chunks.json").write_text(
+        json.dumps(chunks, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     return {
         "chunks": chunks,
         "artifacts": parse_result.artifacts,
@@ -218,19 +235,31 @@ def process_pdfs(
             "document_count": len(results_by_file),
             "chunk_count": sum(len(result["chunks"]) for result in results_by_file.values()),
             "image_count": len(images),
-            "missing_artifact_count": sum(len(result["quality"]["missing_artifacts"]) for result in results_by_file.values()),
-            "audit_finding_count": sum(result["audit"]["finding_count"] for result in results_by_file.values()),
-            "high_risk_count": sum(result["audit"]["high_risk_count"] for result in results_by_file.values()),
-            "applied_correction_count": sum(result["corrections"]["applied_count"] for result in results_by_file.values()),
+            "missing_artifact_count": sum(
+                len(result["quality"]["missing_artifacts"]) for result in results_by_file.values()
+            ),
+            "audit_finding_count": sum(
+                result["audit"]["finding_count"] for result in results_by_file.values()
+            ),
+            "high_risk_count": sum(
+                result["audit"]["high_risk_count"] for result in results_by_file.values()
+            ),
+            "applied_correction_count": sum(
+                result["corrections"]["applied_count"] for result in results_by_file.values()
+            ),
         },
     }
-    (out_dir / "build_quality.json").write_text(json.dumps(quality_report, ensure_ascii=False, indent=2), encoding="utf-8")
+    (out_dir / "build_quality.json").write_text(
+        json.dumps(quality_report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     return results_by_file
 
 
 def process_all() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-    pdfs = sorted(path for path in RAW_DIR.iterdir() if path.is_file() and path.suffix.lower() == ".pdf")
+    pdfs = sorted(
+        path for path in RAW_DIR.iterdir() if path.is_file() and path.suffix.lower() == ".pdf"
+    )
     metadata = load_spec_metadata(pdfs, METADATA_DIR / "specs.json")
     logging.info("发现 %s 个 PDF", len(pdfs))
     process_pdfs(pdfs, metadata, PROCESSED_DIR, IMAGES_DIR)

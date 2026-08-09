@@ -9,11 +9,12 @@ import subprocess
 import sys
 import tempfile
 import zipfile
-from datetime import datetime, timedelta, timezone
+from collections.abc import Iterable
+from datetime import UTC, datetime, timedelta
 from getpass import getuser
 from importlib import metadata as importlib_metadata
 from pathlib import Path, PurePosixPath
-from typing import Any, Iterable
+from typing import Any
 
 from src.app.core.config import settings
 from src.quality import DEFAULT_REPORT_MAX_AGE, evaluate_quality_gate
@@ -32,7 +33,6 @@ from .paths import (
     RAW_DIR,
     STRUCTURED_TABLES_DIR,
 )
-
 
 PACKAGE_FORMAT = "structural-spec-knowledge-package"
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -57,7 +57,7 @@ class KnowledgePackageError(RuntimeError):
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _sha256(path: Path) -> str:
@@ -91,7 +91,9 @@ def _resolve_pointer_path(value: str | None, pointer_path: Path, default: Path) 
     return (project_root / candidate).resolve()
 
 
-def _payload_files(directory: Path, archive_prefix: str, role: str) -> Iterable[tuple[str, Path, str]]:
+def _payload_files(
+    directory: Path, archive_prefix: str, role: str
+) -> Iterable[tuple[str, Path, str]]:
     if not directory.exists():
         return
     for path in sorted(directory.rglob("*")):
@@ -322,7 +324,9 @@ def export_runtime_package(
         raise KnowledgePackageError(f"质量豁免原因至少需要 {MIN_WAIVER_REASON_LENGTH} 个字符")
 
     created_at = _utc_now()
-    event_id = f"package-export-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')}-{data_version_hash[:8]}"
+    event_id = (
+        f"package-export-{datetime.now(UTC).strftime('%Y%m%dT%H%M%S%fZ')}-{data_version_hash[:8]}"
+    )
     quality = _quality_evidence(
         gate_result,
         data_version_hash=data_version_hash,
@@ -359,7 +363,9 @@ def export_runtime_package(
     if not database_files:
         raise KnowledgePackageError(f"活动数据库目录没有可导出的文件: {db_dir}")
     payloads.extend(database_files)
-    payloads.extend(_payload_files(structured_tables_dir, "runtime/structured_tables", "structured_table"))
+    payloads.extend(
+        _payload_files(structured_tables_dir, "runtime/structured_tables", "structured_table")
+    )
     payloads.extend(_payload_files(images_dir, "runtime/images", "image"))
     source_policy_path = metadata_dir / "specs.json"
     if not source_policy_path.is_file():
@@ -377,7 +383,9 @@ def export_runtime_package(
     incomplete_policies = sorted(
         source
         for source in manifest_sources & set(source_policies)
-        if not all(field in source_policies[source] for field in ("image_access", "page_image_access"))
+        if not all(
+            field in source_policies[source] for field in ("image_access", "page_image_access")
+        )
     )
     if missing_policies or incomplete_policies:
         raise KnowledgePackageError(
@@ -451,7 +459,9 @@ def export_runtime_package(
         "waiver": quality["waiver"],
     }
     try:
-        with zipfile.ZipFile(temporary_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
+        with zipfile.ZipFile(
+            temporary_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6
+        ) as archive:
             for archive_path, source, _ in payloads:
                 archive.write(source, archive_path)
             archive.writestr(
@@ -516,7 +526,9 @@ def validate_runtime_package(
             or isinstance(schema_version, bool)
             or schema_version not in SUPPORTED_PACKAGE_SCHEMA_VERSIONS
         ):
-            raise KnowledgePackageError(f"知识包 schema_version 不受支持: {package_manifest.get('schema_version')}")
+            raise KnowledgePackageError(
+                f"知识包 schema_version 不受支持: {package_manifest.get('schema_version')}"
+            )
         if package_manifest.get("profile") != "runtime":
             raise KnowledgePackageError("当前仅支持 runtime 知识包")
         package_id = str(package_manifest.get("package_id") or "")
@@ -567,7 +579,9 @@ def validate_runtime_package(
         if actual_payloads != set(declared_by_path):
             missing = sorted(set(declared_by_path) - actual_payloads)
             undeclared = sorted(actual_payloads - set(declared_by_path))
-            raise KnowledgePackageError(f"知识包文件声明不一致: missing={missing}, undeclared={undeclared}")
+            raise KnowledgePackageError(
+                f"知识包文件声明不一致: missing={missing}, undeclared={undeclared}"
+            )
 
         for path, entry in declared_by_path.items():
             info = archive.getinfo(path)
@@ -588,7 +602,9 @@ def validate_runtime_package(
             raise KnowledgePackageError("runtime/manifest.json 无效") from exc
         if runtime_manifest.get("data_version_hash") != package_manifest.get("data_version_hash"):
             raise KnowledgePackageError("包清单与运行 manifest 的数据版本不一致")
-        if int(runtime_manifest.get("chunk_count", -1)) != int(package_manifest.get("chunk_count", -2)):
+        if int(runtime_manifest.get("chunk_count", -1)) != int(
+            package_manifest.get("chunk_count", -2)
+        ):
             raise KnowledgePackageError("包清单与运行 manifest 的 chunk 数不一致")
 
         capabilities = package_manifest.get("capabilities")
@@ -614,7 +630,9 @@ def validate_runtime_package(
             raise KnowledgePackageError("v3 知识包缺少 runtime/metadata/specs.json 来源访问策略")
         if schema_version >= 3:
             try:
-                policy_payload = json.loads(archive.read("runtime/metadata/specs.json").decode("utf-8"))
+                policy_payload = json.loads(
+                    archive.read("runtime/metadata/specs.json").decode("utf-8")
+                )
                 source_policies = parse_metadata_overrides(policy_payload)
             except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
                 raise KnowledgePackageError(f"v3 来源访问策略无效: {exc}") from exc
@@ -627,7 +645,10 @@ def validate_runtime_package(
             incomplete_policies = sorted(
                 source
                 for source in manifest_sources & set(source_policies)
-                if not all(field in source_policies[source] for field in ("image_access", "page_image_access"))
+                if not all(
+                    field in source_policies[source]
+                    for field in ("image_access", "page_image_access")
+                )
             )
             if missing_policies or incomplete_policies:
                 raise KnowledgePackageError(
@@ -650,10 +671,16 @@ def validate_runtime_package(
             if parsed_gate_time.tzinfo is None:
                 raise KnowledgePackageError("质量证据 gate_generated_at 必须包含时区")
             max_age_seconds = quality.get("max_report_age_seconds")
-            if not isinstance(max_age_seconds, int) or isinstance(max_age_seconds, bool) or max_age_seconds <= 0:
+            if (
+                not isinstance(max_age_seconds, int)
+                or isinstance(max_age_seconds, bool)
+                or max_age_seconds <= 0
+            ):
                 raise KnowledgePackageError("质量证据 max_report_age_seconds 无效")
             failed_checks = quality.get("failed_checks")
-            if not isinstance(failed_checks, list) or not all(isinstance(item, str) for item in failed_checks):
+            if not isinstance(failed_checks, list) or not all(
+                isinstance(item, str) for item in failed_checks
+            ):
                 raise KnowledgePackageError("质量证据 failed_checks 必须是字符串数组")
             waiver = quality.get("waiver")
             if not isinstance(waiver, dict) or not isinstance(waiver.get("used"), bool):
@@ -663,7 +690,10 @@ def validate_runtime_package(
             if not gate_passed:
                 if waiver.get("used") is not True:
                     raise KnowledgePackageError("质量门禁未通过的知识包必须包含显式豁免")
-                if not str(waiver.get("actor") or "").strip() or not str(waiver.get("reason") or "").strip():
+                if (
+                    not str(waiver.get("actor") or "").strip()
+                    or not str(waiver.get("reason") or "").strip()
+                ):
                     raise KnowledgePackageError("质量豁免缺少责任人或原因")
 
         warnings: list[str] = []
@@ -700,7 +730,9 @@ def validate_runtime_package(
         local_platform = platform.system().lower()
         local_machine = _normalize_machine(platform.machine())
         if compatibility.get("platform") not in {None, "", local_platform}:
-            warnings.append(f"操作系统不同: package={compatibility.get('platform')}, local={local_platform}")
+            warnings.append(
+                f"操作系统不同: package={compatibility.get('platform')}, local={local_platform}"
+            )
         source_machine = _normalize_machine(compatibility.get("machine"))
         if source_machine not in {"", local_machine}:
             warnings.append(f"处理器架构不同: package={source_machine}, local={local_machine}")
@@ -776,7 +808,9 @@ def import_runtime_package(
     active_db_path = data_dir / "active_db.json"
     root_manifest_path = data_dir / "manifest.json"
 
-    with tempfile.TemporaryDirectory(prefix="knowledge-package-", dir=data_dir.parent) as temporary_name:
+    with tempfile.TemporaryDirectory(
+        prefix="knowledge-package-", dir=data_dir.parent
+    ) as temporary_name:
         temporary_root = Path(temporary_name)
         staging = temporary_root / "staging"
         staging.mkdir()
@@ -953,9 +987,7 @@ def probe_runtime_package(
             warning for warning in validation["warnings"] if not warning.startswith("操作系统不同:")
         ]
         if len(platform_warnings) != 1 or unexpected_warnings:
-            raise KnowledgePackageError(
-                f"跨平台探针包含非预期兼容警告: {validation['warnings']}"
-            )
+            raise KnowledgePackageError(f"跨平台探针包含非预期兼容警告: {validation['warnings']}")
     return {
         "ok": True,
         "package_id": validation["package_id"],

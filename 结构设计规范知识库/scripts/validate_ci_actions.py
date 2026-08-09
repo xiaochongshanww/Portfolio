@@ -3,18 +3,13 @@ from __future__ import annotations
 import argparse
 import json
 import re
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Sequence
-
 
 PINNED_REF_RE = re.compile(r"^[0-9a-f]{40}$")
-VERSION_COMMENT_RE = re.compile(
-    r"(?:^|\s)v(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)(?:\s|$)"
-)
-USES_RE = re.compile(
-    r"^\s*(?:-\s*)?uses:\s*(?P<target>[^#\s]+)\s*(?:#\s*(?P<comment>.*))?$"
-)
+VERSION_COMMENT_RE = re.compile(r"(?:^|\s)v(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)(?:\s|$)")
+USES_RE = re.compile(r"^\s*(?:-\s*)?uses:\s*(?P<target>[^#\s]+)\s*(?:#\s*(?P<comment>.*))?$")
 
 # These minimum majors are the first project-verified releases using Node.js 24.
 MINIMUM_ACTION_MAJORS = {

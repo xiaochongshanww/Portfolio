@@ -32,4 +32,3 @@ async def chat_completions(request: ChatCompletionRequest):
     if request.stream:
         return StreamingResponse(rag_stream(request), media_type="text/event-stream")
     return await generate_non_stream(request)
-

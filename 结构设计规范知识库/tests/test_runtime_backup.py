@@ -9,7 +9,6 @@ import zipfile
 from pathlib import Path
 
 import pytest
-
 from src.pipeline import runtime_backup
 from src.pipeline.runtime_backup import (
     BACKUP_MANIFEST_NAME,
@@ -18,7 +17,6 @@ from src.pipeline.runtime_backup import (
     restore_runtime_backup,
     validate_runtime_backup,
 )
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -98,7 +96,9 @@ def test_backup_round_trip_preserves_complete_inventory_and_metadata(tmp_path: P
     assert created["file_count"] == 4
     assert (target / "manual_structuring" / "drafts" / "空目录").is_dir()
     assert (target / "raw" / "GB 50009-2012_荷载规范.pdf").read_bytes() == b"%PDF-runtime-backup"
-    assert (target / "raw" / "GB 50009-2012_荷载规范.pdf").stat().st_mtime_ns == 1_700_000_000_123_456_700
+    assert (
+        target / "raw" / "GB 50009-2012_荷载规范.pdf"
+    ).stat().st_mtime_ns == 1_700_000_000_123_456_700
     source_inventory, _ = runtime_backup._scan_inventory(source)
     target_inventory, _ = runtime_backup._scan_inventory(target)
     assert target_inventory == source_inventory
@@ -431,7 +431,9 @@ def test_restore_extraction_failure_never_mutates_target(tmp_path: Path, monkeyp
     assert not list(tmp_path.glob(".runtime-backup-*"))
 
 
-def test_restore_preserves_previous_data_if_automatic_rollback_also_fails(tmp_path: Path, monkeypatch):
+def test_restore_preserves_previous_data_if_automatic_rollback_also_fails(
+    tmp_path: Path, monkeypatch
+):
     source = _runtime_data(tmp_path)
     backup = tmp_path / "backup.zip"
     create_runtime_backup(backup, data_dir=source, maintenance_window=True)
@@ -456,7 +458,9 @@ def test_restore_preserves_previous_data_if_automatic_rollback_also_fails(tmp_pa
         )
     temporary_roots = list(tmp_path.glob(".runtime-backup-*"))
     assert len(temporary_roots) == 1
-    assert (temporary_roots[0] / "previous-data" / "old.txt").read_text(encoding="utf-8") == "old-state"
+    assert (temporary_roots[0] / "previous-data" / "old.txt").read_text(
+        encoding="utf-8"
+    ) == "old-state"
 
 
 def test_backup_cli_reports_machine_readable_success_and_failures(tmp_path: Path):

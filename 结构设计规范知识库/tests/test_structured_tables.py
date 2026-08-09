@@ -6,7 +6,12 @@ from src.app.rag.structured_tables import (
     format_structured_table_context,
     load_structured_tables,
 )
-from src.evaluation.runner import STRUCTURED_EVAL_PATH, load_cases, render_evaluation_markdown, run_evaluation
+from src.evaluation.runner import (
+    STRUCTURED_EVAL_PATH,
+    load_cases,
+    render_evaluation_markdown,
+    run_evaluation,
+)
 
 
 def test_structured_table_files_load():
@@ -206,7 +211,10 @@ def test_structured_table_5_1_2_file_shape():
     payload = json.loads(path.read_text(encoding="utf-8"))
     assert payload["source"]["code"] == "GB 50009-2012"
     assert payload["source"]["table_id"] == "5.1.2"
-    assert any(row["supported_levels"] == ">20" and row["reduction_factor"] == 0.55 for row in payload["rows"])
+    assert any(
+        row["supported_levels"] == ">20" and row["reduction_factor"] == 0.55
+        for row in payload["rows"]
+    )
 
 
 def test_structured_table_5_1_1_file_shape_contains_completed_rows():
@@ -225,22 +233,33 @@ def test_structured_table_5_1_1_file_shape_contains_completed_rows():
 
 def test_roof_structured_table_files_shape():
     table_3_2_5 = json.loads(
-        Path("data/structured_tables/GB_50009_2012_table_3_2_5_live_load_design_life_factor.json").read_text(
-            encoding="utf-8"
-        )
+        Path(
+            "data/structured_tables/GB_50009_2012_table_3_2_5_live_load_design_life_factor.json"
+        ).read_text(encoding="utf-8")
     )
     table_5_3_1 = json.loads(
-        Path("data/structured_tables/GB_50009_2012_table_5_3_1_roof_live_loads.json").read_text(encoding="utf-8")
-    )
-    table_5_3_2 = json.loads(
-        Path("data/structured_tables/GB_50009_2012_table_5_3_2_helicopter_roof_loads.json").read_text(
+        Path("data/structured_tables/GB_50009_2012_table_5_3_1_roof_live_loads.json").read_text(
             encoding="utf-8"
         )
     )
+    table_5_3_2 = json.loads(
+        Path(
+            "data/structured_tables/GB_50009_2012_table_5_3_2_helicopter_roof_loads.json"
+        ).read_text(encoding="utf-8")
+    )
 
-    assert any(row["design_working_life_years"] == 5 and row["adjustment_factor_gamma_l"] == 0.9 for row in table_3_2_5["rows"])
-    assert any(row["category"] == "屋顶运动场地" and row["quasi_permanent_factor"] == 0.4 for row in table_5_3_1["rows"])
-    assert any(row["helicopter_type"] == "重型" and row["local_load_standard_value"] == 60 for row in table_5_3_2["rows"])
+    assert any(
+        row["design_working_life_years"] == 5 and row["adjustment_factor_gamma_l"] == 0.9
+        for row in table_3_2_5["rows"]
+    )
+    assert any(
+        row["category"] == "屋顶运动场地" and row["quasi_permanent_factor"] == 0.4
+        for row in table_5_3_1["rows"]
+    )
+    assert any(
+        row["helicopter_type"] == "重型" and row["local_load_standard_value"] == 60
+        for row in table_5_3_2["rows"]
+    )
 
 
 def test_snow_wind_structured_reference_files_shape():
@@ -255,12 +274,14 @@ def test_snow_wind_structured_reference_files_shape():
         )
     )
     wind_height = json.loads(
-        Path("data/structured_tables/GB_50009_2012_table_8_2_1_wind_pressure_height_factor.json").read_text(
-            encoding="utf-8"
-        )
+        Path(
+            "data/structured_tables/GB_50009_2012_table_8_2_1_wind_pressure_height_factor.json"
+        ).read_text(encoding="utf-8")
     )
 
     assert snow_formula["source"]["clause_number"] == "7.1.1"
     assert snow_formula["rows"][0]["formula_latex"] == "s_k = \\mu_r s_0"
     assert {row["case"] for row in wind_formula["rows"]} == {"主要受力结构", "围护结构"}
-    assert any(row["height"] == "≥550" and row["roughness_d"] == 2.91 for row in wind_height["rows"])
+    assert any(
+        row["height"] == "≥550" and row["roughness_d"] == 2.91 for row in wind_height["rows"]
+    )

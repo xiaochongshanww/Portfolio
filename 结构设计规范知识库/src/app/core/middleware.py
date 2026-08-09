@@ -45,7 +45,9 @@ class ServiceMiddleware(BaseHTTPMiddleware):
                 response = error_response(401, ErrorCode.UNAUTHORIZED, "缺少或无效的 API Key")
                 return response
 
-            if not is_trusted_local_request(request) and not rate_limiter.allow(f"{client_ip}:{path}"):
+            if not is_trusted_local_request(request) and not rate_limiter.allow(
+                f"{client_ip}:{path}"
+            ):
                 error_code = ErrorCode.RATE_LIMITED
                 response = error_response(429, ErrorCode.RATE_LIMITED, "请求过于频繁")
                 return response
@@ -83,4 +85,3 @@ class ServiceMiddleware(BaseHTTPMiddleware):
                 )
             finally:
                 reset_request_id(request_id_token)
-

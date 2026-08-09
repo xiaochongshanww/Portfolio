@@ -7,10 +7,14 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from src.pipeline.artifacts import find_artifact, require_artifacts, scan_mineru_artifacts, write_artifact_index
+from src.pipeline.artifacts import (
+    find_artifact,
+    require_artifacts,
+    scan_mineru_artifacts,
+    write_artifact_index,
+)
 
 from .base import ParseResult, ParserUnavailableError
-
 
 MINERU_TEXT_TYPES = {"text", "equation"}
 MINERU_MEDIA_TYPES = {"image", "table"}
@@ -47,7 +51,15 @@ class MineruCliProbe:
 
 
 def _compatibility_policy(value: str | None = None) -> str:
-    policy = (value or os.environ.get("MINERU_COMPATIBILITY_POLICY") or DEFAULT_MINERU_COMPATIBILITY_POLICY).strip().lower()
+    policy = (
+        (
+            value
+            or os.environ.get("MINERU_COMPATIBILITY_POLICY")
+            or DEFAULT_MINERU_COMPATIBILITY_POLICY
+        )
+        .strip()
+        .lower()
+    )
     if policy not in MINERU_COMPATIBILITY_POLICIES:
         choices = ", ".join(sorted(MINERU_COMPATIBILITY_POLICIES))
         raise ParserCompatibilityError(f"MINERU_COMPATIBILITY_POLICY 必须是以下值之一: {choices}")
@@ -113,10 +125,11 @@ def probe_mineru_cli(
             verified=True,
         )
 
-    supported = ", ".join(f"{name} {item_version}" for name, item_version in sorted(VERIFIED_MINERU_IMPLEMENTATIONS))
+    supported = ", ".join(
+        f"{name} {item_version}" for name, item_version in sorted(VERIFIED_MINERU_IMPLEMENTATIONS)
+    )
     warning = (
-        f"检测到未验证的 PDF 解析器 {implementation} {version}；"
-        f"当前兼容矩阵仅包含 {supported}。"
+        f"检测到未验证的 PDF 解析器 {implementation} {version}；当前兼容矩阵仅包含 {supported}。"
     )
     if compatibility_policy == "strict":
         raise ParserCompatibilityError(
@@ -145,7 +158,9 @@ def _find_content_list(output_dir: Path, pdf_stem: str) -> Path | None:
     candidates = sorted(output_dir.rglob("*content_list*.json"))
     if not candidates:
         return None
-    preferred = [path for path in candidates if pdf_stem in path.name or pdf_stem in str(path.parent)]
+    preferred = [
+        path for path in candidates if pdf_stem in path.name or pdf_stem in str(path.parent)
+    ]
     return (preferred or candidates)[0]
 
 
@@ -153,11 +168,15 @@ def _find_markdown(output_dir: Path, pdf_stem: str) -> Path | None:
     candidates = sorted(output_dir.rglob("*.md"))
     if not candidates:
         return None
-    preferred = [path for path in candidates if path.name == f"{pdf_stem}.md" or path.name == "full.md"]
+    preferred = [
+        path for path in candidates if path.name == f"{pdf_stem}.md" or path.name == "full.md"
+    ]
     return (preferred or candidates)[0]
 
 
-def _copy_mineru_image(item: dict[str, Any], artifact_dir: Path, image_dir: Path, pdf_stem: str, index: int) -> tuple[str, str]:
+def _copy_mineru_image(
+    item: dict[str, Any], artifact_dir: Path, image_dir: Path, pdf_stem: str, index: int
+) -> tuple[str, str]:
     img_path = str(item.get("img_path") or "")
     if not img_path:
         return "", ""
@@ -174,9 +193,15 @@ def _copy_mineru_image(item: dict[str, Any], artifact_dir: Path, image_dir: Path
     return target_name, img_path
 
 
-def mineru_item_to_element(item: dict[str, Any], artifact_dir: Path, image_dir: Path, pdf_stem: str, index: int) -> dict[str, Any] | None:
+def mineru_item_to_element(
+    item: dict[str, Any], artifact_dir: Path, image_dir: Path, pdf_stem: str, index: int
+) -> dict[str, Any] | None:
     item_type = str(item.get("type") or "").lower()
-    page = int(item.get("page_idx", 0)) + 1 if str(item.get("page_idx", "")).lstrip("-").isdigit() else 0
+    page = (
+        int(item.get("page_idx", 0)) + 1
+        if str(item.get("page_idx", "")).lstrip("-").isdigit()
+        else 0
+    )
     text_level = item.get("text_level")
     image, original_image = _copy_mineru_image(item, artifact_dir, image_dir, pdf_stem, index)
 
@@ -220,7 +245,9 @@ def mineru_item_to_element(item: dict[str, Any], artifact_dir: Path, image_dir: 
     return None
 
 
-def content_list_to_elements(content_list: list[dict[str, Any]], artifact_dir: Path, image_dir: Path, pdf_stem: str) -> list[dict[str, Any]]:
+def content_list_to_elements(
+    content_list: list[dict[str, Any]], artifact_dir: Path, image_dir: Path, pdf_stem: str
+) -> list[dict[str, Any]]:
     elements = []
     for index, item in enumerate(content_list):
         element = mineru_item_to_element(item, artifact_dir, image_dir, pdf_stem, index)
@@ -241,7 +268,9 @@ class MineruParser:
     ):
         self.output_dir = output_dir
         self.binary = binary or os.environ.get("MINERU_BIN") or DEFAULT_MINERU_BINARY
-        self.extra_args = extra_args if extra_args is not None else os.environ.get("MINERU_ARGS", "").split()
+        self.extra_args = (
+            extra_args if extra_args is not None else os.environ.get("MINERU_ARGS", "").split()
+        )
         self.compatibility_policy = compatibility_policy
         self._cli_probe: MineruCliProbe | None = None
 
@@ -259,7 +288,14 @@ class MineruParser:
             shutil.rmtree(doc_dir)
         raw_dir.mkdir(parents=True, exist_ok=True)
 
-        command = [cli_probe.resolved_binary, "-p", str(pdf_path), "-o", str(raw_dir), *self.extra_args]
+        command = [
+            cli_probe.resolved_binary,
+            "-p",
+            str(pdf_path),
+            "-o",
+            str(raw_dir),
+            *self.extra_args,
+        ]
         completed = subprocess.run(
             command,
             text=True,
@@ -296,7 +332,9 @@ class MineruParser:
             elements=elements,
             artifact_dir=doc_dir,
             artifacts=artifacts,
-            media_files=sorted(path.name for path in image_dir.glob(f"{pdf_path.stem}_mineru_*") if path.is_file()),
+            media_files=sorted(
+                path.name for path in image_dir.glob(f"{pdf_path.stem}_mineru_*") if path.is_file()
+            ),
             metadata={
                 "parser_backend": self.name,
                 "mineru_output_dir": str(doc_dir),

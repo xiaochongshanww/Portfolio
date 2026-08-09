@@ -3,16 +3,15 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import sys
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any, Mapping
+from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
 from .urls import normalize_http_base_url
-
 
 DEFAULT_API_BASE = "http://api:8000/v1"
 DEFAULT_EXPECTED_MODEL = "mimo-v2.5"
@@ -167,11 +166,7 @@ def _probe_once(config: OpenWebUIProbeConfig, *, timeout_seconds: float) -> dict
     if not isinstance(raw_models, list):
         raise OpenWebUIProbeError("模型发现响应缺少 data 数组")
     model_ids = sorted(
-        {
-            str(item.get("id"))
-            for item in raw_models
-            if isinstance(item, dict) and item.get("id")
-        }
+        {str(item.get("id")) for item in raw_models if isinstance(item, dict) and item.get("id")}
     )
     if config.expected_model not in model_ids:
         raise OpenWebUIProbeError("模型发现结果缺少预期模型")
@@ -254,7 +249,9 @@ def probe_openwebui_connection(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="验证 OpenWebUI 到受保护 OpenAI-compatible API 的连接")
+    parser = argparse.ArgumentParser(
+        description="验证 OpenWebUI 到受保护 OpenAI-compatible API 的连接"
+    )
     parser.add_argument("--api-base", default=None, help="OpenWebUI 使用的 /v1 API 基地址")
     parser.add_argument("--expected-model", default=None, help="模型发现必须包含的模型标识")
     parser.add_argument("--timeout-seconds", type=float, default=5)

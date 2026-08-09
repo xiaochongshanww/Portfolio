@@ -58,6 +58,10 @@ jobs:
           cache-dependency-path: 结构设计规范知识库/requirements-dev.txt
       - name: Install dependencies
         run: python -m pip install --disable-pip-version-check --require-hashes -r requirements-dev.txt
+      - name: Check Python static quality
+        run: |
+          python -m ruff check src scripts tests
+          python -m ruff format --check src scripts tests
       - name: Run test suite
         run: python -m pytest -q
       - name: Validate configuration example

@@ -12,7 +12,6 @@ from scripts.create_portability_package import create_portability_package
 from scripts.verify_runtime_package_cold_start import verify_imported_runtime_api
 from src.pipeline.knowledge_package import import_runtime_package, validate_runtime_package
 
-
 PACKAGE_A_VARIANT = "recovery-a"
 PACKAGE_B_VARIANT = "recovery-b"
 TABLE_RELATIVE_PATH = Path("structured_tables") / "表5.1.1-活荷载.json"
@@ -106,9 +105,7 @@ def verify_runtime_package_recovery(*, startup_timeout: float = 60) -> dict[str,
         }
         failed_identity = [name for name, passed in identity_checks.items() if not passed]
         if failed_identity:
-            raise RuntimePackageRecoveryError(
-                "双版本样包身份未分离: " + ", ".join(failed_identity)
-            )
+            raise RuntimePackageRecoveryError("双版本样包身份未分离: " + ", ".join(failed_identity))
 
         imported_a = import_runtime_package(package_a, data_dir=data_dir)
         initial = _assert_stage(

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from threading import RLock
 from typing import Any
@@ -13,7 +13,6 @@ from src.pipeline.paths import DATA_DIR
 
 from ..core.request_context import current_request_id
 from .models import Job, utc_now
-
 
 JOBS_DIR = DATA_DIR / "jobs"
 JOB_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
@@ -77,7 +76,7 @@ class JobStore:
     def _invalid_record(path: Path, exc: Exception) -> dict[str, Any]:
         try:
             modified_at = path.stat().st_mtime
-            timestamp = datetime.fromtimestamp(modified_at, timezone.utc).isoformat()
+            timestamp = datetime.fromtimestamp(modified_at, UTC).isoformat()
         except OSError:
             timestamp = ""
         return {
@@ -105,9 +104,8 @@ class JobStore:
                 except (OSError, json.JSONDecodeError, ValueError):
                     current = {}
                 current_heartbeat = str(current.get("heartbeat_at") or "")
-                if (
-                    current.get("worker_id") == payload.get("worker_id")
-                    and current_heartbeat > str(payload.get("heartbeat_at") or "")
+                if current.get("worker_id") == payload.get("worker_id") and current_heartbeat > str(
+                    payload.get("heartbeat_at") or ""
                 ):
                     job.heartbeat_at = current_heartbeat
                     payload["heartbeat_at"] = current_heartbeat
@@ -162,7 +160,7 @@ class JobStore:
                 return []
             lines = path.read_text(encoding="utf-8").splitlines()
             result: list[dict[str, Any]] = []
-            for line in lines[-max(1, limit):]:
+            for line in lines[-max(1, limit) :]:
                 if not line.strip():
                     continue
                 try:

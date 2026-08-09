@@ -12,7 +12,9 @@ def test_vue_console_contains_required_workflows():
     app = Path("frontend/src/App.vue").read_text(encoding="utf-8")
     review = Path("frontend/src/components/ReviewTab.vue").read_text(encoding="utf-8")
     manual = Path("frontend/src/components/ManualStructuringTab.vue").read_text(encoding="utf-8")
-    structured_editor = Path("frontend/src/components/StructuredDraftEditor.vue").read_text(encoding="utf-8")
+    structured_editor = Path("frontend/src/components/StructuredDraftEditor.vue").read_text(
+        encoding="utf-8"
+    )
     evaluation = Path("frontend/src/components/EvaluationTab.vue").read_text(encoding="utf-8")
     overview = Path("frontend/src/components/OverviewTab.vue").read_text(encoding="utf-8")
     api = Path("frontend/src/api.ts").read_text(encoding="utf-8")

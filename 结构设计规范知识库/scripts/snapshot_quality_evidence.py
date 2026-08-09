@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
 import hashlib
 import json
 import os
 import re
 import sys
 import tempfile
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SNAPSHOT = Path("docs/quality/质量证据状态.json")
@@ -98,11 +97,7 @@ def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
 
 def _case_count(path: Path) -> int:
     try:
-        return sum(
-            1
-            for line in path.read_text(encoding="utf-8").splitlines()
-            if line.strip()
-        )
+        return sum(1 for line in path.read_text(encoding="utf-8").splitlines() if line.strip())
     except OSError as exc:
         raise EvidenceSnapshotError(f"无法读取评估集：{path}") from exc
 
@@ -156,9 +151,7 @@ def build_snapshot(project_root: Path = PROJECT_ROOT) -> dict[str, Any]:
     release_quality_passed = all(report["passed"] for report in reports.values())
     return {
         "schema_version": 1,
-        "release_quality_status": (
-            "passed" if release_quality_passed else "not_passed"
-        ),
+        "release_quality_status": ("passed" if release_quality_passed else "not_passed"),
         "reports": reports,
         "quality_gate_failed_checks": failed_checks,
         "evaluation_sets": evaluation_sets,
@@ -179,9 +172,7 @@ def _validate_report_entry(name: str, report: dict[str, Any]) -> None:
         raise EvidenceSnapshotError(f"报告时间无效：{name}")
     if not isinstance(report.get("passed"), bool):
         raise EvidenceSnapshotError(f"报告状态无效：{name}")
-    if not isinstance(report.get("sha256"), str) or not SHA256_RE.fullmatch(
-        report["sha256"]
-    ):
+    if not isinstance(report.get("sha256"), str) or not SHA256_RE.fullmatch(report["sha256"]):
         raise EvidenceSnapshotError(f"报告哈希无效：{name}")
     if report.get("hash_mode") != "raw_bytes":
         raise EvidenceSnapshotError(f"报告哈希模式无效：{name}")
@@ -222,9 +213,7 @@ def _validate_snapshot_structure(snapshot: dict[str, Any]) -> str:
             raise EvidenceSnapshotError(f"评估集路径不符合契约：{name}")
         if entry.get("hash_mode") != "utf8_lf":
             raise EvidenceSnapshotError(f"评估集哈希模式无效：{name}")
-        if not isinstance(entry.get("sha256"), str) or not SHA256_RE.fullmatch(
-            entry["sha256"]
-        ):
+        if not isinstance(entry.get("sha256"), str) or not SHA256_RE.fullmatch(entry["sha256"]):
             raise EvidenceSnapshotError(f"评估集哈希无效：{name}")
         if not isinstance(entry.get("case_count"), int) or entry["case_count"] < 0:
             raise EvidenceSnapshotError(f"评估集数量无效：{name}")
@@ -250,10 +239,7 @@ def _system_card_markers(snapshot: dict[str, Any]) -> list[str]:
         )
     markers.append(f"`quality_gate.failed_checks={','.join(failed_checks)}`")
     for name in ("regular", "structured", "answer"):
-        markers.append(
-            f"`evaluation_set.{name}.case_count="
-            f"{evaluation_sets[name]['case_count']}`"
-        )
+        markers.append(f"`evaluation_set.{name}.case_count={evaluation_sets[name]['case_count']}`")
     return markers
 
 
@@ -324,7 +310,7 @@ def _archive_name(snapshot: dict[str, Any]) -> str:
         raise EvidenceSnapshotError("验证报告时间不是 ISO 8601") from exc
     if parsed.tzinfo is None:
         raise EvidenceSnapshotError("验证报告时间必须包含时区")
-    stamp = parsed.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = parsed.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
     return f"{stamp}-{_snapshot_fingerprint(snapshot)[:12]}.json"
 
 

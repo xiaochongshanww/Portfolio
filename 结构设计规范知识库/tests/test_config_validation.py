@@ -5,9 +5,7 @@ import sys
 from pathlib import Path
 
 import pytest
-
 from src.app.core.config import ConfigurationError, Settings
-
 
 CONFIG_ENV_NAMES = {
     "ANSWER_EVALUATION_API_BASE",

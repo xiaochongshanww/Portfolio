@@ -19,5 +19,4 @@ class ParseResult:
 class PdfParser(Protocol):
     name: str
 
-    def parse(self, pdf_path: Path, image_dir: Path) -> ParseResult:
-        ...
+    def parse(self, pdf_path: Path, image_dir: Path) -> ParseResult: ...

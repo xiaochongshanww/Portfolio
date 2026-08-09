@@ -6,8 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from .api import admin, chat, health, images, knowledge
 from .admin.jobs import job_manager
+from .api import admin, chat, health, images, knowledge
 from .core.config import settings
 from .core.logging import configure_logging
 from .core.middleware import ServiceMiddleware

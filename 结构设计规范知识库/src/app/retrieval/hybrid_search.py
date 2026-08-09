@@ -19,13 +19,13 @@ try:
 except ImportError:
     ZhipuAI = None
 
+from src.pipeline.active_db import active_db_dir
+from src.pipeline.chunks import extract_table_info
+
 from ..core.config import Settings, settings
 from ..rerank.factory import get_reranker
 from .models import RetrievalCandidate, RetrievalResult
 from .query import QueryInfo, analyze_query
-from src.pipeline.active_db import active_db_dir
-from src.pipeline.chunks import extract_table_info
-
 
 GENERIC_CONTENT_KEYWORDS = {
     "建筑",
@@ -46,7 +46,14 @@ GENERIC_CONTENT_KEYWORDS = {
     "验收",
 }
 
-EXPLICIT_TABLE_QUESTION_TERMS = ("哪个表", "哪张表", "哪个表格", "在哪个表", "查哪个表", "采用哪个表")
+EXPLICIT_TABLE_QUESTION_TERMS = (
+    "哪个表",
+    "哪张表",
+    "哪个表格",
+    "在哪个表",
+    "查哪个表",
+    "采用哪个表",
+)
 
 
 def tokenize_chinese(text: str) -> list[str]:
@@ -99,7 +106,11 @@ def infer_is_table(meta: dict[str, Any], text: str = "") -> bool:
     if bool(meta.get("is_table")):
         return True
     title = str(meta.get("title") or "")
-    return str(meta.get("chunk_type") or "") == "table" or bool(meta.get("table_id")) or bool(extract_table_info(title, "")[0])
+    return (
+        str(meta.get("chunk_type") or "") == "table"
+        or bool(meta.get("table_id"))
+        or bool(extract_table_info(title, "")[0])
+    )
 
 
 def compact_evidence(text: str) -> str:
@@ -247,8 +258,8 @@ class RetrievalState:
 
         query_info = analyze_query(query)
         all_data = self.chroma_collection.get()
-        id_to_doc = dict(zip(all_data["ids"], all_data["documents"]))
-        id_to_meta = dict(zip(all_data["ids"], all_data["metadatas"]))
+        id_to_doc = dict(zip(all_data["ids"], all_data["documents"], strict=True))
+        id_to_meta = dict(zip(all_data["ids"], all_data["metadatas"], strict=True))
         results_pool: dict[str, RetrievalCandidate] = {}
 
         if self.zhipu_client:
@@ -258,13 +269,19 @@ class RetrievalState:
                     input=[query],
                 )
                 embedding = response.data[0].embedding
-                results = self.chroma_collection.query(query_embeddings=[embedding], n_results=top_k * 5)
-                for doc_id, distance in zip(results["ids"][0], results["distances"][0]):
+                results = self.chroma_collection.query(
+                    query_embeddings=[embedding], n_results=top_k * 5
+                )
+                for doc_id, distance in zip(
+                    results["ids"][0], results["distances"][0], strict=True
+                ):
                     if doc_id in id_to_doc:
                         candidate = self._candidate_for(doc_id, id_to_doc, id_to_meta, results_pool)
                         candidate.dense_score = 1 / (1 + float(distance))
                         candidate.meta["_distance"] = float(distance)
-                        candidate.score += candidate.dense_score * self.config.retrieval_dense_weight
+                        candidate.score += (
+                            candidate.dense_score * self.config.retrieval_dense_weight
+                        )
                         candidate.add_source("dense")
                         candidate.add_reason("dense semantic match")
             except Exception as exc:
@@ -272,15 +289,21 @@ class RetrievalState:
 
         self._add_clause_matches(query_info, all_data, id_to_doc, id_to_meta, results_pool)
         self._add_bm25_matches(query_info, top_k, all_data, id_to_doc, id_to_meta, results_pool)
-        self._add_table_intent_matches(query_info, top_k, all_data, id_to_doc, id_to_meta, results_pool)
-        self._add_value_table_matches(query_info, top_k, all_data, id_to_doc, id_to_meta, results_pool)
+        self._add_table_intent_matches(
+            query_info, top_k, all_data, id_to_doc, id_to_meta, results_pool
+        )
+        self._add_value_table_matches(
+            query_info, top_k, all_data, id_to_doc, id_to_meta, results_pool
+        )
         self._apply_domain_ranking(query_info, results_pool)
 
         results = [candidate.to_result() for candidate in results_pool.values()]
         results = sorted(results, key=lambda item: item.score, reverse=True)[:top_k]
         return get_reranker().rerank(query_info.normalized, results)
 
-    def hybrid_search_legacy(self, query: str, top_k: int) -> list[tuple[str, dict[str, Any], float]]:
+    def hybrid_search_legacy(
+        self, query: str, top_k: int
+    ) -> list[tuple[str, dict[str, Any], float]]:
         legacy_results = []
         for result in self.hybrid_search(query, top_k):
             distance = result.meta.get("_distance")
@@ -330,21 +353,28 @@ class RetrievalState:
                     or title_text.startswith(clause_num)
                     or title_text.startswith(f"{clause_num} ")
                     or text_contains_clause_heading(title_text, clause_num)
-                    or (
-                        section_type == "body"
-                        and text_contains_clause_heading(text, clause_num)
-                    )
+                    or (section_type == "body" and text_contains_clause_heading(text, clause_num))
                 )
-                has_clause_reference = text_mentions_clause(title_text, clause_num) or text_mentions_clause(text, clause_num)
+                has_clause_reference = text_mentions_clause(
+                    title_text, clause_num
+                ) or text_mentions_clause(text, clause_num)
                 if has_clause_heading or has_clause_reference:
                     candidate = self._candidate_for(doc_id, id_to_doc, id_to_meta, results_pool)
                     candidate.clause_match = True
                     candidate.meta["matched_clause_number"] = clause_num
-                    candidate.meta["clause_match_kind"] = "heading" if has_clause_heading else "reference"
-                    boost = self.config.retrieval_clause_boost if has_clause_heading else self.config.retrieval_clause_boost * 0.45
+                    candidate.meta["clause_match_kind"] = (
+                        "heading" if has_clause_heading else "reference"
+                    )
+                    boost = (
+                        self.config.retrieval_clause_boost
+                        if has_clause_heading
+                        else self.config.retrieval_clause_boost * 0.45
+                    )
                     candidate.score += boost
                     candidate.add_source("clause")
-                    reason = "clause exact match" if has_clause_heading else "clause reference match"
+                    reason = (
+                        "clause exact match" if has_clause_heading else "clause reference match"
+                    )
                     candidate.add_reason(f"{reason} {clause_num}")
                     logging.info("条文号精准匹配: %s -> 块%s", clause_num, index)
                     break
@@ -362,7 +392,9 @@ class RetrievalState:
             return
 
         bm25_scores = self.bm25_index.get_scores(tokenize_chinese(query_info.normalized))
-        top_indices = sorted(range(len(bm25_scores)), key=lambda index: bm25_scores[index], reverse=True)[: top_k * 10]
+        top_indices = sorted(
+            range(len(bm25_scores)), key=lambda index: bm25_scores[index], reverse=True
+        )[: top_k * 10]
         for index in top_indices:
             doc_id = all_data["ids"][index]
             score = float(bm25_scores[index])
@@ -401,11 +433,20 @@ class RetrievalState:
             table_id = str(meta.get("table_id") or "")
             if table_id and table_id in query_info.table_numbers:
                 score += 10.0
-            score += sum(2.0 for phrase in query_info.content_phrases if evidence_contains(evidence, phrase))
-            score += min(
-                sum(1 for keyword in set(query_info.content_keywords) if evidence_contains(evidence, keyword)),
-                12,
-            ) * 0.4
+            score += sum(
+                2.0 for phrase in query_info.content_phrases if evidence_contains(evidence, phrase)
+            )
+            score += (
+                min(
+                    sum(
+                        1
+                        for keyword in set(query_info.content_keywords)
+                        if evidence_contains(evidence, keyword)
+                    ),
+                    12,
+                )
+                * 0.4
+            )
             if query_info.intent == "classification":
                 score += 0.8
             if score > 0:
@@ -430,7 +471,9 @@ class RetrievalState:
         if query_info.intent != "value_lookup":
             return
 
-        query_tokens = [token for token in tokenize_chinese(query_info.normalized) if len(token) >= 2]
+        query_tokens = [
+            token for token in tokenize_chinese(query_info.normalized) if len(token) >= 2
+        ]
         scored: list[tuple[int, int]] = []
         for index, doc_id in enumerate(all_data["ids"]):
             text = id_to_doc.get(doc_id, "")
@@ -439,10 +482,16 @@ class RetrievalState:
                 continue
             if infer_section_type(meta, text) == "explanation" or not infer_is_table(meta, text):
                 continue
-            evidence = " ".join(str(meta.get(key, "")) for key in ("name", "code", "title", "table_id", "table_name"))
+            evidence = " ".join(
+                str(meta.get(key, ""))
+                for key in ("name", "code", "title", "table_id", "table_name")
+            )
             evidence = f"{evidence}\n{text}"
             hit_count = sum(1 for token in set(query_tokens) if token in evidence)
-            if query_info.table_numbers and str(meta.get("table_id") or "") in query_info.table_numbers:
+            if (
+                query_info.table_numbers
+                and str(meta.get("table_id") or "") in query_info.table_numbers
+            ):
                 hit_count += 10
             if hit_count:
                 scored.append((hit_count, index))
@@ -543,13 +592,25 @@ class RetrievalState:
                     candidate.add_source("domain")
                     candidate.add_reason("formula query de-prioritizes table")
 
-    def _apply_value_lookup_evidence_ranking(self, query_info: QueryInfo, candidate: RetrievalCandidate) -> None:
-        meta_text = " ".join(str(candidate.meta.get(key, "")) for key in ("name", "code", "title", "table_name"))
+    def _apply_value_lookup_evidence_ranking(
+        self, query_info: QueryInfo, candidate: RetrievalCandidate
+    ) -> None:
+        meta_text = " ".join(
+            str(candidate.meta.get(key, "")) for key in ("name", "code", "title", "table_name")
+        )
         evidence = f"{meta_text}\n{candidate.text}"
-        matched_phrases = [phrase for phrase in query_info.content_phrases if evidence_contains(evidence, phrase)]
-        matched_keywords = [keyword for keyword in query_info.content_keywords if evidence_contains(evidence, keyword)]
+        matched_phrases = [
+            phrase for phrase in query_info.content_phrases if evidence_contains(evidence, phrase)
+        ]
+        matched_keywords = [
+            keyword
+            for keyword in query_info.content_keywords
+            if evidence_contains(evidence, keyword)
+        ]
 
-        if len(query_info.content_phrases) > 1 and not evidence_contains(evidence, query_info.content_phrases[0]):
+        if len(query_info.content_phrases) > 1 and not evidence_contains(
+            evidence, query_info.content_phrases[0]
+        ):
             candidate.score -= 1.0
             candidate.add_reason("value lookup misses primary query phrase")
         if matched_phrases:
@@ -563,12 +624,23 @@ class RetrievalState:
             candidate.score += min(len(matched_keywords), 10) * 0.25
             candidate.add_reason("value lookup matches query content keywords")
 
-    def _apply_table_evidence_ranking(self, query_info: QueryInfo, candidate: RetrievalCandidate) -> None:
-        meta_text = " ".join(str(candidate.meta.get(key, "")) for key in ("name", "code", "title", "table_id", "table_name"))
+    def _apply_table_evidence_ranking(
+        self, query_info: QueryInfo, candidate: RetrievalCandidate
+    ) -> None:
+        meta_text = " ".join(
+            str(candidate.meta.get(key, ""))
+            for key in ("name", "code", "title", "table_id", "table_name")
+        )
         evidence = f"{meta_text}\n{candidate.text}"
         table_id = str(candidate.meta.get("table_id") or "")
-        matched_phrases = [phrase for phrase in query_info.content_phrases if evidence_contains(evidence, phrase)]
-        matched_keywords = [keyword for keyword in query_info.content_keywords if evidence_contains(evidence, keyword)]
+        matched_phrases = [
+            phrase for phrase in query_info.content_phrases if evidence_contains(evidence, phrase)
+        ]
+        matched_keywords = [
+            keyword
+            for keyword in query_info.content_keywords
+            if evidence_contains(evidence, keyword)
+        ]
 
         if table_id and table_id in query_info.table_numbers:
             candidate.score += 5.0
@@ -580,16 +652,22 @@ class RetrievalState:
             candidate.score += min(len(matched_keywords), 10) * 0.15
             candidate.add_reason("table evidence matches query content keywords")
 
-    def _apply_body_content_evidence_ranking(self, query_info: QueryInfo, candidate: RetrievalCandidate) -> None:
+    def _apply_body_content_evidence_ranking(
+        self, query_info: QueryInfo, candidate: RetrievalCandidate
+    ) -> None:
         if query_info.intent not in {"classification", "definition"} and not query_info.wants_table:
             return
-        meta_text = " ".join(str(candidate.meta.get(key, "")) for key in ("name", "code", "title", "clause_number"))
+        meta_text = " ".join(
+            str(candidate.meta.get(key, "")) for key in ("name", "code", "title", "clause_number")
+        )
         evidence = f"{meta_text}\n{candidate.text}"
         specific_keywords = specific_content_keywords(query_info)
         if not specific_keywords:
             return
 
-        matched_specific = [keyword for keyword in specific_keywords if evidence_contains(evidence, keyword)]
+        matched_specific = [
+            keyword for keyword in specific_keywords if evidence_contains(evidence, keyword)
+        ]
         if matched_specific:
             candidate.score += min(len(matched_specific), 4) * 0.7
             candidate.add_reason("body evidence matches specific query content")

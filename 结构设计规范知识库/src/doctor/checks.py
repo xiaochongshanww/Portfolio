@@ -8,7 +8,7 @@ import subprocess
 import sys
 from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from importlib import metadata
 from pathlib import Path
 from typing import Any
@@ -16,7 +16,6 @@ from typing import Any
 from src.pipeline.active_db import active_db_dir, read_active_manifest
 from src.pipeline.parsers.base import ParserUnavailableError
 from src.pipeline.parsers.mineru import probe_mineru_cli
-
 
 SCHEMA_VERSION = 1
 SUPPORTED_PROFILES = {"runtime", "build"}
@@ -124,7 +123,9 @@ def _redact_sensitive_text(text: str, environment: Mapping[str, str]) -> str:
     return redacted
 
 
-def _default_config_probe(project_root: Path, environment: Mapping[str, str]) -> tuple[bool, list[str]]:
+def _default_config_probe(
+    project_root: Path, environment: Mapping[str, str]
+) -> tuple[bool, list[str]]:
     completed = subprocess.run(
         [sys.executable, "-m", "src.app.core.config"],
         cwd=project_root,
@@ -290,7 +291,9 @@ def _check_configuration(
 
 
 def _check_credentials(profile: str, environment: Mapping[str, str]) -> list[Check]:
-    required_names = ["ZHIPUAI_API_KEY"] if profile == "build" else ["ZHIPUAI_API_KEY", "MIMO_API_KEY"]
+    required_names = (
+        ["ZHIPUAI_API_KEY"] if profile == "build" else ["ZHIPUAI_API_KEY", "MIMO_API_KEY"]
+    )
     missing = [name for name in required_names if not environment.get(name, "").strip()]
     if missing:
         credential_check = Check(
@@ -367,7 +370,11 @@ def _check_runtime_assets(project_root: Path, environment: Mapping[str, str]) ->
             details={
                 "document_count": _nonnegative_int(
                     manifest.get("document_count")
-                    or (len(manifest.get("documents")) if isinstance(manifest.get("documents"), list) else 0)
+                    or (
+                        len(manifest.get("documents"))
+                        if isinstance(manifest.get("documents"), list)
+                        else 0
+                    )
                 ),
                 "chunk_count": chunk_count,
                 "has_data_version": True,
@@ -396,7 +403,9 @@ def _check_runtime_assets(project_root: Path, environment: Mapping[str, str]) ->
         "passed" if database_nonempty else "failed",
         True,
         "活动数据库目录存在且非空。" if database_nonempty else "活动数据库目录缺失或为空。",
-        "导入已验证运行知识包，或检查 DATA_DIR/DB_DIR 与 active_db.json。" if not database_nonempty else "",
+        "导入已验证运行知识包，或检查 DATA_DIR/DB_DIR 与 active_db.json。"
+        if not database_nonempty
+        else "",
     )
 
     metadata_path = _resolve_project_path(
@@ -413,8 +422,12 @@ def _check_runtime_assets(project_root: Path, environment: Mapping[str, str]) ->
         "source_metadata",
         "passed" if metadata_valid else "failed",
         True,
-        "规范来源元数据存在且可解析。" if metadata_valid else "规范来源元数据缺失、为空或不是有效 JSON。",
-        "恢复 data/metadata/specs.json，或正确设置 SOURCE_METADATA_PATH。" if not metadata_valid else "",
+        "规范来源元数据存在且可解析。"
+        if metadata_valid
+        else "规范来源元数据缺失、为空或不是有效 JSON。",
+        "恢复 data/metadata/specs.json，或正确设置 SOURCE_METADATA_PATH。"
+        if not metadata_valid
+        else "",
     )
     return [manifest_check, database_check, metadata_check]
 
@@ -422,7 +435,9 @@ def _check_runtime_assets(project_root: Path, environment: Mapping[str, str]) ->
 def _check_build_inputs(project_root: Path, environment: Mapping[str, str]) -> list[Check]:
     data_dir = _resolve_project_path(project_root, environment.get("DATA_DIR"), "data")
     raw_dir = data_dir / "raw"
-    pdf_count = sum(1 for path in raw_dir.glob("*.pdf") if path.is_file()) if raw_dir.is_dir() else 0
+    pdf_count = (
+        sum(1 for path in raw_dir.glob("*.pdf") if path.is_file()) if raw_dir.is_dir() else 0
+    )
     source_check = Check(
         "source_pdfs",
         "passed" if pdf_count else "failed",
@@ -452,7 +467,9 @@ def _check_build_inputs(project_root: Path, environment: Mapping[str, str]) -> l
         "build_output_directories",
         "passed" if not unavailable else "failed",
         True,
-        "知识生产输出目录均已存在且可写。" if not unavailable else "部分知识生产输出目录缺失或不可写。",
+        "知识生产输出目录均已存在且可写。"
+        if not unavailable
+        else "部分知识生产输出目录缺失或不可写。",
         "按部署手册预先创建输出目录并授予当前进程写权限；自检不会自动创建。" if unavailable else "",
         {"checked": list(target_names), "unavailable": unavailable},
     )
@@ -504,14 +521,20 @@ def run_doctor(
     system: str | None = None,
     machine: str | None = None,
     installed_version: Callable[[str], str] = metadata.version,
-    config_probe: Callable[[Path, Mapping[str, str]], tuple[bool, list[str]]] = _default_config_probe,
+    config_probe: Callable[
+        [Path, Mapping[str, str]], tuple[bool, list[str]]
+    ] = _default_config_probe,
     parser_probe: Callable[[], Mapping[str, Any]] = _default_parser_probe,
 ) -> dict[str, Any]:
     if profile not in SUPPORTED_PROFILES:
         raise ValueError(f"profile 必须是以下值之一：{', '.join(sorted(SUPPORTED_PROFILES))}")
     root = (project_root or Path(__file__).resolve().parents[2]).resolve()
     env = dict(os.environ if environment is None else environment)
-    current_version = version_info or (sys.version_info.major, sys.version_info.minor, sys.version_info.micro)
+    current_version = version_info or (
+        sys.version_info.major,
+        sys.version_info.minor,
+        sys.version_info.micro,
+    )
     current_system = system or platform.system()
     current_machine = machine or platform.machine()
 
@@ -543,7 +566,7 @@ def run_doctor(
         "ok": ok,
         "status": "ready" if ok else "not_ready",
         "profile": profile,
-        "checked_at": datetime.now(timezone.utc).isoformat(),
+        "checked_at": datetime.now(UTC).isoformat(),
         "platform": {
             "python": f"{current_version[0]}.{current_version[1]}.{current_version[2]}",
             "system": current_system,
@@ -561,15 +584,13 @@ def render_text(report: Mapping[str, Any]) -> str:
         "结构设计规范知识库环境自检",
         f"配置：{report['profile']}",
         f"结果：{'可继续' if report['ok'] else '未就绪'}",
-        (
-            "汇总："
-            f"{summary['passed']} 通过 / {summary['warnings']} 警告 / "
-            f"{summary['failed']} 失败"
-        ),
+        (f"汇总：{summary['passed']} 通过 / {summary['warnings']} 警告 / {summary['failed']} 失败"),
         "",
     ]
     for check in report["checks"]:
-        lines.append(f"[{labels.get(check['status'], check['status'])}] {check['id']}：{check['message']}")
+        lines.append(
+            f"[{labels.get(check['status'], check['status'])}] {check['id']}：{check['message']}"
+        )
         remediation = check.get("remediation")
         if remediation:
             lines.append(f"  修复：{remediation}")

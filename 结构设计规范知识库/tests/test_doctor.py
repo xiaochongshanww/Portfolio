@@ -6,9 +6,8 @@ from importlib import metadata
 from pathlib import Path
 
 import pytest
-
-from src.doctor import checks as doctor
 from src.doctor import __main__ as doctor_cli
+from src.doctor import checks as doctor
 
 
 def _write(path: Path, content: str) -> None:
@@ -22,10 +21,15 @@ def _create_project(root: Path, *, profile: str) -> dict[str, str]:
         json.dumps({"schema_version": 1, "python_version": "3.11"}),
     )
     _write(root / "requirements-runtime.in", "fastapi\nuvicorn[standard]\n")
-    _write(root / "requirements-runtime.txt", "fastapi==1.2.3 \\\n+    --hash=sha256:test\nuvicorn==4.5.6 \\\n+    --hash=sha256:test\n")
+    _write(
+        root / "requirements-runtime.txt",
+        "fastapi==1.2.3 \\\n+    --hash=sha256:test\nuvicorn==4.5.6 \\\n+    --hash=sha256:test\n",
+    )
     versions = {"fastapi": "1.2.3", "uvicorn": "4.5.6"}
     if profile == "build":
-        _write(root / "requirements-parser.in", "-r requirements-runtime.in\nmagic-pdf[full]==1.3.12\n")
+        _write(
+            root / "requirements-parser.in", "-r requirements-runtime.in\nmagic-pdf[full]==1.3.12\n"
+        )
         _write(
             root / "requirements-parser.txt",
             "fastapi==1.2.3 \\\n+    --hash=sha256:test\nuvicorn==4.5.6 \\\n+    --hash=sha256:test\nmagic-pdf==1.3.12 \\\n+    --hash=sha256:test\n",
@@ -177,7 +181,9 @@ def test_corrupt_manifest_fields_become_diagnostic_failure(tmp_path: Path):
     versions = _create_project(tmp_path, profile="runtime")
     _write(
         tmp_path / "data" / "manifest.json",
-        json.dumps({"document_count": "broken", "chunk_count": "broken", "data_version_hash": "abc"}),
+        json.dumps(
+            {"document_count": "broken", "chunk_count": "broken", "data_version_hash": "abc"}
+        ),
     )
 
     report = doctor.run_doctor(
