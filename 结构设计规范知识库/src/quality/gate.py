@@ -10,6 +10,13 @@ from src.evaluation.answer_runner import ANSWER_EVAL_PATH
 from src.evaluation.runner import DEFAULT_EVAL_PATH, STRUCTURED_EVAL_PATH
 from src.pipeline.paths import ACTIVE_DB_PATH, AUDIT_DIR, DATA_DIR, MANIFEST_PATH
 
+from .evidence_context import (
+    EVIDENCE_CONTEXT_SCHEMA_VERSION,
+    current_evidence_context,
+    validate_runtime_config_hash,
+    validate_verification_run_id,
+)
+
 REGULAR_REPORT_PATH = AUDIT_DIR / "reports" / "evaluation_latest.json"
 STRUCTURED_REPORT_PATH = AUDIT_DIR / "reports" / "evaluation_structured_latest.json"
 ANSWER_REPORT_PATH = AUDIT_DIR / "reports" / "evaluation_answer_latest.json"
@@ -115,6 +122,8 @@ def evaluate_quality_gate(
     now: datetime | None = None,
     max_report_age: timedelta = DEFAULT_REPORT_MAX_AGE,
     job_stale_after: timedelta = timedelta(hours=2),
+    expected_verification_run_id: str | None = None,
+    expected_runtime_config_hash: str | None = None,
 ) -> dict[str, Any]:
     gate_time = (now or datetime.now(UTC)).astimezone(UTC)
     if max_report_age <= timedelta(0):
@@ -130,6 +139,12 @@ def evaluate_quality_gate(
     regular = _read_json(regular_report_path)
     structured = _read_json(structured_report_path)
     answer = _read_json(answer_report_path)
+    reports = (regular, structured, answer)
+    if expected_verification_run_id is not None:
+        expected_verification_run_id = validate_verification_run_id(expected_verification_run_id)
+    expected_runtime_hash = validate_runtime_config_hash(
+        expected_runtime_config_hash or str(current_evidence_context()["runtime_config_hash"])
+    )
     job_status = summarize_jobs(
         jobs if jobs is not None else _load_jobs(),
         now=gate_time,
@@ -171,6 +186,62 @@ def evaluate_quality_gate(
         "active_db_pointer",
         bool(active_db) and bool(manifest_version) and active_version == manifest_version,
         "活动数据库指针与版本 manifest 一致",
+    )
+    evidence_schema_ok = all(
+        report.get("evidence_context_schema") == EVIDENCE_CONTEXT_SCHEMA_VERSION
+        for report in reports
+    )
+    check(
+        "evidence_context_schema",
+        evidence_schema_ok,
+        (
+            f"三类评估报告均使用证据上下文 v{EVIDENCE_CONTEXT_SCHEMA_VERSION}"
+            if evidence_schema_ok
+            else f"三类评估报告必须使用证据上下文 v{EVIDENCE_CONTEXT_SCHEMA_VERSION}"
+        ),
+    )
+
+    run_ids = [str(report.get("verification_run_id") or "") for report in reports]
+    valid_run_ids: list[str] = []
+    for run_id in run_ids:
+        try:
+            valid_run_ids.append(validate_verification_run_id(run_id))
+        except ValueError:
+            valid_run_ids.append("")
+    common_run_id = valid_run_ids[0] if len(set(valid_run_ids)) == 1 else ""
+    run_consistent = bool(common_run_id) and all(valid_run_ids)
+    if expected_verification_run_id is not None:
+        run_consistent = run_consistent and common_run_id == expected_verification_run_id
+    check(
+        "evaluation_run_consistency",
+        run_consistent,
+        (
+            "三类评估报告来自同一次完整验证运行"
+            if run_consistent
+            else "三类评估报告缺少有效运行身份、来自不同运行或不属于当前验证"
+        ),
+        verification_run_id=common_run_id or None,
+    )
+
+    report_runtime_hashes = [str(report.get("runtime_config_hash") or "") for report in reports]
+    valid_runtime_hashes: list[str] = []
+    for value in report_runtime_hashes:
+        try:
+            valid_runtime_hashes.append(validate_runtime_config_hash(value))
+        except ValueError:
+            valid_runtime_hashes.append("")
+    runtime_consistent = bool(expected_runtime_hash) and all(
+        value == expected_runtime_hash for value in valid_runtime_hashes
+    )
+    check(
+        "runtime_config_consistency",
+        runtime_consistent,
+        (
+            "三类评估报告与当前运行配置及关键实现一致"
+            if runtime_consistent
+            else "三类评估报告缺少有效运行指纹、指纹不一致或不匹配当前运行配置"
+        ),
+        runtime_config_hash=expected_runtime_hash,
     )
     expected_collection_count = int(active_manifest.get("chunk_count", 0))
     if runtime_collection_count is not None:
@@ -288,6 +359,9 @@ def evaluate_quality_gate(
         "checks": checks,
         "jobs": job_status,
         "data_version_hash": data_version,
+        "evidence_context_schema": EVIDENCE_CONTEXT_SCHEMA_VERSION,
+        "verification_run_id": common_run_id or None,
+        "runtime_config_hash": expected_runtime_hash,
     }
 
 
@@ -298,6 +372,8 @@ def render_quality_gate_markdown(result: dict[str, Any]) -> str:
         f"- 结论：{'通过' if result.get('passed') else '未通过'}",
         f"- 生成时间：{result.get('generated_at', '-')}",
         f"- 数据版本：`{result.get('data_version_hash') or '-'}`",
+        f"- 验证运行：`{result.get('verification_run_id') or '-'}`",
+        f"- 运行配置指纹：`{result.get('runtime_config_hash') or '-'}`",
         "",
         "## 检查项",
         "",

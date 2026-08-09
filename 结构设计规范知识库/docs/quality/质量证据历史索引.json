@@ -17,6 +17,26 @@
         "structured": 12,
         "answer": 24
       }
+    },
+    {
+      "archive_path": "docs/quality/质量证据历史/20260808T173642Z-6e85212ce8a5.json",
+      "snapshot_sha256": "6e85212ce8a522c3afc9355d6a01295b885b0426bd2190e180c902d233825f48",
+      "release_quality_status": "not_passed",
+      "verification_generated_at": "2026-08-08T17:36:42.529101+00:00",
+      "quality_gate_generated_at": "2026-08-09T08:38:53.359884+00:00",
+      "failed_checks": [
+        "evidence_context_schema",
+        "evaluation_run_consistency",
+        "runtime_config_consistency",
+        "regular_evaluation",
+        "answer_evaluation",
+        "regular_report_freshness"
+      ],
+      "evaluation_case_counts": {
+        "regular": 100,
+        "structured": 12,
+        "answer": 24
+      }
     }
   ]
 }

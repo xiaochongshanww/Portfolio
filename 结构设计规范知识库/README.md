@@ -368,6 +368,8 @@ python scripts/verify_quality.py --manage-api --api-base http://127.0.0.1:8017
 
 `--manage-api` 会在空闲的本机回环端口启动 API、等待健康检查、执行验证并可靠回收进程；模型配置和 API 鉴权配置从当前受控环境继承，不进入命令行。该入口会运行后端测试、前端生产构建、常规评估、结构化专项评估、24条回答级盲测和自动质量门禁。连接已经运行的 API 时省略 `--manage-api`。报告和托管 API 日志保存在 `data/audit/reports/`；当前执行口径见 [RAG 系统卡](./docs/quality/检索增强生成系统卡.md)、[回答盲测集阅读版](./docs/quality/回答级盲测集阅读版.md) 与 [运维文档](./docs/operations/知识库维护与质量运营.md)，早期实施计划统一收录在[历史文档说明](./docs/archive/历史文档说明.md)中。
 
+完整验证会为三类评估报告写入同一 `verification_run_id`，并由实际 API 进程写入基于非敏感配置和关键实现的 `runtime_config_hash`。发布门禁要求三份报告来自同一次运行且匹配当前运行指纹；单项执行、旧契约或其他检索/模型配置的报告不能拼接成通过结论。
+
 `data/audit/` 不提交到 Git。质量验证后，无论结果通过还是失败，都应生成并检查可提交的脱敏状态快照，使系统卡如实反映仓库当前证据：
 
 ```powershell

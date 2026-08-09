@@ -52,6 +52,8 @@ def test_api_evaluation_sends_builtin_id(monkeypatch):
                     "case_count": 100,
                     "failures": [],
                     "evaluation_set_id": "structured",
+                    "verification_run_id": "a" * 32,
+                    "runtime_config_hash": "b" * 64,
                 },
             },
         ]
@@ -67,12 +69,48 @@ def test_api_evaluation_sends_builtin_id(monkeypatch):
         "structured",
         "http://127.0.0.1:8017",
         "key",
+        "a" * 32,
+        "b" * 64,
     )
 
     assert result["ok"] is True
     assert result["evaluation_set_id"] == "structured"
-    assert calls[0][1]["payload"] == {"top_k": 5, "evaluation_set": "structured"}
+    assert calls[0][1]["payload"] == {
+        "top_k": 5,
+        "evaluation_set": "structured",
+        "verification_run_id": "a" * 32,
+    }
     assert "file" not in calls[0][1]["payload"]
+
+
+def test_api_evaluation_rejects_mismatched_evidence_context(monkeypatch):
+    responses = iter(
+        [
+            {"job_id": "job-1"},
+            {
+                "status": "succeeded",
+                "outputs": {
+                    "ok": True,
+                    "case_count": 100,
+                    "failures": [],
+                    "verification_run_id": "c" * 32,
+                    "runtime_config_hash": "d" * 64,
+                },
+            },
+        ]
+    )
+    monkeypatch.setattr(verify_quality, "_api_json", lambda *args, **kwargs: next(responses))
+
+    result = verify_quality._run_api_evaluation(
+        "regular",
+        "http://127.0.0.1:8017",
+        "key",
+        "a" * 32,
+        "b" * 64,
+    )
+
+    assert result["ok"] is False
+    assert "证据上下文" in result["error"]
 
 
 def test_answer_evaluation_uses_explicit_target(monkeypatch, tmp_path: Path):
@@ -107,6 +145,9 @@ def test_answer_evaluation_uses_explicit_target(monkeypatch, tmp_path: Path):
     report_path = tmp_path / "reports" / "evaluation_answer_latest.json"
     assert report_path.is_file()
     assert json.loads(report_path.read_text(encoding="utf-8"))["evaluation_set_id"] == "answer"
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report["evidence_context_schema"] == 1
+    assert len(report["runtime_config_hash"]) == 64
 
 
 def test_verification_report_uses_known_error_instead_of_unknown():
@@ -120,6 +161,21 @@ def test_verification_report_uses_known_error_instead_of_unknown():
 
     assert "目标 API 未就绪" in markdown
     assert "未知错误" not in markdown
+
+
+def test_verification_report_renders_evidence_context():
+    markdown = verify_quality._render_verification_markdown(
+        {
+            "passed": False,
+            "generated_at": "now",
+            "verification_run_id": "a" * 32,
+            "runtime_config_hash": "b" * 64,
+            "steps": [],
+        }
+    )
+
+    assert "`" + "a" * 32 + "`" in markdown
+    assert "`" + "b" * 64 + "`" in markdown
 
 
 def test_local_evaluation_explains_quality_failures(monkeypatch, tmp_path: Path):

@@ -30,7 +30,12 @@ from src.pipeline.audit.structuring_ai import (
 from src.pipeline.manifest import write_manifest
 from src.pipeline.paths import ACTIVE_DB_PATH, AUDIT_DIR, DB_VERSIONS_DIR, MANIFEST_PATH, RAW_DIR
 from src.pipeline.version_retention import execute_cleanup_plan, retention_policy_from_settings
-from src.quality import assess_candidate_activation, write_candidate_activation_artifacts
+from src.quality import (
+    assess_candidate_activation,
+    current_evidence_context,
+    validate_verification_run_id,
+    write_candidate_activation_artifacts,
+)
 
 from .models import Job, utc_now
 from .storage import JobStore
@@ -363,8 +368,12 @@ def evaluate_workflow(job: Job, store: JobStore) -> dict[str, Any]:
     )
     result = {
         **run_evaluation(eval_file, top_k=top_k),
+        **current_evidence_context(),
         "evaluation_set_id": evaluation_set_id,
     }
+    run_id = str(job.params.get("verification_run_id") or "")
+    if run_id:
+        result["verification_run_id"] = validate_verification_run_id(run_id)
     out_dir = AUDIT_DIR / "reports"
     out_dir.mkdir(parents=True, exist_ok=True)
     is_structured = eval_file.resolve() == STRUCTURED_EVAL_PATH.resolve()
@@ -454,7 +463,11 @@ def answer_evaluate_workflow(job: Job, store: JobStore) -> dict[str, Any]:
             "readiness": readiness,
             "error": readiness.get("error") or "回答盲测目标 API 未就绪",
         }
+    result.update(current_evidence_context())
     result["evaluation_set_id"] = evaluation_set_id
+    run_id = str(job.params.get("verification_run_id") or "")
+    if run_id:
+        result["verification_run_id"] = validate_verification_run_id(run_id)
     out_dir = AUDIT_DIR / "reports"
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / "evaluation_answer_latest.json"

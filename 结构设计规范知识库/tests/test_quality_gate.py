@@ -93,6 +93,9 @@ def test_quality_gate_passes_matching_artifacts(tmp_path: Path):
         "ok": True,
         "generated_at": datetime.now(UTC).isoformat(),
         "data_version_hash": data_version,
+        "evidence_context_schema": 1,
+        "verification_run_id": "a" * 32,
+        "runtime_config_hash": "b" * 64,
     }
     _write_json(
         regular,
@@ -144,10 +147,52 @@ def test_quality_gate_passes_matching_artifacts(tmp_path: Path):
         active_db_path=active_db,
         jobs=[],
         runtime_collection_count=10,
+        expected_verification_run_id="a" * 32,
+        expected_runtime_config_hash="b" * 64,
     )
 
     assert result["passed"] is True
+    assert result["verification_run_id"] == "a" * 32
+    assert result["runtime_config_hash"] == "b" * 64
     assert "结论：通过" in render_quality_gate_markdown(result)
+
+    mixed_structured = json.loads(structured.read_text(encoding="utf-8"))
+    mixed_structured["verification_run_id"] = "c" * 32
+    _write_json(structured, mixed_structured)
+    mixed_run_result = evaluate_quality_gate(
+        manifest_path=manifest,
+        regular_report_path=regular,
+        structured_report_path=structured,
+        answer_report_path=answer,
+        regular_eval_path=regular_set,
+        structured_eval_path=structured_set,
+        answer_eval_path=answer_set,
+        active_db_path=active_db,
+        jobs=[],
+        expected_runtime_config_hash="b" * 64,
+    )
+    assert "evaluation_run_consistency" in mixed_run_result["failed_checks"]
+
+    mixed_structured["verification_run_id"] = "a" * 32
+    mixed_structured["runtime_config_hash"] = "d" * 64
+    _write_json(structured, mixed_structured)
+    mixed_config_result = evaluate_quality_gate(
+        manifest_path=manifest,
+        regular_report_path=regular,
+        structured_report_path=structured,
+        answer_report_path=answer,
+        regular_eval_path=regular_set,
+        structured_eval_path=structured_set,
+        answer_eval_path=answer_set,
+        active_db_path=active_db,
+        jobs=[],
+        expected_verification_run_id="a" * 32,
+        expected_runtime_config_hash="b" * 64,
+    )
+    assert "runtime_config_consistency" in mixed_config_result["failed_checks"]
+
+    mixed_structured["runtime_config_hash"] = "b" * 64
+    _write_json(structured, mixed_structured)
 
     stale_regular = json.loads(regular.read_text(encoding="utf-8"))
     stale_regular["generated_at"] = (datetime.now(UTC) - timedelta(days=8)).isoformat()
@@ -163,6 +208,8 @@ def test_quality_gate_passes_matching_artifacts(tmp_path: Path):
         active_db_path=active_db,
         jobs=[],
         runtime_collection_count=10,
+        expected_verification_run_id="a" * 32,
+        expected_runtime_config_hash="b" * 64,
     )
 
     assert stale_result["passed"] is False

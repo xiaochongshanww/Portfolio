@@ -51,7 +51,7 @@ from src.pipeline.version_retention import (
     retention_policy_from_settings,
     set_version_pin,
 )
-from src.quality import evaluate_quality_gate
+from src.quality import current_evidence_context, evaluate_quality_gate
 
 from ..admin.job_diagnostics import diagnose_job, diagnose_jobs
 from ..admin.jobs import job_manager
@@ -97,12 +97,14 @@ class EvaluateRequest(BaseModel):
 
     top_k: int = Field(default=5, ge=1, le=100)
     evaluation_set: Literal["regular", "structured"] = "regular"
+    verification_run_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{32}$")
 
 
 class AnswerEvaluateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     evaluation_set: Literal["answer"] = "answer"
+    verification_run_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{32}$")
 
 
 class CandidateStatusUpdate(BaseModel):
@@ -158,6 +160,7 @@ async def admin_status():
     return {
         "built": bool(manifest),
         "manifest": manifest or {},
+        "quality_evidence_context": current_evidence_context(),
         "raw_documents": [path.name for path in sorted(RAW_DIR.glob("*.pdf"))],
         "jobs": _diagnosed_jobs(job_store.list()[:10]),
     }

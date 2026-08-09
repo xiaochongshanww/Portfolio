@@ -496,6 +496,8 @@ def render_evaluation_markdown(result: dict[str, Any], title: str = "检索评�
         "",
         f"- 评估集标识：`{result.get('evaluation_set_id', '-')}`",
         f"- 执行状态：{'完成' if result.get('ok') else '失败'}",
+        f"- 验证运行：`{result.get('verification_run_id') or '-'}`",
+        f"- 运行配置指纹：`{result.get('runtime_config_hash') or '-'}`",
         f"- 用例数：{result.get('case_count', 0)}",
         f"- 来源命中率：{result.get('source_hit_rate', 0):.1%}",
         f"- 条文命中率：{result.get('clause_hit_rate', 0):.1%}",

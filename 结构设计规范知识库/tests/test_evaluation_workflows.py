@@ -18,9 +18,10 @@ def test_answer_evaluation_request_rejects_client_supplied_target():
 
 @pytest.mark.parametrize("evaluation_set", ["regular", "structured"])
 def test_retrieval_evaluation_request_accepts_builtin_set(evaluation_set: str):
-    request = EvaluateRequest(evaluation_set=evaluation_set)
+    request = EvaluateRequest(evaluation_set=evaluation_set, verification_run_id="a" * 32)
 
     assert request.evaluation_set == evaluation_set
+    assert request.verification_run_id == "a" * 32
 
 
 @pytest.mark.parametrize(
@@ -30,6 +31,8 @@ def test_retrieval_evaluation_request_accepts_builtin_set(evaluation_set: str):
         (EvaluateRequest, {"file": "data/evaluation/custom.jsonl"}),
         (AnswerEvaluateRequest, {"evaluation_set": "regular"}),
         (AnswerEvaluateRequest, {"file": "data/evaluation/custom.jsonl"}),
+        (EvaluateRequest, {"verification_run_id": "invalid"}),
+        (AnswerEvaluateRequest, {"verification_run_id": "A" * 32}),
     ],
 )
 def test_evaluation_requests_reject_unknown_sets_and_file_paths(request_type, payload):
@@ -54,9 +57,25 @@ def test_evaluation_http_api_rejects_paths_and_unknown_sets(endpoint: str, paylo
     assert response.status_code == 422
 
 
+def test_admin_status_exposes_only_hashed_quality_evidence_context():
+    app = FastAPI()
+    app.include_router(router)
+
+    response = TestClient(app).get("/admin/status")
+
+    assert response.status_code == 200
+    context = response.json()["quality_evidence_context"]
+    assert set(context) == {"evidence_context_schema", "runtime_config_hash"}
+    assert context["evidence_context_schema"] == 1
+    assert len(context["runtime_config_hash"]) == 64
+
+
 def test_retrieval_evaluation_execution_failure_marks_workflow_failed(monkeypatch, tmp_path: Path):
     store = JobStore(tmp_path / "jobs")
-    job = Job(type="evaluate", params={"evaluation_set": "regular"})
+    job = Job(
+        type="evaluate",
+        params={"evaluation_set": "regular", "verification_run_id": "a" * 32},
+    )
     monkeypatch.setattr(workflows, "AUDIT_DIR", tmp_path / "audit")
     monkeypatch.setattr(
         workflows,
@@ -70,6 +89,8 @@ def test_retrieval_evaluation_execution_failure_marks_workflow_failed(monkeypatc
     persisted = store.read(job.job_id)
     assert persisted["outputs"]["ok"] is False
     assert persisted["outputs"]["evaluation_set_id"] == "regular"
+    assert persisted["outputs"]["verification_run_id"] == "a" * 32
+    assert len(persisted["outputs"]["runtime_config_hash"]) == 64
     assert Path(persisted["outputs"]["report_path"]).is_file()
     report = Path(persisted["outputs"]["report_path"]).read_text(encoding="utf-8")
     assert '"evaluation_set_id": "regular"' in report

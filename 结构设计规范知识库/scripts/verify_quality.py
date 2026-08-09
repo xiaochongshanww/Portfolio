@@ -34,7 +34,14 @@ from src.evaluation.runner import (  # noqa: E402
     run_evaluation,
 )
 from src.pipeline.paths import AUDIT_DIR  # noqa: E402
-from src.quality import evaluate_quality_gate, render_quality_gate_markdown  # noqa: E402
+from src.quality import (  # noqa: E402
+    current_evidence_context,
+    evaluate_quality_gate,
+    new_verification_run_id,
+    render_quality_gate_markdown,
+    validate_runtime_config_hash,
+    validate_verification_run_id,
+)
 
 REPORTS_DIR = AUDIT_DIR / "reports"
 LEGACY_API_KEY_PATH = PROJECT_ROOT / ".runtime_api_key"
@@ -302,10 +309,14 @@ def _run_evaluation(
     stem: str,
     title: str,
     evaluation_set_id: str,
+    verification_run_id: str = "",
 ) -> dict[str, Any]:
     started = time.monotonic()
     result = run_evaluation(path, top_k=5)
+    result.update(current_evidence_context())
     result["evaluation_set_id"] = evaluation_set_id
+    if verification_run_id:
+        result["verification_run_id"] = validate_verification_run_id(verification_run_id)
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     (REPORTS_DIR / f"{stem}.json").write_text(
         json.dumps(result, ensure_ascii=False, indent=2),
@@ -372,7 +383,7 @@ def _probe_api_access(
         "credential_supplied": bool(credential.key),
     }
     try:
-        _api_json(f"{api_base}/admin/status", api_key=credential.key)
+        status = _api_json(f"{api_base}/admin/status", api_key=credential.key)
     except urllib.error.HTTPError as exc:
         message = _http_error_message(exc)
         if exc.code in {401, 403}:
@@ -397,10 +408,18 @@ def _probe_api_access(
             "duration_seconds": round(time.monotonic() - started, 2),
             "error": f"无法验证目标 API 访问权限：{exc}",
         }
+    context = status.get("quality_evidence_context", {})
+    runtime_hash = str(context.get("runtime_config_hash") or "")
+    try:
+        runtime_hash = validate_runtime_config_hash(runtime_hash)
+    except ValueError:
+        runtime_hash = ""
     return {
         "ok": True,
         **common,
         "status_code": 200,
+        "evidence_context_schema": context.get("evidence_context_schema"),
+        "runtime_config_hash": runtime_hash,
         "duration_seconds": round(time.monotonic() - started, 2),
     }
 
@@ -487,13 +506,18 @@ def _run_api_evaluation(
     evaluation_set_id: str,
     api_base: str,
     api_key: str,
+    verification_run_id: str = "",
+    expected_runtime_config_hash: str = "",
 ) -> dict[str, Any]:
     started = time.monotonic()
+    payload: dict[str, Any] = {"top_k": 5, "evaluation_set": evaluation_set_id}
+    if verification_run_id:
+        payload["verification_run_id"] = validate_verification_run_id(verification_run_id)
     job = _api_json(
         f"{api_base}/admin/jobs/evaluate",
         api_key=api_key,
         method="POST",
-        payload={"top_k": 5, "evaluation_set": evaluation_set_id},
+        payload=payload,
     )
     job_id = str(job["job_id"])
     deadline = time.monotonic() + 600
@@ -502,16 +526,30 @@ def _run_api_evaluation(
         if current.get("status") == "succeeded":
             outputs = current.get("outputs", {})
             failure_count = len(outputs.get("failures", []))
-            passed = outputs.get("ok") is True and failure_count == 0
+            context_matches = (
+                (not verification_run_id)
+                or outputs.get("verification_run_id") == verification_run_id
+            ) and (
+                (not expected_runtime_config_hash)
+                or outputs.get("runtime_config_hash") == expected_runtime_config_hash
+            )
+            passed = outputs.get("ok") is True and failure_count == 0 and context_matches
             return {
                 "ok": passed,
                 "duration_seconds": round(time.monotonic() - started, 2),
                 "case_count": outputs.get("case_count", 0),
                 "failure_count": failure_count,
                 "evaluation_set_id": outputs.get("evaluation_set_id", evaluation_set_id),
+                "verification_run_id": outputs.get("verification_run_id"),
+                "runtime_config_hash": outputs.get("runtime_config_hash"),
                 "error": (
                     outputs.get("error")
                     or (f"检索评估完成但有 {failure_count} 个失败用例" if failure_count else "")
+                    or (
+                        "评估任务返回的质量证据上下文与当前验证不一致"
+                        if not context_matches
+                        else ""
+                    )
                     or ("评估后台任务返回 ok=false" if not passed else "")
                 ),
                 "job_id": job_id,
@@ -534,13 +572,24 @@ def _run_api_evaluation(
     }
 
 
-def _run_answer_evaluation_against_api(api_base: str, api_key: str) -> dict[str, Any]:
+def _run_answer_evaluation_against_api(
+    api_base: str,
+    api_key: str,
+    verification_run_id: str = "",
+    runtime_config_hash: str = "",
+) -> dict[str, Any]:
     started = time.monotonic()
     result = run_answer_evaluation(
         api_base=api_base,
         api_key=api_key,
         path=ANSWER_EVAL_PATH,
     )
+    result["evidence_context_schema"] = current_evidence_context()["evidence_context_schema"]
+    result["runtime_config_hash"] = validate_runtime_config_hash(
+        runtime_config_hash or current_evidence_context()["runtime_config_hash"]
+    )
+    if verification_run_id:
+        result["verification_run_id"] = validate_verification_run_id(verification_run_id)
     result["evaluation_set_id"] = "answer"
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     (REPORTS_DIR / "evaluation_answer_latest.json").write_text(
@@ -561,6 +610,8 @@ def _run_answer_evaluation_against_api(api_base: str, api_key: str) -> dict[str,
         "pass_rate": pass_rate,
         "api_base": result.get("api_base", api_base),
         "evaluation_set_id": "answer",
+        "verification_run_id": result.get("verification_run_id"),
+        "runtime_config_hash": result.get("runtime_config_hash"),
         "error": (
             result.get("error")
             or (f"回答级盲测通过率 {pass_rate:.1%}，低于 90.0%" if not passed else "")
@@ -587,6 +638,8 @@ def _render_verification_markdown(result: dict[str, Any]) -> str:
         "",
         f"- 结论：{'通过' if result.get('passed') else '未通过'}",
         f"- 生成时间：{result.get('generated_at')}",
+        f"- 验证运行：`{result.get('verification_run_id') or '-'}`",
+        f"- 运行配置指纹：`{result.get('runtime_config_hash') or '-'}`",
         "",
         "| 步骤 | 状态 | 耗时 |",
         "| --- | --- | --- |",
@@ -952,6 +1005,9 @@ def main() -> None:
         print(json.dumps(result, ensure_ascii=True))
         raise SystemExit(0 if result["ok"] else 1)
 
+    verification_run_id = new_verification_run_id()
+    local_evidence_context = current_evidence_context()
+    runtime_hash = str(local_evidence_context["runtime_config_hash"])
     steps: list[dict[str, Any]] = []
     api_required = (
         not args.skip_evaluations and args.evaluation_mode == "api"
@@ -974,6 +1030,7 @@ def main() -> None:
         )
         api_ready = readiness_step.get("ok") is True
         api_accessible = access_step.get("ok") is True
+        runtime_hash = str(access_step.get("runtime_config_hash") or runtime_hash)
 
     api_available = api_ready and api_accessible
     unavailable_reasons = []
@@ -1008,10 +1065,22 @@ def main() -> None:
         ) -> dict[str, Any]:
             if args.evaluation_mode == "api":
                 try:
-                    return _run_api_evaluation(evaluation_set_id, api_base, credential.key)
+                    return _run_api_evaluation(
+                        evaluation_set_id,
+                        api_base,
+                        credential.key,
+                        verification_run_id,
+                        runtime_hash,
+                    )
                 except (OSError, urllib.error.URLError, json.JSONDecodeError) as exc:
                     return {"ok": False, "error": f"无法调用本地评估 API：{exc}"}
-            return _run_evaluation(path, stem, title, evaluation_set_id)
+            return _run_evaluation(
+                path,
+                stem,
+                title,
+                evaluation_set_id,
+                verification_run_id,
+            )
 
         if args.evaluation_mode == "api" and not api_available:
             for name in ("常规检索评估", "结构化专项评估"):
@@ -1065,10 +1134,16 @@ def main() -> None:
                     lambda: _run_answer_evaluation_against_api(
                         api_base,
                         credential.key,
+                        verification_run_id,
+                        runtime_hash,
                     ),
                 )
             )
-    gate_result = evaluate_quality_gate()
+    suite_attempted = not args.skip_evaluations or not args.skip_answer_evaluation
+    gate_result = evaluate_quality_gate(
+        expected_verification_run_id=(verification_run_id if suite_attempted else None),
+        expected_runtime_config_hash=runtime_hash,
+    )
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     (REPORTS_DIR / "quality_gate_latest.json").write_text(
         json.dumps(gate_result, ensure_ascii=False, indent=2),
@@ -1095,6 +1170,8 @@ def main() -> None:
     result = {
         "generated_at": datetime.now(UTC).isoformat(),
         "passed": all(step.get("ok") for step in steps),
+        "verification_run_id": verification_run_id,
+        "runtime_config_hash": runtime_hash,
         "steps": steps,
     }
     markdown = _write_verification_result(result)
