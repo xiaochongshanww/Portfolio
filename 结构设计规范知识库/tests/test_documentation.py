@@ -250,6 +250,35 @@ def test_rag_system_card_matches_latest_quality_evidence():
         assert snapshot_command in documentation
 
 
+def test_quality_evidence_history_contract_is_documented():
+    readme = Path("README.md").read_text(encoding="utf-8")
+    system_card = Path("docs/quality/检索增强生成系统卡.md").read_text(
+        encoding="utf-8"
+    )
+    detailed_design = Path("docs/architecture/系统详细设计.md").read_text(
+        encoding="utf-8"
+    )
+    operations = Path("docs/operations/知识库维护与质量运营.md").read_text(
+        encoding="utf-8"
+    )
+    release_checklist = Path("docs/releases/发布检查单.md").read_text(
+        encoding="utf-8"
+    )
+    decision = Path("docs/adr/0016-脱敏质量证据采用不可变历史归档.md")
+    checklist = Path("docs/architecture/质量证据历史归档实施清单.md")
+    history_index = Path("docs/quality/质量证据历史索引.json")
+
+    assert "质量证据历史" in readme
+    assert "确定性索引" in system_card
+    assert "不可变历史" in detailed_design
+    assert "归档结构与文件名指纹" in operations
+    assert "当前快照已进入不可变历史" in release_checklist
+    assert "外部信任根" in decision.read_text(encoding="utf-8")
+    assert decision.is_file()
+    assert checklist.is_file()
+    assert history_index.is_file()
+
+
 def test_runtime_backup_and_disaster_recovery_contract_is_documented():
     readme = Path("README.md").read_text(encoding="utf-8")
     operations = Path("docs/operations/部署运行手册.md").read_text(encoding="utf-8")

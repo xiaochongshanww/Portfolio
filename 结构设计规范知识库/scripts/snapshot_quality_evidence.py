@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import hashlib
 import json
 import os
 import re
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +15,8 @@ from typing import Any
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SNAPSHOT = Path("docs/quality/质量证据状态.json")
 DEFAULT_SYSTEM_CARD = Path("docs/quality/检索增强生成系统卡.md")
+DEFAULT_HISTORY_DIR = Path("docs/quality/质量证据历史")
+DEFAULT_HISTORY_INDEX = Path("docs/quality/质量证据历史索引.json")
 REPORT_PATHS = {
     "verification": Path("data/audit/reports/verification_latest.json"),
     "quality_gate": Path("data/audit/reports/quality_gate_latest.json"),
@@ -54,6 +58,42 @@ def _read_json(path: Path) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise EvidenceSnapshotError(f"JSON 顶层必须是对象：{path}")
     return payload
+
+
+def _canonical_json_bytes(payload: dict[str, Any]) -> bytes:
+    return json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+
+def _snapshot_fingerprint(snapshot: dict[str, Any]) -> str:
+    return hashlib.sha256(_canonical_json_bytes(snapshot)).hexdigest()
+
+
+def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    serialized = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
+    file_descriptor, temporary_name = tempfile.mkstemp(
+        dir=path.parent,
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+    )
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(file_descriptor, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(serialized)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    except OSError as exc:
+        temporary.unlink(missing_ok=True)
+        raise EvidenceSnapshotError(f"无法原子写入 JSON：{path}") from exc
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
 
 
 def _case_count(path: Path) -> int:
@@ -147,6 +187,51 @@ def _validate_report_entry(name: str, report: dict[str, Any]) -> None:
         raise EvidenceSnapshotError(f"报告哈希模式无效：{name}")
 
 
+def _validate_snapshot_structure(snapshot: dict[str, Any]) -> str:
+    if snapshot.get("schema_version") != 1:
+        raise EvidenceSnapshotError("不支持的质量证据快照版本")
+
+    reports = _require_mapping(snapshot, "reports")
+    if set(reports) != set(REPORT_PATHS):
+        raise EvidenceSnapshotError("质量报告集合与契约不一致")
+    for name, report in reports.items():
+        if not isinstance(report, dict):
+            raise EvidenceSnapshotError(f"报告摘要必须是对象：{name}")
+        _validate_report_entry(name, report)
+
+    expected_status = (
+        "passed" if all(report["passed"] for report in reports.values()) else "not_passed"
+    )
+    if snapshot.get("release_quality_status") != expected_status:
+        raise EvidenceSnapshotError("发布质量状态与报告摘要不一致")
+
+    failed_checks = snapshot.get("quality_gate_failed_checks")
+    if not isinstance(failed_checks, list) or not all(
+        isinstance(item, str) and item for item in failed_checks
+    ):
+        raise EvidenceSnapshotError("质量门禁失败项无效")
+
+    evaluation_sets = _require_mapping(snapshot, "evaluation_sets")
+    if set(evaluation_sets) != set(EVALUATION_PATHS):
+        raise EvidenceSnapshotError("评估集集合与契约不一致")
+    for name, relative_path in EVALUATION_PATHS.items():
+        entry = evaluation_sets[name]
+        if not isinstance(entry, dict):
+            raise EvidenceSnapshotError(f"评估集摘要必须是对象：{name}")
+        if entry.get("path") != relative_path.as_posix():
+            raise EvidenceSnapshotError(f"评估集路径不符合契约：{name}")
+        if entry.get("hash_mode") != "utf8_lf":
+            raise EvidenceSnapshotError(f"评估集哈希模式无效：{name}")
+        if not isinstance(entry.get("sha256"), str) or not SHA256_RE.fullmatch(
+            entry["sha256"]
+        ):
+            raise EvidenceSnapshotError(f"评估集哈希无效：{name}")
+        if not isinstance(entry.get("case_count"), int) or entry["case_count"] < 0:
+            raise EvidenceSnapshotError(f"评估集数量无效：{name}")
+
+    return expected_status
+
+
 def _system_card_markers(snapshot: dict[str, Any]) -> list[str]:
     reports = _require_mapping(snapshot, "reports")
     evaluation_sets = _require_mapping(snapshot, "evaluation_sets")
@@ -178,32 +263,10 @@ def validate_snapshot(
     system_card_path: Path = DEFAULT_SYSTEM_CARD,
 ) -> dict[str, Any]:
     snapshot = _read_json(project_root / snapshot_path)
-    if snapshot.get("schema_version") != 1:
-        raise EvidenceSnapshotError("不支持的质量证据快照版本")
-
+    expected_status = _validate_snapshot_structure(snapshot)
     reports = _require_mapping(snapshot, "reports")
-    if set(reports) != set(REPORT_PATHS):
-        raise EvidenceSnapshotError("质量报告集合与契约不一致")
-    for name, report in reports.items():
-        if not isinstance(report, dict):
-            raise EvidenceSnapshotError(f"报告摘要必须是对象：{name}")
-        _validate_report_entry(name, report)
-
-    expected_status = (
-        "passed" if all(report["passed"] for report in reports.values()) else "not_passed"
-    )
-    if snapshot.get("release_quality_status") != expected_status:
-        raise EvidenceSnapshotError("发布质量状态与报告摘要不一致")
-
     failed_checks = snapshot.get("quality_gate_failed_checks")
-    if not isinstance(failed_checks, list) or not all(
-        isinstance(item, str) and item for item in failed_checks
-    ):
-        raise EvidenceSnapshotError("质量门禁失败项无效")
-
     evaluation_sets = _require_mapping(snapshot, "evaluation_sets")
-    if set(evaluation_sets) != set(EVALUATION_PATHS):
-        raise EvidenceSnapshotError("评估集集合与契约不一致")
     for name, relative_path in EVALUATION_PATHS.items():
         entry = evaluation_sets[name]
         if not isinstance(entry, dict):
@@ -252,16 +315,105 @@ def validate_snapshot(
     }
 
 
+def _archive_name(snapshot: dict[str, Any]) -> str:
+    reports = _require_mapping(snapshot, "reports")
+    generated_at = reports["verification"]["generated_at"]
+    try:
+        parsed = datetime.fromisoformat(generated_at.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise EvidenceSnapshotError("验证报告时间不是 ISO 8601") from exc
+    if parsed.tzinfo is None:
+        raise EvidenceSnapshotError("验证报告时间必须包含时区")
+    stamp = parsed.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    return f"{stamp}-{_snapshot_fingerprint(snapshot)[:12]}.json"
+
+
+def _history_entry(snapshot: dict[str, Any], archive_path: Path) -> dict[str, Any]:
+    reports = _require_mapping(snapshot, "reports")
+    evaluation_sets = _require_mapping(snapshot, "evaluation_sets")
+    return {
+        "archive_path": archive_path.as_posix(),
+        "snapshot_sha256": _snapshot_fingerprint(snapshot),
+        "release_quality_status": snapshot["release_quality_status"],
+        "verification_generated_at": reports["verification"]["generated_at"],
+        "quality_gate_generated_at": reports["quality_gate"]["generated_at"],
+        "failed_checks": snapshot["quality_gate_failed_checks"],
+        "evaluation_case_counts": {
+            name: evaluation_sets[name]["case_count"]
+            for name in ("regular", "structured", "answer")
+        },
+    }
+
+
+def build_history_index(
+    project_root: Path = PROJECT_ROOT,
+    history_dir: Path = DEFAULT_HISTORY_DIR,
+) -> dict[str, Any]:
+    directory = project_root / history_dir
+    if not directory.is_dir():
+        raise EvidenceSnapshotError("质量证据历史目录不存在")
+
+    entries: list[dict[str, Any]] = []
+    fingerprints: set[str] = set()
+    for archive in sorted(directory.glob("*.json"), reverse=True):
+        snapshot = _read_json(archive)
+        _validate_snapshot_structure(snapshot)
+        fingerprint = _snapshot_fingerprint(snapshot)
+        if archive.name != _archive_name(snapshot):
+            raise EvidenceSnapshotError(f"历史归档文件名与内容指纹不一致：{archive.name}")
+        if fingerprint in fingerprints:
+            raise EvidenceSnapshotError("质量证据历史包含重复内容")
+        fingerprints.add(fingerprint)
+        entries.append(_history_entry(snapshot, history_dir / archive.name))
+
+    if not entries:
+        raise EvidenceSnapshotError("质量证据历史不能为空")
+    return {"schema_version": 1, "entries": entries}
+
+
+def validate_history(
+    project_root: Path = PROJECT_ROOT,
+    snapshot_path: Path = DEFAULT_SNAPSHOT,
+    history_dir: Path = DEFAULT_HISTORY_DIR,
+    history_index_path: Path = DEFAULT_HISTORY_INDEX,
+) -> dict[str, Any]:
+    current_snapshot = _read_json(project_root / snapshot_path)
+    _validate_snapshot_structure(current_snapshot)
+    expected_index = build_history_index(project_root, history_dir)
+    actual_index = _read_json(project_root / history_index_path)
+    if actual_index != expected_index:
+        raise EvidenceSnapshotError("质量证据历史索引与归档不一致")
+
+    current_fingerprint = _snapshot_fingerprint(current_snapshot)
+    fingerprints = {entry["snapshot_sha256"] for entry in expected_index["entries"]}
+    if current_fingerprint not in fingerprints:
+        raise EvidenceSnapshotError("当前质量证据快照尚未归档")
+    return {
+        "history_entry_count": len(expected_index["entries"]),
+        "current_snapshot_archived": True,
+        "current_snapshot_sha256": current_fingerprint,
+    }
+
+
 def write_snapshot(
     project_root: Path = PROJECT_ROOT,
     snapshot_path: Path = DEFAULT_SNAPSHOT,
+    history_dir: Path = DEFAULT_HISTORY_DIR,
+    history_index_path: Path = DEFAULT_HISTORY_INDEX,
 ) -> Path:
     target = project_root / snapshot_path
-    target.parent.mkdir(parents=True, exist_ok=True)
-    payload = json.dumps(build_snapshot(project_root), ensure_ascii=False, indent=2) + "\n"
-    temporary = target.with_name(f".{target.name}.tmp")
-    temporary.write_text(payload, encoding="utf-8", newline="\n")
-    os.replace(temporary, target)
+    snapshot = build_snapshot(project_root)
+    archive_relative = history_dir / _archive_name(snapshot)
+    archive = project_root / archive_relative
+    if archive.exists():
+        if _read_json(archive) != snapshot:
+            raise EvidenceSnapshotError("质量证据历史归档发生文件名冲突")
+    else:
+        _write_json_atomic(archive, snapshot)
+    index = build_history_index(project_root, history_dir)
+    _write_json_atomic(project_root / history_index_path, index)
+    # Publish latest only after the immutable archive and its index are durable.
+    _write_json_atomic(target, snapshot)
     return target
 
 
@@ -274,6 +426,18 @@ def _parse_args() -> argparse.Namespace:
         default=DEFAULT_SNAPSHOT,
         help="相对于项目根的快照路径",
     )
+    parser.add_argument(
+        "--history-dir",
+        type=Path,
+        default=DEFAULT_HISTORY_DIR,
+        help="相对于项目根的历史归档目录",
+    )
+    parser.add_argument(
+        "--history-index",
+        type=Path,
+        default=DEFAULT_HISTORY_INDEX,
+        help="相对于项目根的历史索引路径",
+    )
     return parser.parse_args()
 
 
@@ -281,8 +445,21 @@ def main() -> int:
     args = _parse_args()
     try:
         if args.write:
-            write_snapshot(PROJECT_ROOT, args.snapshot)
+            write_snapshot(
+                PROJECT_ROOT,
+                args.snapshot,
+                args.history_dir,
+                args.history_index,
+            )
         result = validate_snapshot(PROJECT_ROOT, args.snapshot)
+        result.update(
+            validate_history(
+                PROJECT_ROOT,
+                args.snapshot,
+                args.history_dir,
+                args.history_index,
+            )
+        )
     except EvidenceSnapshotError as exc:
         print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=True))
         return 1

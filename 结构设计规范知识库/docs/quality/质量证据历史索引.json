@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "archive_path": "docs/quality/质量证据历史/20260808T173642Z-e040b43ca589.json",
+      "snapshot_sha256": "e040b43ca58979c16c23c6da4950acf56e7946c1594fe823b0115d14b37e8038",
+      "release_quality_status": "not_passed",
+      "verification_generated_at": "2026-08-08T17:36:42.529101+00:00",
+      "quality_gate_generated_at": "2026-08-08T17:36:42.492250+00:00",
+      "failed_checks": [
+        "regular_evaluation",
+        "answer_evaluation",
+        "regular_report_freshness"
+      ],
+      "evaluation_case_counts": {
+        "regular": 100,
+        "structured": 12,
+        "answer": 24
+      }
+    }
+  ]
+}
