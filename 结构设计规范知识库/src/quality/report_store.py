@@ -3,7 +3,10 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import time
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -14,6 +17,7 @@ QUALITY_RUN_SCHEMA_VERSION = 1
 QUALITY_RUNS_DIRECTORY = "runs"
 QUALITY_RUN_MANIFEST_NAME = "manifest.json"
 QUALITY_RUN_LATEST_POINTER_NAME = "quality_run_latest.json"
+QUALITY_REPORT_STORE_LOCK_NAME = ".quality-report-store.lock"
 
 REPORT_ARTIFACTS: dict[str, tuple[str, str]] = {
     "regular": ("evaluation.json", "evaluation.md"),
@@ -41,6 +45,56 @@ REQUIRED_ARTIFACT_KEYS = tuple(COMPATIBILITY_ARTIFACTS)
 
 class QualityReportStoreError(RuntimeError):
     pass
+
+
+@contextmanager
+def quality_report_store_lock(
+    reports_dir: Path,
+    *,
+    timeout_seconds: float = 30.0,
+) -> Iterator[None]:
+    if timeout_seconds < 0:
+        raise ValueError("timeout_seconds 不能小于 0")
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    lock_path = reports_dir / QUALITY_REPORT_STORE_LOCK_NAME
+    handle = lock_path.open("a+b")
+    try:
+        handle.seek(0, os.SEEK_END)
+        if handle.tell() == 0:
+            handle.write(b"\0")
+            handle.flush()
+        deadline = time.monotonic() + timeout_seconds
+        while True:
+            try:
+                handle.seek(0)
+                if os.name == "nt":
+                    import msvcrt
+
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    import fcntl
+
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except (BlockingIOError, OSError):
+                if time.monotonic() >= deadline:
+                    raise QualityReportStoreError("等待质量报告存储锁超时") from None
+                time.sleep(0.05)
+        yield
+    finally:
+        try:
+            handle.seek(0)
+            if os.name == "nt":
+                import msvcrt
+
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        except OSError:
+            pass
+        handle.close()
 
 
 def _validate_completed_at(value: Any) -> str:
@@ -134,24 +188,25 @@ def write_quality_report(
     *,
     verification_run_id: str | None = None,
 ) -> tuple[Path, Path]:
-    if report_kind not in REPORT_ARTIFACTS:
-        raise QualityReportStoreError(f"未知质量报告类型：{report_kind}")
-    if verification_run_id:
-        run_dir = quality_run_directory(reports_dir, verification_run_id)
-        if (run_dir / QUALITY_RUN_MANIFEST_NAME).exists():
-            raise QualityReportStoreError("已完成的质量运行不可修改")
-        json_path = quality_run_artifact_path(
-            reports_dir, verification_run_id, f"{report_kind}_json"
-        )
-        markdown_path = quality_run_artifact_path(
-            reports_dir, verification_run_id, f"{report_kind}_markdown"
-        )
-    else:
-        json_path = compatibility_artifact_path(reports_dir, f"{report_kind}_json")
-        markdown_path = compatibility_artifact_path(reports_dir, f"{report_kind}_markdown")
-    atomic_write_json(json_path, payload)
-    atomic_write_text(markdown_path, markdown)
-    return json_path, markdown_path
+    with quality_report_store_lock(reports_dir):
+        if report_kind not in REPORT_ARTIFACTS:
+            raise QualityReportStoreError(f"未知质量报告类型：{report_kind}")
+        if verification_run_id:
+            run_dir = quality_run_directory(reports_dir, verification_run_id)
+            if (run_dir / QUALITY_RUN_MANIFEST_NAME).exists():
+                raise QualityReportStoreError("已完成的质量运行不可修改")
+            json_path = quality_run_artifact_path(
+                reports_dir, verification_run_id, f"{report_kind}_json"
+            )
+            markdown_path = quality_run_artifact_path(
+                reports_dir, verification_run_id, f"{report_kind}_markdown"
+            )
+        else:
+            json_path = compatibility_artifact_path(reports_dir, f"{report_kind}_json")
+            markdown_path = compatibility_artifact_path(reports_dir, f"{report_kind}_markdown")
+        atomic_write_json(json_path, payload)
+        atomic_write_text(markdown_path, markdown)
+        return json_path, markdown_path
 
 
 def _sha256(path: Path) -> str:
@@ -175,6 +230,22 @@ def _validate_relative_run_path(
 
 
 def finalize_quality_run(
+    reports_dir: Path,
+    verification_run_id: str,
+    *,
+    passed: bool,
+    completed_at: str | None = None,
+) -> dict[str, Any]:
+    with quality_report_store_lock(reports_dir):
+        return _finalize_quality_run_unlocked(
+            reports_dir,
+            verification_run_id,
+            passed=passed,
+            completed_at=completed_at,
+        )
+
+
+def _finalize_quality_run_unlocked(
     reports_dir: Path,
     verification_run_id: str,
     *,
@@ -247,6 +318,48 @@ def finalize_quality_run(
     return pointer
 
 
+def load_quality_run_manifest(
+    reports_dir: Path,
+    verification_run_id: str,
+) -> dict[str, Any]:
+    run_id = validate_verification_run_id(verification_run_id)
+    manifest_path = quality_run_directory(reports_dir, run_id) / QUALITY_RUN_MANIFEST_NAME
+    manifest = read_json_object(manifest_path)
+    if manifest.get("schema_version") != QUALITY_RUN_SCHEMA_VERSION:
+        raise QualityReportStoreError("不支持的质量运行清单版本")
+    if manifest.get("status") != "complete":
+        raise QualityReportStoreError("质量运行清单状态无效")
+    if manifest.get("verification_run_id") != run_id:
+        raise QualityReportStoreError("质量运行清单身份不一致")
+    _validate_completed_at(manifest.get("completed_at"))
+    if not isinstance(manifest.get("passed"), bool):
+        raise QualityReportStoreError("质量运行清单结论无效")
+    artifacts = manifest.get("artifacts")
+    if not isinstance(artifacts, dict) or set(artifacts) != set(REQUIRED_ARTIFACT_KEYS):
+        raise QualityReportStoreError("质量运行清单产物集合不完整")
+    for artifact_key in REQUIRED_ARTIFACT_KEYS:
+        filename = _artifact_filename(artifact_key)
+        path = quality_run_artifact_path(reports_dir, run_id, artifact_key)
+        metadata = artifacts.get(artifact_key)
+        if not isinstance(metadata, dict) or metadata.get("filename") != filename:
+            raise QualityReportStoreError(f"质量运行清单产物元数据无效：{artifact_key}")
+        if not path.is_file():
+            raise QualityReportStoreError(f"质量运行清单产物不存在：{artifact_key}")
+        if path.stat().st_size != metadata.get("size_bytes") or _sha256(path) != metadata.get(
+            "sha256"
+        ):
+            raise QualityReportStoreError(f"质量运行产物完整性校验失败：{artifact_key}")
+        if artifact_key.endswith("_json"):
+            report = read_json_object(path)
+            if report.get("verification_run_id") != run_id:
+                raise QualityReportStoreError(f"质量报告运行身份不一致：{artifact_key}")
+            if artifact_key == "verification_json" and report.get("passed") != manifest.get(
+                "passed"
+            ):
+                raise QualityReportStoreError("验证报告结论与质量运行清单不一致")
+    return manifest
+
+
 def load_quality_run_pointer(reports_dir: Path) -> dict[str, Any] | None:
     pointer_path = reports_dir / QUALITY_RUN_LATEST_POINTER_NAME
     if not pointer_path.exists():
@@ -266,7 +379,7 @@ def load_quality_run_pointer(reports_dir: Path) -> dict[str, Any] | None:
         expected_filename=QUALITY_RUN_MANIFEST_NAME,
     )
     manifest_path = reports_dir / Path(manifest_relative)
-    manifest = read_json_object(manifest_path)
+    manifest = load_quality_run_manifest(reports_dir, run_id)
     if _sha256(manifest_path) != pointer.get("manifest_sha256"):
         raise QualityReportStoreError("质量运行清单哈希与最新指针不一致")
     if (
@@ -279,33 +392,18 @@ def load_quality_run_pointer(reports_dir: Path) -> dict[str, Any] | None:
         raise QualityReportStoreError("质量运行清单身份与最新指针不一致")
 
     pointer_artifacts = pointer.get("artifacts")
-    manifest_artifacts = manifest.get("artifacts")
     if not isinstance(pointer_artifacts, dict) or set(pointer_artifacts) != set(
         REQUIRED_ARTIFACT_KEYS
     ):
         raise QualityReportStoreError("质量运行指针产物集合不完整")
-    if not isinstance(manifest_artifacts, dict) or set(manifest_artifacts) != set(
-        REQUIRED_ARTIFACT_KEYS
-    ):
-        raise QualityReportStoreError("质量运行清单产物集合不完整")
 
     for artifact_key in REQUIRED_ARTIFACT_KEYS:
         filename = _artifact_filename(artifact_key)
-        relative = _validate_relative_run_path(
+        _validate_relative_run_path(
             pointer_artifacts.get(artifact_key),
             verification_run_id=run_id,
             expected_filename=filename,
         )
-        path = reports_dir / Path(relative)
-        metadata = manifest_artifacts.get(artifact_key)
-        if not isinstance(metadata, dict) or metadata.get("filename") != filename:
-            raise QualityReportStoreError(f"质量运行清单产物元数据无效：{artifact_key}")
-        if not path.is_file():
-            raise QualityReportStoreError(f"质量运行指针产物不存在：{artifact_key}")
-        if path.stat().st_size != metadata.get("size_bytes") or _sha256(path) != metadata.get(
-            "sha256"
-        ):
-            raise QualityReportStoreError(f"质量运行产物完整性校验失败：{artifact_key}")
     return pointer
 
 

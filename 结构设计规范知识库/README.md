@@ -372,6 +372,8 @@ python scripts/verify_quality.py --manage-api --api-base http://127.0.0.1:8017
 
 五类质量报告会先写入 `data/audit/reports/runs/<verification_run_id>/`。十个 JSON/Markdown 产物齐全并由 `manifest.json` 固定大小与 SHA-256 后，验证器才原子发布 `quality_run_latest.json`；新读取端以该指针为准，`*_latest` 只用于旧部署兼容。托管 API 模式会等父进程完成 API 回收后再发布，因此生命周期失败不会留下表面通过的最新指针。指针、清单或产物损坏时质量门禁失败关闭。
 
+原始运行目录不会自动删除。使用 `python scripts/manage_quality_runs.py list` 查看保护原因，`plan` 生成限时计划，最后以 `execute <plan_id> --confirm` 显式执行。最新运行、脱敏快照引用、最近封存运行、最小保护期和异常目录不会进入候选；执行前会在跨进程存储锁内重检保护集和内容指纹。完整契约见[质量运行证据保留格式规范](docs/reference/质量运行证据保留格式规范.md)。
+
 `data/audit/` 不提交到 Git。质量验证后，无论结果通过还是失败，都应生成并检查可提交的脱敏状态快照，使系统卡如实反映仓库当前证据：
 
 ```powershell

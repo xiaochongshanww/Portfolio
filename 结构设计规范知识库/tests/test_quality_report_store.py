@@ -8,7 +8,9 @@ from src.quality.report_store import (
     QualityReportStoreError,
     atomic_write_text,
     finalize_quality_run,
+    load_quality_run_manifest,
     load_quality_run_pointer,
+    quality_report_store_lock,
     quality_run_artifact_path,
     read_json_object,
     resolve_latest_quality_artifact,
@@ -199,6 +201,19 @@ def test_finalize_rejects_report_from_another_run(tmp_path: Path):
         finalize_quality_run(reports_dir, RUN_ID, passed=False)
 
 
+def test_manifest_loader_rejects_verification_conclusion_mismatch(tmp_path: Path):
+    reports_dir = tmp_path / "reports"
+    _write_complete_run(reports_dir, passed=False)
+    finalize_quality_run(reports_dir, RUN_ID, passed=False)
+    manifest_path = reports_dir / "runs" / RUN_ID / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["passed"] = True
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(QualityReportStoreError, match="结论.*不一致"):
+        load_quality_run_manifest(reports_dir, RUN_ID)
+
+
 def test_publish_failure_keeps_previous_pointer_and_can_retry(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -266,3 +281,12 @@ def test_batch_resolution_validates_latest_pointer_once(
 
     assert calls == 1
     assert set(resolved) == {"regular_json", "structured_json", "answer_json"}
+
+
+def test_store_lock_times_out_instead_of_overlapping_writer(tmp_path: Path):
+    reports_dir = tmp_path / "reports"
+
+    with quality_report_store_lock(reports_dir):
+        with pytest.raises(QualityReportStoreError, match="存储锁超时"):
+            with quality_report_store_lock(reports_dir, timeout_seconds=0.01):
+                pytest.fail("第二个写入者不应取得同一存储锁")
