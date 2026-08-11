@@ -1116,6 +1116,58 @@ export type ManualVersionsResponse = {
 };
 
 /**
+ * ProviderProbeResult
+ */
+export type ProviderProbeResult = {
+    /**
+     * Capability
+     */
+    capability: 'embedding' | 'chat';
+    /**
+     * Http Status
+     */
+    http_status?: number | null;
+    /**
+     * Latency Ms
+     */
+    latency_ms: number;
+    /**
+     * Model
+     */
+    model: string;
+    /**
+     * Ok
+     */
+    ok: boolean;
+    /**
+     * Provider
+     */
+    provider: 'zhipuai' | 'mimo';
+    /**
+     * Status
+     */
+    status: 'ok' | 'not_configured' | 'auth_failed' | 'rate_limited' | 'timeout' | 'unavailable' | 'request_failed' | 'invalid_response';
+};
+
+/**
+ * ProviderProbesResponse
+ */
+export type ProviderProbesResponse = {
+    /**
+     * Checked At
+     */
+    checked_at: string;
+    /**
+     * Ok
+     */
+    ok: boolean;
+    /**
+     * Providers
+     */
+    providers: Array<ProviderProbeResult>;
+};
+
+/**
  * QualityStatusResponse
  */
 export type QualityStatusResponse = {
@@ -2670,6 +2722,22 @@ export type AdminPageImageAdminPageImageDocPageGetResponses = {
      */
     200: unknown;
 };
+
+export type AdminProviderProbesAdminProviderProbesPostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/provider-probes';
+};
+
+export type AdminProviderProbesAdminProviderProbesPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ProviderProbesResponse;
+};
+
+export type AdminProviderProbesAdminProviderProbesPostResponse = AdminProviderProbesAdminProviderProbesPostResponses[keyof AdminProviderProbesAdminProviderProbesPostResponses];
 
 export type AdminQualityStatusAdminQualityStatusGetData = {
     body?: never;

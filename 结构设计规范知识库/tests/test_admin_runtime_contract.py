@@ -52,6 +52,12 @@ SAMPLE_DRAFT = {
 RUNTIME_CASES = (
     RuntimeCase("admin_status_admin_status_get", "get", "/admin/status", "/admin/status"),
     RuntimeCase(
+        "admin_provider_probes_admin_provider_probes_post",
+        "post",
+        "/admin/provider-probes",
+        "/admin/provider-probes",
+    ),
+    RuntimeCase(
         "admin_documents_admin_documents_get", "get", "/admin/documents", "/admin/documents"
     ),
     RuntimeCase("admin_manifest_admin_manifest_get", "get", "/admin/manifest", "/admin/manifest"),
@@ -325,6 +331,7 @@ class FakeJobManager:
 
 class FakeRetrievalState:
     db_dir = Path("contract/db")
+    zhipu_client = None
 
     def __init__(self) -> None:
         self.reload_count = 0
@@ -421,6 +428,34 @@ def _quality_reports(keys: tuple[str, ...]) -> tuple[dict[str, dict[str, Any]], 
     return ({key: reports[key] for key in keys}, {})
 
 
+async def _provider_probes(**kwargs: Any) -> dict[str, Any]:
+    assert kwargs["embedding_client"] is None
+    return {
+        "ok": True,
+        "checked_at": "2026-08-12T00:00:00Z",
+        "providers": [
+            {
+                "provider": "zhipuai",
+                "capability": "embedding",
+                "model": "embedding-2",
+                "ok": True,
+                "status": "ok",
+                "latency_ms": 1,
+                "http_status": None,
+            },
+            {
+                "provider": "mimo",
+                "capability": "chat",
+                "model": "mimo-v2.5",
+                "ok": True,
+                "status": "ok",
+                "latency_ms": 1,
+                "http_status": None,
+            },
+        ],
+    }
+
+
 @pytest.fixture
 def runtime_client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> TestClient:
     raw_dir = tmp_path / "raw"
@@ -462,6 +497,7 @@ def runtime_client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> TestClien
     monkeypatch.setattr(admin, "job_store", FakeJobStore())
     monkeypatch.setattr(admin, "job_manager", FakeJobManager())
     monkeypatch.setattr(admin, "retrieval_state", fake_state)
+    monkeypatch.setattr(admin, "probe_model_providers", _provider_probes)
     monkeypatch.setattr(admin, "diagnose_jobs", lambda jobs, **kwargs: jobs)
     monkeypatch.setattr(admin, "diagnose_job", lambda job, **kwargs: job)
     monkeypatch.setattr(
@@ -703,7 +739,7 @@ def _assert_complete_runtime_coverage(
 
 def test_runtime_case_inventory_covers_every_admin_operation_exactly_once() -> None:
     _assert_complete_runtime_coverage(RUNTIME_CASES, export_openapi.build_openapi_document())
-    assert len(RUNTIME_CASES) == 44
+    assert len(RUNTIME_CASES) == 45
 
 
 @pytest.mark.parametrize("case", RUNTIME_CASES, ids=lambda case: case.operation_id)

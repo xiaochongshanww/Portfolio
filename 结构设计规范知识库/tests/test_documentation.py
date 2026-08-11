@@ -149,7 +149,7 @@ def test_admin_runtime_contract_coverage_is_documented():
     checklist = Path("docs/architecture/管理API运行时契约覆盖实施清单.md")
     test_path = "tests/test_admin_runtime_contract.py"
 
-    assert "44 个隔离 ASGI 成功路径" in api_reference
+    assert "45 个隔离 ASGI 成功路径" in api_reference
     assert test_path in contract
     assert test_path in detailed_design
     assert "operation id" in decision.read_text(encoding="utf-8")

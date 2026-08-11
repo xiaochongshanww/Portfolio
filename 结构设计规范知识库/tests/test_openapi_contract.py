@@ -33,9 +33,9 @@ def test_admin_openapi_contract_covers_every_operation() -> None:
         for method, operation in methods.items()
         if method in export_openapi.HTTP_METHODS
     ]
-    assert len(operations) == 44
+    assert len(operations) == 45
     assert export_openapi.count_admin_operations(document) == len(operations)
-    assert len({operation["operationId"] for _, _, operation in operations}) == 44
+    assert len({operation["operationId"] for _, _, operation in operations}) == 45
 
     for path, method, operation in operations:
         content = operation["responses"]["200"]["content"]

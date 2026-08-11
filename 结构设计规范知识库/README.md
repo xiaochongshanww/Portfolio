@@ -358,7 +358,7 @@ python -m src.evaluation compare-rerank `
 python scripts/verify_quality.py --manage-api --preflight-only --api-base http://127.0.0.1:8017
 ```
 
-预检只检查凭据来源、`/ready`、`/admin/status` 和托管进程回收，失败时用机器可读原因退出非零。它可能更新被 Git 忽略的托管 API 启动日志，但不会运行测试、评估或门禁，也不会覆盖任何 `*_latest` 质量报告。预检通过不代表质量通过。
+预检检查凭据来源、`/ready`、`/admin/status`、受保护的 `POST /admin/provider-probes` 和托管进程回收。供应商探测分别执行一次最小 Embedding 与聊天调用，并只输出脱敏状态；因此预检会产生少量外部调用和可能的供应商费用。任一能力鉴权失败、限流、超时、5xx、网络不可达或响应无效时，命令在三类评估前退出非零。它可能更新被 Git 忽略的托管 API 启动日志，但不会运行测试、评估或门禁，也不会覆盖任何 `*_latest` 质量报告。预检通过只证明调用链在检查时刻可用，不代表质量通过。
 
 前置条件通过后，再执行完整的无人值守质量验证：
 

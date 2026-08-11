@@ -397,6 +397,17 @@ def test_api_preflight_combines_readiness_and_access_without_secret(monkeypatch)
             "credential_supplied": bool(credential.key),
         },
     )
+    monkeypatch.setattr(
+        verify_quality,
+        "_probe_provider_capabilities",
+        lambda api_base, credential: {
+            "ok": True,
+            "providers": [
+                {"provider": "zhipuai", "capability": "embedding", "status": "ok"},
+                {"provider": "mimo", "capability": "chat", "status": "ok"},
+            ],
+        },
+    )
 
     result = verify_quality._run_api_preflight(
         "http://127.0.0.1:8017",
@@ -409,6 +420,7 @@ def test_api_preflight_combines_readiness_and_access_without_secret(monkeypatch)
         "API 凭据加载",
         "目标 API 就绪预检",
         "目标 API 鉴权预检",
+        "模型供应商能力预检",
     ]
     assert "secret-value" not in json.dumps(result, ensure_ascii=False)
 
@@ -438,6 +450,136 @@ def test_api_preflight_fails_closed_when_readiness_fails(monkeypatch):
 
     assert result["ok"] is False
     assert result["steps"][1]["reasons"] == ["缺少 MIMO API Key"]
+    assert result["steps"][3]["skipped"] is True
+
+
+def test_provider_capability_probe_keeps_only_non_secret_contract(monkeypatch):
+    monkeypatch.setattr(
+        verify_quality,
+        "_api_json",
+        lambda *args, **kwargs: {
+            "ok": False,
+            "checked_at": "2026-08-12T00:00:00Z",
+            "providers": [
+                {
+                    "provider": "zhipuai",
+                    "capability": "embedding",
+                    "model": "embedding-2",
+                    "ok": False,
+                    "status": "auth_failed",
+                    "latency_ms": 12,
+                    "http_status": 401,
+                    "upstream_body": "secret provider response",
+                },
+                {
+                    "provider": "mimo",
+                    "capability": "chat",
+                    "model": "mimo-v2.5",
+                    "ok": True,
+                    "status": "ok",
+                    "latency_ms": 20,
+                    "http_status": None,
+                    "output": "private generated output",
+                },
+            ],
+        },
+    )
+
+    result = verify_quality._probe_provider_capabilities(
+        "http://127.0.0.1:8017",
+        verify_quality.ApiCredential(key="client-secret", source="test"),
+    )
+
+    assert result["ok"] is False
+    assert "zhipuai/embedding=auth_failed" in result["error"]
+    rendered = json.dumps(result, ensure_ascii=False)
+    assert "client-secret" not in rendered
+    assert "secret provider response" not in rendered
+    assert "private generated output" not in rendered
+
+
+def test_full_verification_does_not_call_evaluations_after_provider_probe_failure(
+    monkeypatch, tmp_path: Path
+):
+    runtime_hash = "1" * 64
+    run_id = "2" * 32
+    monkeypatch.setattr(verify_quality, "REPORTS_DIR", tmp_path / "reports")
+    monkeypatch.setattr(verify_quality, "new_verification_run_id", lambda: run_id)
+    monkeypatch.setattr(
+        verify_quality,
+        "current_evidence_context",
+        lambda: {
+            "evidence_context_schema": 1,
+            "runtime_config_hash": runtime_hash,
+        },
+    )
+    monkeypatch.setattr(
+        verify_quality,
+        "_collect_api_preflight",
+        lambda *args, **kwargs: (
+            {
+                "ok": False,
+                "steps": [
+                    {"name": "API 凭据加载", "ok": True},
+                    {"name": "目标 API 就绪预检", "ok": True},
+                    {
+                        "name": "目标 API 鉴权预检",
+                        "ok": True,
+                        "runtime_config_hash": runtime_hash,
+                    },
+                    {
+                        "name": "模型供应商能力预检",
+                        "ok": False,
+                        "providers": [
+                            {
+                                "provider": "mimo",
+                                "capability": "chat",
+                                "status": "auth_failed",
+                            }
+                        ],
+                    },
+                ],
+            },
+            verify_quality.ApiCredential(key="client-secret", source="test"),
+        ),
+    )
+    monkeypatch.setattr(
+        verify_quality,
+        "_run_api_evaluation",
+        lambda *args, **kwargs: pytest.fail("retrieval evaluation must not run"),
+    )
+    monkeypatch.setattr(
+        verify_quality,
+        "_run_answer_evaluation_against_api",
+        lambda *args, **kwargs: pytest.fail("answer evaluation must not run"),
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "verify_quality.py",
+            "--skip-tests",
+            "--skip-frontend",
+            "--api-base",
+            "http://127.0.0.1:8017",
+            "--no-api-key",
+        ],
+    )
+
+    with pytest.raises(SystemExit, match="1"):
+        verify_quality.main()
+
+    report = json.loads(
+        (tmp_path / "reports" / "runs" / run_id / "verification.json").read_text(encoding="utf-8")
+    )
+    evaluation_steps = {
+        step["name"]: step
+        for step in report["steps"]
+        if step["name"] in {"常规检索评估", "结构化专项评估", "回答级盲测"}
+    }
+    assert set(evaluation_steps) == {"常规检索评估", "结构化专项评估", "回答级盲测"}
+    assert all(step["skipped"] is True for step in evaluation_steps.values())
+    assert all("供应商能力预检失败" in step["error"] for step in evaluation_steps.values())
 
 
 def test_preflight_cli_is_ascii_safe_and_does_not_write_reports(tmp_path: Path):

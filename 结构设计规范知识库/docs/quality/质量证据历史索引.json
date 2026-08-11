@@ -2,6 +2,22 @@
   "schema_version": 1,
   "entries": [
     {
+      "archive_path": "docs/quality/质量证据历史/20260811T195951Z-354b9d8af294.json",
+      "snapshot_sha256": "354b9d8af2942863c6b72582f3237ce6cc03e026c9f17482c1fac95a96eebd5c",
+      "release_quality_status": "not_passed",
+      "verification_generated_at": "2026-08-11T19:59:51.700560+00:00",
+      "quality_gate_generated_at": "2026-08-11T19:59:51.491941+00:00",
+      "failed_checks": [
+        "regular_evaluation",
+        "answer_evaluation"
+      ],
+      "evaluation_case_counts": {
+        "regular": 100,
+        "structured": 12,
+        "answer": 24
+      }
+    },
+    {
       "archive_path": "docs/quality/质量证据历史/20260809T100808Z-e644955a96e3.json",
       "snapshot_sha256": "e644955a96e3c0e8a58950cfd4381cf49ec9128ed56a6417b963e48bf8605366",
       "release_quality_status": "not_passed",

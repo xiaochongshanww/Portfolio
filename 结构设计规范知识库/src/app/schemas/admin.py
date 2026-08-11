@@ -3,6 +3,16 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 JsonObject = dict[str, Any]
+ProviderProbeStatus = Literal[
+    "ok",
+    "not_configured",
+    "auth_failed",
+    "rate_limited",
+    "timeout",
+    "unavailable",
+    "request_failed",
+    "invalid_response",
+]
 
 
 class AdminResponse(BaseModel):
@@ -60,6 +70,22 @@ class AdminStatusResponse(AdminResponse):
     quality_evidence_context: JsonObject
     raw_documents: list[str]
     jobs: list[JobResponse]
+
+
+class ProviderProbeResult(AdminResponse):
+    provider: Literal["zhipuai", "mimo"]
+    capability: Literal["embedding", "chat"]
+    model: str
+    ok: bool
+    status: ProviderProbeStatus
+    latency_ms: int = Field(ge=0)
+    http_status: int | None = Field(default=None, ge=100, le=599)
+
+
+class ProviderProbesResponse(AdminResponse):
+    ok: bool
+    checked_at: str
+    providers: list[ProviderProbeResult]
 
 
 class DocumentsResponse(AdminResponse):

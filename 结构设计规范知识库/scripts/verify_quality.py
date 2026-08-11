@@ -432,6 +432,81 @@ def _probe_api_access(
     }
 
 
+def _probe_provider_capabilities(
+    api_base: str,
+    credential: ApiCredential,
+) -> dict[str, Any]:
+    started = time.monotonic()
+    try:
+        payload = _api_json(
+            f"{api_base}/admin/provider-probes",
+            api_key=credential.key,
+            method="POST",
+        )
+    except urllib.error.HTTPError as exc:
+        return {
+            "ok": False,
+            "status_code": exc.code,
+            "duration_seconds": round(time.monotonic() - started, 2),
+            "error": f"供应商能力探测端点失败（HTTP {exc.code}）",
+        }
+    except (OSError, urllib.error.URLError, json.JSONDecodeError) as exc:
+        return {
+            "ok": False,
+            "duration_seconds": round(time.monotonic() - started, 2),
+            "error": f"无法执行供应商能力探测：{exc}",
+        }
+
+    raw_providers = payload.get("providers")
+    if not isinstance(raw_providers, list):
+        return {
+            "ok": False,
+            "duration_seconds": round(time.monotonic() - started, 2),
+            "error": "供应商能力探测响应缺少 providers 列表",
+        }
+    providers = []
+    for item in raw_providers:
+        if not isinstance(item, dict):
+            return {
+                "ok": False,
+                "duration_seconds": round(time.monotonic() - started, 2),
+                "error": "供应商能力探测响应包含无效项目",
+            }
+        providers.append(
+            {
+                key: item.get(key)
+                for key in (
+                    "provider",
+                    "capability",
+                    "model",
+                    "ok",
+                    "status",
+                    "latency_ms",
+                    "http_status",
+                )
+            }
+        )
+    expected = {("zhipuai", "embedding"), ("mimo", "chat")}
+    actual = {(item["provider"], item["capability"]) for item in providers}
+    probe_ok = (
+        payload.get("ok") is True
+        and actual == expected
+        and all(item["ok"] is True and item["status"] == "ok" for item in providers)
+    )
+    failures = [
+        f"{item['provider']}/{item['capability']}={item['status']}"
+        for item in providers
+        if item["ok"] is not True or item["status"] != "ok"
+    ]
+    return {
+        "ok": probe_ok,
+        "checked_at": payload.get("checked_at"),
+        "providers": providers,
+        "duration_seconds": round(time.monotonic() - started, 2),
+        "error": "供应商能力不可用：" + ", ".join(failures) if not probe_ok else "",
+    }
+
+
 def _collect_api_preflight(
     api_base: str,
     *,
@@ -474,13 +549,25 @@ def _collect_api_preflight(
         access = _probe_api_access(api_base, credential)
         steps.append({"name": "目标 API 鉴权预检", **access})
     else:
+        access = {
+            "ok": False,
+            "skipped": True,
+            "duration_seconds": 0,
+            "error": "未执行：API 凭据加载失败",
+        }
+        steps.append({"name": "目标 API 鉴权预检", **access})
+
+    if readiness.get("ok") is True and access.get("ok") is True:
+        provider_probe = _probe_provider_capabilities(api_base, credential)
+        steps.append({"name": "模型供应商能力预检", **provider_probe})
+    else:
         steps.append(
             {
-                "name": "目标 API 鉴权预检",
+                "name": "模型供应商能力预检",
                 "ok": False,
                 "skipped": True,
                 "duration_seconds": 0,
-                "error": "未执行：API 凭据加载失败",
+                "error": "未执行：目标 API 就绪或鉴权预检失败",
             }
         )
 
@@ -1219,6 +1306,7 @@ def main() -> None:
     ) or not args.skip_answer_evaluation
     api_ready = True
     api_accessible = True
+    providers_available = True
     credential = ApiCredential(key="", source="none")
     if api_required:
         preflight, credential = _collect_api_preflight(
@@ -1233,16 +1321,22 @@ def main() -> None:
         access_step = next(
             step for step in preflight["steps"] if step["name"] == "目标 API 鉴权预检"
         )
+        provider_step = next(
+            step for step in preflight["steps"] if step["name"] == "模型供应商能力预检"
+        )
         api_ready = readiness_step.get("ok") is True
         api_accessible = access_step.get("ok") is True
+        providers_available = provider_step.get("ok") is True
         runtime_hash = str(access_step.get("runtime_config_hash") or runtime_hash)
 
-    api_available = api_ready and api_accessible
+    api_available = api_ready and api_accessible and providers_available
     unavailable_reasons = []
     if not api_ready:
         unavailable_reasons.append("就绪预检失败")
     if not api_accessible:
         unavailable_reasons.append("鉴权预检失败")
+    if not providers_available:
+        unavailable_reasons.append("供应商能力预检失败")
     api_unavailable_error = "未执行：目标 API " + "、".join(unavailable_reasons)
 
     if not args.skip_tests:

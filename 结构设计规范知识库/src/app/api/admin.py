@@ -74,6 +74,7 @@ from ..admin.workflows import (
     structuring_suggestion_workflow,
 )
 from ..core.config import settings
+from ..core.provider_probe import probe_model_providers
 from ..retrieval.hybrid_search import retrieval_state
 from ..schemas import admin as admin_schemas
 
@@ -193,6 +194,11 @@ async def admin_status():
         "raw_documents": [path.name for path in sorted(RAW_DIR.glob("*.pdf"))],
         "jobs": _diagnosed_jobs(job_store.list()[:10]),
     }
+
+
+@router.post("/provider-probes", response_model=admin_schemas.ProviderProbesResponse)
+async def admin_provider_probes():
+    return await probe_model_providers(embedding_client=retrieval_state.zhipu_client)
 
 
 @router.get("/documents", response_model=admin_schemas.DocumentsResponse)

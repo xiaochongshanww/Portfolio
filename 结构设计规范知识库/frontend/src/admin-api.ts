@@ -30,6 +30,7 @@ export {
   adminManualStructuringValidateAdminManualStructuringDocItemIdValidatePost as validateManualStructuringDraft,
   adminManualStructuringVersionsAdminManualStructuringDocItemIdVersionsGet as listManualStructuringVersions,
   adminPromoteAdminCorrectionsPromoteDocPost as promoteCorrections,
+  adminProviderProbesAdminProviderProbesPost as probeModelProviders,
   adminQualityStatusAdminQualityStatusGet as getAdminQualityStatus,
   adminRetrievalReloadAdminRetrievalReloadPost as reloadAdminRetrieval,
   adminStatusAdminStatusGet as getAdminStatus,

@@ -1714,6 +1714,104 @@
         "title": "ManualVersionsResponse",
         "type": "object"
       },
+      "ProviderProbeResult": {
+        "additionalProperties": false,
+        "properties": {
+          "capability": {
+            "enum": [
+              "embedding",
+              "chat"
+            ],
+            "title": "Capability",
+            "type": "string"
+          },
+          "http_status": {
+            "anyOf": [
+              {
+                "maximum": 599.0,
+                "minimum": 100.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Http Status"
+          },
+          "latency_ms": {
+            "minimum": 0.0,
+            "title": "Latency Ms",
+            "type": "integer"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "provider": {
+            "enum": [
+              "zhipuai",
+              "mimo"
+            ],
+            "title": "Provider",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "not_configured",
+              "auth_failed",
+              "rate_limited",
+              "timeout",
+              "unavailable",
+              "request_failed",
+              "invalid_response"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "capability",
+          "model",
+          "ok",
+          "status",
+          "latency_ms"
+        ],
+        "title": "ProviderProbeResult",
+        "type": "object"
+      },
+      "ProviderProbesResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "checked_at": {
+            "title": "Checked At",
+            "type": "string"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderProbeResult"
+            },
+            "title": "Providers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ok",
+          "checked_at",
+          "providers"
+        ],
+        "title": "ProviderProbesResponse",
+        "type": "object"
+      },
       "QualityStatusResponse": {
         "additionalProperties": false,
         "properties": {
@@ -4030,6 +4128,27 @@
           }
         },
         "summary": "Admin Page Image",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/provider-probes": {
+      "post": {
+        "operationId": "admin_provider_probes_admin_provider_probes_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderProbesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Provider Probes",
         "tags": [
           "admin"
         ]
