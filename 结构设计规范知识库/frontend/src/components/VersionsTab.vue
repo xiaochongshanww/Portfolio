@@ -135,11 +135,18 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { apiGet, apiPost, apiPut } from '../api'
+import { adminGet, adminPost, adminPut, errorMessage } from '../api'
+import type {
+  VersionCleanupPlanResponse,
+  VersionInventoryResponse,
+  VersionSummary,
+} from '../contracts'
 
 const emit = defineEmits<{ refreshJobs: [] }>()
-const inventory = ref<any>({ versions: [] })
-const plan = ref<any>(null)
+const inventory = ref<Partial<VersionInventoryResponse> & { versions: VersionSummary[] }>({
+  versions: [],
+})
+const plan = ref<VersionCleanupPlanResponse | null>(null)
 const planConfirmed = ref(false)
 const busy = ref(false)
 const pinning = ref('')
@@ -150,9 +157,9 @@ async function loadInventory() {
   busy.value = true
   error.value = ''
   try {
-    inventory.value = await apiGet('/admin/versions')
-  } catch (err: any) {
-    error.value = err.message || String(err)
+    inventory.value = await adminGet('/admin/versions')
+  } catch (err: unknown) {
+    error.value = errorMessage(err)
   } finally {
     busy.value = false
   }
@@ -164,13 +171,13 @@ async function createPlan() {
   message.value = ''
   planConfirmed.value = false
   try {
-    plan.value = await apiPost('/admin/versions/cleanup-plans')
+    plan.value = await adminPost('/admin/versions/cleanup-plans')
     message.value = plan.value.candidate_count
       ? '清理计划已生成，请核对后确认执行。'
       : '清理计划已生成，当前没有可清理版本。'
     await loadInventory()
-  } catch (err: any) {
-    error.value = err.message || String(err)
+  } catch (err: unknown) {
+    error.value = errorMessage(err)
   } finally {
     busy.value = false
   }
@@ -182,36 +189,39 @@ async function executePlan() {
   error.value = ''
   message.value = ''
   try {
-    const job = await apiPost('/admin/jobs/cleanup-versions', { plan_id: plan.value.plan_id })
+    const job = await adminPost('/admin/jobs/cleanup-versions', { plan_id: plan.value.plan_id })
     message.value = `清理任务已提交：${job.job_id}`
     plan.value = null
     planConfirmed.value = false
     emit('refreshJobs')
-  } catch (err: any) {
-    error.value = err.message || String(err)
+  } catch (err: unknown) {
+    error.value = errorMessage(err)
   } finally {
     busy.value = false
   }
 }
 
-async function togglePin(item: any, pinned: boolean) {
+async function togglePin(item: VersionSummary, pinned: boolean) {
   pinning.value = item.version_id
   error.value = ''
   try {
-    await apiPut(`/admin/versions/${encodeURIComponent(item.version_id)}/retention`, { pinned, note: item.pin_note || '' })
+    await adminPut(`/admin/versions/${encodeURIComponent(item.version_id)}/retention`, {
+      pinned,
+      note: item.pin_note || '',
+    })
     message.value = pinned ? `已固定版本 ${item.version_id}` : `已取消固定版本 ${item.version_id}`
     plan.value = null
     planConfirmed.value = false
     await loadInventory()
-  } catch (err: any) {
-    error.value = err.message || String(err)
+  } catch (err: unknown) {
+    error.value = errorMessage(err)
     await loadInventory()
   } finally {
     pinning.value = ''
   }
 }
 
-function formatBytes(value: any) {
+function formatBytes(value: unknown) {
   const bytes = Number(value)
   if (!Number.isFinite(bytes)) return '-'
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
@@ -224,7 +234,7 @@ function formatBytes(value: any) {
   return `${amount >= 10 || index === 0 ? amount.toFixed(0) : amount.toFixed(1)} ${units[index]}`
 }
 
-function formatDate(value: string) {
+function formatDate(value?: string) {
   if (!value) return '-'
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN', { hour12: false })
@@ -256,7 +266,7 @@ function stateClass(state: string) {
   return `${base} bg-slate-100 text-slate-600`
 }
 
-function protectionText(item: any) {
+function protectionText(item: VersionSummary) {
   const labels: Record<string, string> = {
     active: '活动版本',
     running: '运行任务',
@@ -270,12 +280,13 @@ function protectionText(item: any) {
   return reasons.length ? reasons.join('、') : item.cleanup_eligible ? cleanupReason(item.cleanup_reason) : '策略保留'
 }
 
-function cleanupReason(reason: string) {
+function cleanupReason(reason?: string) {
+  if (!reason) return '-'
   return ({
     expired_failed_or_incomplete: '失败或不完整版本已过期',
     expired_successful: '成功版本已过期',
     disk_pressure: '磁盘高水位回收',
-  } as Record<string, string>)[reason] || reason || '-'
+  } as Record<string, string>)[reason] || reason
 }
 
 onMounted(loadInventory)

@@ -80,7 +80,8 @@ def write_active_db(payload: dict[str, Any], path: Path = ACTIVE_DB_PATH) -> Non
         "manifest",
         "candidate_gate_report",
     ):
-        portable[key] = _portable_pointer_value(portable.get(key), path)
+        if key in portable:
+            portable[key] = _portable_pointer_value(portable[key], path)
     temporary = path.with_suffix(f"{path.suffix}.tmp")
     temporary.write_text(json.dumps(portable, ensure_ascii=False, indent=2), encoding="utf-8")
     temporary.replace(path)

@@ -75,6 +75,7 @@ from ..admin.workflows import (
 )
 from ..core.config import settings
 from ..retrieval.hybrid_search import retrieval_state
+from ..schemas import admin as admin_schemas
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 QUALITY_REPORTS_DIR = AUDIT_DIR / "reports"
@@ -182,7 +183,7 @@ def _load_processed_doc(doc: str) -> dict[str, Any]:
     return json.loads(candidates[0].read_text(encoding="utf-8"))
 
 
-@router.get("/status")
+@router.get("/status", response_model=admin_schemas.AdminStatusResponse)
 async def admin_status():
     manifest = read_active_manifest()
     return {
@@ -194,7 +195,7 @@ async def admin_status():
     }
 
 
-@router.get("/documents")
+@router.get("/documents", response_model=admin_schemas.DocumentsResponse)
 async def admin_documents():
     manifest = read_active_manifest()
     return {
@@ -203,12 +204,20 @@ async def admin_documents():
     }
 
 
-@router.get("/manifest")
+@router.get(
+    "/manifest",
+    response_model=admin_schemas.ManifestResponse,
+    response_model_exclude_unset=True,
+)
 async def admin_manifest():
     return read_active_manifest()
 
 
-@router.get("/active-db")
+@router.get(
+    "/active-db",
+    response_model=admin_schemas.ActiveDatabaseResponse,
+    response_model_exclude_unset=True,
+)
 async def admin_active_db():
     payload = read_active_db()
     return {
@@ -218,7 +227,7 @@ async def admin_active_db():
     }
 
 
-@router.post("/retrieval/reload")
+@router.post("/retrieval/reload", response_model=admin_schemas.RetrievalReloadResponse)
 async def admin_retrieval_reload():
     retrieval_state.reload()
     return {
@@ -227,17 +236,17 @@ async def admin_retrieval_reload():
     }
 
 
-@router.post("/jobs/dry-run")
+@router.post("/jobs/dry-run", response_model=admin_schemas.JobResponse)
 async def start_dry_run(request: JobRequest):
     return job_manager.submit("dry_run", request.dict(), dry_run_workflow).to_dict()
 
 
-@router.post("/jobs/rebuild")
+@router.post("/jobs/rebuild", response_model=admin_schemas.JobResponse)
 async def start_rebuild(request: JobRequest):
     return job_manager.submit("rebuild", request.dict(), rebuild_workflow).to_dict()
 
 
-@router.get("/versions")
+@router.get("/versions", response_model=admin_schemas.VersionInventoryResponse)
 def admin_versions():
     return inventory_versions(
         policy=retention_policy_from_settings(settings),
@@ -245,7 +254,10 @@ def admin_versions():
     )
 
 
-@router.put("/versions/{version_id}/retention")
+@router.put(
+    "/versions/{version_id}/retention",
+    response_model=admin_schemas.VersionRetentionResponse,
+)
 def admin_version_retention(version_id: str, request: VersionRetentionUpdate):
     try:
         return set_version_pin(version_id, pinned=request.pinned, note=request.note)
@@ -255,7 +267,10 @@ def admin_version_retention(version_id: str, request: VersionRetentionUpdate):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@router.post("/versions/cleanup-plans")
+@router.post(
+    "/versions/cleanup-plans",
+    response_model=admin_schemas.VersionCleanupPlanResponse,
+)
 def admin_version_cleanup_plan():
     return create_cleanup_plan(
         policy=retention_policy_from_settings(settings),
@@ -263,41 +278,41 @@ def admin_version_cleanup_plan():
     )
 
 
-@router.post("/jobs/cleanup-versions")
+@router.post("/jobs/cleanup-versions", response_model=admin_schemas.JobResponse)
 async def start_version_cleanup(request: VersionCleanupRequest):
     return job_manager.submit(
         "cleanup_versions", request.dict(), cleanup_versions_workflow
     ).to_dict()
 
 
-@router.post("/jobs/audit")
+@router.post("/jobs/audit", response_model=admin_schemas.JobResponse)
 async def start_audit():
     return job_manager.submit("audit", {}, audit_workflow).to_dict()
 
 
-@router.post("/jobs/review")
+@router.post("/jobs/review", response_model=admin_schemas.JobResponse)
 async def start_review(request: ReviewRequest):
     return job_manager.submit("review", request.dict(), review_workflow).to_dict()
 
 
-@router.post("/jobs/evaluate")
+@router.post("/jobs/evaluate", response_model=admin_schemas.JobResponse)
 async def start_evaluate(request: EvaluateRequest):
     return job_manager.submit("evaluate", request.model_dump(), evaluate_workflow).to_dict()
 
 
-@router.post("/jobs/evaluate-answers")
+@router.post("/jobs/evaluate-answers", response_model=admin_schemas.JobResponse)
 async def start_answer_evaluate(request: AnswerEvaluateRequest):
     return job_manager.submit(
         "answer_evaluate", request.model_dump(), answer_evaluate_workflow
     ).to_dict()
 
 
-@router.get("/jobs")
+@router.get("/jobs", response_model=admin_schemas.JobsResponse)
 async def list_jobs():
     return {"jobs": _diagnosed_jobs(job_store.list())}
 
 
-@router.get("/jobs/{job_id}")
+@router.get("/jobs/{job_id}", response_model=admin_schemas.JobResponse)
 async def get_job(job_id: str):
     try:
         job = job_store.read(job_id)
@@ -312,7 +327,7 @@ async def get_job(job_id: str):
     )
 
 
-@router.get("/jobs/{job_id}/logs")
+@router.get("/jobs/{job_id}/logs", response_model=admin_schemas.JobLogsResponse)
 async def get_job_logs(job_id: str, limit: int = 200):
     try:
         logs = job_store.logs(job_id, limit=max(1, min(limit, 1000)))
@@ -321,7 +336,7 @@ async def get_job_logs(job_id: str, limit: int = 200):
     return {"job_id": job_id, "logs": logs}
 
 
-@router.get("/evaluation/status")
+@router.get("/evaluation/status", response_model=admin_schemas.EvaluationStatusResponse)
 async def admin_evaluation_status():
     cases = load_cases(DEFAULT_EVAL_PATH)
     by_type: dict[str, int] = {}
@@ -355,7 +370,7 @@ async def admin_evaluation_status():
     }
 
 
-@router.get("/quality/status")
+@router.get("/quality/status", response_model=admin_schemas.QualityStatusResponse)
 async def admin_quality_status():
     documents = list_manual_structuring_files()
     draft_statuses: dict[str, int] = {}
@@ -464,17 +479,20 @@ async def admin_quality_status():
     }
 
 
-@router.get("/corrections/candidates")
+@router.get("/corrections/candidates", response_model=admin_schemas.CandidateDocumentsResponse)
 async def admin_candidate_files():
     return {"documents": list_candidate_files(CORRECTIONS_DIR)}
 
 
-@router.get("/corrections/candidates/{doc}")
+@router.get("/corrections/candidates/{doc}", response_model=admin_schemas.CandidateDetailResponse)
 async def admin_candidate_detail(doc: str):
     return read_candidate_file(doc, CORRECTIONS_DIR)
 
 
-@router.patch("/corrections/candidates/{doc}/{candidate_id}")
+@router.patch(
+    "/corrections/candidates/{doc}/{candidate_id}",
+    response_model=admin_schemas.CandidateStatusResponse,
+)
 async def admin_candidate_update(doc: str, candidate_id: str, request: CandidateStatusUpdate):
     try:
         return update_candidate_status(doc, candidate_id, request.status, CORRECTIONS_DIR)
@@ -484,12 +502,12 @@ async def admin_candidate_update(doc: str, candidate_id: str, request: Candidate
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@router.post("/manual-structuring/scan")
+@router.post("/manual-structuring/scan", response_model=admin_schemas.ManualQueueScanResponse)
 async def admin_manual_structuring_scan():
     return write_manual_structuring_queue(active_processed_dir())
 
 
-@router.post("/manual-structuring/ai-suggestions/batch")
+@router.post("/manual-structuring/ai-suggestions/batch", response_model=admin_schemas.JobResponse)
 async def admin_manual_structuring_batch_suggestions(request: StructuringSuggestionBatchRequest):
     return job_manager.submit(
         "structuring_suggestion_batch",
@@ -498,17 +516,19 @@ async def admin_manual_structuring_batch_suggestions(request: StructuringSuggest
     ).to_dict()
 
 
-@router.get("/manual-structuring")
+@router.get("/manual-structuring", response_model=admin_schemas.ManualDocumentsResponse)
 async def admin_manual_structuring_files():
     return {"documents": list_manual_structuring_files()}
 
 
-@router.get("/manual-structuring/{doc}")
+@router.get("/manual-structuring/{doc}", response_model=admin_schemas.ManualDetailResponse)
 async def admin_manual_structuring_detail(doc: str):
     return read_manual_structuring_file(doc)
 
 
-@router.patch("/manual-structuring/{doc}/{item_id}")
+@router.patch(
+    "/manual-structuring/{doc}/{item_id}", response_model=admin_schemas.ManualStatusResponse
+)
 async def admin_manual_structuring_update(doc: str, item_id: str, request: CandidateStatusUpdate):
     try:
         return update_manual_structuring_status(doc, item_id, request.status, notes=request.notes)
@@ -518,7 +538,10 @@ async def admin_manual_structuring_update(doc: str, item_id: str, request: Candi
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@router.post("/manual-structuring/{doc}/{item_id}/draft")
+@router.post(
+    "/manual-structuring/{doc}/{item_id}/draft",
+    response_model=admin_schemas.ManualDraftResponse,
+)
 async def admin_manual_structuring_build_draft(doc: str, item_id: str):
     try:
         return build_manual_structuring_draft(doc, item_id)
@@ -526,7 +549,10 @@ async def admin_manual_structuring_build_draft(doc: str, item_id: str):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.get("/manual-structuring/{doc}/{item_id}/draft")
+@router.get(
+    "/manual-structuring/{doc}/{item_id}/draft",
+    response_model=admin_schemas.ManualDraftResponse,
+)
 async def admin_manual_structuring_read_draft(doc: str, item_id: str):
     try:
         return read_manual_structuring_draft(doc, item_id)
@@ -534,7 +560,10 @@ async def admin_manual_structuring_read_draft(doc: str, item_id: str):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.put("/manual-structuring/{doc}/{item_id}/draft")
+@router.put(
+    "/manual-structuring/{doc}/{item_id}/draft",
+    response_model=admin_schemas.ManualDraftResponse,
+)
 async def admin_manual_structuring_save_draft(
     doc: str, item_id: str, request: ManualStructuringDraftRequest
 ):
@@ -544,7 +573,10 @@ async def admin_manual_structuring_save_draft(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.post("/manual-structuring/{doc}/{item_id}/ai-suggestion")
+@router.post(
+    "/manual-structuring/{doc}/{item_id}/ai-suggestion",
+    response_model=admin_schemas.JobResponse,
+)
 async def admin_manual_structuring_start_suggestion(doc: str, item_id: str):
     try:
         read_manual_structuring_draft(doc, item_id)
@@ -557,7 +589,11 @@ async def admin_manual_structuring_start_suggestion(doc: str, item_id: str):
     ).to_dict()
 
 
-@router.get("/manual-structuring/{doc}/{item_id}/ai-suggestion")
+@router.get(
+    "/manual-structuring/{doc}/{item_id}/ai-suggestion",
+    response_model=admin_schemas.StructuringSuggestionResponse,
+    response_model_exclude_unset=True,
+)
 async def admin_manual_structuring_read_suggestion(doc: str, item_id: str):
     try:
         return read_structuring_suggestion(doc, item_id)
@@ -565,7 +601,10 @@ async def admin_manual_structuring_read_suggestion(doc: str, item_id: str):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.post("/manual-structuring/{doc}/{item_id}/validate")
+@router.post(
+    "/manual-structuring/{doc}/{item_id}/validate",
+    response_model=admin_schemas.ManualValidationResponse,
+)
 async def admin_manual_structuring_validate(doc: str, item_id: str):
     try:
         return validate_manual_structuring_draft(doc, item_id)
@@ -573,7 +612,10 @@ async def admin_manual_structuring_validate(doc: str, item_id: str):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.post("/manual-structuring/{doc}/{item_id}/publish")
+@router.post(
+    "/manual-structuring/{doc}/{item_id}/publish",
+    response_model=admin_schemas.ManualPublicationResponse,
+)
 async def admin_manual_structuring_publish(doc: str, item_id: str):
     try:
         return publish_manual_structuring_draft(doc, item_id)
@@ -583,12 +625,18 @@ async def admin_manual_structuring_publish(doc: str, item_id: str):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@router.get("/manual-structuring/{doc}/{item_id}/versions")
+@router.get(
+    "/manual-structuring/{doc}/{item_id}/versions",
+    response_model=admin_schemas.ManualVersionsResponse,
+)
 async def admin_manual_structuring_versions(doc: str, item_id: str):
     return {"versions": list_manual_structuring_versions(doc, item_id)}
 
 
-@router.post("/manual-structuring/{doc}/{item_id}/rollback")
+@router.post(
+    "/manual-structuring/{doc}/{item_id}/rollback",
+    response_model=admin_schemas.ManualRollbackResponse,
+)
 async def admin_manual_structuring_rollback(doc: str, item_id: str):
     try:
         return rollback_manual_structuring_publication(doc, item_id)
@@ -598,12 +646,16 @@ async def admin_manual_structuring_rollback(doc: str, item_id: str):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@router.post("/corrections/promote/{doc}")
+@router.post("/corrections/promote/{doc}", response_model=admin_schemas.CandidatePromotionResponse)
 async def admin_promote(doc: str):
     return promote_approved_candidates(doc, CORRECTIONS_DIR)
 
 
-@router.get("/corrections/approved/{doc}")
+@router.get(
+    "/corrections/approved/{doc}",
+    response_model=admin_schemas.ApprovedCorrectionsResponse,
+    response_model_exclude_unset=True,
+)
 async def admin_get_approved(doc: str):
     path = _approved_path(doc)
     if not path.exists():
@@ -611,7 +663,10 @@ async def admin_get_approved(doc: str):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-@router.post("/corrections/approved/{doc}")
+@router.post(
+    "/corrections/approved/{doc}",
+    response_model=admin_schemas.ApprovedCorrectionMutationResponse,
+)
 async def admin_add_approved(doc: str, request: ApprovedCorrectionRequest):
     path = _approved_path(doc)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -628,7 +683,10 @@ async def admin_add_approved(doc: str, request: ApprovedCorrectionRequest):
     }
 
 
-@router.delete("/corrections/approved/{doc}/{correction_id}")
+@router.delete(
+    "/corrections/approved/{doc}/{correction_id}",
+    response_model=admin_schemas.ApprovedCorrectionDeleteResponse,
+)
 async def admin_delete_approved(doc: str, correction_id: str):
     path = _approved_path(doc)
     if not path.exists():
@@ -641,7 +699,7 @@ async def admin_delete_approved(doc: str, correction_id: str):
     return {"deleted": len(before) - len(after), "correction_count": len(after)}
 
 
-@router.get("/elements/{doc}")
+@router.get("/elements/{doc}", response_model=admin_schemas.ElementsResponse)
 async def admin_elements(doc: str, page: int | None = None):
     try:
         payload = _load_processed_doc(doc)
@@ -656,7 +714,11 @@ async def admin_elements(doc: str, page: int | None = None):
     return {"doc": doc, "source_file": payload.get("source_file", ""), "elements": rows}
 
 
-@router.get("/elements/{doc}/{element_index}")
+@router.get(
+    "/elements/{doc}/{element_index}",
+    response_model=admin_schemas.ElementResponse,
+    response_model_exclude_unset=True,
+)
 async def admin_element(doc: str, element_index: int):
     try:
         payload = _load_processed_doc(doc)
@@ -668,7 +730,11 @@ async def admin_element(doc: str, element_index: int):
     return {"doc": doc, "element_index": element_index, **elements[element_index]}
 
 
-@router.get("/page-image/{doc}/{page}")
+@router.get(
+    "/page-image/{doc}/{page}",
+    response_class=FileResponse,
+    responses={200: {"content": {"image/png": {}}}},
+)
 async def admin_page_image(doc: str, page: int):
     pdf_path = find_source_pdf(doc, RAW_DIR)
     if not pdf_path:

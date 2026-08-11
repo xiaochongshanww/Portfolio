@@ -135,11 +135,12 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { apiPost } from '../api'
+import { adminPost, errorMessage } from '../api'
+import type { EvaluationStatusView, JobResponse } from '../contracts'
 import KeyValueList from './shared/KeyValueList.vue'
 import MetricCard from './shared/MetricCard.vue'
 
-const props = defineProps<{ evaluation: any, jobs: any[] }>()
+const props = defineProps<{ evaluation: EvaluationStatusView, jobs: JobResponse[] }>()
 const emit = defineEmits<{ refresh: [] }>()
 
 const busy = ref(false)
@@ -153,17 +154,17 @@ const answerFailures = computed(() => answerLatest.value?.failures || [])
 const failureCount = computed(() => failures.value.length)
 const formattedLatest = computed(() => JSON.stringify(props.evaluation.latest, null, 2))
 
-function percent(value: number) {
+function percent(value?: number) {
   if (typeof value !== 'number') return '-'
   return `${Math.round(value * 100)}%`
 }
 
-function number(value: number) {
+function number(value?: number) {
   if (typeof value !== 'number') return '-'
   return value.toFixed(3)
 }
 
-function rateClass(value: number) {
+function rateClass(value?: number) {
   if (typeof value !== 'number') return ''
   if (value >= 0.95) return 'text-emerald-700'
   if (value >= 0.85) return 'text-amber-700'
@@ -174,14 +175,14 @@ async function runEvaluation() {
   busy.value = true
   error.value = ''
   try {
-    const job = await apiPost('/admin/jobs/evaluate', {
+    const job = await adminPost('/admin/jobs/evaluate', {
       top_k: 5,
       evaluation_set: 'regular',
     })
     message.value = `已提交评估任务 ${job.job_id}`
     emit('refresh')
-  } catch (err: any) {
-    error.value = err.message || String(err)
+  } catch (err: unknown) {
+    error.value = errorMessage(err)
   } finally {
     busy.value = false
   }
@@ -191,14 +192,14 @@ async function runStructuredEvaluation() {
   busy.value = true
   error.value = ''
   try {
-    const job = await apiPost('/admin/jobs/evaluate', {
+    const job = await adminPost('/admin/jobs/evaluate', {
       top_k: 5,
       evaluation_set: 'structured',
     })
     message.value = `已提交结构化专项评估 ${job.job_id}`
     emit('refresh')
-  } catch (err: any) {
-    error.value = err.message || String(err)
+  } catch (err: unknown) {
+    error.value = errorMessage(err)
   } finally {
     busy.value = false
   }
@@ -208,13 +209,13 @@ async function runAnswerEvaluation() {
   busy.value = true
   error.value = ''
   try {
-    const job = await apiPost('/admin/jobs/evaluate-answers', {
+    const job = await adminPost('/admin/jobs/evaluate-answers', {
       evaluation_set: 'answer',
     })
     message.value = `已提交回答级盲测 ${job.job_id}`
     emit('refresh')
-  } catch (err: any) {
-    error.value = err.message || String(err)
+  } catch (err: unknown) {
+    error.value = errorMessage(err)
   } finally {
     busy.value = false
   }

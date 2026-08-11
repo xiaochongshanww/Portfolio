@@ -94,13 +94,23 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import type {
+  KnowledgeDocumentsView,
+  QualityStatusView,
+  ReadinessResponse,
+} from '../contracts'
 import MetricCard from './shared/MetricCard.vue'
 import KeyValueList from './shared/KeyValueList.vue'
 
-const props = defineProps<{ ready: any, documents: any, metrics: any, quality: any }>()
+const props = defineProps<{
+  ready: ReadinessResponse | null
+  documents: KnowledgeDocumentsView
+  metrics: Record<string, unknown>
+  quality: QualityStatusView
+}>()
 const correctionCount = computed(() => props.documents?.correction_status?.applied_count || 0)
 
-function percent(value: number) {
+function percent(value?: number | null) {
   return typeof value === 'number' ? `${Math.round(value * 100)}%` : '-'
 }
 </script>

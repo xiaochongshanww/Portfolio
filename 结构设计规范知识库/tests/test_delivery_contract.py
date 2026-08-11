@@ -120,6 +120,8 @@ def test_repository_ci_covers_backend_frontend_and_container():
     assert "python -m scripts.verify_runtime_package_cold_start" in workflow
     assert "python -m scripts.verify_runtime_package_recovery" in workflow
     assert "npm install --global npm@10.9.8" in workflow
+    assert "python scripts/export_openapi.py" in workflow
+    assert "npm run api:check" in workflow
     assert "npm test" in workflow
     assert "npm run typecheck" in workflow
     assert "npm run build" in workflow
@@ -146,6 +148,21 @@ def test_repository_ci_covers_backend_frontend_and_container():
     assert "--severity HIGH,CRITICAL" in workflow
     assert "--ignorefile .trivyignore.yaml" in workflow
     assert "--exit-code 1" in workflow
+
+
+def test_frontend_api_contract_generation_is_pinned_and_cross_platform():
+    package = json.loads((PROJECT_ROOT / "frontend" / "package.json").read_text(encoding="utf-8"))
+    checker = (PROJECT_ROOT / "frontend" / "scripts" / "check-api-contract.mjs").read_text(
+        encoding="utf-8"
+    )
+
+    assert package["devDependencies"]["@hey-api/openapi-ts"] == "0.97.3"
+    assert package["scripts"]["api:generate"] == "openapi-ts"
+    assert package["scripts"]["api:check"] == "node scripts/check-api-contract.mjs"
+    assert "process.execPath" in checker
+    assert "@hey-api/openapi-ts/bin/run.js" in checker
+    assert "['diff', '--exit-code', '--', ...contractPaths]" in checker
+    assert "['ls-files', '--others', '--exclude-standard', '--', ...contractPaths]" in checker
 
 
 def test_external_container_images_are_immutable_and_maintained():

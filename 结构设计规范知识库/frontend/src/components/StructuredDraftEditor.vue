@@ -50,7 +50,7 @@
           <label class="col-span-2 block">
             <span class="mb-1 block text-xs font-medium text-slate-500">来源页码</span>
             <input
-              :value="(draft.source?.pages || []).join(', ')"
+              :value="numberList(draft.source.pages).join(', ')"
               class="field h-9 w-full text-sm"
               :class="errorClass('source.pages')"
               placeholder="例如 35, 36"
@@ -245,8 +245,26 @@
 import { computed, ref } from 'vue'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
+import type { ManualValidationResponse } from '../contracts'
 
-const props = defineProps<{ modelValue: string; validation?: any }>()
+type DraftColumn = Record<string, unknown> & {
+  key: string
+  label?: string
+  unit?: string
+  value_type?: string
+}
+
+type DraftModel = Record<string, unknown> & {
+  draft_status: string
+  source: Record<string, unknown>
+  columns: DraftColumn[]
+  rows: Array<Record<string, unknown>>
+}
+
+const props = defineProps<{
+  modelValue: string
+  validation?: ManualValidationResponse | null
+}>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
 const mode = ref<'visual' | 'json'>('visual')
@@ -259,24 +277,40 @@ const sourceFields = [
   { key: 'table_name', label: '表名' },
 ]
 
-const draft = computed<any | null>(() => {
+const draft = computed<DraftModel | null>(() => {
   try {
-    return props.modelValue.trim() ? JSON.parse(props.modelValue) : null
+    if (!props.modelValue.trim()) return null
+    const parsed: unknown = JSON.parse(props.modelValue)
+    if (!isRecord(parsed)) return null
+    const rawColumns = Array.isArray(parsed.columns) ? parsed.columns.filter(isRecord) : []
+    return {
+      ...parsed,
+      draft_status: stringValue(parsed.draft_status, 'needs_review'),
+      source: isRecord(parsed.source) ? { ...parsed.source } : {},
+      columns: rawColumns.map((column, index) => ({
+        ...column,
+        key: stringValue(column.key, `field_${index + 1}`),
+        label: stringValue(column.label),
+        unit: stringValue(column.unit),
+        value_type: stringValue(column.value_type),
+      })),
+      rows: Array.isArray(parsed.rows) ? parsed.rows.filter(isRecord).map(row => ({ ...row })) : [],
+    }
   } catch {
     return null
   }
 })
 
-const columns = computed<any[]>(() => Array.isArray(draft.value?.columns) ? draft.value.columns : [])
-const rows = computed<Record<string, any>[]>(() => Array.isArray(draft.value?.rows) ? draft.value.rows : [])
+const columns = computed<DraftColumn[]>(() => draft.value?.columns || [])
+const rows = computed<Array<Record<string, unknown>>>(() => draft.value?.rows || [])
 
 const jsonError = computed(() => {
   if (!props.modelValue.trim()) return ''
   try {
     JSON.parse(props.modelValue)
     return ''
-  } catch (error: any) {
-    return error.message || 'JSON 无效'
+  } catch (error: unknown) {
+    return error instanceof Error ? error.message : 'JSON 无效'
   }
 })
 
@@ -284,7 +318,7 @@ function inputText(event: Event) {
   return (event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value
 }
 
-function mutateDraft(callback: (value: any) => void) {
+function mutateDraft(callback: (value: DraftModel) => void) {
   if (!draft.value) return
   const copy = structuredClone(draft.value)
   callback(copy)
@@ -312,13 +346,13 @@ function updatePages(value: string) {
   })
 }
 
-function columnType(column: any) {
-  if (column?.value_type) return column.value_type
-  if (column?.key === 'aliases' || column?.key === 'variables') return 'list'
-  const values = (draft.value?.rows || []).map((row: any) => row[column?.key]).filter((value: any) => value != null)
-  if (values.some((value: any) => Array.isArray(value))) return 'list'
-  if (values.length && values.every((value: any) => typeof value === 'number')) return 'number'
-  if (values.some((value: any) => typeof value === 'object')) return 'json'
+function columnType(column: DraftColumn) {
+  if (column.value_type) return column.value_type
+  if (column.key === 'aliases' || column.key === 'variables') return 'list'
+  const values = (draft.value?.rows || []).map(row => row[column.key]).filter(value => value != null)
+  if (values.some(value => Array.isArray(value))) return 'list'
+  if (values.length && values.every(value => typeof value === 'number')) return 'number'
+  if (values.some(value => typeof value === 'object')) return 'json'
   return 'text'
 }
 
@@ -346,7 +380,7 @@ function updateColumnKey(index: number, value: string) {
 function addColumn() {
   mutateDraft(copy => {
     copy.columns ||= []
-    const existing = new Set(copy.columns.map((column: any) => column.key))
+    const existing = new Set(copy.columns.map(column => column.key))
     let number = copy.columns.length + 1
     while (existing.has(`field_${number}`)) number += 1
     copy.columns.push({ key: `field_${number}`, label: `字段 ${number}`, value_type: 'text' })
@@ -363,7 +397,7 @@ function removeColumn(index: number) {
 function addRow() {
   mutateDraft(copy => {
     copy.rows ||= []
-    const row: Record<string, any> = {}
+    const row: Record<string, unknown> = {}
     for (const column of copy.columns || []) {
       row[column.key] = columnType(column) === 'list' ? [] : null
     }
@@ -375,14 +409,14 @@ function removeRow(index: number) {
   mutateDraft(copy => copy.rows.splice(index, 1))
 }
 
-function cellInputValue(value: any, type: string) {
+function cellInputValue(value: unknown, type: string) {
   if (value == null) return ''
   if (type === 'list') return Array.isArray(value) ? value.join('\n') : String(value)
   if (type === 'json') return typeof value === 'string' ? value : JSON.stringify(value, null, 2)
   return String(value)
 }
 
-function updateCell(rowIndex: number, column: any, value: string) {
+function updateCell(rowIndex: number, column: DraftColumn, value: string) {
   mutateDraft(copy => {
     const type = columnType(column)
     if (type === 'number') {
@@ -391,7 +425,8 @@ function updateCell(rowIndex: number, column: any, value: string) {
       copy.rows[rowIndex][column.key] = value.split('\n').map(item => item.trim()).filter(Boolean)
     } else if (type === 'json') {
       try {
-        copy.rows[rowIndex][column.key] = value.trim() ? JSON.parse(value) : null
+        const parsed: unknown = value.trim() ? JSON.parse(value) : null
+        copy.rows[rowIndex][column.key] = parsed
       } catch {
         copy.rows[rowIndex][column.key] = value
       }
@@ -401,7 +436,7 @@ function updateCell(rowIndex: number, column: any, value: string) {
   })
 }
 
-function listInput(value: any) {
+function listInput(value: unknown) {
   return Array.isArray(value) ? value.join('\n') : ''
 }
 
@@ -416,24 +451,38 @@ function validationEntries() {
 }
 
 function errorMessage(path: string) {
-  return validationEntries().find((entry: any) => entry.path === path)?.message || ''
+  return validationEntries().find(entry => entry.path === path)?.message || ''
 }
 
 function errorClass(path: string) {
-  return validationEntries().some((entry: any) => entry.path === path || entry.path.startsWith(`${path}.`))
+  return validationEntries().some(entry => entry.path === path || entry.path.startsWith(`${path}.`))
     ? 'border-red-400 ring-1 ring-red-200'
     : ''
 }
 
-function displayValue(value: any) {
+function displayValue(value: unknown) {
   if (value == null) return ''
   if (Array.isArray(value)) return value.join('、')
   if (typeof value === 'object') return JSON.stringify(value, null, 2)
   return String(value)
 }
 
-function isLatexColumn(column: any) {
-  return /latex|formula/i.test(String(column?.key || ''))
+function isLatexColumn(column: DraftColumn) {
+  return /latex|formula/i.test(column.key)
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function stringValue(value: unknown, fallback = ''): string {
+  return typeof value === 'string' ? value : fallback
+}
+
+function numberList(value: unknown): number[] {
+  return Array.isArray(value)
+    ? value.map(item => Number(item)).filter(Number.isFinite)
+    : []
 }
 
 function renderLatex(value: string) {

@@ -126,6 +126,21 @@ def test_quality_verification_assets_and_credentials_are_documented():
     assert checklist.is_file()
 
 
+def test_admin_api_contract_generation_is_documented():
+    readme = Path("README.md").read_text(encoding="utf-8")
+    api_reference = Path("docs/reference/接口参考.md").read_text(encoding="utf-8")
+    contract = Path("docs/reference/管理API与前端类型契约规范.md").read_text(encoding="utf-8")
+    detailed_design = Path("docs/architecture/系统详细设计.md").read_text(encoding="utf-8")
+
+    for text in (readme, api_reference, contract):
+        assert "python scripts/export_openapi.py" in text
+        assert "npm run api:generate" in text
+    assert "npm run api:check" in readme
+    assert "npm run api:check" in contract
+    assert "Pydantic" in detailed_design
+    assert "frontend/openapi.json" in detailed_design
+
+
 def test_managed_quality_api_lifecycle_is_documented():
     readme = Path("README.md").read_text(encoding="utf-8")
     config_reference = Path("docs/reference/配置参考.md").read_text(encoding="utf-8")

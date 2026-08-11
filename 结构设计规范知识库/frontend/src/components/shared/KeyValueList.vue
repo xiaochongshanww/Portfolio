@@ -20,13 +20,13 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{ data: Record<string, any> }>()
+defineProps<{ data: Record<string, unknown> }>()
 
-function isRecord(value: any) {
+function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
-function formatValue(value: any) {
+function formatValue(value: unknown) {
   if (value === null || value === undefined || value === '') return '-'
   if (Array.isArray(value)) {
     return value.length

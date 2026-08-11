@@ -99,7 +99,24 @@
 
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { ApiError, AUTH_REQUIRED_EVENT, apiGet, apiGetWithApiKey, getApiKey, setApiKey } from './api'
+import {
+  ApiError,
+  AUTH_REQUIRED_EVENT,
+  adminGet,
+  adminGetWithApiKey,
+  apiGet,
+  getApiKey,
+  setApiKey,
+} from './api'
+import type {
+  CandidateDocumentSummary,
+  EvaluationStatusView,
+  JobResponse,
+  KnowledgeDocumentsView,
+  ManualDocumentSummary,
+  QualityStatusView,
+  ReadinessResponse,
+} from './contracts'
 import OverviewTab from './components/OverviewTab.vue'
 const JobsTab = defineAsyncComponent(() => import('./components/JobsTab.vue'))
 const VersionsTab = defineAsyncComponent(() => import('./components/VersionsTab.vue'))
@@ -117,14 +134,24 @@ const authenticating = ref(false)
 const bootstrapState = ref<'checking' | 'ready' | 'auth-required' | 'unavailable'>('checking')
 const bootstrapError = ref('')
 const refreshing = ref(false)
-const ready = ref<any>(null)
-const metrics = ref<any>({})
-const documents = ref<any>({ documents: [] })
-const candidateDocs = ref<any[]>([])
-const manualDocs = ref<any[]>([])
-const jobs = ref<any[]>([])
-const evaluation = ref<any>({})
-const quality = ref<any>({})
+const ready = ref<ReadinessResponse | null>(null)
+const metrics = ref<Record<string, unknown>>({})
+const documents = ref<KnowledgeDocumentsView>({
+  built: false,
+  documents: [],
+  document_count: 0,
+  chunk_count: 0,
+  image_count: 0,
+  data_version_hash: '',
+  built_at: '',
+  parser_backend: '',
+  missing_artifact_count: 0,
+})
+const candidateDocs = ref<CandidateDocumentSummary[]>([])
+const manualDocs = ref<ManualDocumentSummary[]>([])
+const jobs = ref<JobResponse[]>([])
+const evaluation = ref<EvaluationStatusView>({})
+const quality = ref<QualityStatusView>({})
 
 const navItems = computed(() => [
   { key: 'overview', label: '概览' },
@@ -177,7 +204,7 @@ function connectionErrorMessage(error: unknown) {
 
 async function probeApiAccess() {
   try {
-    await apiGet('/admin/status')
+    await adminGet('/admin/status')
     authRequired.value = false
     authError.value = ''
     bootstrapError.value = ''
@@ -205,7 +232,7 @@ async function authenticate() {
   authenticating.value = true
   authError.value = ''
   try {
-    await apiGetWithApiKey('/admin/status', candidate)
+    await adminGetWithApiKey('/admin/status', candidate)
     setApiKey(candidate)
     apiKey.value = candidate
     authRequired.value = false
@@ -235,31 +262,31 @@ async function refreshAll(options: { skipAccessProbe?: boolean } = {}) {
 async function refreshStatus() {
   const readyResponse = await fetch('/ready')
   ready.value = await readyResponse.json()
-  metrics.value = await apiGet('/metrics')
-  documents.value = await apiGet('/knowledge/documents')
+  metrics.value = await apiGet<Record<string, unknown>>('/metrics')
+  documents.value = await apiGet<KnowledgeDocumentsView>('/knowledge/documents')
 }
 
 async function refreshCandidates() {
-  const result = await apiGet('/admin/corrections/candidates')
+  const result = await adminGet('/admin/corrections/candidates')
   candidateDocs.value = result.documents || []
 }
 
 async function refreshManualStructuring() {
-  const result = await apiGet('/admin/manual-structuring')
+  const result = await adminGet('/admin/manual-structuring')
   manualDocs.value = result.documents || []
 }
 
 async function refreshJobs() {
-  const result = await apiGet('/admin/jobs')
+  const result = await adminGet('/admin/jobs')
   jobs.value = result.jobs || []
 }
 
 async function refreshEvaluation() {
-  evaluation.value = await apiGet('/admin/evaluation/status')
+  evaluation.value = await adminGet('/admin/evaluation/status')
 }
 
 async function refreshQuality() {
-  quality.value = await apiGet('/admin/quality/status')
+  quality.value = await adminGet('/admin/quality/status')
 }
 
 watch(activeTab, () => refreshAll())

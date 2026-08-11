@@ -279,16 +279,24 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { apiBlobUrl, apiGet, apiPatch, apiPost, apiPut } from '../api'
+import { adminBlobUrl, adminGet, adminPatch, adminPost, adminPut, errorMessage } from '../api'
+import type {
+  ManualDraftResponse,
+  ManualDocumentSummary,
+  ManualStructuringItemView,
+  ManualValidationResponse,
+  ManualVersionSummary,
+  StructuringSuggestionView,
+} from '../contracts'
 import StructuredDraftEditor from './StructuredDraftEditor.vue'
 
-const props = defineProps<{ documents: any[] }>()
+const props = defineProps<{ documents: ManualDocumentSummary[] }>()
 const emit = defineEmits<{ refresh: [] }>()
 
 const selectedDoc = ref('')
-const items = ref<any[]>([])
-const selectedItem = ref<any>(null)
-const previewItem = ref<any>(null)
+const items = ref<ManualStructuringItemView[]>([])
+const selectedItem = ref<ManualStructuringItemView | null>(null)
+const previewItem = ref<ManualStructuringItemView | null>(null)
 const statusFilter = ref('pending')
 const pageImageUrl = ref('')
 const notes = ref('')
@@ -297,9 +305,9 @@ const busy = ref(false)
 const focusEditor = ref(false)
 const message = ref('')
 const error = ref('')
-const validationResult = ref<any>(null)
-const versions = ref<any[]>([])
-const aiSuggestion = ref<any>(null)
+const validationResult = ref<ManualValidationResponse | null>(null)
+const versions = ref<ManualVersionSummary[]>([])
+const aiSuggestion = ref<StructuringSuggestionView | null>(null)
 const aiGenerating = ref(false)
 
 const totalPending = computed(() => props.documents.reduce(
@@ -308,7 +316,8 @@ const totalPending = computed(() => props.documents.reduce(
 ))
 const draftStatus = computed(() => {
   try {
-    return JSON.parse(draftText.value || '{}').draft_status || '未生成'
+    const draft = parseJsonObject(draftText.value || '{}')
+    return stringValue(draft.draft_status, '未生成')
   } catch {
     return 'JSON 无效'
   }
@@ -317,7 +326,7 @@ const filteredItems = computed(() => {
   const filtered = statusFilter.value
     ? items.value.filter(item => item.status === statusFilter.value)
     : items.value
-  const logicalTasks = new Map<string, any>()
+  const logicalTasks = new Map<string, ManualStructuringItemView>()
   for (const item of filtered) {
     const key = item.group_id || item.id
     if (!logicalTasks.has(key) || item.id === item.group_primary_item_id) {
@@ -330,7 +339,9 @@ const groupMembers = computed(() => {
   if (!selectedItem.value) return []
   const memberIds = selectedItem.value.group_item_ids || [selectedItem.value.id]
   const byId = new Map(items.value.map(item => [item.id, item]))
-  return memberIds.map((id: string) => byId.get(id)).filter(Boolean)
+  return memberIds
+    .map(id => byId.get(id))
+    .filter((item): item is ManualStructuringItemView => item !== undefined)
 })
 
 async function scanQueue() {
@@ -338,11 +349,11 @@ async function scanQueue() {
   error.value = ''
   message.value = ''
   try {
-    const result = await apiPost('/admin/manual-structuring/scan')
+    const result = await adminPost('/admin/manual-structuring/scan')
     message.value = `已扫描 ${result.candidate_count || 0} 个复杂表候选`
     emit('refresh')
-  } catch (err: any) {
-    error.value = err.message || String(err)
+  } catch (err: unknown) {
+    error.value = errorMessage(err)
   } finally {
     busy.value = false
   }
@@ -352,11 +363,14 @@ async function startBatchSuggestions() {
   busy.value = true
   error.value = ''
   try {
-    const job = await apiPost('/admin/manual-structuring/ai-suggestions/batch', { force: false })
+    const job = await adminPost('/admin/manual-structuring/ai-suggestions/batch', {
+      documents: [],
+      force: false,
+    })
     message.value = `批量建议任务已提交：${job.job_id}，可在构建任务中查看进度`
     emit('refresh')
-  } catch (err: any) {
-    error.value = err.message || String(err)
+  } catch (err: unknown) {
+    error.value = errorMessage(err)
   } finally {
     busy.value = false
   }
@@ -372,14 +386,14 @@ async function selectDoc(doc: string) {
 
 async function loadDocQueue() {
   if (!selectedDoc.value) return
-  const detail = await apiGet(`/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}`)
+  const detail = await adminGet(`/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}`)
   items.value = normalizeItems(detail.items || [])
   if (!selectedItem.value && filteredItems.value.length) {
     await openItem(filteredItems.value[0])
   }
 }
 
-async function openItem(item: any) {
+async function openItem(item: ManualStructuringItemView) {
   selectedItem.value = item
   previewItem.value = item
   notes.value = item.notes || ''
@@ -392,16 +406,16 @@ async function openItem(item: any) {
   await Promise.all([loadPreviewImage(item), loadDraftIfExists(), loadVersions(), loadAiSuggestion()])
 }
 
-async function previewMember(item: any) {
+async function previewMember(item: ManualStructuringItemView) {
   previewItem.value = item
   await loadPreviewImage(item)
 }
 
-async function loadPreviewImage(item: any) {
+async function loadPreviewImage(item: ManualStructuringItemView) {
   if (pageImageUrl.value) URL.revokeObjectURL(pageImageUrl.value)
   pageImageUrl.value = ''
   try {
-    pageImageUrl.value = await apiBlobUrl(`/admin/page-image/${encodeURIComponent(selectedDoc.value)}/${item.page}`)
+    pageImageUrl.value = await adminBlobUrl(`/admin/page-image/${encodeURIComponent(selectedDoc.value)}/${Number(item.page)}`)
   } catch {
     pageImageUrl.value = ''
   }
@@ -410,7 +424,7 @@ async function loadPreviewImage(item: any) {
 async function setStatus(status: string) {
   if (!selectedItem.value) return
   const currentId = selectedItem.value.id
-  await apiPatch(`/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(currentId)}`, {
+  await adminPatch(`/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(currentId)}`, {
     status,
     notes: notes.value,
   })
@@ -427,20 +441,20 @@ async function setStatus(status: string) {
 async function buildDraft() {
   if (!selectedItem.value) return
   try {
-    const draft = await apiPost(`/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedItem.value.id)}/draft`)
+    const draft = await adminPost(`/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedItem.value.id)}/draft`)
     draftText.value = JSON.stringify(draftWithoutPath(draft), null, 2)
     message.value = '已生成结构化草稿'
-  } catch (err: any) {
-    error.value = err.message || String(err)
+  } catch (err: unknown) {
+    error.value = errorMessage(err)
   }
 }
 
 async function loadDraftIfExists() {
   if (!selectedItem.value) return
   try {
-    const draft = await apiGet(`/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedItem.value.id)}/draft`)
+    const draft = await adminGet(`/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedItem.value.id)}/draft`)
     draftText.value = JSON.stringify(draftWithoutPath(draft), null, 2)
-    validationResult.value = draft.validation || null
+    validationResult.value = asValidationResult(draft.validation)
   } catch {
     draftText.value = ''
     validationResult.value = null
@@ -450,14 +464,14 @@ async function loadDraftIfExists() {
 async function saveDraft() {
   if (!selectedItem.value) return
   try {
-    const parsed = JSON.parse(draftText.value)
-    const saved = await apiPut(`/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedItem.value.id)}/draft`, { draft: parsed })
+    const parsed = parseJsonObject(draftText.value)
+    const saved = await adminPut(`/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedItem.value.id)}/draft`, { draft: parsed })
     draftText.value = JSON.stringify(draftWithoutPath(saved), null, 2)
-    validationResult.value = saved.validation || null
+    validationResult.value = asValidationResult(saved.validation)
     message.value = '结构化草稿已保存'
     return true
-  } catch (err: any) {
-    error.value = err.message || String(err)
+  } catch (err: unknown) {
+    error.value = errorMessage(err)
     return false
   }
 }
@@ -467,13 +481,13 @@ async function generateAiSuggestion() {
   aiGenerating.value = true
   error.value = ''
   try {
-    const job = await apiPost(
+    const job = await adminPost(
       `/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedItem.value.id)}/ai-suggestion`,
     )
     message.value = `AI 建议任务已提交：${job.job_id}`
     for (let attempt = 0; attempt < 130; attempt += 1) {
       await delay(1500)
-      const current = await apiGet(`/admin/jobs/${job.job_id}`)
+      const current = await adminGet(`/admin/jobs/${job.job_id}`)
       if (current.status === 'succeeded') {
         await loadAiSuggestion()
         message.value = `AI 建议已生成：${aiSuggestion.value?.proposal?.rows?.length || 0} 行`
@@ -484,8 +498,8 @@ async function generateAiSuggestion() {
       }
     }
     throw new Error('AI 建议生成超时，请在任务列表查看状态')
-  } catch (err: any) {
-    error.value = err.message || String(err)
+  } catch (err: unknown) {
+    error.value = errorMessage(err)
   } finally {
     aiGenerating.value = false
   }
@@ -494,9 +508,9 @@ async function generateAiSuggestion() {
 async function loadAiSuggestion() {
   if (!selectedItem.value) return
   try {
-    aiSuggestion.value = await apiGet(
+    aiSuggestion.value = await adminGet(
       `/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedItem.value.id)}/ai-suggestion`,
-    )
+    ) as StructuringSuggestionView
   } catch {
     aiSuggestion.value = null
   }
@@ -505,7 +519,7 @@ async function loadAiSuggestion() {
 function applyAiSuggestion() {
   if (!aiSuggestion.value?.proposal || aiSuggestion.value.stale) return
   try {
-    const draft = JSON.parse(draftText.value)
+    const draft = parseJsonObject(draftText.value)
     const proposal = aiSuggestion.value.proposal
     draft.columns = proposal.columns || []
     draft.rows = proposal.rows || []
@@ -516,8 +530,8 @@ function applyAiSuggestion() {
     draftText.value = JSON.stringify(draft, null, 2)
     validationResult.value = null
     message.value = 'AI 建议已应用到本地草稿，请核对后保存并校验'
-  } catch (err: any) {
-    error.value = err.message || String(err)
+  } catch (err: unknown) {
+    error.value = errorMessage(err)
   }
 }
 
@@ -527,11 +541,12 @@ async function validateDraft() {
   error.value = ''
   try {
     if (!await saveDraft()) return
-    validationResult.value = await apiPost(`/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedItem.value.id)}/validate`)
+    const validation = await adminPost(`/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedItem.value.id)}/validate`)
+    validationResult.value = validation
     await loadDraftIfExists()
-    message.value = validationResult.value.valid ? '草稿校验通过，可以发布' : '草稿校验未通过，请按提示修正'
-  } catch (err: any) {
-    error.value = err.message || String(err)
+    message.value = validation.valid ? '草稿校验通过，可以发布' : '草稿校验未通过，请按提示修正'
+  } catch (err: unknown) {
+    error.value = errorMessage(err)
   } finally {
     busy.value = false
   }
@@ -542,12 +557,12 @@ async function publishDraft() {
   busy.value = true
   error.value = ''
   try {
-    const result = await apiPost(`/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedItem.value.id)}/publish`)
+    const result = await adminPost(`/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedItem.value.id)}/publish`)
     await Promise.all([loadDraftIfExists(), loadVersions(), loadDocQueue()])
     message.value = `已发布 ${result.target_filename}`
     emit('refresh')
-  } catch (err: any) {
-    error.value = err.message || String(err)
+  } catch (err: unknown) {
+    error.value = errorMessage(err)
   } finally {
     busy.value = false
   }
@@ -558,12 +573,12 @@ async function rollbackDraft() {
   busy.value = true
   error.value = ''
   try {
-    const result = await apiPost(`/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedItem.value.id)}/rollback`)
+    const result = await adminPost(`/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedItem.value.id)}/rollback`)
     await Promise.all([loadDraftIfExists(), loadVersions(), loadDocQueue()])
     message.value = result.rollback_action === 'restored' ? '已恢复发布前版本' : '已撤下首次发布的结构化表'
     emit('refresh')
-  } catch (err: any) {
-    error.value = err.message || String(err)
+  } catch (err: unknown) {
+    error.value = errorMessage(err)
   } finally {
     busy.value = false
   }
@@ -572,25 +587,32 @@ async function rollbackDraft() {
 async function loadVersions() {
   if (!selectedItem.value) return
   try {
-    const result = await apiGet(`/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedItem.value.id)}/versions`)
+    const result = await adminGet(`/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedItem.value.id)}/versions`)
     versions.value = result.versions || []
   } catch {
     versions.value = []
   }
 }
 
-function draftWithoutPath(draft: any) {
-  const copy = { ...draft }
+function draftWithoutPath(draft: ManualDraftResponse) {
+  const copy: Record<string, unknown> = { ...draft }
   delete copy.draft_path
   return copy
 }
 
-function formatTimestamp(value: number) {
+function asValidationResult(value: unknown): ManualValidationResponse | null {
+  if (!value || typeof value !== 'object' || typeof (value as { valid?: unknown }).valid !== 'boolean') {
+    return null
+  }
+  return value as ManualValidationResponse
+}
+
+function formatTimestamp(value?: number | null) {
   if (!value) return '-'
   return new Date(value * 1000).toLocaleString()
 }
 
-function formatConfidence(value: any) {
+function formatConfidence(value: unknown) {
   const number = Number(value)
   return Number.isFinite(number) ? `${Math.round(number * 100)}%` : '-'
 }
@@ -599,8 +621,69 @@ function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-function normalizeItems(rawItems: any[]) {
-  return rawItems.map(item => ({ ...item, status: item.status || item.review_status || 'pending' }))
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function parseJsonObject(value: string): Record<string, unknown> {
+  const parsed: unknown = JSON.parse(value)
+  if (!isRecord(parsed)) throw new Error('结构化草稿必须是 JSON 对象')
+  return parsed
+}
+
+function stringValue(value: unknown, fallback = ''): string {
+  return typeof value === 'string' ? value : fallback
+}
+
+function numberValue(value: unknown, fallback = 0): number {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+}
+
+function numberArray(value: unknown): number[] {
+  return Array.isArray(value)
+    ? value.map(item => Number(item)).filter(Number.isFinite)
+    : []
+}
+
+function normalizeItems(rawItems: Array<Record<string, unknown>>): ManualStructuringItemView[] {
+  return rawItems.map(item => {
+    const groupItemIds = stringArray(item.group_item_ids)
+    const matchedRules = Array.isArray(item.matched_rules)
+      ? item.matched_rules.filter(isRecord).map(rule => ({
+          id: stringValue(rule.id),
+          label: stringValue(rule.label),
+          reason: stringValue(rule.reason),
+          matched_terms: stringArray(rule.matched_terms),
+        }))
+      : []
+    const id = stringValue(item.id)
+    return {
+      id,
+      status: stringValue(item.status || item.review_status, 'pending'),
+      severity: stringValue(item.severity, 'low'),
+      page: numberValue(item.page),
+      element_index: numberValue(item.element_index),
+      issue_type: stringValue(item.issue_type, 'complex_table'),
+      title: stringValue(item.title, id),
+      notes: stringValue(item.notes),
+      current_text: stringValue(item.current_text),
+      group_id: stringValue(item.group_id, id),
+      group_primary_item_id: stringValue(item.group_primary_item_id, id),
+      group_item_ids: groupItemIds.length ? groupItemIds : [id],
+      group_pages: numberArray(item.group_pages),
+      group_size: numberValue(item.group_size, groupItemIds.length || 1),
+      group_reason: stringValue(item.group_reason),
+      group_confidence: stringValue(item.group_confidence),
+      matched_rules: matchedRules,
+      generic_reasons: stringArray(item.generic_reasons),
+      target_schema: isRecord(item.target_schema) ? item.target_schema : {},
+    }
+  })
 }
 
 function clearSelection() {

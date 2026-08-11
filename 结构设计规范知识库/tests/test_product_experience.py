@@ -91,3 +91,21 @@ def test_vue_console_contains_required_workflows():
     assert Path("frontend/src/App.spec.ts").exists()
     assert Path("docs/operations/部署运行手册.md").exists()
     assert "apiPut" in api
+
+
+def test_frontend_runtime_does_not_escape_contract_types_with_any():
+    from pathlib import Path
+
+    offenders: list[str] = []
+    patterns = (": any", "<any", ", any>", " as any", "any[]")
+    for path in Path("frontend/src").rglob("*"):
+        if path.suffix not in {".ts", ".vue"} or path.name.endswith(".spec.ts"):
+            continue
+        if "generated" in path.parts:
+            continue
+        text = path.read_text(encoding="utf-8")
+        for line_number, line in enumerate(text.splitlines(), start=1):
+            if any(pattern in line for pattern in patterns):
+                offenders.append(f"{path}:{line_number}: {line.strip()}")
+
+    assert offenders == []

@@ -143,14 +143,15 @@ import { computed, onMounted, ref, watch } from 'vue'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
 import MarkdownIt from 'markdown-it'
-import { apiBlobUrl, apiGet, apiPatch, apiPost } from '../api'
+import { adminBlobUrl, adminGet, adminPatch, adminPost } from '../api'
+import type { CandidateDocumentSummary, CorrectionCandidateView } from '../contracts'
 
-const props = defineProps<{ candidateDocs: any[] }>()
+const props = defineProps<{ candidateDocs: CandidateDocumentSummary[] }>()
 const emit = defineEmits<{ refresh: [] }>()
 
 const selectedDoc = ref('')
-const candidates = ref<any[]>([])
-const selectedCandidate = ref<any>(null)
+const candidates = ref<CorrectionCandidateView[]>([])
+const selectedCandidate = ref<CorrectionCandidateView | null>(null)
 const statusFilter = ref('pending')
 const currentText = ref('')
 const finalText = ref('')
@@ -176,35 +177,35 @@ async function selectDoc(doc: string) {
 
 async function loadDocCandidates() {
   if (!selectedDoc.value) return
-  const detail = await apiGet(`/admin/corrections/candidates/${encodeURIComponent(selectedDoc.value)}`)
-  candidates.value = normalizeCandidates(detail.candidates || detail.corrections || [])
+  const detail = await adminGet(`/admin/corrections/candidates/${encodeURIComponent(selectedDoc.value)}`)
+  candidates.value = normalizeCandidates(detail.corrections || [])
   if (!selectedCandidate.value && filteredCandidates.value.length) {
     await openCandidate(filteredCandidates.value[0])
   }
 }
 
-async function openCandidate(candidate: any) {
+async function openCandidate(candidate: CorrectionCandidateView) {
   selectedCandidate.value = candidate
   message.value = ''
   error.value = ''
   finalText.value = candidate.suggested_text || candidate.final_text || currentText.value || ''
   try {
-    const element = await apiGet(`/admin/elements/${encodeURIComponent(selectedDoc.value)}/${candidate.element_index}`)
-    currentText.value = element.text || ''
+    const element = await adminGet(`/admin/elements/${encodeURIComponent(selectedDoc.value)}/${Number(candidate.element_index)}`)
+    currentText.value = typeof element.text === 'string' ? element.text : ''
   } catch {
     currentText.value = candidate.current_text || ''
   }
   if (pageImageUrl.value) URL.revokeObjectURL(pageImageUrl.value)
-  pageImageUrl.value = await apiBlobUrl(`/admin/page-image/${encodeURIComponent(selectedDoc.value)}/${candidate.page}`)
+  pageImageUrl.value = await adminBlobUrl(`/admin/page-image/${encodeURIComponent(selectedDoc.value)}/${Number(candidate.page)}`)
 }
 
 async function setCandidateStatus(status: string) {
   if (!selectedCandidate.value) return
   const currentId = selectedCandidate.value.id
-  const result = await apiPatch(`/admin/corrections/candidates/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedCandidate.value.id)}`, { status })
-  candidates.value = result.candidates || result.corrections
-    ? normalizeCandidates(result.candidates || result.corrections || [])
-    : candidates.value.map(item => item.id === selectedCandidate.value.id ? { ...item, status } : item)
+  await adminPatch(`/admin/corrections/candidates/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedCandidate.value.id)}`, { status })
+  candidates.value = candidates.value.map(item => (
+    item.id === currentId ? { ...item, status } : item
+  ))
   message.value = `已标记为 ${status}`
   emit('refresh')
   const updatedCurrent = candidates.value.find(item => item.id === currentId)
@@ -222,7 +223,7 @@ async function setCandidateStatus(status: string) {
 
 async function saveApproved() {
   if (!selectedCandidate.value) return
-  await apiPost(`/admin/corrections/approved/${encodeURIComponent(selectedDoc.value)}`, {
+  await adminPost(`/admin/corrections/approved/${encodeURIComponent(selectedDoc.value)}`, {
     id: `approved-${selectedCandidate.value.id}`,
     action: selectedCandidate.value.action || 'replace_text',
     target: selectedCandidate.value.target || { element_index: selectedCandidate.value.element_index, field: 'text' },
@@ -238,7 +239,7 @@ async function approveCandidate() {
 
 async function promoteApproved() {
   if (!selectedDoc.value) return
-  await apiPost(`/admin/corrections/promote/${encodeURIComponent(selectedDoc.value)}`)
+  await adminPost(`/admin/corrections/promote/${encodeURIComponent(selectedDoc.value)}`)
   message.value = '已将批准候选提升为正式修正，重建知识库时会应用。'
 }
 
@@ -249,16 +250,45 @@ function riskClass(severity: string) {
   return `${base} bg-slate-100 text-slate-600`
 }
 
-function normalizeCandidates(items: any[]) {
-  return items.map(item => ({
-    ...item,
-    status: item.status || item.review_status || 'pending',
-    element_index: item.element_index ?? item.target?.element_index,
-    target: item.target || { element_index: item.element_index, field: 'text' },
-    action: item.action || item.suggested_patch?.action || 'replace_text',
-    suggested_text: item.suggested_text ?? item.suggested_patch?.value ?? item.value ?? '',
-    evidence_text: typeof item.evidence === 'string' ? item.evidence : item.evidence?.reason || '',
-  }))
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function stringValue(value: unknown, fallback = ''): string {
+  return typeof value === 'string' ? value : fallback
+}
+
+function numberValue(value: unknown): number {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+function normalizeCandidates(items: Array<Record<string, unknown>>): CorrectionCandidateView[] {
+  return items.map(item => {
+    const rawTarget = isRecord(item.target) ? item.target : {}
+    const patch = isRecord(item.suggested_patch) ? item.suggested_patch : {}
+    const evidence = isRecord(item.evidence) ? item.evidence : {}
+    const elementIndex = numberValue(item.element_index ?? rawTarget.element_index)
+    return {
+      id: stringValue(item.id),
+      status: stringValue(item.status || item.review_status, 'pending'),
+      severity: stringValue(item.severity, 'low'),
+      page: numberValue(item.page),
+      element_index: elementIndex,
+      issue_type: stringValue(item.issue_type, 'unknown'),
+      action: stringValue(item.action || patch.action, 'replace_text'),
+      target: {
+        element_index: numberValue(rawTarget.element_index ?? elementIndex),
+        field: stringValue(rawTarget.field, 'text'),
+      },
+      current_text: stringValue(item.current_text),
+      final_text: stringValue(item.final_text),
+      suggested_text: stringValue(item.suggested_text ?? patch.value ?? item.value),
+      evidence_text: typeof item.evidence === 'string'
+        ? item.evidence
+        : stringValue(evidence.reason),
+    }
+  })
 }
 
 function clearSelection() {

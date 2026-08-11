@@ -37,7 +37,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { getApiKey } from '../api'
+import { errorMessage, getApiKey } from '../api'
 
 const question = ref('')
 const answer = ref('')
@@ -68,8 +68,8 @@ async function send() {
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`)
     const data = await response.json()
     answer.value = data.choices?.[0]?.message?.content || JSON.stringify(data, null, 2)
-  } catch (err: any) {
-    error.value = err.message || String(err)
+  } catch (err: unknown) {
+    error.value = errorMessage(err)
   } finally {
     busy.value = false
   }

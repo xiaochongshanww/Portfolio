@@ -104,36 +104,48 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { apiGet, apiPost } from '../api'
+import { adminGet, adminPost, errorMessage } from '../api'
+import type { AdminPostBody, AdminPostPath, JobRequest, JobResponse } from '../contracts'
 
-const props = defineProps<{ jobs: any[] }>()
+type JobStartPath = Extract<AdminPostPath, `/admin/jobs/${string}`>
+
+const props = defineProps<{ jobs: JobResponse[] }>()
 const emit = defineEmits<{ refresh: [] }>()
 
 const busy = ref(false)
 const error = ref('')
 const message = ref('')
-const selectedJob = ref<any>(null)
-const logs = ref<any[]>([])
+const selectedJob = ref<JobResponse | null>(null)
+const logs = ref<Record<string, unknown>[]>([])
 const logsLoading = ref(false)
 let logsRequestSerial = 0
 const reviewDoc = ref('')
 const reviewPages = ref('')
-const jobRequest = ref({ source: 'data/raw', parser_backend: 'mineru', apply_corrections: true })
+const jobRequest = ref<JobRequest>({
+  source: 'data/raw',
+  parser_backend: 'mineru',
+  apply_corrections: true,
+})
 
 const logsText = computed(() => logs.value.length ? logs.value.map(formatLogEntry).join('\n') : selectedJob.value?.error || '暂无任务日志')
 
-async function startJob(url: string, body?: Record<string, any>) {
+async function startJob<P extends JobStartPath>(
+  url: P,
+  ...args: AdminPostBody<P> extends undefined
+    ? [body?: undefined]
+    : [body: AdminPostBody<P>]
+) {
   busy.value = true
   error.value = ''
   message.value = ''
   try {
-    const job = await apiPost(url, body)
+    const job = await adminPost(url, ...args)
     selectedJob.value = job
     message.value = `已提交任务 ${job.job_id}`
     emit('refresh')
     await loadLogs(job)
-  } catch (err: any) {
-    error.value = err.message || String(err)
+  } catch (err: unknown) {
+    error.value = errorMessage(err)
   } finally {
     busy.value = false
   }
@@ -143,34 +155,36 @@ async function startReview() {
   await startJob('/admin/jobs/review', { doc: reviewDoc.value.trim(), pages: reviewPages.value.trim() })
 }
 
-async function selectJob(job: any) {
+async function selectJob(job: JobResponse) {
   selectedJob.value = job
   await loadLogs(job)
 }
 
-async function loadLogs(job: any) {
+async function loadLogs(job: JobResponse) {
   const jobId = job?.job_id
   if (!jobId) return
   const requestSerial = ++logsRequestSerial
   logsLoading.value = true
   try {
-    const result = await apiGet(`/admin/jobs/${jobId}/logs?limit=300`)
+    const result = await adminGet(`/admin/jobs/${jobId}/logs?limit=300`)
     if (requestSerial === logsRequestSerial && selectedJob.value?.job_id === jobId) {
       logs.value = result.logs || []
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (requestSerial === logsRequestSerial) {
-      error.value = err.message || String(err)
+      error.value = errorMessage(err)
     }
   } finally {
     if (requestSerial === logsRequestSerial) logsLoading.value = false
   }
 }
 
-function formatLogEntry(entry: any) {
+function formatLogEntry(entry: Record<string, unknown>) {
   if (typeof entry === 'string') return entry
   if (!entry || typeof entry !== 'object') return String(entry)
-  const time = entry.ts ? entry.ts.replace('T', ' ').replace(/\+\d\d:\d\d$/, '') : ''
+  const time = typeof entry.ts === 'string'
+    ? entry.ts.replace('T', ' ').replace(/\+\d\d:\d\d$/, '')
+    : ''
   const level = String(entry.level || 'info').toUpperCase()
   const step = entry.step ? ` [${entry.step}]` : ''
   const request = entry.request_id ? ` [request:${entry.request_id}]` : ''
@@ -180,7 +194,7 @@ function formatLogEntry(entry: any) {
   return `${time} ${level}${step}${request} ${message}${progress}${recovery}`.trim()
 }
 
-function statusLabel(job: any) {
+function statusLabel(job: JobResponse) {
   if (job?.error_code === 'PROCESS_RESTARTED') return '已中断'
   return ({
     queued: '排队中',
@@ -190,12 +204,13 @@ function statusLabel(job: any) {
   } as Record<string, string>)[job?.status] || job?.status || '-'
 }
 
-function errorCodeLabel(code: string) {
+function errorCodeLabel(code?: string) {
+  if (!code) return ''
   return ({
     PROCESS_RESTARTED: 'API 进程重启，任务已中断',
     JOB_RECORD_INVALID: '任务记录损坏',
     WORKFLOW_FAILED: '任务执行失败',
-  } as Record<string, string>)[code] || ''
+  } as Record<string, string>)[code] || code
 }
 
 function formatDate(value: string) {
@@ -204,7 +219,7 @@ function formatDate(value: string) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN', { hour12: false })
 }
 
-function formatAge(value: any) {
+function formatAge(value: unknown) {
   const seconds = Number(value)
   if (!Number.isFinite(seconds)) return '暂无进度时间'
   if (seconds < 60) return `${Math.floor(seconds)} 秒前`
@@ -213,7 +228,7 @@ function formatAge(value: any) {
   return `${Math.floor(seconds / 86400)} 天前`
 }
 
-function diagnosticLabel(job: any) {
+function diagnosticLabel(job: JobResponse) {
   const diagnostics = job?.diagnostics || {}
   if (diagnostics.reason === 'no_progress_and_heartbeat_stale') return '长时间无进展且执行器心跳已过期'
   if (diagnostics.reason === 'no_progress') return '执行器仍有心跳，但任务长时间没有推进步骤'

@@ -1,0 +1,4582 @@
+{
+  "components": {
+    "schemas": {
+      "ActiveDatabaseResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "activated_at": {
+            "default": "",
+            "title": "Activated At",
+            "type": "string"
+          },
+          "activation_source": {
+            "default": "",
+            "title": "Activation Source",
+            "type": "string"
+          },
+          "active_db_dir": {
+            "default": "",
+            "title": "Active Db Dir",
+            "type": "string"
+          },
+          "audit_dir": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audit Dir"
+          },
+          "candidate_gate_report": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate Gate Report"
+          },
+          "chunk_count": {
+            "default": 0,
+            "title": "Chunk Count",
+            "type": "integer"
+          },
+          "collection_count": {
+            "title": "Collection Count",
+            "type": "integer"
+          },
+          "data_version_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Version Hash"
+          },
+          "db_dir": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Db Dir"
+          },
+          "images_dir": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Images Dir"
+          },
+          "job_id": {
+            "default": "",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "loaded_db_dir": {
+            "title": "Loaded Db Dir",
+            "type": "string"
+          },
+          "manifest": {
+            "default": "",
+            "title": "Manifest",
+            "type": "string"
+          },
+          "mineru_dir": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mineru Dir"
+          },
+          "package_id": {
+            "default": "",
+            "title": "Package Id",
+            "type": "string"
+          },
+          "processed_dir": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Processed Dir"
+          }
+        },
+        "required": [
+          "loaded_db_dir",
+          "collection_count"
+        ],
+        "title": "ActiveDatabaseResponse",
+        "type": "object"
+      },
+      "AdminStatusResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "built": {
+            "title": "Built",
+            "type": "boolean"
+          },
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/JobResponse"
+            },
+            "title": "Jobs",
+            "type": "array"
+          },
+          "manifest": {
+            "title": "Manifest",
+            "type": "object"
+          },
+          "quality_evidence_context": {
+            "title": "Quality Evidence Context",
+            "type": "object"
+          },
+          "raw_documents": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Raw Documents",
+            "type": "array"
+          }
+        },
+        "required": [
+          "built",
+          "manifest",
+          "quality_evidence_context",
+          "raw_documents",
+          "jobs"
+        ],
+        "title": "AdminStatusResponse",
+        "type": "object"
+      },
+      "AnswerEvaluateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "evaluation_set": {
+            "const": "answer",
+            "default": "answer",
+            "title": "Evaluation Set",
+            "type": "string"
+          },
+          "verification_run_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{32}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verification Run Id"
+          }
+        },
+        "title": "AnswerEvaluateRequest",
+        "type": "object"
+      },
+      "ApprovedCorrectionDeleteResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "correction_count": {
+            "title": "Correction Count",
+            "type": "integer"
+          },
+          "deleted": {
+            "title": "Deleted",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "deleted",
+          "correction_count"
+        ],
+        "title": "ApprovedCorrectionDeleteResponse",
+        "type": "object"
+      },
+      "ApprovedCorrectionMutationResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "approved_path": {
+            "title": "Approved Path",
+            "type": "string"
+          },
+          "correction_count": {
+            "title": "Correction Count",
+            "type": "integer"
+          },
+          "doc": {
+            "title": "Doc",
+            "type": "string"
+          }
+        },
+        "required": [
+          "doc",
+          "approved_path",
+          "correction_count"
+        ],
+        "title": "ApprovedCorrectionMutationResponse",
+        "type": "object"
+      },
+      "ApprovedCorrectionRequest": {
+        "properties": {
+          "action": {
+            "default": "replace_text",
+            "title": "Action",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "object"
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "required": [
+          "id",
+          "target",
+          "value"
+        ],
+        "title": "ApprovedCorrectionRequest",
+        "type": "object"
+      },
+      "ApprovedCorrectionsResponse": {
+        "additionalProperties": true,
+        "properties": {
+          "corrections": {
+            "items": {
+              "type": "object"
+            },
+            "title": "Corrections",
+            "type": "array"
+          },
+          "doc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc"
+          },
+          "source_file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source File"
+          }
+        },
+        "required": [
+          "corrections"
+        ],
+        "title": "ApprovedCorrectionsResponse",
+        "type": "object"
+      },
+      "CandidateActivationSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "answer_evaluation_included": {
+            "default": false,
+            "title": "Answer Evaluation Included",
+            "type": "boolean"
+          },
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "data_version_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Version Hash"
+          },
+          "failed_checks": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Failed Checks",
+            "type": "array"
+          },
+          "generated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generated At"
+          },
+          "passed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passed"
+          }
+        },
+        "required": [
+          "available"
+        ],
+        "title": "CandidateActivationSummary",
+        "type": "object"
+      },
+      "CandidateDetailResponse": {
+        "additionalProperties": true,
+        "properties": {
+          "corrections": {
+            "items": {
+              "type": "object"
+            },
+            "title": "Corrections",
+            "type": "array"
+          },
+          "doc": {
+            "title": "Doc",
+            "type": "string"
+          },
+          "source_file": {
+            "title": "Source File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "doc",
+          "source_file",
+          "corrections"
+        ],
+        "title": "CandidateDetailResponse",
+        "type": "object"
+      },
+      "CandidateDocumentSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "approved_count": {
+            "title": "Approved Count",
+            "type": "integer"
+          },
+          "candidate_count": {
+            "title": "Candidate Count",
+            "type": "integer"
+          },
+          "doc": {
+            "title": "Doc",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "pending_count": {
+            "title": "Pending Count",
+            "type": "integer"
+          },
+          "rejected_count": {
+            "title": "Rejected Count",
+            "type": "integer"
+          },
+          "source_file": {
+            "title": "Source File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "doc",
+          "path",
+          "source_file",
+          "candidate_count",
+          "pending_count",
+          "approved_count",
+          "rejected_count"
+        ],
+        "title": "CandidateDocumentSummary",
+        "type": "object"
+      },
+      "CandidateDocumentsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateDocumentSummary"
+            },
+            "title": "Documents",
+            "type": "array"
+          }
+        },
+        "required": [
+          "documents"
+        ],
+        "title": "CandidateDocumentsResponse",
+        "type": "object"
+      },
+      "CandidatePromotionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "approved_path": {
+            "title": "Approved Path",
+            "type": "string"
+          },
+          "candidate_count": {
+            "title": "Candidate Count",
+            "type": "integer"
+          },
+          "promoted_count": {
+            "title": "Promoted Count",
+            "type": "integer"
+          },
+          "skipped": {
+            "items": {
+              "type": "object"
+            },
+            "title": "Skipped",
+            "type": "array"
+          },
+          "skipped_count": {
+            "title": "Skipped Count",
+            "type": "integer"
+          },
+          "source_file": {
+            "title": "Source File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_file",
+          "candidate_count",
+          "promoted_count",
+          "skipped_count",
+          "approved_path",
+          "skipped"
+        ],
+        "title": "CandidatePromotionResponse",
+        "type": "object"
+      },
+      "CandidateStatusResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "candidate_id": {
+            "title": "Candidate Id",
+            "type": "string"
+          },
+          "doc": {
+            "title": "Doc",
+            "type": "string"
+          },
+          "review_status": {
+            "title": "Review Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "doc",
+          "candidate_id",
+          "review_status"
+        ],
+        "title": "CandidateStatusResponse",
+        "type": "object"
+      },
+      "ChatCompletionRequest": {
+        "properties": {
+          "include_rag_trace": {
+            "default": false,
+            "title": "Include Rag Trace",
+            "type": "boolean"
+          },
+          "max_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Tokens"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/ChatMessage"
+            },
+            "title": "Messages",
+            "type": "array"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "stream": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "title": "Stream"
+          },
+          "temperature": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 0.7,
+            "title": "Temperature"
+          },
+          "top_p": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 1.0,
+            "title": "Top P"
+          }
+        },
+        "required": [
+          "messages"
+        ],
+        "title": "ChatCompletionRequest",
+        "type": "object"
+      },
+      "ChatMessage": {
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "ChatMessage",
+        "type": "object"
+      },
+      "DocumentsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "manifest_documents": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "object"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "title": "Manifest Documents",
+            "type": "array"
+          },
+          "raw_documents": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Raw Documents",
+            "type": "array"
+          }
+        },
+        "required": [
+          "raw_documents",
+          "manifest_documents"
+        ],
+        "title": "DocumentsResponse",
+        "type": "object"
+      },
+      "ElementResponse": {
+        "additionalProperties": true,
+        "properties": {
+          "doc": {
+            "title": "Doc",
+            "type": "string"
+          },
+          "element_index": {
+            "title": "Element Index",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "doc",
+          "element_index"
+        ],
+        "title": "ElementResponse",
+        "type": "object"
+      },
+      "ElementsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "doc": {
+            "title": "Doc",
+            "type": "string"
+          },
+          "elements": {
+            "items": {
+              "type": "object"
+            },
+            "title": "Elements",
+            "type": "array"
+          },
+          "source_file": {
+            "title": "Source File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "doc",
+          "source_file",
+          "elements"
+        ],
+        "title": "ElementsResponse",
+        "type": "object"
+      },
+      "EvaluateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "evaluation_set": {
+            "default": "regular",
+            "enum": [
+              "regular",
+              "structured"
+            ],
+            "title": "Evaluation Set",
+            "type": "string"
+          },
+          "top_k": {
+            "default": 5,
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Top K",
+            "type": "integer"
+          },
+          "verification_run_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{32}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verification Run Id"
+          }
+        },
+        "title": "EvaluateRequest",
+        "type": "object"
+      },
+      "EvaluationStatusResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "answer_case_count": {
+            "title": "Answer Case Count",
+            "type": "integer"
+          },
+          "answer_latest": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer Latest"
+          },
+          "by_type": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Type",
+            "type": "object"
+          },
+          "case_count": {
+            "title": "Case Count",
+            "type": "integer"
+          },
+          "latest": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest"
+          },
+          "quality_evidence_errors": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Quality Evidence Errors",
+            "type": "object"
+          },
+          "structured_case_count": {
+            "title": "Structured Case Count",
+            "type": "integer"
+          },
+          "structured_latest": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Structured Latest"
+          }
+        },
+        "required": [
+          "case_count",
+          "by_type",
+          "latest",
+          "structured_case_count",
+          "structured_latest",
+          "answer_case_count",
+          "answer_latest",
+          "quality_evidence_errors"
+        ],
+        "title": "EvaluationStatusResponse",
+        "type": "object"
+      },
+      "EvaluationSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "authority_hit_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authority Hit Rate"
+          },
+          "case_count": {
+            "default": 0,
+            "title": "Case Count",
+            "type": "integer"
+          },
+          "citation_grounded_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Citation Grounded Rate"
+          },
+          "failure_count": {
+            "default": 0,
+            "title": "Failure Count",
+            "type": "integer"
+          },
+          "image_http_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Http Rate"
+          },
+          "pass_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pass Rate"
+          },
+          "refusal_pass_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refusal Pass Rate"
+          },
+          "structured_table_hit_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Structured Table Hit Rate"
+          }
+        },
+        "title": "EvaluationSummary",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "JobDiagnostics": {
+        "additionalProperties": false,
+        "properties": {
+          "heartbeat_age_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heartbeat Age Seconds"
+          },
+          "heartbeat_stale": {
+            "default": false,
+            "title": "Heartbeat Stale",
+            "type": "boolean"
+          },
+          "heartbeat_timeout_seconds": {
+            "default": 0,
+            "title": "Heartbeat Timeout Seconds",
+            "type": "integer"
+          },
+          "progress_age_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Progress Age Seconds"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "stale_after_seconds": {
+            "default": 0,
+            "title": "Stale After Seconds",
+            "type": "integer"
+          },
+          "stalled": {
+            "default": false,
+            "title": "Stalled",
+            "type": "boolean"
+          }
+        },
+        "title": "JobDiagnostics",
+        "type": "object"
+      },
+      "JobLogsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "logs": {
+            "items": {
+              "type": "object"
+            },
+            "title": "Logs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "job_id",
+          "logs"
+        ],
+        "title": "JobLogsResponse",
+        "type": "object"
+      },
+      "JobRequest": {
+        "properties": {
+          "apply_corrections": {
+            "default": true,
+            "title": "Apply Corrections",
+            "type": "boolean"
+          },
+          "parser_backend": {
+            "default": "mineru",
+            "title": "Parser Backend",
+            "type": "string"
+          },
+          "source": {
+            "default": "data/raw",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "title": "JobRequest",
+        "type": "object"
+      },
+      "JobResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "diagnostics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobDiagnostics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "default": "",
+            "title": "Error",
+            "type": "string"
+          },
+          "error_code": {
+            "default": "",
+            "title": "Error Code",
+            "type": "string"
+          },
+          "finished_at": {
+            "default": "",
+            "title": "Finished At",
+            "type": "string"
+          },
+          "heartbeat_at": {
+            "default": "",
+            "title": "Heartbeat At",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "outputs": {
+            "title": "Outputs",
+            "type": "object"
+          },
+          "params": {
+            "title": "Params",
+            "type": "object"
+          },
+          "progress": {
+            "title": "Progress",
+            "type": "object"
+          },
+          "progress_at": {
+            "default": "",
+            "title": "Progress At",
+            "type": "string"
+          },
+          "recovery": {
+            "title": "Recovery",
+            "type": "object"
+          },
+          "request_id": {
+            "default": "",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "started_at": {
+            "default": "",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "step": {
+            "title": "Step",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "updated_at": {
+            "default": "",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "worker_id": {
+            "default": "",
+            "title": "Worker Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "job_id",
+          "status",
+          "step",
+          "created_at"
+        ],
+        "title": "JobResponse",
+        "type": "object"
+      },
+      "JobsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/JobResponse"
+            },
+            "title": "Jobs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "jobs"
+        ],
+        "title": "JobsResponse",
+        "type": "object"
+      },
+      "ManifestResponse": {
+        "additionalProperties": true,
+        "properties": {
+          "data_version_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Version Hash"
+          },
+          "documents": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "object"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "title": "Documents",
+            "type": "array"
+          },
+          "schema_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schema Version"
+          }
+        },
+        "title": "ManifestResponse",
+        "type": "object"
+      },
+      "ManualDetailResponse": {
+        "additionalProperties": true,
+        "properties": {
+          "doc": {
+            "title": "Doc",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "type": "object"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "doc",
+          "items"
+        ],
+        "title": "ManualDetailResponse",
+        "type": "object"
+      },
+      "ManualDocumentSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "approved_count": {
+            "title": "Approved Count",
+            "type": "integer"
+          },
+          "approved_task_count": {
+            "title": "Approved Task Count",
+            "type": "integer"
+          },
+          "doc": {
+            "title": "Doc",
+            "type": "string"
+          },
+          "item_count": {
+            "title": "Item Count",
+            "type": "integer"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "pending_count": {
+            "title": "Pending Count",
+            "type": "integer"
+          },
+          "pending_task_count": {
+            "title": "Pending Task Count",
+            "type": "integer"
+          },
+          "rejected_count": {
+            "title": "Rejected Count",
+            "type": "integer"
+          },
+          "rejected_task_count": {
+            "title": "Rejected Task Count",
+            "type": "integer"
+          },
+          "suggestion_count": {
+            "title": "Suggestion Count",
+            "type": "integer"
+          },
+          "suggestion_missing_count": {
+            "title": "Suggestion Missing Count",
+            "type": "integer"
+          },
+          "task_count": {
+            "title": "Task Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "doc",
+          "path",
+          "item_count",
+          "task_count",
+          "pending_count",
+          "approved_count",
+          "rejected_count",
+          "pending_task_count",
+          "approved_task_count",
+          "rejected_task_count",
+          "suggestion_count",
+          "suggestion_missing_count"
+        ],
+        "title": "ManualDocumentSummary",
+        "type": "object"
+      },
+      "ManualDocumentsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/ManualDocumentSummary"
+            },
+            "title": "Documents",
+            "type": "array"
+          }
+        },
+        "required": [
+          "documents"
+        ],
+        "title": "ManualDocumentsResponse",
+        "type": "object"
+      },
+      "ManualDraftResponse": {
+        "additionalProperties": true,
+        "properties": {
+          "columns": {
+            "items": {
+              "type": "object"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "integer"
+          },
+          "draft_path": {
+            "title": "Draft Path",
+            "type": "string"
+          },
+          "draft_status": {
+            "title": "Draft Status",
+            "type": "string"
+          },
+          "notes": {
+            "items": {},
+            "title": "Notes",
+            "type": "array"
+          },
+          "publication": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Publication"
+          },
+          "review_context": {
+            "title": "Review Context",
+            "type": "object"
+          },
+          "rows": {
+            "items": {
+              "type": "object"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "object"
+          },
+          "table_aliases": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Table Aliases",
+            "type": "array"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "integer"
+          },
+          "validation": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validation"
+          }
+        },
+        "required": [
+          "schema_version",
+          "draft_status",
+          "created_at",
+          "updated_at",
+          "source",
+          "columns",
+          "rows",
+          "table_aliases",
+          "notes",
+          "review_context",
+          "draft_path"
+        ],
+        "title": "ManualDraftResponse",
+        "type": "object"
+      },
+      "ManualPublicationResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "draft_status": {
+            "title": "Draft Status",
+            "type": "string"
+          },
+          "replaced_existing": {
+            "title": "Replaced Existing",
+            "type": "boolean"
+          },
+          "smoke_test": {
+            "title": "Smoke Test",
+            "type": "object"
+          },
+          "target_filename": {
+            "title": "Target Filename",
+            "type": "string"
+          },
+          "target_path": {
+            "title": "Target Path",
+            "type": "string"
+          },
+          "version_id": {
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "draft_status",
+          "target_path",
+          "target_filename",
+          "version_id",
+          "replaced_existing",
+          "smoke_test"
+        ],
+        "title": "ManualPublicationResponse",
+        "type": "object"
+      },
+      "ManualQueueDocument": {
+        "additionalProperties": false,
+        "properties": {
+          "doc": {
+            "title": "Doc",
+            "type": "string"
+          },
+          "item_count": {
+            "title": "Item Count",
+            "type": "integer"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "doc",
+          "path",
+          "item_count"
+        ],
+        "title": "ManualQueueDocument",
+        "type": "object"
+      },
+      "ManualQueueScanResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "candidate_count": {
+            "title": "Candidate Count",
+            "type": "integer"
+          },
+          "document_count": {
+            "title": "Document Count",
+            "type": "integer"
+          },
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/ManualQueueDocument"
+            },
+            "title": "Documents",
+            "type": "array"
+          }
+        },
+        "required": [
+          "document_count",
+          "candidate_count",
+          "documents"
+        ],
+        "title": "ManualQueueScanResponse",
+        "type": "object"
+      },
+      "ManualRollbackResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "draft_status": {
+            "title": "Draft Status",
+            "type": "string"
+          },
+          "rollback_action": {
+            "title": "Rollback Action",
+            "type": "string"
+          },
+          "target_path": {
+            "title": "Target Path",
+            "type": "string"
+          },
+          "version_id": {
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "draft_status",
+          "target_path",
+          "version_id",
+          "rollback_action"
+        ],
+        "title": "ManualRollbackResponse",
+        "type": "object"
+      },
+      "ManualStatusResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "doc": {
+            "title": "Doc",
+            "type": "string"
+          },
+          "item_id": {
+            "title": "Item Id",
+            "type": "string"
+          },
+          "review_status": {
+            "title": "Review Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "doc",
+          "item_id",
+          "review_status"
+        ],
+        "title": "ManualStatusResponse",
+        "type": "object"
+      },
+      "ManualStructuringDraftRequest": {
+        "properties": {
+          "draft": {
+            "title": "Draft",
+            "type": "object"
+          }
+        },
+        "title": "ManualStructuringDraftRequest",
+        "type": "object"
+      },
+      "ManualValidationMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "path",
+          "message"
+        ],
+        "title": "ManualValidationMessage",
+        "type": "object"
+      },
+      "ManualValidationResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "draft_status": {
+            "title": "Draft Status",
+            "type": "string"
+          },
+          "error_count": {
+            "title": "Error Count",
+            "type": "integer"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ManualValidationMessage"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "valid": {
+            "title": "Valid",
+            "type": "boolean"
+          },
+          "validated_at": {
+            "title": "Validated At",
+            "type": "integer"
+          },
+          "warning_count": {
+            "title": "Warning Count",
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/ManualValidationMessage"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "valid",
+          "validated_at",
+          "error_count",
+          "warning_count",
+          "errors",
+          "warnings",
+          "draft_status"
+        ],
+        "title": "ManualValidationResponse",
+        "type": "object"
+      },
+      "ManualVersionSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Automatic Rollback"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "replaced_existing": {
+            "title": "Replaced Existing",
+            "type": "boolean"
+          },
+          "rolled_back_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rolled Back At"
+          },
+          "smoke_test": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smoke Test"
+          },
+          "target_filename": {
+            "title": "Target Filename",
+            "type": "string"
+          },
+          "version_id": {
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version_id",
+          "target_filename",
+          "replaced_existing"
+        ],
+        "title": "ManualVersionSummary",
+        "type": "object"
+      },
+      "ManualVersionsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/ManualVersionSummary"
+            },
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "versions"
+        ],
+        "title": "ManualVersionsResponse",
+        "type": "object"
+      },
+      "QualityStatusResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "answer_evaluation": {
+            "$ref": "#/components/schemas/EvaluationSummary"
+          },
+          "blocked_suggestion_count": {
+            "title": "Blocked Suggestion Count",
+            "type": "integer"
+          },
+          "candidate_activation": {
+            "$ref": "#/components/schemas/CandidateActivationSummary"
+          },
+          "draft_statuses": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Draft Statuses",
+            "type": "object"
+          },
+          "external_dependencies": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "External Dependencies",
+            "type": "object"
+          },
+          "historical_failed_job_count": {
+            "title": "Historical Failed Job Count",
+            "type": "integer"
+          },
+          "logical_task_count": {
+            "title": "Logical Task Count",
+            "type": "integer"
+          },
+          "manual_publication_count": {
+            "title": "Manual Publication Count",
+            "type": "integer"
+          },
+          "pending_task_count": {
+            "title": "Pending Task Count",
+            "type": "integer"
+          },
+          "quality_evidence_errors": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Quality Evidence Errors",
+            "type": "object"
+          },
+          "quality_gate": {
+            "title": "Quality Gate",
+            "type": "object"
+          },
+          "recent_failed_job_count": {
+            "title": "Recent Failed Job Count",
+            "type": "integer"
+          },
+          "regular_evaluation": {
+            "$ref": "#/components/schemas/EvaluationSummary"
+          },
+          "stale_active_job_count": {
+            "title": "Stale Active Job Count",
+            "type": "integer"
+          },
+          "structured_evaluation": {
+            "$ref": "#/components/schemas/EvaluationSummary"
+          },
+          "suggestion_count": {
+            "title": "Suggestion Count",
+            "type": "integer"
+          },
+          "suggestion_missing_count": {
+            "title": "Suggestion Missing Count",
+            "type": "integer"
+          },
+          "unresolved_failed_job_count": {
+            "title": "Unresolved Failed Job Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "logical_task_count",
+          "pending_task_count",
+          "suggestion_count",
+          "suggestion_missing_count",
+          "blocked_suggestion_count",
+          "draft_statuses",
+          "manual_publication_count",
+          "recent_failed_job_count",
+          "unresolved_failed_job_count",
+          "historical_failed_job_count",
+          "stale_active_job_count",
+          "quality_gate",
+          "quality_evidence_errors",
+          "candidate_activation",
+          "regular_evaluation",
+          "structured_evaluation",
+          "answer_evaluation",
+          "external_dependencies"
+        ],
+        "title": "QualityStatusResponse",
+        "type": "object"
+      },
+      "ReadinessResponse": {
+        "properties": {
+          "built_at": {
+            "title": "Built At",
+            "type": "string"
+          },
+          "checked_at": {
+            "title": "Checked At",
+            "type": "string"
+          },
+          "checks": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Checks",
+            "type": "object"
+          },
+          "data_version_hash": {
+            "title": "Data Version Hash",
+            "type": "string"
+          },
+          "ready": {
+            "title": "Ready",
+            "type": "boolean"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ready",
+          "status",
+          "version",
+          "checked_at",
+          "reasons",
+          "data_version_hash",
+          "built_at",
+          "checks"
+        ],
+        "title": "ReadinessResponse",
+        "type": "object"
+      },
+      "RetrievalReloadResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "collection_count": {
+            "title": "Collection Count",
+            "type": "integer"
+          },
+          "loaded_db_dir": {
+            "title": "Loaded Db Dir",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loaded_db_dir",
+          "collection_count"
+        ],
+        "title": "RetrievalReloadResponse",
+        "type": "object"
+      },
+      "ReviewRequest": {
+        "properties": {
+          "doc": {
+            "title": "Doc",
+            "type": "string"
+          },
+          "pages": {
+            "default": "",
+            "title": "Pages",
+            "type": "string"
+          }
+        },
+        "required": [
+          "doc"
+        ],
+        "title": "ReviewRequest",
+        "type": "object"
+      },
+      "StructuringSuggestionBatchRequest": {
+        "properties": {
+          "documents": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Documents",
+            "type": "array"
+          },
+          "force": {
+            "default": false,
+            "title": "Force",
+            "type": "boolean"
+          }
+        },
+        "title": "StructuringSuggestionBatchRequest",
+        "type": "object"
+      },
+      "StructuringSuggestionResponse": {
+        "additionalProperties": true,
+        "properties": {
+          "doc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc"
+          },
+          "item_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Id"
+          },
+          "proposal": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposal"
+          },
+          "schema_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schema Version"
+          }
+        },
+        "title": "StructuringSuggestionResponse",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "VersionCleanupCandidate": {
+        "additionalProperties": false,
+        "properties": {
+          "fingerprint": {
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "modified_at": {
+            "title": "Modified At",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "version_id": {
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version_id",
+          "fingerprint",
+          "size_bytes",
+          "modified_at",
+          "reason"
+        ],
+        "title": "VersionCleanupCandidate",
+        "type": "object"
+      },
+      "VersionCleanupPlanResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "candidate_bytes": {
+            "title": "Candidate Bytes",
+            "type": "integer"
+          },
+          "candidate_count": {
+            "title": "Candidate Count",
+            "type": "integer"
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/VersionCleanupCandidate"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "title": "Expires At",
+            "type": "string"
+          },
+          "plan_id": {
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "plan_path": {
+            "title": "Plan Path",
+            "type": "string"
+          },
+          "policy": {
+            "title": "Policy",
+            "type": "object"
+          },
+          "projected_bytes": {
+            "title": "Projected Bytes",
+            "type": "integer"
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "status": {
+            "const": "planned",
+            "title": "Status",
+            "type": "string"
+          },
+          "target_unmet_bytes": {
+            "title": "Target Unmet Bytes",
+            "type": "integer"
+          },
+          "total_bytes": {
+            "title": "Total Bytes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema_version",
+          "plan_id",
+          "status",
+          "created_at",
+          "expires_at",
+          "policy",
+          "total_bytes",
+          "projected_bytes",
+          "target_unmet_bytes",
+          "candidate_count",
+          "candidate_bytes",
+          "candidates",
+          "plan_path"
+        ],
+        "title": "VersionCleanupPlanResponse",
+        "type": "object"
+      },
+      "VersionCleanupRequest": {
+        "properties": {
+          "plan_id": {
+            "maxLength": 16,
+            "minLength": 16,
+            "title": "Plan Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "plan_id"
+        ],
+        "title": "VersionCleanupRequest",
+        "type": "object"
+      },
+      "VersionInventoryResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "active_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Version Id"
+          },
+          "cleanup_candidate_bytes": {
+            "title": "Cleanup Candidate Bytes",
+            "type": "integer"
+          },
+          "cleanup_candidate_count": {
+            "title": "Cleanup Candidate Count",
+            "type": "integer"
+          },
+          "generated_at": {
+            "title": "Generated At",
+            "type": "string"
+          },
+          "policy": {
+            "title": "Policy",
+            "type": "object"
+          },
+          "projected_bytes": {
+            "title": "Projected Bytes",
+            "type": "integer"
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "target_unmet_bytes": {
+            "title": "Target Unmet Bytes",
+            "type": "integer"
+          },
+          "total_bytes": {
+            "title": "Total Bytes",
+            "type": "integer"
+          },
+          "version_count": {
+            "title": "Version Count",
+            "type": "integer"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/VersionSummary"
+            },
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "schema_version",
+          "generated_at",
+          "active_version_id",
+          "policy",
+          "version_count",
+          "total_bytes",
+          "cleanup_candidate_count",
+          "cleanup_candidate_bytes",
+          "projected_bytes",
+          "target_unmet_bytes",
+          "versions"
+        ],
+        "title": "VersionInventoryResponse",
+        "type": "object"
+      },
+      "VersionRetentionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "pinned": {
+            "title": "Pinned",
+            "type": "boolean"
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version_id": {
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version_id",
+          "schema_version",
+          "pinned",
+          "note",
+          "updated_at"
+        ],
+        "title": "VersionRetentionResponse",
+        "type": "object"
+      },
+      "VersionRetentionUpdate": {
+        "properties": {
+          "note": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Note",
+            "type": "string"
+          },
+          "pinned": {
+            "title": "Pinned",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "pinned"
+        ],
+        "title": "VersionRetentionUpdate",
+        "type": "object"
+      },
+      "VersionSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "age_hours": {
+            "default": 0,
+            "title": "Age Hours",
+            "type": "number"
+          },
+          "cleanup_eligible": {
+            "title": "Cleanup Eligible",
+            "type": "boolean"
+          },
+          "cleanup_reason": {
+            "title": "Cleanup Reason",
+            "type": "string"
+          },
+          "file_count": {
+            "default": 0,
+            "title": "File Count",
+            "type": "integer"
+          },
+          "fingerprint": {
+            "default": "",
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "gate_passed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gate Passed"
+          },
+          "modified_at": {
+            "default": "",
+            "title": "Modified At",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "pin_marker_invalid": {
+            "default": false,
+            "title": "Pin Marker Invalid",
+            "type": "boolean"
+          },
+          "pin_note": {
+            "default": "",
+            "title": "Pin Note",
+            "type": "string"
+          },
+          "pinned": {
+            "default": false,
+            "title": "Pinned",
+            "type": "boolean"
+          },
+          "protected": {
+            "title": "Protected",
+            "type": "boolean"
+          },
+          "protection_reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Protection Reasons",
+            "type": "array"
+          },
+          "safe": {
+            "title": "Safe",
+            "type": "boolean"
+          },
+          "scan_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scan Error"
+          },
+          "size_bytes": {
+            "default": 0,
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "version_id": {
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version_id",
+          "path",
+          "state",
+          "safe",
+          "protected",
+          "protection_reasons",
+          "cleanup_eligible",
+          "cleanup_reason"
+        ],
+        "title": "VersionSummary",
+        "type": "object"
+      },
+      "src__app__api__admin__CandidateStatusUpdate": {
+        "properties": {
+          "notes": {
+            "default": "",
+            "title": "Notes",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "CandidateStatusUpdate",
+        "type": "object"
+      },
+      "src__app__api__knowledge__CandidateStatusUpdate": {
+        "properties": {
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "CandidateStatusUpdate",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "结构设计规范知识库 RAG API (多模态)",
+    "version": "3.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/": {
+      "get": {
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Root"
+      }
+    },
+    "/admin/active-db": {
+      "get": {
+        "operationId": "admin_active_db_admin_active_db_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveDatabaseResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Active Db",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/corrections/approved/{doc}": {
+      "get": {
+        "operationId": "admin_get_approved_admin_corrections_approved__doc__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "doc",
+            "required": true,
+            "schema": {
+              "title": "Doc",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovedCorrectionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Get Approved",
+        "tags": [
+          "admin"
+        ]
+      },
+      "post": {
+        "operationId": "admin_add_approved_admin_corrections_approved__doc__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "doc",
+            "required": true,
+            "schema": {
+              "title": "Doc",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovedCorrectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovedCorrectionMutationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Add Approved",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/corrections/approved/{doc}/{correction_id}": {
+      "delete": {
+        "operationId": "admin_delete_approved_admin_corrections_approved__doc___correction_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "doc",
+            "required": true,
+            "schema": {
+              "title": "Doc",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "correction_id",
+            "required": true,
+            "schema": {
+              "title": "Correction Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovedCorrectionDeleteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Delete Approved",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/corrections/candidates": {
+      "get": {
+        "operationId": "admin_candidate_files_admin_corrections_candidates_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateDocumentsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Candidate Files",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/corrections/candidates/{doc}": {
+      "get": {
+        "operationId": "admin_candidate_detail_admin_corrections_candidates__doc__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "doc",
+            "required": true,
+            "schema": {
+              "title": "Doc",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Candidate Detail",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/corrections/candidates/{doc}/{candidate_id}": {
+      "patch": {
+        "operationId": "admin_candidate_update_admin_corrections_candidates__doc___candidate_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "doc",
+            "required": true,
+            "schema": {
+              "title": "Doc",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "candidate_id",
+            "required": true,
+            "schema": {
+              "title": "Candidate Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/src__app__api__admin__CandidateStatusUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Candidate Update",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/corrections/promote/{doc}": {
+      "post": {
+        "operationId": "admin_promote_admin_corrections_promote__doc__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "doc",
+            "required": true,
+            "schema": {
+              "title": "Doc",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidatePromotionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Promote",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/documents": {
+      "get": {
+        "operationId": "admin_documents_admin_documents_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Documents",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/elements/{doc}": {
+      "get": {
+        "operationId": "admin_elements_admin_elements__doc__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "doc",
+            "required": true,
+            "schema": {
+              "title": "Doc",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Page"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Elements",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/elements/{doc}/{element_index}": {
+      "get": {
+        "operationId": "admin_element_admin_elements__doc___element_index__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "doc",
+            "required": true,
+            "schema": {
+              "title": "Doc",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "element_index",
+            "required": true,
+            "schema": {
+              "title": "Element Index",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Element",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/evaluation/status": {
+      "get": {
+        "operationId": "admin_evaluation_status_admin_evaluation_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Evaluation Status",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/jobs": {
+      "get": {
+        "operationId": "list_jobs_admin_jobs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Jobs",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/jobs/audit": {
+      "post": {
+        "operationId": "start_audit_admin_jobs_audit_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Start Audit",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/jobs/cleanup-versions": {
+      "post": {
+        "operationId": "start_version_cleanup_admin_jobs_cleanup_versions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionCleanupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Version Cleanup",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/jobs/dry-run": {
+      "post": {
+        "operationId": "start_dry_run_admin_jobs_dry_run_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Dry Run",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/jobs/evaluate": {
+      "post": {
+        "operationId": "start_evaluate_admin_jobs_evaluate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvaluateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Evaluate",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/jobs/evaluate-answers": {
+      "post": {
+        "operationId": "start_answer_evaluate_admin_jobs_evaluate_answers_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerEvaluateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Answer Evaluate",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/jobs/rebuild": {
+      "post": {
+        "operationId": "start_rebuild_admin_jobs_rebuild_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Rebuild",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/jobs/review": {
+      "post": {
+        "operationId": "start_review_admin_jobs_review_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Review",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/jobs/{job_id}": {
+      "get": {
+        "operationId": "get_job_admin_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Job",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/jobs/{job_id}/logs": {
+      "get": {
+        "operationId": "get_job_logs_admin_jobs__job_id__logs_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobLogsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Job Logs",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/manifest": {
+      "get": {
+        "operationId": "admin_manifest_admin_manifest_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManifestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Manifest",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/manual-structuring": {
+      "get": {
+        "operationId": "admin_manual_structuring_files_admin_manual_structuring_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManualDocumentsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Manual Structuring Files",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/manual-structuring/ai-suggestions/batch": {
+      "post": {
+        "operationId": "admin_manual_structuring_batch_suggestions_admin_manual_structuring_ai_suggestions_batch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StructuringSuggestionBatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Manual Structuring Batch Suggestions",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/manual-structuring/scan": {
+      "post": {
+        "operationId": "admin_manual_structuring_scan_admin_manual_structuring_scan_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManualQueueScanResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Manual Structuring Scan",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/manual-structuring/{doc}": {
+      "get": {
+        "operationId": "admin_manual_structuring_detail_admin_manual_structuring__doc__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "doc",
+            "required": true,
+            "schema": {
+              "title": "Doc",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManualDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Manual Structuring Detail",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/manual-structuring/{doc}/{item_id}": {
+      "patch": {
+        "operationId": "admin_manual_structuring_update_admin_manual_structuring__doc___item_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "doc",
+            "required": true,
+            "schema": {
+              "title": "Doc",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/src__app__api__admin__CandidateStatusUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManualStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Manual Structuring Update",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/manual-structuring/{doc}/{item_id}/ai-suggestion": {
+      "get": {
+        "operationId": "admin_manual_structuring_read_suggestion_admin_manual_structuring__doc___item_id__ai_suggestion_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "doc",
+            "required": true,
+            "schema": {
+              "title": "Doc",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StructuringSuggestionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Manual Structuring Read Suggestion",
+        "tags": [
+          "admin"
+        ]
+      },
+      "post": {
+        "operationId": "admin_manual_structuring_start_suggestion_admin_manual_structuring__doc___item_id__ai_suggestion_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "doc",
+            "required": true,
+            "schema": {
+              "title": "Doc",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Manual Structuring Start Suggestion",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/manual-structuring/{doc}/{item_id}/draft": {
+      "get": {
+        "operationId": "admin_manual_structuring_read_draft_admin_manual_structuring__doc___item_id__draft_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "doc",
+            "required": true,
+            "schema": {
+              "title": "Doc",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManualDraftResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Manual Structuring Read Draft",
+        "tags": [
+          "admin"
+        ]
+      },
+      "post": {
+        "operationId": "admin_manual_structuring_build_draft_admin_manual_structuring__doc___item_id__draft_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "doc",
+            "required": true,
+            "schema": {
+              "title": "Doc",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManualDraftResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Manual Structuring Build Draft",
+        "tags": [
+          "admin"
+        ]
+      },
+      "put": {
+        "operationId": "admin_manual_structuring_save_draft_admin_manual_structuring__doc___item_id__draft_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "doc",
+            "required": true,
+            "schema": {
+              "title": "Doc",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualStructuringDraftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManualDraftResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Manual Structuring Save Draft",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/manual-structuring/{doc}/{item_id}/publish": {
+      "post": {
+        "operationId": "admin_manual_structuring_publish_admin_manual_structuring__doc___item_id__publish_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "doc",
+            "required": true,
+            "schema": {
+              "title": "Doc",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManualPublicationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Manual Structuring Publish",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/manual-structuring/{doc}/{item_id}/rollback": {
+      "post": {
+        "operationId": "admin_manual_structuring_rollback_admin_manual_structuring__doc___item_id__rollback_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "doc",
+            "required": true,
+            "schema": {
+              "title": "Doc",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManualRollbackResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Manual Structuring Rollback",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/manual-structuring/{doc}/{item_id}/validate": {
+      "post": {
+        "operationId": "admin_manual_structuring_validate_admin_manual_structuring__doc___item_id__validate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "doc",
+            "required": true,
+            "schema": {
+              "title": "Doc",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManualValidationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Manual Structuring Validate",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/manual-structuring/{doc}/{item_id}/versions": {
+      "get": {
+        "operationId": "admin_manual_structuring_versions_admin_manual_structuring__doc___item_id__versions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "doc",
+            "required": true,
+            "schema": {
+              "title": "Doc",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManualVersionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Manual Structuring Versions",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/page-image/{doc}/{page}": {
+      "get": {
+        "operationId": "admin_page_image_admin_page_image__doc___page__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "doc",
+            "required": true,
+            "schema": {
+              "title": "Doc",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "page",
+            "required": true,
+            "schema": {
+              "title": "Page",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/png": {}
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Page Image",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/quality/status": {
+      "get": {
+        "operationId": "admin_quality_status_admin_quality_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualityStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Quality Status",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/retrieval/reload": {
+      "post": {
+        "operationId": "admin_retrieval_reload_admin_retrieval_reload_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrievalReloadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Retrieval Reload",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/status": {
+      "get": {
+        "operationId": "admin_status_admin_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Status",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/versions": {
+      "get": {
+        "operationId": "admin_versions_admin_versions_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionInventoryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Versions",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/versions/cleanup-plans": {
+      "post": {
+        "operationId": "admin_version_cleanup_plan_admin_versions_cleanup_plans_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionCleanupPlanResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Version Cleanup Plan",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/versions/{version_id}/retention": {
+      "put": {
+        "operationId": "admin_version_retention_admin_versions__version_id__retention_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionRetentionUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionRetentionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Version Retention",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/chat/completions": {
+      "post": {
+        "operationId": "chat_completions_chat_completions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatCompletionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Chat Completions"
+      }
+    },
+    "/corrections/candidates": {
+      "get": {
+        "operationId": "correction_candidates_corrections_candidates_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Correction Candidates"
+      }
+    },
+    "/corrections/candidates/{doc}": {
+      "get": {
+        "operationId": "correction_candidate_detail_corrections_candidates__doc__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "doc",
+            "required": true,
+            "schema": {
+              "title": "Doc",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Correction Candidate Detail"
+      }
+    },
+    "/corrections/candidates/{doc}/{candidate_id}": {
+      "patch": {
+        "operationId": "correction_candidate_update_corrections_candidates__doc___candidate_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "doc",
+            "required": true,
+            "schema": {
+              "title": "Doc",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "candidate_id",
+            "required": true,
+            "schema": {
+              "title": "Candidate Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/src__app__api__knowledge__CandidateStatusUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Correction Candidate Update"
+      }
+    },
+    "/corrections/promote/{doc}": {
+      "post": {
+        "operationId": "correction_promote_corrections_promote__doc__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "doc",
+            "required": true,
+            "schema": {
+              "title": "Doc",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Correction Promote"
+      }
+    },
+    "/evaluation/status": {
+      "get": {
+        "operationId": "evaluation_status_evaluation_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Evaluation Status"
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/images/{filename}": {
+      "get": {
+        "operationId": "serve_image_images__filename__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "filename",
+            "required": true,
+            "schema": {
+              "title": "Filename",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Serve Image"
+      }
+    },
+    "/knowledge/documents": {
+      "get": {
+        "operationId": "knowledge_documents_knowledge_documents_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Knowledge Documents"
+      }
+    },
+    "/metrics": {
+      "get": {
+        "operationId": "metrics_endpoint_metrics_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Metrics Endpoint"
+      }
+    },
+    "/models": {
+      "get": {
+        "operationId": "list_models_models_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Models"
+      }
+    },
+    "/page-images/{doc}/{page}": {
+      "get": {
+        "operationId": "serve_page_image_page_images__doc___page__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "doc",
+            "required": true,
+            "schema": {
+              "title": "Doc",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "page",
+            "required": true,
+            "schema": {
+              "title": "Page",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Serve Page Image"
+      }
+    },
+    "/ready": {
+      "get": {
+        "operationId": "ready_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            },
+            "description": "问答依赖尚未就绪"
+          }
+        },
+        "summary": "Ready"
+      }
+    },
+    "/v1/chat/completions": {
+      "post": {
+        "operationId": "chat_completions_v1_chat_completions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatCompletionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Chat Completions"
+      }
+    },
+    "/v1/models": {
+      "get": {
+        "operationId": "list_models_v1_models_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Models"
+      }
+    }
+  }
+}

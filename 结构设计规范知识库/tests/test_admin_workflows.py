@@ -60,7 +60,11 @@ def test_active_db_pointer_round_trips(tmp_path: Path):
     db_dir = tmp_path / "data" / "db_versions" / "v1" / "db"
     write_active_db({"active_db_dir": str(db_dir), "manifest": "manifest.json"}, pointer)
 
-    assert read_active_db(pointer)["active_db_dir"] == "data/db_versions/v1/db"
+    payload = read_active_db(pointer)
+    assert payload == {
+        "active_db_dir": "data/db_versions/v1/db",
+        "manifest": "manifest.json",
+    }
     assert active_db_dir(pointer) == db_dir
 
     manifest = tmp_path / "data" / "db_versions" / "v1" / "manifest.json"

@@ -68,6 +68,8 @@ jobs:
         run: |
           python -m ruff check src scripts tests
           python -m ruff format --check src scripts tests
+      - name: Validate OpenAPI snapshot
+        run: python scripts/export_openapi.py
       - name: Run test suite
         run: python -m pytest -q
       - name: Validate configuration example
@@ -94,6 +96,8 @@ jobs:
         run: npm ci
       - name: Audit dependency graph
         run: npm audit --audit-level=high
+      - name: Generate and validate frontend API contract
+        run: npm run api:check
       - name: Run frontend tests
         run: npm test
       - name: Check frontend types

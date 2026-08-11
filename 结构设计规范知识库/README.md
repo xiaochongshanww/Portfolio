@@ -438,7 +438,7 @@ X-API-Key: <API_KEY>
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
@@ -448,6 +448,18 @@ npm run dev
 cd frontend
 npm run build
 ```
+
+管理 API 的请求与响应类型来自后端 OpenAPI，不在前端手写。修改管理路由或响应模型后，从项目根目录执行：
+
+```bash
+python scripts/export_openapi.py --write
+cd frontend
+npm run api:generate
+npm run test
+npm run typecheck
+```
+
+干净检出和 CI 另执行 `python scripts/export_openapi.py` 与 `npm run api:check`，分别阻断后端快照及前端生成类型漂移。权威来源、兼容和失败语义见[管理 API 与前端类型契约规范](./docs/reference/管理API与前端类型契约规范.md)。
 
 Docker 镜像会在多阶段构建中自动执行前端生产构建：
 
