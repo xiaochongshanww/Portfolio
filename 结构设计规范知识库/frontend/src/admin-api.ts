@@ -1,0 +1,59 @@
+import './api'
+
+import { adminPageImageAdminPageImageDocPageGet } from './generated/api'
+
+export {
+  adminActiveDbAdminActiveDbGet as getAdminActiveDatabase,
+  adminAddApprovedAdminCorrectionsApprovedDocPost as addApprovedCorrection,
+  adminCandidateDetailAdminCorrectionsCandidatesDocGet as getCorrectionCandidateDetail,
+  adminCandidateFilesAdminCorrectionsCandidatesGet as listCorrectionCandidateDocuments,
+  adminCandidateUpdateAdminCorrectionsCandidatesDocCandidateIdPatch as updateCorrectionCandidate,
+  adminDeleteApprovedAdminCorrectionsApprovedDocCorrectionIdDelete as deleteApprovedCorrection,
+  adminDocumentsAdminDocumentsGet as getAdminDocuments,
+  adminElementAdminElementsDocElementIndexGet as getDocumentElement,
+  adminElementsAdminElementsDocGet as getDocumentElements,
+  adminEvaluationStatusAdminEvaluationStatusGet as getAdminEvaluationStatus,
+  adminGetApprovedAdminCorrectionsApprovedDocGet as getApprovedCorrections,
+  adminManifestAdminManifestGet as getAdminManifest,
+  adminManualStructuringBatchSuggestionsAdminManualStructuringAiSuggestionsBatchPost as startManualStructuringBatchSuggestions,
+  adminManualStructuringBuildDraftAdminManualStructuringDocItemIdDraftPost as buildManualStructuringDraft,
+  adminManualStructuringDetailAdminManualStructuringDocGet as getManualStructuringDetail,
+  adminManualStructuringFilesAdminManualStructuringGet as listManualStructuringDocuments,
+  adminManualStructuringPublishAdminManualStructuringDocItemIdPublishPost as publishManualStructuringDraft,
+  adminManualStructuringReadDraftAdminManualStructuringDocItemIdDraftGet as getManualStructuringDraft,
+  adminManualStructuringReadSuggestionAdminManualStructuringDocItemIdAiSuggestionGet as getManualStructuringSuggestion,
+  adminManualStructuringRollbackAdminManualStructuringDocItemIdRollbackPost as rollbackManualStructuringDraft,
+  adminManualStructuringSaveDraftAdminManualStructuringDocItemIdDraftPut as saveManualStructuringDraft,
+  adminManualStructuringScanAdminManualStructuringScanPost as scanManualStructuringQueue,
+  adminManualStructuringStartSuggestionAdminManualStructuringDocItemIdAiSuggestionPost as startManualStructuringSuggestion,
+  adminManualStructuringUpdateAdminManualStructuringDocItemIdPatch as updateManualStructuringStatus,
+  adminManualStructuringValidateAdminManualStructuringDocItemIdValidatePost as validateManualStructuringDraft,
+  adminManualStructuringVersionsAdminManualStructuringDocItemIdVersionsGet as listManualStructuringVersions,
+  adminPromoteAdminCorrectionsPromoteDocPost as promoteCorrections,
+  adminQualityStatusAdminQualityStatusGet as getAdminQualityStatus,
+  adminRetrievalReloadAdminRetrievalReloadPost as reloadAdminRetrieval,
+  adminStatusAdminStatusGet as getAdminStatus,
+  adminVersionCleanupPlanAdminVersionsCleanupPlansPost as createAdminVersionCleanupPlan,
+  adminVersionRetentionAdminVersionsVersionIdRetentionPut as updateAdminVersionRetention,
+  adminVersionsAdminVersionsGet as getAdminVersions,
+  getJobAdminJobsJobIdGet as getAdminJob,
+  getJobLogsAdminJobsJobIdLogsGet as getAdminJobLogs,
+  listJobsAdminJobsGet as listAdminJobs,
+  startAnswerEvaluateAdminJobsEvaluateAnswersPost as startAdminAnswerEvaluation,
+  startAuditAdminJobsAuditPost as startAdminAudit,
+  startDryRunAdminJobsDryRunPost as startAdminDryRun,
+  startEvaluateAdminJobsEvaluatePost as startAdminEvaluation,
+  startRebuildAdminJobsRebuildPost as startAdminRebuild,
+  startReviewAdminJobsReviewPost as startAdminReview,
+  startVersionCleanupAdminJobsCleanupVersionsPost as startAdminVersionCleanup,
+} from './generated/api'
+
+export async function getAdminPageImageObjectUrl(
+  options: Parameters<typeof adminPageImageAdminPageImageDocPageGet>[0],
+): Promise<string> {
+  const payload = await adminPageImageAdminPageImageDocPageGet(options)
+  if (!payload || typeof payload !== 'object' || typeof (payload as Blob).arrayBuffer !== 'function') {
+    throw new TypeError('页面截图响应不是 Blob。')
+  }
+  return URL.createObjectURL(payload as Blob)
+}

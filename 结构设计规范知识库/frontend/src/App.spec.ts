@@ -11,24 +11,31 @@ function jsonResponse(payload: unknown, status = 200): Response {
     : status >= 500
       ? 'Service Unavailable'
       : 'OK'
-  return {
-    ok: status >= 200 && status < 300,
+  return new Response(JSON.stringify(payload), {
+    headers: { 'Content-Type': 'application/json' },
     status,
     statusText,
-    json: vi.fn().mockResolvedValue(payload),
-  } as unknown as Response
+  })
 }
 
-function successfulPayload(url: string) {
-  if (url === '/ready') return { ready: true }
-  if (url === '/knowledge/documents') return { built: true, chunk_count: 12, documents: [] }
-  if (url === '/admin/corrections/candidates') return { documents: [] }
-  if (url === '/admin/manual-structuring') return { documents: [] }
-  if (url === '/admin/jobs') return { jobs: [] }
+function requestPath(input: RequestInfo | URL) {
+  const url = input instanceof Request ? input.url : String(input)
+  const parsed = new URL(url, window.location.origin)
+  return `${parsed.pathname}${parsed.search}`
+}
+
+function successfulPayload(input: RequestInfo | URL) {
+  const path = requestPath(input)
+  if (path === '/ready') return { ready: true }
+  if (path === '/knowledge/documents') return { built: true, chunk_count: 12, documents: [] }
+  if (path === '/admin/corrections/candidates') return { documents: [] }
+  if (path === '/admin/manual-structuring') return { documents: [] }
+  if (path === '/admin/jobs') return { jobs: [] }
   return {}
 }
 
-function authorizationHeader(init?: RequestInit) {
+function authorizationHeader(input: RequestInfo | URL, init?: RequestInit) {
+  if (input instanceof Request) return input.headers.get('authorization')
   return new Headers(init?.headers).get('authorization')
 }
 
@@ -67,10 +74,9 @@ describe('console authentication bootstrap', () => {
   })
 
   it('enters directly when the backend accepts an unauthenticated probe', async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
-      const url = String(input)
-      if (url === '/admin/status') return jsonResponse({ built: true })
-      return jsonResponse(successfulPayload(url))
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (requestPath(input) === '/admin/status') return jsonResponse({ built: true })
+      return jsonResponse(successfulPayload(input))
     })
     vi.stubGlobal('fetch', fetchMock)
 
@@ -79,19 +85,18 @@ describe('console authentication bootstrap', () => {
 
     expect(wrapper.find('[data-testid="overview"]').exists()).toBe(true)
     expect(wrapper.text()).not.toContain('需要 API Key')
-    expect(fetchMock.mock.calls[0]?.[0]).toBe('/admin/status')
-    expect(authorizationHeader(fetchMock.mock.calls[0]?.[1])).toBeNull()
-    expect(fetchMock).toHaveBeenCalledWith('/admin/jobs', expect.any(Object))
+    expect(requestPath(fetchMock.mock.calls[0][0])).toBe('/admin/status')
+    expect(authorizationHeader(fetchMock.mock.calls[0][0])).toBeNull()
+    expect(fetchMock.mock.calls.some(([input]) => requestPath(input) === '/admin/jobs')).toBe(true)
   })
 
   it('asks for a key only after a 401 and does not fan out protected requests', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input)
-      if (url === '/admin/status') {
-        if (authorizationHeader(init) === 'Bearer valid-key') return jsonResponse({ built: true })
+      if (requestPath(input) === '/admin/status') {
+        if (authorizationHeader(input, init) === 'Bearer valid-key') return jsonResponse({ built: true })
         return jsonResponse({ detail: '需要有效凭据。' }, 401)
       }
-      return jsonResponse(successfulPayload(url))
+      return jsonResponse(successfulPayload(input))
     })
     vi.stubGlobal('fetch', fetchMock)
 
@@ -109,16 +114,17 @@ describe('console authentication bootstrap', () => {
     expect(localStorage.getItem(API_KEY_STORAGE)).toBe('valid-key')
     expect(wrapper.text()).not.toContain('需要 API Key')
     expect(wrapper.find('[data-testid="overview"]').exists()).toBe(true)
-    expect(fetchMock).toHaveBeenCalledWith(
-      '/admin/status',
-      expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer valid-key' }) }),
-    )
+    const authenticatedProbe = fetchMock.mock.calls.find(([input, init]) => (
+      requestPath(input) === '/admin/status'
+      && authorizationHeader(input, init) === 'Bearer valid-key'
+    ))
+    expect(authenticatedProbe).toBeDefined()
   })
 
   it('does not replace the stored key when a candidate is rejected', async () => {
     localStorage.setItem(API_KEY_STORAGE, 'previous-key')
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      if (String(input) === '/admin/status') return jsonResponse({ detail: '候选 Key 无效。' }, 401)
+      if (requestPath(input) === '/admin/status') return jsonResponse({ detail: '候选 Key 无效。' }, 401)
       return jsonResponse({})
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -137,13 +143,12 @@ describe('console authentication bootstrap', () => {
   it('stops a manual refresh after the access probe starts returning 401', async () => {
     let authorized = true
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input)
-      if (url === '/admin/status') {
+      if (requestPath(input) === '/admin/status') {
         return authorized
           ? jsonResponse({ built: true })
           : jsonResponse({ detail: '访问凭据已失效。' }, 401)
       }
-      return jsonResponse(successfulPayload(url))
+      return jsonResponse(successfulPayload(input))
     })
     vi.stubGlobal('fetch', fetchMock)
 
@@ -166,9 +171,8 @@ describe('console authentication bootstrap', () => {
     let online = false
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       if (!online) throw new TypeError('Failed to fetch')
-      const url = String(input)
-      if (url === '/admin/status') return jsonResponse({ built: true })
-      return jsonResponse(successfulPayload(url))
+      if (requestPath(input) === '/admin/status') return jsonResponse({ built: true })
+      return jsonResponse(successfulPayload(input))
     })
     vi.stubGlobal('fetch', fetchMock)
 

@@ -143,7 +143,14 @@ import { computed, onMounted, ref, watch } from 'vue'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
 import MarkdownIt from 'markdown-it'
-import { adminBlobUrl, adminGet, adminPatch, adminPost } from '../api'
+import {
+  addApprovedCorrection,
+  getAdminPageImageObjectUrl,
+  getCorrectionCandidateDetail,
+  getDocumentElement,
+  promoteCorrections,
+  updateCorrectionCandidate,
+} from '../admin-api'
 import type { CandidateDocumentSummary, CorrectionCandidateView } from '../contracts'
 
 const props = defineProps<{ candidateDocs: CandidateDocumentSummary[] }>()
@@ -177,7 +184,7 @@ async function selectDoc(doc: string) {
 
 async function loadDocCandidates() {
   if (!selectedDoc.value) return
-  const detail = await adminGet(`/admin/corrections/candidates/${encodeURIComponent(selectedDoc.value)}`)
+  const detail = await getCorrectionCandidateDetail({ path: { doc: selectedDoc.value } })
   candidates.value = normalizeCandidates(detail.corrections || [])
   if (!selectedCandidate.value && filteredCandidates.value.length) {
     await openCandidate(filteredCandidates.value[0])
@@ -190,19 +197,26 @@ async function openCandidate(candidate: CorrectionCandidateView) {
   error.value = ''
   finalText.value = candidate.suggested_text || candidate.final_text || currentText.value || ''
   try {
-    const element = await adminGet(`/admin/elements/${encodeURIComponent(selectedDoc.value)}/${Number(candidate.element_index)}`)
+    const element = await getDocumentElement({
+      path: { doc: selectedDoc.value, element_index: Number(candidate.element_index) },
+    })
     currentText.value = typeof element.text === 'string' ? element.text : ''
   } catch {
     currentText.value = candidate.current_text || ''
   }
   if (pageImageUrl.value) URL.revokeObjectURL(pageImageUrl.value)
-  pageImageUrl.value = await adminBlobUrl(`/admin/page-image/${encodeURIComponent(selectedDoc.value)}/${Number(candidate.page)}`)
+  pageImageUrl.value = await getAdminPageImageObjectUrl({
+    path: { doc: selectedDoc.value, page: Number(candidate.page) },
+  })
 }
 
 async function setCandidateStatus(status: string) {
   if (!selectedCandidate.value) return
   const currentId = selectedCandidate.value.id
-  await adminPatch(`/admin/corrections/candidates/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedCandidate.value.id)}`, { status })
+  await updateCorrectionCandidate({
+    path: { doc: selectedDoc.value, candidate_id: selectedCandidate.value.id },
+    body: { status },
+  })
   candidates.value = candidates.value.map(item => (
     item.id === currentId ? { ...item, status } : item
   ))
@@ -223,11 +237,14 @@ async function setCandidateStatus(status: string) {
 
 async function saveApproved() {
   if (!selectedCandidate.value) return
-  await adminPost(`/admin/corrections/approved/${encodeURIComponent(selectedDoc.value)}`, {
-    id: `approved-${selectedCandidate.value.id}`,
-    action: selectedCandidate.value.action || 'replace_text',
-    target: selectedCandidate.value.target || { element_index: selectedCandidate.value.element_index, field: 'text' },
-    value: finalText.value,
+  await addApprovedCorrection({
+    path: { doc: selectedDoc.value },
+    body: {
+      id: `approved-${selectedCandidate.value.id}`,
+      action: selectedCandidate.value.action || 'replace_text',
+      target: selectedCandidate.value.target || { element_index: selectedCandidate.value.element_index, field: 'text' },
+      value: finalText.value,
+    },
   })
   message.value = '已保存到已审批修正。'
 }
@@ -239,7 +256,7 @@ async function approveCandidate() {
 
 async function promoteApproved() {
   if (!selectedDoc.value) return
-  await adminPost(`/admin/corrections/promote/${encodeURIComponent(selectedDoc.value)}`)
+  await promoteCorrections({ path: { doc: selectedDoc.value } })
   message.value = '已将批准候选提升为正式修正，重建知识库时会应用。'
 }
 

@@ -18,6 +18,7 @@ def test_vue_console_contains_required_workflows():
     evaluation = Path("frontend/src/components/EvaluationTab.vue").read_text(encoding="utf-8")
     overview = Path("frontend/src/components/OverviewTab.vue").read_text(encoding="utf-8")
     api = Path("frontend/src/api.ts").read_text(encoding="utf-8")
+    admin_api = Path("frontend/src/admin-api.ts").read_text(encoding="utf-8")
     jobs = Path("frontend/src/components/JobsTab.vue").read_text(encoding="utf-8")
     package_json = Path("frontend/package.json").read_text(encoding="utf-8")
 
@@ -29,27 +30,27 @@ def test_vue_console_contains_required_workflows():
     assert "结构化队列" in app
     assert "问答验证" in app
     assert "/knowledge/documents" in app
-    assert "/admin/evaluation/status" in app
-    assert "/admin/corrections/candidates" in app
-    assert "/admin/manual-structuring" in app
-    assert "/admin/jobs/rebuild" in jobs
-    assert "/admin/jobs/review" in jobs
+    assert "getAdminEvaluationStatus" in app
+    assert "listCorrectionCandidateDocuments" in app
+    assert "listManualStructuringDocuments" in app
+    assert "startAdminRebuild" in jobs
+    assert "startAdminReview" in jobs
     assert "疑似卡滞" in jobs
     assert "PROCESS_RESTARTED" in jobs
     assert "setInterval" in jobs
-    assert "/admin/corrections/approved" in review
-    assert "/admin/page-image/" in review
+    assert "addApprovedCorrection" in review
+    assert "getAdminPageImageObjectUrl" in review
     assert "最终修正文" in review
     assert "原 PDF 页面" in review
-    assert "/admin/manual-structuring/scan" in manual
+    assert "scanManualStructuringQueue" in manual
     assert "人工结构化" in manual
-    assert "/draft" in manual
+    assert "buildManualStructuringDraft" in manual
     assert "结构化 JSON 草稿" in manual
     assert "保存草稿" in manual
-    assert "/validate" in manual
-    assert "/publish" in manual
-    assert "/versions" in manual
-    assert "/rollback" in manual
+    assert "validateManualStructuringDraft" in manual
+    assert "publishManualStructuringDraft" in manual
+    assert "listManualStructuringVersions" in manual
+    assert "rollbackManualStructuringDraft" in manual
     assert "发布历史" in manual
     assert "生成合并草稿" in manual
     assert "跨页合并任务" in manual
@@ -59,11 +60,11 @@ def test_vue_console_contains_required_workflows():
     assert "focusEditor" in manual
     assert "AI 生成建议" in manual
     assert "AI 结构化建议" in manual
-    assert "/ai-suggestion" in manual
+    assert "startManualStructuringSuggestion" in manual
     assert "applyAiSuggestion" in manual
     assert "质量提醒" in manual
     assert "批量 AI 建议" in manual
-    assert "/ai-suggestions/batch" in manual
+    assert "startManualStructuringBatchSuggestions" in manual
     assert "无法应用" in manual
     assert "可视化编辑" in structured_editor
     assert "结构化结果预览" in structured_editor
@@ -72,14 +73,14 @@ def test_vue_console_contains_required_workflows():
     assert "updateColumnKey" in structured_editor
     assert "结构化专项" in evaluation
     assert "回答级盲测" in evaluation
-    assert "/admin/jobs/evaluate-answers" in evaluation
+    assert "startAdminAnswerEvaluation" in evaluation
     assert "截图可访问" in evaluation
     assert "evaluation_set: 'structured'" in evaluation
     assert "complex_structured_tables.jsonl" not in evaluation
     assert "质量运营" in overview
     assert "自动质量门禁" in overview
     assert "未解决失败任务" in overview
-    assert "/admin/quality/status" in app
+    assert "getAdminQualityStatus" in app
     assert "需要 API Key" in app
     assert "验证并进入" in app
     assert "AUTH_REQUIRED_EVENT" in app
@@ -87,7 +88,9 @@ def test_vue_console_contains_required_workflows():
     assert "probeApiAccess" in app
     assert "bootstrapState === 'unavailable'" in app
     assert "rag-auth-required" in api
-    assert "apiGetWithApiKey" in api
+    assert "client.interceptors.request.use" in api
+    assert "adminStatusAdminStatusGet as getAdminStatus" in admin_api
+    assert "'/admin/" not in admin_api
     assert Path("frontend/src/App.spec.ts").exists()
     assert Path("docs/operations/部署运行手册.md").exists()
     assert "apiPut" in api

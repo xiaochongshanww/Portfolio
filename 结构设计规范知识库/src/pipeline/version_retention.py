@@ -248,7 +248,8 @@ def inventory_versions(
             pin_marker_invalid = (safe_path / PIN_FILENAME).exists() and not pin
             item.update(
                 {
-                    **scan,
+                    "size_bytes": scan["size_bytes"],
+                    "file_count": scan["file_count"],
                     "modified_at": _iso(modified_at),
                     "age_hours": max(0.0, (current_time - modified_at).total_seconds() / 3600),
                     "state": state,

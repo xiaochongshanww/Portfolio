@@ -3,9 +3,9 @@
 > 状态：生效
 > 维护角色：工程负责人
 > 文档更新：2026-08-12
-> 代码核对：2026-08-12（44 个管理操作、快照生成链与隔离 ASGI 场景已核对）
-> 完整运行验证：I-039 本地 582 项后端测试与完整前端/工程门禁、远程 CI #103 十项任务通过
-> 验证证据：[I-038 验证记录](../releases/管理API与前端类型契约验证记录.md)、[I-039 验证记录](../releases/管理API运行时契约覆盖验证记录.md)、[ADR 0028](../adr/0028-管理API采用响应模型与生成类型契约.md)、[ADR 0029](../adr/0029-管理API采用清单驱动的运行时契约测试.md)
+> 代码核对：2026-08-12（44 个管理操作、快照、生成类型/客户端/SDK 与隔离 ASGI 场景已核对）
+> 完整运行验证：I-040 本地 583 项后端测试、14 项前端测试、工程门禁与真实浏览器验证通过；远程证据待补
+> 验证证据：[I-038 验证记录](../releases/管理API与前端类型契约验证记录.md)、[I-039 验证记录](../releases/管理API运行时契约覆盖验证记录.md)、[I-040 验证记录](../releases/管理API前端生成客户端验证记录.md)、[ADR 0028](../adr/0028-管理API采用响应模型与生成类型契约.md)、[ADR 0029](../adr/0029-管理API采用清单驱动的运行时契约测试.md)、[ADR 0030](../adr/0030-前端管理调用采用OpenAPI生成客户端.md)
 > 复核周期：管理 API、OpenAPI 或前端生成器变化时
 
 ## 1. 权威来源
@@ -33,9 +33,11 @@ FastAPI 路由、请求模型和响应模型是接口语义的权威来源。提
 | 后端模型 | `src/app/schemas/admin.py`、`src/app/api/admin.py` | 路由必须声明实际响应模型或二进制媒体类型 |
 | 导出并写入 | `python scripts/export_openapi.py --write` | 原子写入 `frontend/openapi.json` |
 | 只读校验 | `python scripts/export_openapi.py` | 快照缺失、漂移、空 JSON schema、重复 operation id 或页面媒体类型错误时失败 |
-| 生成前端类型 | `cd frontend && npm run api:generate` | 使用精确锁定的 `@hey-api/openapi-ts`，输出到 `src/generated/api/` |
-| 校验生成结果 | `cd frontend && npm run api:check` | 重生成后检查工作树差异和未跟踪生成文件；CI 必须在干净检出中执行 |
-| 前端适配边界 | `frontend/src/contracts.ts` | 将 OpenAPI 路径映射为管理请求帮助函数和必要的只读视图类型 |
+| 生成前端契约 | `cd frontend && npm run api:generate` | 使用精确锁定的 `@hey-api/openapi-ts`，输出类型、Fetch client 与逐操作 SDK 到 `src/generated/api/` |
+| 校验生成结果 | `cd frontend && npm run api:check` | 重生成后检查 Git 索引差异与未跟踪生成文件，并拒绝旧管理包装器和运行时 `/admin` URL 字面量；CI 必须在干净检出中执行 |
+| 管理操作适配 | `frontend/src/admin-api.ts` | 只重导出生成操作的语义别名；不得重新声明方法、路径、请求体或响应类型 |
+| 共享运行边界 | `frontend/src/api.ts` | 配置同源基址、API Key、统一错误、401 事件和二进制对象 URL；非管理调用继续使用专用实现 |
+| 展示视图类型 | `frontend/src/contracts.ts` | 只保留生成类型重导出与控制台只读视图，不承担管理路径映射 |
 
 快照只能在 `requirements-runtime.txt` 锁定的 `fastapi`、`pydantic` 与 `pydantic-core` 版本下生成。导出器会在构建文档前核对三者，环境不一致时失败关闭；开发者应先安装哈希锁依赖，不能用全局环境覆盖快照。
 
@@ -58,7 +60,9 @@ FastAPI 路由、请求模型和响应模型是接口语义的权威来源。提
 
 ## 5. 前端使用
 
-JSON 请求函数不提供 `any` 默认类型。组件必须从生成契约导入对应操作的请求/响应类型；真正开放的 JSON 值使用 `unknown` 或生成的 JSON 类型，并在访问前缩小类型。
+管理组件必须调用 `admin-api.ts` 暴露的生成操作别名，并以结构化 `path`、`query`、`body` 传参。组件和通用执行器不得拼接 `/admin` URL，也不得恢复 `AdminGetPath` 等条件类型。API Key 与候选 Key 优先级、401 鉴权事件、JSON/文本错误转换和 Blob 页面截图统一由生成 client 拦截器及共享适配器处理。
+
+JSON 请求函数不提供 `any` 默认类型。真正开放的 JSON 值使用 `unknown` 或生成的 JSON 类型，并在访问前缩小类型。非管理端健康、指标、知识文档和聊天流式调用不属于本轮迁移边界，可以继续使用各自专用实现。
 
 ## 6. 兼容边界
 

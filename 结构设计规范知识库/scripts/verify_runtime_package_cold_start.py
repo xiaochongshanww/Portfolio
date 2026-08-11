@@ -4,11 +4,15 @@ import argparse
 import json
 import os
 import platform
+import shutil
+import signal
 import socket
 import subprocess
 import sys
 import tempfile
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -21,6 +25,29 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 class RuntimePackageColdStartError(RuntimeError):
     pass
+
+
+def _remove_tree_with_retry(path: Path, *, attempts: int = 8, delay: float = 0.1) -> None:
+    """Remove a runtime tree after transient Windows file-sharing locks clear."""
+    for attempt in range(attempts):
+        try:
+            shutil.rmtree(path)
+            return
+        except FileNotFoundError:
+            return
+        except OSError:
+            if attempt + 1 >= attempts:
+                raise
+            time.sleep(delay * (attempt + 1))
+
+
+@contextmanager
+def _runtime_directory(*, prefix: str = "knowledge-package-api-") -> Iterator[Path]:
+    runtime_root = Path(tempfile.mkdtemp(prefix=prefix))
+    try:
+        yield runtime_root
+    finally:
+        _remove_tree_with_retry(runtime_root)
 
 
 def _free_port() -> int:
@@ -68,11 +95,28 @@ def _wait_for_health(
 def _stop_process(process: subprocess.Popen[Any]) -> None:
     if process.poll() is not None:
         return
-    process.terminate()
+    if sys.platform == "win32":
+        subprocess.run(  # noqa: S603 - fixed system executable and integer PID
+            ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    else:
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
     try:
         process.wait(timeout=10)
     except subprocess.TimeoutExpired:
-        process.kill()
+        if sys.platform == "win32":
+            process.kill()
+        else:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
         process.wait(timeout=10)
 
 
@@ -90,8 +134,7 @@ def verify_imported_runtime_api(
     if expected_count <= 0:
         raise RuntimePackageColdStartError("知识包没有可验证的 chunk")
 
-    with tempfile.TemporaryDirectory(prefix="knowledge-package-api-") as temporary_name:
-        runtime_root = Path(temporary_name)
+    with _runtime_directory() as runtime_root:
         log_path = runtime_root / "api.log"
         port = _free_port()
         base_url = f"http://127.0.0.1:{port}"
@@ -114,6 +157,11 @@ def verify_imported_runtime_api(
             environment.pop(name, None)
 
         with log_path.open("w", encoding="utf-8") as log_file:
+            popen_options: dict[str, Any] = {}
+            if sys.platform == "win32":
+                popen_options["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+            else:
+                popen_options["start_new_session"] = True
             process = subprocess.Popen(
                 [
                     sys.executable,
@@ -131,6 +179,7 @@ def verify_imported_runtime_api(
                 env=environment,
                 stdout=log_file,
                 stderr=subprocess.STDOUT,
+                **popen_options,
             )
             try:
                 _wait_for_health(process, base_url, log_path, startup_timeout)
@@ -190,8 +239,7 @@ def verify_runtime_package_cold_start(
     if require_cross_platform and source_platform == target_platform:
         raise RuntimePackageColdStartError(f"要求跨平台冷启动，但来源和目标均为 {target_platform}")
 
-    with tempfile.TemporaryDirectory(prefix="knowledge-package-api-") as temporary_name:
-        runtime_root = Path(temporary_name)
+    with _runtime_directory() as runtime_root:
         data_dir = runtime_root / "runtime-data"
         imported = import_runtime_package(package_path, data_dir=data_dir)
         expected_db_dir = Path(imported["active_db_dir"]).resolve()

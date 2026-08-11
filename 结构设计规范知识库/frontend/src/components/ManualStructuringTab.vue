@@ -279,7 +279,24 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { adminBlobUrl, adminGet, adminPatch, adminPost, adminPut, errorMessage } from '../api'
+import {
+  buildManualStructuringDraft,
+  getAdminJob,
+  getAdminPageImageObjectUrl,
+  getManualStructuringDetail,
+  getManualStructuringDraft,
+  getManualStructuringSuggestion,
+  listManualStructuringVersions,
+  publishManualStructuringDraft,
+  rollbackManualStructuringDraft,
+  saveManualStructuringDraft,
+  scanManualStructuringQueue,
+  startManualStructuringBatchSuggestions,
+  startManualStructuringSuggestion,
+  updateManualStructuringStatus,
+  validateManualStructuringDraft,
+} from '../admin-api'
+import { errorMessage } from '../api'
 import type {
   ManualDraftResponse,
   ManualDocumentSummary,
@@ -349,7 +366,7 @@ async function scanQueue() {
   error.value = ''
   message.value = ''
   try {
-    const result = await adminPost('/admin/manual-structuring/scan')
+    const result = await scanManualStructuringQueue()
     message.value = `已扫描 ${result.candidate_count || 0} 个复杂表候选`
     emit('refresh')
   } catch (err: unknown) {
@@ -363,9 +380,8 @@ async function startBatchSuggestions() {
   busy.value = true
   error.value = ''
   try {
-    const job = await adminPost('/admin/manual-structuring/ai-suggestions/batch', {
-      documents: [],
-      force: false,
+    const job = await startManualStructuringBatchSuggestions({
+      body: { documents: [], force: false },
     })
     message.value = `批量建议任务已提交：${job.job_id}，可在构建任务中查看进度`
     emit('refresh')
@@ -386,7 +402,7 @@ async function selectDoc(doc: string) {
 
 async function loadDocQueue() {
   if (!selectedDoc.value) return
-  const detail = await adminGet(`/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}`)
+  const detail = await getManualStructuringDetail({ path: { doc: selectedDoc.value } })
   items.value = normalizeItems(detail.items || [])
   if (!selectedItem.value && filteredItems.value.length) {
     await openItem(filteredItems.value[0])
@@ -415,7 +431,9 @@ async function loadPreviewImage(item: ManualStructuringItemView) {
   if (pageImageUrl.value) URL.revokeObjectURL(pageImageUrl.value)
   pageImageUrl.value = ''
   try {
-    pageImageUrl.value = await adminBlobUrl(`/admin/page-image/${encodeURIComponent(selectedDoc.value)}/${Number(item.page)}`)
+    pageImageUrl.value = await getAdminPageImageObjectUrl({
+      path: { doc: selectedDoc.value, page: Number(item.page) },
+    })
   } catch {
     pageImageUrl.value = ''
   }
@@ -424,9 +442,9 @@ async function loadPreviewImage(item: ManualStructuringItemView) {
 async function setStatus(status: string) {
   if (!selectedItem.value) return
   const currentId = selectedItem.value.id
-  await adminPatch(`/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(currentId)}`, {
-    status,
-    notes: notes.value,
+  await updateManualStructuringStatus({
+    path: { doc: selectedDoc.value, item_id: currentId },
+    body: { status, notes: notes.value },
   })
   items.value = items.value.map(item => item.id === currentId ? { ...item, status, notes: notes.value } : item)
   message.value = `已标记为 ${status}`
@@ -441,7 +459,9 @@ async function setStatus(status: string) {
 async function buildDraft() {
   if (!selectedItem.value) return
   try {
-    const draft = await adminPost(`/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedItem.value.id)}/draft`)
+    const draft = await buildManualStructuringDraft({
+      path: { doc: selectedDoc.value, item_id: selectedItem.value.id },
+    })
     draftText.value = JSON.stringify(draftWithoutPath(draft), null, 2)
     message.value = '已生成结构化草稿'
   } catch (err: unknown) {
@@ -452,7 +472,9 @@ async function buildDraft() {
 async function loadDraftIfExists() {
   if (!selectedItem.value) return
   try {
-    const draft = await adminGet(`/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedItem.value.id)}/draft`)
+    const draft = await getManualStructuringDraft({
+      path: { doc: selectedDoc.value, item_id: selectedItem.value.id },
+    })
     draftText.value = JSON.stringify(draftWithoutPath(draft), null, 2)
     validationResult.value = asValidationResult(draft.validation)
   } catch {
@@ -465,7 +487,10 @@ async function saveDraft() {
   if (!selectedItem.value) return
   try {
     const parsed = parseJsonObject(draftText.value)
-    const saved = await adminPut(`/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedItem.value.id)}/draft`, { draft: parsed })
+    const saved = await saveManualStructuringDraft({
+      path: { doc: selectedDoc.value, item_id: selectedItem.value.id },
+      body: { draft: parsed },
+    })
     draftText.value = JSON.stringify(draftWithoutPath(saved), null, 2)
     validationResult.value = asValidationResult(saved.validation)
     message.value = '结构化草稿已保存'
@@ -481,13 +506,13 @@ async function generateAiSuggestion() {
   aiGenerating.value = true
   error.value = ''
   try {
-    const job = await adminPost(
-      `/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedItem.value.id)}/ai-suggestion`,
-    )
+    const job = await startManualStructuringSuggestion({
+      path: { doc: selectedDoc.value, item_id: selectedItem.value.id },
+    })
     message.value = `AI 建议任务已提交：${job.job_id}`
     for (let attempt = 0; attempt < 130; attempt += 1) {
       await delay(1500)
-      const current = await adminGet(`/admin/jobs/${job.job_id}`)
+      const current = await getAdminJob({ path: { job_id: job.job_id } })
       if (current.status === 'succeeded') {
         await loadAiSuggestion()
         message.value = `AI 建议已生成：${aiSuggestion.value?.proposal?.rows?.length || 0} 行`
@@ -508,9 +533,9 @@ async function generateAiSuggestion() {
 async function loadAiSuggestion() {
   if (!selectedItem.value) return
   try {
-    aiSuggestion.value = await adminGet(
-      `/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedItem.value.id)}/ai-suggestion`,
-    ) as StructuringSuggestionView
+    aiSuggestion.value = await getManualStructuringSuggestion({
+      path: { doc: selectedDoc.value, item_id: selectedItem.value.id },
+    }) as StructuringSuggestionView
   } catch {
     aiSuggestion.value = null
   }
@@ -541,7 +566,9 @@ async function validateDraft() {
   error.value = ''
   try {
     if (!await saveDraft()) return
-    const validation = await adminPost(`/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedItem.value.id)}/validate`)
+    const validation = await validateManualStructuringDraft({
+      path: { doc: selectedDoc.value, item_id: selectedItem.value.id },
+    })
     validationResult.value = validation
     await loadDraftIfExists()
     message.value = validation.valid ? '草稿校验通过，可以发布' : '草稿校验未通过，请按提示修正'
@@ -557,7 +584,9 @@ async function publishDraft() {
   busy.value = true
   error.value = ''
   try {
-    const result = await adminPost(`/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedItem.value.id)}/publish`)
+    const result = await publishManualStructuringDraft({
+      path: { doc: selectedDoc.value, item_id: selectedItem.value.id },
+    })
     await Promise.all([loadDraftIfExists(), loadVersions(), loadDocQueue()])
     message.value = `已发布 ${result.target_filename}`
     emit('refresh')
@@ -573,7 +602,9 @@ async function rollbackDraft() {
   busy.value = true
   error.value = ''
   try {
-    const result = await adminPost(`/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedItem.value.id)}/rollback`)
+    const result = await rollbackManualStructuringDraft({
+      path: { doc: selectedDoc.value, item_id: selectedItem.value.id },
+    })
     await Promise.all([loadDraftIfExists(), loadVersions(), loadDocQueue()])
     message.value = result.rollback_action === 'restored' ? '已恢复发布前版本' : '已撤下首次发布的结构化表'
     emit('refresh')
@@ -587,7 +618,9 @@ async function rollbackDraft() {
 async function loadVersions() {
   if (!selectedItem.value) return
   try {
-    const result = await adminGet(`/admin/manual-structuring/${encodeURIComponent(selectedDoc.value)}/${encodeURIComponent(selectedItem.value.id)}/versions`)
+    const result = await listManualStructuringVersions({
+      path: { doc: selectedDoc.value, item_id: selectedItem.value.id },
+    })
     versions.value = result.versions || []
   } catch {
     versions.value = []

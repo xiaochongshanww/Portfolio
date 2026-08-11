@@ -135,7 +135,13 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { adminGet, adminPost, adminPut, errorMessage } from '../api'
+import {
+  createAdminVersionCleanupPlan,
+  getAdminVersions,
+  startAdminVersionCleanup,
+  updateAdminVersionRetention,
+} from '../admin-api'
+import { errorMessage } from '../api'
 import type {
   VersionCleanupPlanResponse,
   VersionInventoryResponse,
@@ -157,7 +163,7 @@ async function loadInventory() {
   busy.value = true
   error.value = ''
   try {
-    inventory.value = await adminGet('/admin/versions')
+    inventory.value = await getAdminVersions()
   } catch (err: unknown) {
     error.value = errorMessage(err)
   } finally {
@@ -171,8 +177,9 @@ async function createPlan() {
   message.value = ''
   planConfirmed.value = false
   try {
-    plan.value = await adminPost('/admin/versions/cleanup-plans')
-    message.value = plan.value.candidate_count
+    const createdPlan = await createAdminVersionCleanupPlan()
+    plan.value = createdPlan
+    message.value = createdPlan.candidate_count
       ? '清理计划已生成，请核对后确认执行。'
       : '清理计划已生成，当前没有可清理版本。'
     await loadInventory()
@@ -189,7 +196,7 @@ async function executePlan() {
   error.value = ''
   message.value = ''
   try {
-    const job = await adminPost('/admin/jobs/cleanup-versions', { plan_id: plan.value.plan_id })
+    const job = await startAdminVersionCleanup({ body: { plan_id: plan.value.plan_id } })
     message.value = `清理任务已提交：${job.job_id}`
     plan.value = null
     planConfirmed.value = false
@@ -205,9 +212,9 @@ async function togglePin(item: VersionSummary, pinned: boolean) {
   pinning.value = item.version_id
   error.value = ''
   try {
-    await adminPut(`/admin/versions/${encodeURIComponent(item.version_id)}/retention`, {
-      pinned,
-      note: item.pin_note || '',
+    await updateAdminVersionRetention({
+      path: { version_id: item.version_id },
+      body: { pinned, note: item.pin_note || '' },
     })
     message.value = pinned ? `已固定版本 ${item.version_id}` : `已取消固定版本 ${item.version_id}`
     plan.value = null

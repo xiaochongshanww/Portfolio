@@ -135,7 +135,8 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { adminPost, errorMessage } from '../api'
+import { startAdminAnswerEvaluation, startAdminEvaluation } from '../admin-api'
+import { errorMessage } from '../api'
 import type { EvaluationStatusView, JobResponse } from '../contracts'
 import KeyValueList from './shared/KeyValueList.vue'
 import MetricCard from './shared/MetricCard.vue'
@@ -175,9 +176,8 @@ async function runEvaluation() {
   busy.value = true
   error.value = ''
   try {
-    const job = await adminPost('/admin/jobs/evaluate', {
-      top_k: 5,
-      evaluation_set: 'regular',
+    const job = await startAdminEvaluation({
+      body: { top_k: 5, evaluation_set: 'regular' },
     })
     message.value = `已提交评估任务 ${job.job_id}`
     emit('refresh')
@@ -192,9 +192,8 @@ async function runStructuredEvaluation() {
   busy.value = true
   error.value = ''
   try {
-    const job = await adminPost('/admin/jobs/evaluate', {
-      top_k: 5,
-      evaluation_set: 'structured',
+    const job = await startAdminEvaluation({
+      body: { top_k: 5, evaluation_set: 'structured' },
     })
     message.value = `已提交结构化专项评估 ${job.job_id}`
     emit('refresh')
@@ -209,8 +208,8 @@ async function runAnswerEvaluation() {
   busy.value = true
   error.value = ''
   try {
-    const job = await adminPost('/admin/jobs/evaluate-answers', {
-      evaluation_set: 'answer',
+    const job = await startAdminAnswerEvaluation({
+      body: { evaluation_set: 'answer' },
     })
     message.value = `已提交回答级盲测 ${job.job_id}`
     emit('refresh')

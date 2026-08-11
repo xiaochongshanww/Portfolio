@@ -109,6 +109,7 @@ def test_inventory_classifies_and_protects_operational_versions(tmp_path: Path):
     )
     items = by_id(result)
 
+    assert all("newest_mtime_ns" not in item for item in items.values())
     assert items["active"]["protection_reasons"] == ["active"]
     assert items["running"]["protection_reasons"] == ["running"]
     assert items["pinned"]["protection_reasons"] == ["pinned"]

@@ -8,10 +8,10 @@
 
       <div class="space-y-4 overflow-auto p-4">
         <div class="grid grid-cols-2 gap-2">
-          <button class="btn" :disabled="busy" @click="startJob('/admin/jobs/dry-run', jobRequest)">Dry Run</button>
-          <button class="btn btn-primary" :disabled="busy" @click="startJob('/admin/jobs/rebuild', jobRequest)">重建知识库</button>
-          <button class="btn" :disabled="busy" @click="startJob('/admin/jobs/audit')">规则审计</button>
-          <button class="btn" :disabled="busy" @click="startJob('/admin/jobs/evaluate', { top_k: 5, evaluation_set: 'regular' })">运行评估</button>
+          <button class="btn" :disabled="busy" @click="startDryRun">Dry Run</button>
+          <button class="btn btn-primary" :disabled="busy" @click="startRebuild">重建知识库</button>
+          <button class="btn" :disabled="busy" @click="startAudit">规则审计</button>
+          <button class="btn" :disabled="busy" @click="startEvaluation">运行评估</button>
         </div>
 
         <div class="space-y-2">
@@ -104,10 +104,16 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { adminGet, adminPost, errorMessage } from '../api'
-import type { AdminPostBody, AdminPostPath, JobRequest, JobResponse } from '../contracts'
-
-type JobStartPath = Extract<AdminPostPath, `/admin/jobs/${string}`>
+import {
+  getAdminJobLogs,
+  startAdminAudit,
+  startAdminDryRun,
+  startAdminEvaluation,
+  startAdminRebuild,
+  startAdminReview,
+} from '../admin-api'
+import { errorMessage } from '../api'
+import type { JobRequest, JobResponse } from '../contracts'
 
 const props = defineProps<{ jobs: JobResponse[] }>()
 const emit = defineEmits<{ refresh: [] }>()
@@ -129,17 +135,12 @@ const jobRequest = ref<JobRequest>({
 
 const logsText = computed(() => logs.value.length ? logs.value.map(formatLogEntry).join('\n') : selectedJob.value?.error || '暂无任务日志')
 
-async function startJob<P extends JobStartPath>(
-  url: P,
-  ...args: AdminPostBody<P> extends undefined
-    ? [body?: undefined]
-    : [body: AdminPostBody<P>]
-) {
+async function startJob(task: () => Promise<JobResponse>) {
   busy.value = true
   error.value = ''
   message.value = ''
   try {
-    const job = await adminPost(url, ...args)
+    const job = await task()
     selectedJob.value = job
     message.value = `已提交任务 ${job.job_id}`
     emit('refresh')
@@ -151,8 +152,28 @@ async function startJob<P extends JobStartPath>(
   }
 }
 
+async function startDryRun() {
+  await startJob(() => startAdminDryRun({ body: jobRequest.value }))
+}
+
+async function startRebuild() {
+  await startJob(() => startAdminRebuild({ body: jobRequest.value }))
+}
+
+async function startAudit() {
+  await startJob(() => startAdminAudit())
+}
+
+async function startEvaluation() {
+  await startJob(() => startAdminEvaluation({
+    body: { top_k: 5, evaluation_set: 'regular' },
+  }))
+}
+
 async function startReview() {
-  await startJob('/admin/jobs/review', { doc: reviewDoc.value.trim(), pages: reviewPages.value.trim() })
+  await startJob(() => startAdminReview({
+    body: { doc: reviewDoc.value.trim(), pages: reviewPages.value.trim() },
+  }))
 }
 
 async function selectJob(job: JobResponse) {
@@ -166,7 +187,10 @@ async function loadLogs(job: JobResponse) {
   const requestSerial = ++logsRequestSerial
   logsLoading.value = true
   try {
-    const result = await adminGet(`/admin/jobs/${jobId}/logs?limit=300`)
+    const result = await getAdminJobLogs({
+      path: { job_id: jobId },
+      query: { limit: 300 },
+    })
     if (requestSerial === logsRequestSerial && selectedJob.value?.job_id === jobId) {
       logs.value = result.logs || []
     }

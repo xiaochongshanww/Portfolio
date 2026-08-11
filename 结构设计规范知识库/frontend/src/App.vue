@@ -100,11 +100,18 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
+  getAdminEvaluationStatus,
+  getAdminQualityStatus,
+  getAdminStatus,
+  listAdminJobs,
+  listCorrectionCandidateDocuments,
+  listManualStructuringDocuments,
+} from './admin-api'
+import {
   ApiError,
   AUTH_REQUIRED_EVENT,
-  adminGet,
-  adminGetWithApiKey,
   apiGet,
+  authorizationHeaders,
   getApiKey,
   setApiKey,
 } from './api'
@@ -204,7 +211,7 @@ function connectionErrorMessage(error: unknown) {
 
 async function probeApiAccess() {
   try {
-    await adminGet('/admin/status')
+    await getAdminStatus()
     authRequired.value = false
     authError.value = ''
     bootstrapError.value = ''
@@ -232,7 +239,7 @@ async function authenticate() {
   authenticating.value = true
   authError.value = ''
   try {
-    await adminGetWithApiKey('/admin/status', candidate)
+    await getAdminStatus({ headers: authorizationHeaders(candidate) })
     setApiKey(candidate)
     apiKey.value = candidate
     authRequired.value = false
@@ -267,26 +274,26 @@ async function refreshStatus() {
 }
 
 async function refreshCandidates() {
-  const result = await adminGet('/admin/corrections/candidates')
+  const result = await listCorrectionCandidateDocuments()
   candidateDocs.value = result.documents || []
 }
 
 async function refreshManualStructuring() {
-  const result = await adminGet('/admin/manual-structuring')
+  const result = await listManualStructuringDocuments()
   manualDocs.value = result.documents || []
 }
 
 async function refreshJobs() {
-  const result = await adminGet('/admin/jobs')
+  const result = await listAdminJobs()
   jobs.value = result.jobs || []
 }
 
 async function refreshEvaluation() {
-  evaluation.value = await adminGet('/admin/evaluation/status')
+  evaluation.value = await getAdminEvaluationStatus()
 }
 
 async function refreshQuality() {
-  quality.value = await adminGet('/admin/quality/status')
+  quality.value = await getAdminQualityStatus()
 }
 
 watch(activeTab, () => refreshAll())

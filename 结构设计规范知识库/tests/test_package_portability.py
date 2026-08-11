@@ -117,7 +117,9 @@ def test_api_cold_start_failure_stops_child_process(tmp_path: Path, monkeypatch)
 
     def tracking_popen(*args, **kwargs):
         process = real_popen(*args, **kwargs)
-        processes.append(process)
+        command = args[0] if args else kwargs.get("args", [])
+        if "uvicorn" in command:
+            processes.append(process)
         return process
 
     def fail_after_start(base_url: str, path: str):
@@ -133,6 +135,28 @@ def test_api_cold_start_failure_stops_child_process(tmp_path: Path, monkeypatch)
 
     assert len(processes) == 1
     assert processes[0].poll() is not None
+
+
+def test_runtime_directory_cleanup_retries_transient_file_lock(tmp_path: Path, monkeypatch):
+    runtime_root = tmp_path / "runtime"
+    runtime_root.mkdir()
+    (runtime_root / "api.log").write_text("ready", encoding="utf-8")
+    real_rmtree = cold_start_module.shutil.rmtree
+    attempts = []
+
+    def transiently_locked(path):
+        attempts.append(Path(path))
+        if len(attempts) == 1:
+            raise PermissionError(32, "file is being used")
+        real_rmtree(path)
+
+    monkeypatch.setattr(cold_start_module.shutil, "rmtree", transiently_locked)
+    monkeypatch.setattr(cold_start_module.time, "sleep", lambda _: None)
+
+    cold_start_module._remove_tree_with_retry(runtime_root)
+
+    assert attempts == [runtime_root, runtime_root]
+    assert not runtime_root.exists()
 
 
 def test_portability_cli_outputs_are_ascii_safe(tmp_path: Path):
