@@ -3,6 +3,7 @@ import json
 import os
 import sys
 import tempfile
+from importlib import metadata as importlib_metadata
 from pathlib import Path
 from typing import Any
 
@@ -10,18 +11,59 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.app.main import app  # noqa: E402
-
 DEFAULT_OUTPUT = ROOT / "frontend" / "openapi.json"
 HTTP_METHODS = {"get", "post", "put", "patch", "delete"}
 PAGE_IMAGE_PATH = "/admin/page-image/{doc}/{page}"
+RUNTIME_REQUIREMENTS = ROOT / "requirements-runtime.txt"
+CONTRACT_GENERATOR_PACKAGES = ("fastapi", "pydantic", "pydantic-core")
 
 
 class OpenApiContractError(RuntimeError):
     pass
 
 
+def locked_generator_versions(path: Path = RUNTIME_REQUIREMENTS) -> dict[str, str]:
+    versions: dict[str, str] = {}
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError as exc:
+        raise OpenApiContractError(f"cannot read runtime dependency lock: {path}") from exc
+    for line in lines:
+        requirement = line.strip()
+        for package in CONTRACT_GENERATOR_PACKAGES:
+            prefix = f"{package}=="
+            if requirement.startswith(prefix):
+                versions[package] = requirement[len(prefix) :].split()[0]
+    missing = sorted(set(CONTRACT_GENERATOR_PACKAGES) - versions.keys())
+    if missing:
+        raise OpenApiContractError(
+            "runtime dependency lock is missing OpenAPI generators: " + ", ".join(missing)
+        )
+    return versions
+
+
+def validate_generator_environment() -> None:
+    locked = locked_generator_versions()
+    mismatches = []
+    for package, expected in locked.items():
+        try:
+            actual = importlib_metadata.version(package)
+        except importlib_metadata.PackageNotFoundError:
+            actual = "not-installed"
+        if actual != expected:
+            mismatches.append(f"{package}={actual} (locked {expected})")
+    if mismatches:
+        raise OpenApiContractError(
+            "OpenAPI generator dependency mismatch: "
+            + ", ".join(mismatches)
+            + "; install requirements-runtime.txt before exporting"
+        )
+
+
 def build_openapi_document() -> dict[str, Any]:
+    validate_generator_environment()
+    from src.app.main import app
+
     document = app.openapi()
     validate_admin_contract(document)
     return document

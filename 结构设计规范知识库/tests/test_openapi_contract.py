@@ -12,6 +12,18 @@ def _admin_operation(document: dict, path: str, method: str = "get") -> dict:
     return document["paths"][path][method]
 
 
+def test_openapi_generator_requires_locked_framework_versions(monkeypatch) -> None:
+    locked = export_openapi.locked_generator_versions()
+    monkeypatch.setattr(
+        export_openapi.importlib_metadata,
+        "version",
+        lambda package: "0.0.0" if package == "fastapi" else locked[package],
+    )
+
+    with pytest.raises(export_openapi.OpenApiContractError, match="fastapi=0.0.0"):
+        export_openapi.validate_generator_environment()
+
+
 def test_admin_openapi_contract_covers_every_operation() -> None:
     document = export_openapi.build_openapi_document()
     operations = [

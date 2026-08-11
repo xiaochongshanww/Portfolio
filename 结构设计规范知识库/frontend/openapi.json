@@ -147,10 +147,12 @@
             "type": "array"
           },
           "manifest": {
+            "additionalProperties": true,
             "title": "Manifest",
             "type": "object"
           },
           "quality_evidence_context": {
+            "additionalProperties": true,
             "title": "Quality Evidence Context",
             "type": "object"
           },
@@ -252,6 +254,7 @@
             "type": "string"
           },
           "target": {
+            "additionalProperties": true,
             "title": "Target",
             "type": "object"
           },
@@ -272,6 +275,7 @@
         "properties": {
           "corrections": {
             "items": {
+              "additionalProperties": true,
               "type": "object"
             },
             "title": "Corrections",
@@ -370,6 +374,7 @@
         "properties": {
           "corrections": {
             "items": {
+              "additionalProperties": true,
               "type": "object"
             },
             "title": "Corrections",
@@ -470,6 +475,7 @@
           },
           "skipped": {
             "items": {
+              "additionalProperties": true,
               "type": "object"
             },
             "title": "Skipped",
@@ -616,6 +622,7 @@
             "items": {
               "anyOf": [
                 {
+                  "additionalProperties": true,
                   "type": "object"
                 },
                 {
@@ -669,6 +676,7 @@
           },
           "elements": {
             "items": {
+              "additionalProperties": true,
               "type": "object"
             },
             "title": "Elements",
@@ -732,6 +740,7 @@
           "answer_latest": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -754,6 +763,7 @@
           "latest": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -776,6 +786,7 @@
           "structured_latest": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -957,6 +968,7 @@
           },
           "logs": {
             "items": {
+              "additionalProperties": true,
               "type": "object"
             },
             "title": "Logs",
@@ -1033,14 +1045,17 @@
             "type": "string"
           },
           "outputs": {
+            "additionalProperties": true,
             "title": "Outputs",
             "type": "object"
           },
           "params": {
+            "additionalProperties": true,
             "title": "Params",
             "type": "object"
           },
           "progress": {
+            "additionalProperties": true,
             "title": "Progress",
             "type": "object"
           },
@@ -1050,6 +1065,7 @@
             "type": "string"
           },
           "recovery": {
+            "additionalProperties": true,
             "title": "Recovery",
             "type": "object"
           },
@@ -1131,6 +1147,7 @@
             "items": {
               "anyOf": [
                 {
+                  "additionalProperties": true,
                   "type": "object"
                 },
                 {
@@ -1168,6 +1185,7 @@
           },
           "items": {
             "items": {
+              "additionalProperties": true,
               "type": "object"
             },
             "title": "Items",
@@ -1283,6 +1301,7 @@
         "properties": {
           "columns": {
             "items": {
+              "additionalProperties": true,
               "type": "object"
             },
             "title": "Columns",
@@ -1308,6 +1327,7 @@
           "publication": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -1317,11 +1337,13 @@
             "title": "Publication"
           },
           "review_context": {
+            "additionalProperties": true,
             "title": "Review Context",
             "type": "object"
           },
           "rows": {
             "items": {
+              "additionalProperties": true,
               "type": "object"
             },
             "title": "Rows",
@@ -1332,6 +1354,7 @@
             "type": "string"
           },
           "source": {
+            "additionalProperties": true,
             "title": "Source",
             "type": "object"
           },
@@ -1349,6 +1372,7 @@
           "validation": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -1386,6 +1410,7 @@
             "type": "boolean"
           },
           "smoke_test": {
+            "additionalProperties": true,
             "title": "Smoke Test",
             "type": "object"
           },
@@ -1520,6 +1545,7 @@
       "ManualStructuringDraftRequest": {
         "properties": {
           "draft": {
+            "additionalProperties": true,
             "title": "Draft",
             "type": "object"
           }
@@ -1607,6 +1633,7 @@
           "automatic_rollback": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -1644,6 +1671,7 @@
           "smoke_test": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -1737,6 +1765,7 @@
             "type": "object"
           },
           "quality_gate": {
+            "additionalProperties": true,
             "title": "Quality Gate",
             "type": "object"
           },
@@ -1934,6 +1963,7 @@
           "proposal": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -1962,6 +1992,13 @@
       },
       "ValidationError": {
         "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
           "loc": {
             "items": {
               "anyOf": [
@@ -2062,6 +2099,7 @@
             "type": "string"
           },
           "policy": {
+            "additionalProperties": true,
             "title": "Policy",
             "type": "object"
           },
@@ -2147,6 +2185,7 @@
             "type": "string"
           },
           "policy": {
+            "additionalProperties": true,
             "title": "Policy",
             "type": "object"
           },
