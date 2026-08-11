@@ -60,6 +60,7 @@ def test_dependency_lock_toolchain_is_pinned_and_machine_readable():
     assert config["schema_version"] == 1
     assert config["python_version"] == "3.11"
     assert config["generate_hashes"] is True
+    assert tools.isascii(), "requirements-tools.txt must be readable by legacy Windows pip"
     assert tools.splitlines()[-1] == f"uv=={config['uv_version']}"
     assert {item["output"] for item in config["locks"]} == {
         "requirements-runtime.txt",

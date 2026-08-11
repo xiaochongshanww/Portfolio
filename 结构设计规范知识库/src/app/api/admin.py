@@ -238,12 +238,12 @@ async def admin_retrieval_reload():
 
 @router.post("/jobs/dry-run", response_model=admin_schemas.JobResponse)
 async def start_dry_run(request: JobRequest):
-    return job_manager.submit("dry_run", request.dict(), dry_run_workflow).to_dict()
+    return job_manager.submit("dry_run", request.model_dump(), dry_run_workflow).to_dict()
 
 
 @router.post("/jobs/rebuild", response_model=admin_schemas.JobResponse)
 async def start_rebuild(request: JobRequest):
-    return job_manager.submit("rebuild", request.dict(), rebuild_workflow).to_dict()
+    return job_manager.submit("rebuild", request.model_dump(), rebuild_workflow).to_dict()
 
 
 @router.get("/versions", response_model=admin_schemas.VersionInventoryResponse)
@@ -281,7 +281,7 @@ def admin_version_cleanup_plan():
 @router.post("/jobs/cleanup-versions", response_model=admin_schemas.JobResponse)
 async def start_version_cleanup(request: VersionCleanupRequest):
     return job_manager.submit(
-        "cleanup_versions", request.dict(), cleanup_versions_workflow
+        "cleanup_versions", request.model_dump(), cleanup_versions_workflow
     ).to_dict()
 
 
@@ -292,7 +292,7 @@ async def start_audit():
 
 @router.post("/jobs/review", response_model=admin_schemas.JobResponse)
 async def start_review(request: ReviewRequest):
-    return job_manager.submit("review", request.dict(), review_workflow).to_dict()
+    return job_manager.submit("review", request.model_dump(), review_workflow).to_dict()
 
 
 @router.post("/jobs/evaluate", response_model=admin_schemas.JobResponse)
@@ -511,7 +511,7 @@ async def admin_manual_structuring_scan():
 async def admin_manual_structuring_batch_suggestions(request: StructuringSuggestionBatchRequest):
     return job_manager.submit(
         "structuring_suggestion_batch",
-        request.dict(),
+        request.model_dump(),
         structuring_suggestion_batch_workflow,
     ).to_dict()
 
@@ -673,7 +673,7 @@ async def admin_add_approved(doc: str, request: ApprovedCorrectionRequest):
     payload = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {"corrections": []}
     corrections = payload.get("corrections", [])
     by_id = {str(item.get("id", index)): item for index, item in enumerate(corrections)}
-    by_id[request.id] = request.dict()
+    by_id[request.id] = request.model_dump()
     payload["corrections"] = list(by_id.values())
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     return {

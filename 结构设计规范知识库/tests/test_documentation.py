@@ -141,6 +141,22 @@ def test_admin_api_contract_generation_is_documented():
     assert "frontend/openapi.json" in detailed_design
 
 
+def test_admin_runtime_contract_coverage_is_documented():
+    api_reference = Path("docs/reference/接口参考.md").read_text(encoding="utf-8")
+    contract = Path("docs/reference/管理API与前端类型契约规范.md").read_text(encoding="utf-8")
+    detailed_design = Path("docs/architecture/系统详细设计.md").read_text(encoding="utf-8")
+    decision = Path("docs/adr/0029-管理API采用清单驱动的运行时契约测试.md")
+    checklist = Path("docs/architecture/管理API运行时契约覆盖实施清单.md")
+    test_path = "tests/test_admin_runtime_contract.py"
+
+    assert "44 个隔离 ASGI 成功路径" in api_reference
+    assert test_path in contract
+    assert test_path in detailed_design
+    assert "operation id" in decision.read_text(encoding="utf-8")
+    assert decision.is_file()
+    assert checklist.is_file()
+
+
 def test_managed_quality_api_lifecycle_is_documented():
     readme = Path("README.md").read_text(encoding="utf-8")
     config_reference = Path("docs/reference/配置参考.md").read_text(encoding="utf-8")

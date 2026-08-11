@@ -1,2 +1,2 @@
-# 依赖锁生成器；版本必须与 dependency-lock.json 一致。
+# Dependency lock generator; version must match dependency-lock.json.
 uv==0.12.3
