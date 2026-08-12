@@ -13,6 +13,10 @@ REQUIRED_METADATA = (
     "复核周期：",
 )
 CHECK_METADATA_RE = re.compile(r"^> [^\n]*核对：", re.MULTILINE)
+ROADMAP_ITERATION_RE = re.compile(
+    r"^\|\s*(I-\d{3})\s*\|\s*[^|]*\|\s*[^|]*\|\s*([^|]*?)\s*\|",
+    re.MULTILINE,
+)
 
 
 def _project_markdown_files() -> list[Path]:
@@ -67,6 +71,63 @@ def test_documentation_files_have_governance_metadata():
             missing.append(f"{markdown_file}: {', '.join(absent)}")
 
     assert missing == []
+
+
+def test_completed_iteration_document_statuses_are_current():
+    roadmap = Path("docs/architecture/持续迭代路线图.md").read_text(encoding="utf-8")
+    iteration_statuses = {
+        iteration_id: status.strip()
+        for iteration_id, status in ROADMAP_ITERATION_RE.findall(roadmap)
+    }
+    assert iteration_statuses, "持续迭代路线图中没有可解析的 I-xxx 状态行"
+
+    completed = {
+        iteration_id for iteration_id, status in iteration_statuses.items() if status == "已完成"
+    }
+    assert completed, "持续迭代路线图中没有已完成迭代"
+    latest_completed = max(completed, key=lambda value: int(value.split("-")[1]))
+    engineering_completed = {
+        iteration_id
+        for iteration_id, status in iteration_statuses.items()
+        if status == "已完成" or status.startswith("工程完成，")
+    }
+
+    document_center = Path("docs/文档中心.md").read_text(encoding="utf-8")
+    iteration_rows = [
+        line for line in document_center.splitlines() if line.startswith("| 持续迭代 |")
+    ]
+    assert len(iteration_rows) == 1, "文档中心必须且只能包含一个持续迭代状态行"
+    iteration_summary = iteration_rows[0].split("|")[3].strip()
+    assert f"{latest_completed} 已完成" in iteration_summary, (
+        f"文档中心持续迭代摘要未同步最新完成项 {latest_completed}: {iteration_summary}"
+    )
+
+    stale: list[str] = []
+    for decision in sorted(Path("docs/adr").glob("[0-9][0-9][0-9][0-9]-*.md")):
+        header = "\n".join(decision.read_text(encoding="utf-8").splitlines()[:30])
+        association = re.search(r"^> 关联评估/发布：([^\n]+)$", header, re.MULTILINE)
+        if association is None:
+            continue
+        related_iterations = set(re.findall(r"I-\d{3}", association.group(1)))
+        if not related_iterations or not related_iterations.issubset(engineering_completed):
+            continue
+
+        if re.search(
+            r"^> [^：\n]*核对：(?:实施中|待实施)\s*$",
+            header,
+            re.MULTILINE,
+        ):
+            stale.append(f"{decision}: 已完成迭代仍标记为实施中或待实施")
+        if re.search(
+            r"^> [^：\n]*核对：[^\n]*(?:工程门禁|代码|流程)[^\n]{0,12}待(?:完成|核对|实施)",
+            header,
+            re.MULTILINE,
+        ):
+            stale.append(f"{decision}: 工程已完成但核对元数据仍声明工程工作待完成")
+        if re.search(r"^> 完整运行验证：待", header, re.MULTILINE):
+            stale.append(f"{decision}: 已完成迭代仍等待回填完整运行验证")
+
+    assert stale == []
 
 
 def test_all_documentation_is_reachable_from_document_center():
