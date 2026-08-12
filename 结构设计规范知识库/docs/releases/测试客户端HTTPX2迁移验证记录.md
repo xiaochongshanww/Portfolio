@@ -1,11 +1,11 @@
 # 测试客户端 HTTPX2 迁移验证记录
 
-> 状态：本地已验证，远程待验证
+> 状态：已验证
 > 维护角色：工程负责人
 > 文档更新：2026-08-12
 > 代码/流程核对：2026-08-12，开发依赖、锁差异、pytest 警告门禁和运行时边界已核对
-> 完整运行验证：本地 595 项后端测试、17 项前端测试及完整工程门禁通过；远程 CI 待执行
-> 验证证据：[实施清单](../architecture/测试客户端HTTPX2迁移实施清单.md)、`requirements-dev.in`、`requirements-dev.txt`、`pyproject.toml`、`tests/test_testclient_dependency.py`
+> 完整运行验证：本地 595 项后端测试、17 项前端测试及完整工程门禁通过；[CI #114](https://github.com/xiaochongshanww/Portfolio/actions/runs/31552914886) 十项任务全部通过
+> 验证证据：[实施清单](../architecture/测试客户端HTTPX2迁移实施清单.md)、[CI #114](https://github.com/xiaochongshanww/Portfolio/actions/runs/31552914886)、`requirements-dev.in`、`requirements-dev.txt`、`pyproject.toml`、`tests/test_testclient_dependency.py`
 > 复核周期：I-044 收口或 Starlette、FastAPI、HTTPX、HTTPX2 主版本变化时
 
 ## 验证目标
@@ -43,4 +43,6 @@
 
 ## 结论边界
 
-本地证据证明 TestClient 已使用 HTTPX2 且弃用回退被自动阻断。远程 CI 通过前 I-044 保持实施中；本轮不迁移生产 HTTPX 调用，不宣称 HTTPX2 已适用于模型供应商或其他运行时请求，也不改变发布质量结论。
+提交 `de3916f` 触发 [CI #114](https://github.com/xiaochongshanww/Portfolio/actions/runs/31552914886)。依赖锁、Windows/Linux 595 项后端测试、前端、OpenWebUI 鉴权联调、双平台产包、容器冒烟与两条跨平台恢复共十项任务全部成功，运行头提交与实现提交一致。
+
+本地与远程证据证明 TestClient 已使用 HTTPX2 且弃用回退被自动阻断，I-044 可以收口。本轮不迁移生产 HTTPX 调用，不宣称 HTTPX2 已适用于模型供应商或其他运行时请求，也不改变发布质量结论。
