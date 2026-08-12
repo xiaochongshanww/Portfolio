@@ -19,7 +19,10 @@ def test_docker_context_uses_default_deny_allowlist() -> None:
     assert rules[0] == "**"
     assert "!requirements-runtime.txt" in rules
     assert "!src/**" in rules
-    assert "!frontend/**" in rules
+    assert "!frontend/**" not in rules
+    assert "!frontend/src/**" in rules
+    assert "!frontend/public/**" in rules
+    assert "!frontend/vite.config.ts" in rules
     assert "!data/evaluation/**" in rules
     assert "!data/metadata/**" in rules
 
@@ -28,9 +31,7 @@ def test_docker_context_rejects_nested_generated_and_secret_inputs() -> None:
     rules = _rules()
 
     for rule in (
-        "frontend/node_modules/",
-        "frontend/dist/",
-        "frontend/.env*",
+        "**/.env*",
         "**/__pycache__/",
         "**/*.pyc",
     ):
@@ -45,8 +46,8 @@ def test_repository_docker_context_policy_passes() -> None:
 
     assert report == {
         "ok": True,
-        "allow_rule_count": 12,
-        "copy_source_count": 7,
+        "allow_rule_count": 21,
+        "copy_source_count": 12,
         "errors": [],
     }
 
@@ -74,7 +75,7 @@ def test_validator_rejects_missing_nested_exclusion() -> None:
     dockerfile = (PROJECT_ROOT / "Dockerfile").read_text(encoding="utf-8")
 
     errors = validate_policy_text(
-        dockerignore.replace("frontend/node_modules/\n", ""),
+        dockerignore.replace("**/.env*\n", ""),
         dockerfile,
     )
 

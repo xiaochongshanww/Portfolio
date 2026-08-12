@@ -9,13 +9,16 @@
 !src/**
 
 !frontend/
-!frontend/**
-frontend/node_modules/
-frontend/dist/
-frontend/.env*
-frontend/coverage/
-frontend/.vite/
-frontend/.turbo/
+!frontend/.npmrc
+!frontend/index.html
+!frontend/package-lock.json
+!frontend/package.json
+!frontend/public/
+!frontend/public/**
+!frontend/src/
+!frontend/src/**
+!frontend/tsconfig.json
+!frontend/vite.config.ts
 
 !data/
 !data/evaluation/
@@ -23,5 +26,6 @@ frontend/.turbo/
 !data/metadata/
 !data/metadata/**
 
+**/.env*
 **/__pycache__/
 **/*.pyc

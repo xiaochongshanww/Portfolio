@@ -4,10 +4,12 @@
 FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS frontend-builder
 
 WORKDIR /app/frontend
-COPY frontend/package.json frontend/package-lock.json ./
+COPY frontend/.npmrc frontend/package.json frontend/package-lock.json ./
 RUN npm install --global npm@10.9.8
 RUN npm ci
-COPY frontend/ ./
+COPY frontend/index.html frontend/tsconfig.json frontend/vite.config.ts ./
+COPY frontend/public/ public/
+COPY frontend/src/ src/
 RUN npm run build
 
 # ---- Python dependency builder ----

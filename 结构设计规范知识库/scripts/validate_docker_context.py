@@ -16,29 +16,38 @@ ALLOWED_NEGATIONS = {
     "!data/metadata/",
     "!data/metadata/**",
     "!frontend/",
-    "!frontend/**",
+    "!frontend/.npmrc",
+    "!frontend/index.html",
+    "!frontend/package-lock.json",
+    "!frontend/package.json",
+    "!frontend/public/",
+    "!frontend/public/**",
+    "!frontend/src/",
+    "!frontend/src/**",
+    "!frontend/tsconfig.json",
+    "!frontend/vite.config.ts",
     "!requirements-runtime.txt",
     "!src/",
     "!src/**",
 }
 
 REQUIRED_NESTED_DENIES = {
-    "frontend/node_modules/": "!frontend/**",
-    "frontend/dist/": "!frontend/**",
-    "frontend/.env*": "!frontend/**",
-    "frontend/coverage/": "!frontend/**",
-    "frontend/.vite/": "!frontend/**",
-    "frontend/.turbo/": "!frontend/**",
-    "**/__pycache__/": "!src/**",
-    "**/*.pyc": "!src/**",
+    "**/.env*": ("!src/**", "!frontend/src/**", "!frontend/public/**"),
+    "**/__pycache__/": ("!src/**", "!frontend/src/**"),
+    "**/*.pyc": ("!src/**", "!frontend/src/**"),
 }
 
 REVIEWED_COPY_SOURCES = {
     "data/evaluation/",
     "data/metadata/",
-    "frontend/",
+    "frontend/.npmrc",
+    "frontend/index.html",
     "frontend/package-lock.json",
     "frontend/package.json",
+    "frontend/public/",
+    "frontend/src/",
+    "frontend/tsconfig.json",
+    "frontend/vite.config.ts",
     "requirements-runtime.txt",
     "src/",
 }
@@ -134,7 +143,7 @@ def validate_policy_text(
         )
 
     positions = {rule: index for index, rule in enumerate(rules)}
-    for deny, allow in REQUIRED_NESTED_DENIES.items():
+    for deny, allows in REQUIRED_NESTED_DENIES.items():
         if deny not in positions:
             errors.append(
                 ValidationError(
@@ -143,14 +152,16 @@ def validate_policy_text(
                     message=f"Generated or secret-bearing path must remain excluded: {deny}",
                 )
             )
-        elif allow in positions and positions[deny] < positions[allow]:
-            errors.append(
-                ValidationError(
-                    location=".dockerignore",
-                    code="NESTED_DENY_ORDER_INVALID",
-                    message=f"{deny} must appear after the broader allow rule {allow}.",
-                )
-            )
+        else:
+            for allow in allows:
+                if allow in positions and positions[deny] < positions[allow]:
+                    errors.append(
+                        ValidationError(
+                            location=".dockerignore",
+                            code="NESTED_DENY_ORDER_INVALID",
+                            message=f"{deny} must appear after the broader allow rule {allow}.",
+                        )
+                    )
 
     copy_sources, copy_errors = local_copy_sources(dockerfile_text)
     errors.extend(copy_errors)

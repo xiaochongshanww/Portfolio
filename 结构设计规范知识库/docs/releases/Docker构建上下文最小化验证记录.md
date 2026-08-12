@@ -33,9 +33,9 @@
 ## 已形成证据
 
 - 实施前 2 项测试按预期失败，分别指出缺少首条 `**` 默认拒绝和前端嵌套排除；
-- 实施后策略校验报告为 `ok=true`，12 条放行规则覆盖 7 个已审阅本地 `COPY` 来源；
+- 第一版修复后继续审计发现 `!frontend/**` 仍过宽，新增 4 项失败测试要求逐项前端输入；最终策略校验报告为 `ok=true`，21 条放行规则覆盖 12 个已审阅本地 `COPY` 来源；
 - 故障注入覆盖缺少默认拒绝、额外放行、缺少嵌套排除和新增未审阅 `COPY`；
-- Docker Desktop 构建 `structural-spec-kb:i046-local` 成功，当前缓存构建实际只传输 8.94 kB 增量上下文；
+- Dockerfile 已移除宽泛的 `COPY frontend/`；Docker Desktop 重新构建 `structural-spec-kb:i046-local` 成功，构建日志记录上下文为 187.55 kB；
 - 隔离容器在宿主机 8020 返回 `/health` 状态 `ok`，`/static/index.html` 返回 HTTP 200，随后已删除且端口释放；
 - 一次性独立 BuildKit builder 因外部运行环境拉取在 5 分钟超时，已删除；该尝试不作为冷缓存上下文总量证据，也不影响上述确定性契约和本地真实镜像结论。
 - 604 项后端测试通过，1 项 Windows 符号链接权限测试按设计跳过；164 个 Python 文件通过 Ruff；
