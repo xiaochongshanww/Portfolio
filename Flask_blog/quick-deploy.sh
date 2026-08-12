@@ -46,7 +46,7 @@ if docker-compose -f $COMPOSE_FILE pull; then
 else
     echo "⚠️  镜像拉取失败，可能需要配置GHCR访问权限"
     echo "💡 解决方案："  
-    echo "   1. 确保镜像已设置为公开 (参考 GHCR-SETUP.md)"
+    echo "   1. 确保镜像已设置为公开 (参考 docs/operations/ghcr-setup.md)"
     echo "   2. 或登录GitHub: docker login ghcr.io"
     echo "💡 是否继续使用本地构建? (y/N): "
     read -r response

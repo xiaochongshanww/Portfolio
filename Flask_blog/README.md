@@ -4,7 +4,9 @@
 
 ## 🚀 快速部署
 
-**一键部署指南**: [DEPLOYMENT.md](./DEPLOYMENT.md) - 完整的Docker一键部署解决方案，包含外部元数据系统和备份恢复功能。
+**一键部署指南**: [docs/operations/deployment.md](./docs/operations/deployment.md) - 完整的Docker一键部署解决方案，包含外部元数据系统和备份恢复功能。
+
+**📚 文档中心**: 项目文档已按大型项目规范整理至 [docs/](./docs/README.md)，涵盖架构、设计、产品、运维、工程规范等分目录。
 
 ```bash
 # Linux/macOS
@@ -186,7 +188,7 @@ rejected -> draft (作者继续改) / pending_review (再次提交)
 如需更详细的实现说明或下一阶段规划，可在 issue / 需求文档中继续补充。
 # Flask Blog 平台 (Phase 1)
 
-> 当前仓库处于 Phase 1 交付：聚焦文章基础 CRUD、工作流(草稿 → 待审核 → 已发布 / 退回 / 归档 / 定时)、角色/权限、访问控制、基础搜索与上传，并提供最小可运行的前后端与测试。本文档为总体 README（backend 目录下 README 仍保留更细节后端说明）。
+> 当前仓库处于 Phase 1 交付：聚焦文章基础 CRUD、工作流(草稿 → 待审核 → 已发布 / 退回 / 归档 / 定时)、角色/权限、访问控制、基础搜索与上传，并提供最小可运行的前后端与测试。本文档为总体 README（后端细节见 [docs/backend/overview.md](./docs/backend/overview.md)）。
 
 ## 1. 功能概览 (Phase 1 完成范围)
 
@@ -328,7 +330,7 @@ pytest -q
 - 富媒体短代码：支持 `:::video` (YouTube/BiliBili) 与 `:::gist`，后端短代码预处理 + 安全 iframe 白名单；前端懒加载 gist 内容。
 - 内容安全：Bleach 允许的标签/属性扩展，iframe host 白名单过滤；仍默认拒绝未知外链脚本。
 - 缓存策略：Redis 缓存已发布文章 + ETag 协商缓存；仅已发布写缓存，避免草稿泄露；删除与工作流状态切换时失效清理。
-- 性能基线文档：新增 `PERFORMANCE.md` 描述目标指标、监控与优化方向（可继续补充 Lighthouse 分析结果）。
+- 性能基线文档：新增 [docs/operations/performance.md](./docs/operations/performance.md) 描述目标指标、监控与优化方向（可继续补充 Lighthouse 分析结果）。
 
 ### 待办 / 计划
 - Nginx 优化：静态资源与图片添加 `Cache-Control` 分层策略 + Brotli/Gzip；安全头 (CSP/Strict-Transport-Security/Referrer-Policy)。
@@ -349,9 +351,9 @@ curl http://localhost:8000/api/v1/health
 （若 Windows 无 curl，可使用 `Invoke-WebRequest`。）
 
 ### 性能追踪
-参考 `PERFORMANCE.md`：包含基线采集、指标目标、建议的 Lighthouse 与 Prometheus 监控切入点。提交优化前后请更新该文档的对比表。后续计划在 CI 中自动产出 `lhci` 报告并存档。
+参考 [docs/operations/performance.md](./docs/operations/performance.md)：包含基线采集、指标目标、建议的 Lighthouse 与 Prometheus 监控切入点。提交优化前后请更新该文档的对比表。后续计划在 CI 中自动产出 `lhci` 报告并存档。
 
-> 如需新增性能实验（e.g. SSR、Edge 缓存、Service Worker 预缓存），建议先在 `PERFORMANCE.md` 记录假设与验证指标，再实施变更，保持可回溯性。
+> 如需新增性能实验（e.g. SSR、Edge 缓存、Service Worker 预缓存），建议先在 [docs/operations/performance.md](./docs/operations/performance.md) 记录假设与验证指标，再实施变更，保持可回溯性。
 
 ## 11. Phase 2 展望 (未完成项)
 - 富文本 Markdown WYSIWYG（Milkdown / TipTap）+ 实时预览 + 历史版本/差异。

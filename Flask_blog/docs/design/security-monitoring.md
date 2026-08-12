@@ -1590,7 +1590,7 @@ echo "  2. 导入Grafana仪表板模板"
 echo "  3. 配置告警通知渠道"
 echo "  4. 训练机器学习模型"
 echo ""
-echo "📖 详细文档：./SECURITY_MONITORING_SOLUTION.md"
+echo "📖 详细文档：docs/design/security-monitoring.md"
 ```
 
 ### 配置Flask应用集成

@@ -189,7 +189,7 @@ userStore (Pinia):
 
 ## 测试策略
 
-参见 [test-system-evaluation.md](./test-system-evaluation.md)
+参见 [testing.md](../engineering/testing.md)
 
 层级:
 ```
@@ -205,8 +205,9 @@ E2E (Playwright)        → 核心流程
 
 | 文档 | 说明 |
 |------|------|
-| [README.md](../README.md) | 项目概览与快速开始 |
-| [DEPLOYMENT.md](../DEPLOYMENT.md) | 生产部署指南 |
-| [DEVELOPMENT.md](../DEVELOPMENT.md) | 开发环境设置 |
-| [code-review-report.md](./code-review-report.md) | 代码审查结果 |
-| [test-system-evaluation.md](./test-system-evaluation.md) | 测试体系评估 |
+| [README.md](../../README.md) | 项目概览与快速开始 |
+| [deployment.md](../operations/deployment.md) | 生产部署指南 |
+| [development.md](../getting-started/development.md) | 开发环境设置 |
+| [code-review-report.md](../engineering/code-review-report.md) | 代码审查结果 |
+| [testing.md](../engineering/testing.md) | 测试体系评估 |
+| [标准（工程规范）](../engineering/standards.md) | 项目开发规范 |
