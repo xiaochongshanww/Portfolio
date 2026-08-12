@@ -207,7 +207,12 @@ jobs:
       - name: Render Compose with documented example
         run: docker compose --env-file .env.example config --quiet
       - name: Build runtime image
-        run: docker build --tag structural-spec-kb:ci .
+        run: >-
+          docker build
+          --build-arg APP_UID="$(id -u)"
+          --build-arg APP_GID="$(id -g)"
+          --tag structural-spec-kb:ci
+          .
       - name: Start runtime image
         run: docker run --detach --name structural-spec-kb-ci --publish 8000:8000 structural-spec-kb:ci
       - name: Verify health and bundled console
@@ -223,6 +228,11 @@ jobs:
             sleep 2
           done
           curl --fail --silent http://127.0.0.1:8000/static/index.html >/dev/null
+      - name: Verify non-root runtime identity and write access
+        run: |
+          test "$(docker exec structural-spec-kb-ci id -u)" != "0"
+          docker exec structural-spec-kb-ci sh -c 'test -w /app/data'
+          docker exec structural-spec-kb-ci sh -c 'touch /app/data/.ci-write-probe && rm /app/data/.ci-write-probe'
       - name: Prepare container security artifacts
         run: mkdir -p artifacts/container-security
       - name: Install pinned Trivy scanner
@@ -299,7 +309,12 @@ jobs:
           STRUCTURAL_SPEC_KB_IMAGE_TAG=ci-openwebui
           EOF
       - name: Build shared application image
-        run: docker build --tag structural-spec-kb:ci-openwebui .
+        run: >-
+          docker build
+          --build-arg APP_UID="$(id -u)"
+          --build-arg APP_GID="$(id -g)"
+          --tag structural-spec-kb:ci-openwebui
+          .
       - name: Pull external Compose images with bounded retry
         run: >-
           python scripts/pull_compose_images.py
@@ -313,6 +328,9 @@ jobs:
         run: docker compose up --no-build --pull never --detach open-webui
       - name: Verify preflight and OpenWebUI model discovery
         run: |
+          test "$(docker exec rag-api id -u)" != "0"
+          docker exec rag-api sh -c 'test -w /app/data'
+          docker exec rag-api sh -c 'touch /app/data/.ci-compose-write-probe && rm /app/data/.ci-compose-write-probe'
           test "$(docker inspect --format '{{.State.ExitCode}}' openwebui-preflight)" = "0"
           docker compose logs --no-color openwebui-preflight | grep --fixed-strings '"ok": true'
           for attempt in {1..90}; do

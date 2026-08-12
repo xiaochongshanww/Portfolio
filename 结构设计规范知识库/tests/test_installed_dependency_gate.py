@@ -41,11 +41,19 @@ def test_ci_checks_installed_development_and_runtime_dependency_graphs():
 def test_runtime_image_checks_builder_graph_before_copying_and_removing_pip():
     dockerfile = (PROJECT_ROOT / "Dockerfile").read_text(encoding="utf-8")
 
-    install = "RUN pip install --user --no-cache-dir --require-hashes -r requirements-runtime.txt"
+    install = (
+        "RUN python -m pip install --no-cache-dir --require-hashes -r requirements-runtime.txt"
+    )
     check = "RUN python -m pip check"
-    copy = "COPY --from=python-builder /root/.local /root/.local"
-    uninstall = "RUN python -m pip uninstall --yes jaraco.context wheel setuptools pip"
+    venv_cleanup = "RUN python -m pip uninstall --yes wheel setuptools pip"
+    copy = "COPY --from=python-builder /opt/venv /opt/venv"
+    runtime_cleanup = "RUN python -m pip uninstall --yes jaraco.context wheel setuptools pip"
 
     assert dockerfile.count(check) == 1
-    assert dockerfile.index(install) < dockerfile.index(check) < dockerfile.index(copy)
-    assert dockerfile.index(uninstall) < dockerfile.index(copy)
+    assert (
+        dockerfile.index(install)
+        < dockerfile.index(check)
+        < dockerfile.index(venv_cleanup)
+        < dockerfile.index(copy)
+    )
+    assert dockerfile.index(runtime_cleanup) < dockerfile.index(copy)

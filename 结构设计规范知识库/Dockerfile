@@ -17,31 +17,50 @@ FROM python:3.11-slim@sha256:90744cff8f32887f075c47d747a173ff333e9e98801667af93c
 
 WORKDIR /app
 COPY requirements-runtime.txt .
-RUN pip install --user --no-cache-dir --require-hashes -r requirements-runtime.txt
+RUN python -m venv /opt/venv
+ENV PATH=/opt/venv/bin:$PATH
+RUN python -m pip install --no-cache-dir --require-hashes -r requirements-runtime.txt
 RUN python -m pip check
+RUN python -m pip uninstall --yes wheel setuptools pip
 
 # ---- Runtime ----
 FROM python:3.11-slim@sha256:90744cff8f32887f075c47d747a173ff333e9e98801667af93c357fa9f5e28ff AS runtime
 
 WORKDIR /app
 
+ARG APP_UID=10001
+ARG APP_GID=10001
+
 # 依赖只在 builder 安装；最终服务不保留包安装工具及其辅助包。
 RUN python -m pip uninstall --yes jaraco.context wheel setuptools pip
 
-# 从 builder 复制已安装的包
-COPY --from=python-builder /root/.local /root/.local
-ENV PATH=/root/.local/bin:$PATH \
+# 从 builder 复制已检查且已移除安装工具的虚拟环境。
+COPY --from=python-builder /opt/venv /opt/venv
+ENV PATH=/opt/venv/bin:$PATH \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# 创建数据目录
-RUN mkdir -p /app/db /app/logs /app/data
+# 创建专用运行身份与可写数据目录。构建参数必须为正整数。
+RUN case "$APP_UID" in ''|*[!0-9]*) \
+      echo "APP_UID and APP_GID must be positive integers" >&2; exit 1 ;; esac \
+    && case "$APP_GID" in ''|*[!0-9]*) \
+      echo "APP_UID and APP_GID must be positive integers" >&2; exit 1 ;; esac \
+    && if ! [ "$APP_UID" -gt 0 ] 2>/dev/null || ! [ "$APP_GID" -gt 0 ] 2>/dev/null; then \
+      echo "APP_UID and APP_GID must be positive integers" >&2; exit 1; \
+    fi \
+    && groupadd --gid "$APP_GID" app \
+    && useradd --uid "$APP_UID" --gid app --create-home --home-dir /home/app \
+      --shell /usr/sbin/nologin app \
+    && mkdir -p /app/db /app/logs /app/data \
+    && chown -R app:app /app/db /app/logs /app/data
 
 # 复制应用、控制台和运行时评估资产
 COPY src/ src/
 COPY --from=frontend-builder /app/frontend/dist frontend/dist/
 COPY data/evaluation/ data/evaluation/
 COPY data/metadata/ data/metadata/
+
+USER app:app
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \

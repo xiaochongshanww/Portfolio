@@ -477,6 +477,8 @@ docker compose logs --no-color openwebui-preflight
 
 Dockerfile frontend、Node、Python 和 OpenWebUI 均保留可读标签并固定多架构 `sha256` 摘要。`validate_container_images.py` 会解析 Dockerfile，并通过 Compose JSON 渲染图阻断可变外部引用；`--check-remote` 用于维护时比较标签当前摘要。`validate_container_security.py` 校验固定 Trivy 身份、最终运行镜像的 SBOM/漏洞门禁契约和时效化例外；其 `--check-remote` 只在维护任务中检查扫描器发行版漂移。`validate_docker_context.py` 校验 `.dockerignore` 的默认拒绝允许集及 Dockerfile 本地 `COPY` 来源，避免 `.tools`、`node_modules`、本机数据、密钥和日志被发送给构建器；新增复制源时必须同步审阅该契约，不能改回包含整个仓库。三类校验都不替代许可、签名或人工安全审阅。`pull_compose_images.py` 只拉取调用方明确指定的外部服务镜像，对仓库限流、网络超时等瞬时故障执行有限指数退避；镜像不存在、鉴权失败和未知错误立即失败。拉取成功后以 `--pull never` 启动，确保镜像获取失败与容器健康失败分别诊断。启用 API 鉴权时，`.env` 中的 `OPENWEBUI_API_KEY` 必须与 `API_KEYS` 中的一项一致。一次性 `openwebui-preflight` 会在 OpenWebUI 启动前验证真实连接；显示 `Exited (0)` 是成功终态。标准 Compose 以环境变量托管 OpenWebUI 连接，旧数据卷中的连接配置不会覆盖 `.env`，完整启动、镜像更新与轮换步骤见[部署运行手册](./docs/operations/部署运行手册.md)。
 
+API 镜像使用 `/opt/venv` 中的只读运行依赖，并以专用 `app` 用户启动。Linux 上首次构建前，将 `.env` 中的 `APP_UID`/`APP_GID` 设置为执行 Compose 用户的 `id -u`/`id -g`，确保 `data`、`db` 和 `logs` 绑定卷可写；不得用 root 或 `chmod 777` 绕过权限。Docker Desktop 通常可以保持示例默认值，完整迁移和诊断步骤见部署手册。
+
 控制台采用分工模式：
 
 - Open WebUI：主聊天入口，适合日常多会话问答。

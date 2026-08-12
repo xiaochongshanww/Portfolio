@@ -90,7 +90,9 @@ def test_compose_persists_runtime_data_and_uses_v1_backend():
     assert "DATA_DIR=/app/data" in compose
     assert "open-webui-data:/app/backend/data" in compose
     assert compose.count("image: structural-spec-kb:${STRUCTURAL_SPEC_KB_IMAGE_TAG:-local}") == 2
-    assert compose.count("build: .") == 1
+    assert compose.count("context: .") == 1
+    assert "APP_UID: ${APP_UID:-1000}" in compose
+    assert "APP_GID: ${APP_GID:-1000}" in compose
     assert "openwebui-preflight:" in compose
     assert 'command: ["python", "-m", "src.app.core.openwebui_probe"]' in compose
     assert "OPENAI_API_BASE_URLS: http://api:8000/v1" in compose
@@ -127,9 +129,11 @@ def test_repository_ci_covers_backend_frontend_and_container():
     assert "npm test" in workflow
     assert "npm run typecheck" in workflow
     assert "npm run build" in workflow
-    assert "docker build --tag structural-spec-kb:ci ." in workflow
+    assert "--tag structural-spec-kb:ci" in workflow
+    assert '--build-arg APP_UID="$(id -u)"' in workflow
+    assert '--build-arg APP_GID="$(id -g)"' in workflow
     assert "OpenWebUI authenticated integration" in workflow
-    assert "docker build --tag structural-spec-kb:ci-openwebui ." in workflow
+    assert "--tag structural-spec-kb:ci-openwebui" in workflow
     assert "python scripts/pull_compose_images.py" in workflow
     assert "--attempt-timeout 600" in workflow
     assert "--policy always" in workflow
