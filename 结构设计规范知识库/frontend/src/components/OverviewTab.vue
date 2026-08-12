@@ -73,6 +73,41 @@
     </div>
     <div class="grid gap-4">
       <div class="panel p-4">
+        <div class="mb-3 flex items-center justify-between gap-3">
+          <h2 class="panel-title">模型供应商</h2>
+          <button
+            class="btn shrink-0"
+            data-testid="provider-probe-button"
+            :disabled="probingProviders"
+            title="发起一次最小 Embedding 与聊天调用"
+            @click="runProviderProbe"
+          >
+            {{ probingProviders ? '检测中' : '检测' }}
+          </button>
+        </div>
+        <div v-if="providerProbeError" class="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700" role="alert">
+          {{ providerProbeError }}
+        </div>
+        <div v-else-if="providerProbe" class="divide-y divide-slate-200 border-y border-slate-200">
+          <div v-for="item in providerProbe.providers" :key="`${item.provider}:${item.capability}`" class="py-3">
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <div class="text-sm font-medium text-slate-900">{{ providerName(item.provider, item.capability) }}</div>
+                <div class="mt-1 break-all text-xs text-slate-500">{{ item.model }}</div>
+              </div>
+              <span class="shrink-0 text-xs font-semibold" :class="providerStatusClass(item.status)">
+                {{ providerStatusLabel(item.status) }}
+              </span>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+              <span>{{ item.latency_ms }} ms</span>
+              <span v-if="item.http_status">HTTP {{ item.http_status }}</span>
+            </div>
+          </div>
+        </div>
+        <p v-else class="text-sm text-slate-500">尚未检测</p>
+      </div>
+      <div class="panel p-4">
         <div class="mb-3 flex items-center justify-between">
           <h2 class="panel-title">Ready Checks</h2>
           <span :class="ready?.ready ? 'text-emerald-700' : 'text-rose-700'" class="text-xs font-semibold">
@@ -93,9 +128,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { probeModelProviders } from '../admin-api'
+import { errorMessage } from '../api'
 import type {
   KnowledgeDocumentsView,
+  ProviderProbesResponse,
   QualityStatusView,
   ReadinessResponse,
 } from '../contracts'
@@ -109,6 +147,51 @@ const props = defineProps<{
   quality: QualityStatusView
 }>()
 const correctionCount = computed(() => props.documents?.correction_status?.applied_count || 0)
+const probingProviders = ref(false)
+const providerProbe = ref<ProviderProbesResponse | null>(null)
+const providerProbeError = ref('')
+
+const providerStatusLabels: Record<string, string> = {
+  ok: '可用',
+  not_configured: '未配置',
+  auth_failed: '鉴权失败',
+  rate_limited: '已限流',
+  timeout: '超时',
+  unavailable: '不可用',
+  request_failed: '请求失败',
+  invalid_response: '响应无效',
+}
+
+async function runProviderProbe() {
+  if (probingProviders.value) return
+  probingProviders.value = true
+  providerProbeError.value = ''
+  try {
+    providerProbe.value = await probeModelProviders()
+  } catch (error) {
+    providerProbe.value = null
+    providerProbeError.value = errorMessage(error)
+  } finally {
+    probingProviders.value = false
+  }
+}
+
+function providerName(provider: string, capability: string) {
+  if (provider === 'zhipuai' && capability === 'embedding') return '智谱 Embedding'
+  if (provider === 'mimo' && capability === 'chat') return 'MiMo 聊天'
+  return `${provider} ${capability}`
+}
+
+function providerStatusLabel(status: string) {
+  return providerStatusLabels[status] || status
+}
+
+function providerStatusClass(status: string) {
+  if (status === 'ok') return 'text-emerald-700'
+  if (['rate_limited', 'timeout'].includes(status)) return 'text-amber-700'
+  if (status === 'not_configured') return 'text-slate-500'
+  return 'text-rose-700'
+}
 
 function percent(value?: number | null) {
   return typeof value === 'number' ? `${Math.round(value * 100)}%` : '-'

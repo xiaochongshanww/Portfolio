@@ -12,6 +12,7 @@ export type {
   ManualDraftResponse,
   ManualValidationResponse,
   ManualVersionSummary,
+  ProviderProbesResponse,
   QualityStatusResponse,
   ReadinessResponse,
   StructuringSuggestionResponse,
