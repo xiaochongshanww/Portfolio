@@ -1,4 +1,6 @@
 -r requirements-runtime.in
 
 pytest>=8.4,<9
+# Starlette 1.2+ TestClient 的首选后端；旧 httpx 回退已弃用。
+httpx2>=2,<3
 ruff==0.16.2

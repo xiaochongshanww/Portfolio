@@ -75,7 +75,7 @@ python scripts/validate_ci_actions.py
 
 `.github/dependabot.yml` 每周为这些固定引用提出分组更新；更新仍须人工审阅并通过完整 CI，不自动合并。
 
-开发锁固定 Ruff 版本，Python 修改在提交前必须通过同一组静态检查和格式检查：
+开发锁固定 Ruff 版本，并单独提供 Starlette TestClient 使用的 HTTPX2；生产运行锁继续使用 HTTPX，不因测试后端迁移而扩大运行依赖。pytest 会把 Starlette 回退到旧 HTTPX 的弃用警告视为错误。Python 修改在提交前必须通过同一组静态检查和格式检查：
 
 ```bash
 python -m ruff check src scripts tests
