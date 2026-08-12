@@ -44,6 +44,8 @@ jobs:
         run: python scripts/validate_container_images.py
       - name: Validate container security policy
         run: python scripts/validate_container_security.py
+      - name: Validate minimal Docker build context
+        run: python scripts/validate_docker_context.py
 
   backend:
     name: Backend tests (${{ matrix.os }})

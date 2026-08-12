@@ -117,6 +117,7 @@ def test_repository_ci_covers_backend_frontend_and_container():
     assert "python scripts/validate_ci_actions.py" in workflow
     assert "python scripts/validate_container_images.py" in workflow
     assert "python scripts/validate_container_security.py" in workflow
+    assert "python scripts/validate_docker_context.py" in workflow
     assert "--require-cross-platform" in workflow
     assert "python -m scripts.verify_runtime_package_cold_start" in workflow
     assert "python -m scripts.verify_runtime_package_recovery" in workflow
