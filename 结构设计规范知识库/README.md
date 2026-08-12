@@ -47,6 +47,7 @@
 ```bash
 pip install --require-hashes -r requirements-runtime.txt
 pip install --require-hashes -r requirements-dev.txt
+python -m pip check
 ```
 
 只有从原始 PDF 生产知识资产的独立环境才安装重型解析器锁：
@@ -56,7 +57,7 @@ pip install --require-hashes -r requirements-parser.txt
 python -m src.pipeline parser-status
 ```
 
-`requirements-runtime.in`、`requirements-dev.in` 与 `requirements-parser.in` 是三类环境的直接依赖维护入口，对应 `.txt` 文件是带包哈希的 Python 3.11 跨平台精确锁。解析器锁当前固定活动知识资产实际使用过的 `magic-pdf[full]==1.3.12`，不代表 MinerU 2.x/3.x 已兼容。`dependency-lock.json` 固定 Python 版本、`uv` 版本和依赖时间截点；不要手工编辑锁文件。检查或有意升级依赖时执行：
+`requirements-runtime.in`、`requirements-dev.in` 与 `requirements-parser.in` 是三类环境的直接依赖维护入口，对应 `.txt` 文件是带包哈希的 Python 3.11 跨平台精确锁。解析器锁当前固定活动知识资产实际使用过的 `magic-pdf[full]==1.3.12`，不代表 MinerU 2.x/3.x 已兼容。`dependency-lock.json` 固定 Python 版本、`uv` 版本和依赖时间截点；不要手工编辑锁文件。锁重建证明解析可复现，安装后的 `python -m pip check` 另行证明当前环境不存在声明版本冲突，两项都必须通过。检查或有意升级依赖时执行：
 
 ```bash
 python -m pip install -r requirements-tools.txt
