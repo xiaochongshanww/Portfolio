@@ -74,8 +74,8 @@
                   </div>
                   <div class="author-details">
                     <span class="author-name">{{ article.author?.name || '匿名作者' }}</span>
-                    <time class="publish-date" :datetime="article.published_at || article.created_at">
-                      {{ formatPublishDate(article.published_at || article.created_at) }}
+                    <time class="publish-date" :datetime="article.published_at || article.created_at || undefined">
+                      {{ formatPublishDate(article.published_at || article.created_at || '') }}
                     </time>
                   </div>
                 </div>
@@ -218,7 +218,7 @@
                 <img 
                   v-if="article.author?.avatar" 
                   :src="article.author.avatar" 
-                  :alt="article.author.name"
+                  :alt="article.author.name || ''"
                   class="author-card-img"
                 >
                 <div v-else class="author-card-fallback">
@@ -249,7 +249,7 @@
                 <a 
                   :href="`#${item.id}`" 
                   class="toc-link"
-                  @click.prevent="scrollToHeading(item.id)"
+                  @click.prevent="scrollToHeading(item.id || '')"
                 >
                   {{ item.text }}
                 </a>
@@ -305,6 +305,7 @@ import {
   updateGlobalCodeTheme
 } from '../utils/codeTheme';
 import apiClient from '../apiClient'; // Simplified
+import type { Article } from '../types';
 
 // 创建 lowlight 实例，与编辑器保持一致
 const lowlight = createLowlight(common);
@@ -312,26 +313,26 @@ const lowlight = createLowlight(common);
 // API服务定义
 const API = {
     ArticlesService: {
-        getArticleBySlug: (slug) => apiClient.get(`/articles/public/slug/${slug}`),
-        likeArticle: (id) => apiClient.post(`/articles/${id}/like`),
-        bookmarkArticle: (id) => apiClient.post(`/articles/${id}/bookmark`),
-        getVersions: (id) => apiClient.get(`/articles/${id}/versions`),
-        createVersion: (id) => apiClient.post(`/articles/${id}/versions`),
-        rollbackVersion: (id, vNo) => apiClient.post(`/articles/${id}/versions/${vNo}/rollback`),
-        diffVersions: (id, vNo, targetNo) => apiClient.get(`/articles/${id}/versions/${vNo}/diff?target=${targetNo}`),
-        submitArticle: (id) => apiClient.post(`/articles/${id}/submit`),
-        approveArticle: (id) => apiClient.post(`/articles/${id}/approve`),
-        rejectArticle: (id, reason) => apiClient.post(`/articles/${id}/reject`, { reason }),
-        scheduleArticle: (id, date) => apiClient.post(`/articles/${id}/schedule`, { scheduled_at: date }),
-        unpublishArticle: (id) => apiClient.post(`/articles/${id}/unpublish`),
-        unscheduleArticle: (id) => apiClient.post(`/articles/${id}/unschedule`),
+        getArticleBySlug: (slug: string) => apiClient.get(`/articles/public/slug/${slug}`),
+        likeArticle: (id: number) => apiClient.post(`/articles/${id}/like`),
+        bookmarkArticle: (id: number) => apiClient.post(`/articles/${id}/bookmark`),
+        getVersions: (id: number) => apiClient.get(`/articles/${id}/versions`),
+        createVersion: (id: number) => apiClient.post(`/articles/${id}/versions`),
+        rollbackVersion: (id: number, vNo: number) => apiClient.post(`/articles/${id}/versions/${vNo}/rollback`),
+        diffVersions: (id: number, vNo: number, targetNo: number) => apiClient.get(`/articles/${id}/versions/${vNo}/diff?target=${targetNo}`),
+        submitArticle: (id: number) => apiClient.post(`/articles/${id}/submit`),
+        approveArticle: (id: number) => apiClient.post(`/articles/${id}/approve`),
+        rejectArticle: (id: number, reason: string) => apiClient.post(`/articles/${id}/reject`, { reason }),
+        scheduleArticle: (id: number, date: string) => apiClient.post(`/articles/${id}/schedule`, { scheduled_at: date }),
+        unpublishArticle: (id: number) => apiClient.post(`/articles/${id}/unpublish`),
+        unscheduleArticle: (id: number) => apiClient.post(`/articles/${id}/unschedule`),
     }
 }
 
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
-const article = ref(null);
+const article = ref<Article | null>(null);
 const liked = ref(false);
 const bookmarked = ref(false);
 const likeCount = ref(0);
@@ -343,23 +344,23 @@ const acting = ref(false);
 const error = ref('');
 
 // 新增状态
-const tocItems = ref([]);
+const tocItems = ref<{ id?: string; text?: string; level?: number }[]>([]);
 const activeHeading = ref('');
 const readingProgress = ref(0);
 
 // 内容渲染器状态
-const contentTypeInfo = ref(null);
+const contentTypeInfo = ref<{ type: string; features?: { estimatedPreservationNeeded?: boolean } } | null>(null);
 const isDevelopmentMode = computed(() => process.env.NODE_ENV === 'development' || import.meta.env.DEV);
 
 // 代码主题相关变量已移除
 
-const WORKFLOW_TRANSITIONS = {
+const WORKFLOW_TRANSITIONS: Record<string, string[]> = {
     draft: ['submit'],
     pending: ['通过', '拒绝'],
 }
 
-const nextList = computed(()=> article.value ? (WORKFLOW_TRANSITIONS[article.value.status] || []) : []);
-const canOperate = (target) => true; // Simplified for demo
+const nextList = computed(()=> article.value ? (WORKFLOW_TRANSITIONS[article.value.status || ''] || []) : []);
+const canOperate = (target: string) => true; // Simplified for demo
 const canSchedule = computed(()=> article.value && article.value.status === 'draft');
 const canUnschedule = computed(()=> article.value && article.value.status === 'scheduled');
 const canUnpublish = computed(()=> article.value && article.value.status === 'published');
@@ -377,7 +378,7 @@ const canEdit = computed(() => {
 // 编辑文章
 function editArticle() {
   if (!article.value || !canEdit.value) {
-    message.warning('没有编辑权限');
+    ElMessage.warning('没有编辑权限');
     return;
   }
   
@@ -385,7 +386,7 @@ function editArticle() {
   router.push(`/articles/${article.value.id}/edit`);
 }
 
-async function doTransition(target){
+async function doTransition(target: string){
   if(!article.value) return;
   acting.value=true; error.value='';
   
@@ -418,7 +419,8 @@ async function load(){
   error.value = '';
   
   try {
-    const slug = props.slug || route.params.slug;
+    const slugParam = props.slug || route.params.slug;
+    const slug = Array.isArray(slugParam) ? slugParam[0] : (slugParam || '');
     if (!slug) {
       throw new Error('文章slug参数缺失');
     }
@@ -473,7 +475,8 @@ async function load(){
     await highlightLater();
   } catch(e){ 
     console.error('文章加载失败:', e);
-    error.value = e.response?.data?.message || e.message || '加载文章失败'; 
+    const err = e as { response?: { data?: { message?: string } }; message?: string };
+    error.value = err.response?.data?.message || err.message || '加载文章失败'; 
   } 
   finally { 
     loading.value = false; 
@@ -595,7 +598,7 @@ async function toggleLike(){
 
 // 点赞动画效果
 function triggerLikeAnimation() {
-  const likeButton = document.querySelector('.like-btn');
+  const likeButton = document.querySelector<HTMLElement>('.like-btn');
   if (!likeButton) return;
   
   // 添加动画类
@@ -611,7 +614,7 @@ function triggerLikeAnimation() {
 }
 
 // 创建浮动爱心效果
-function createFloatingHearts(button) {
+function createFloatingHearts(button: HTMLElement) {
   const rect = button.getBoundingClientRect();
   const heartCount = 3;
   
@@ -737,7 +740,7 @@ async function highlightLater(){
     
     // 添加复制按钮
     if (!pre.querySelector('.code-copy-btn')) {
-      addCopyButton(pre, originalCode);
+      addCopyButton(pre, block.textContent || '');
     }
   });
   
@@ -746,7 +749,7 @@ async function highlightLater(){
 
 
 // 添加语言标签的辅助函数
-function addLanguageLabel(pre, language) {
+function addLanguageLabel(pre: HTMLElement, language: string) {
   if (language && language !== 'text') {
     const label = document.createElement('div');
     label.className = 'code-language-label';
@@ -756,7 +759,7 @@ function addLanguageLabel(pre, language) {
 }
 
 // 添加复制按钮的辅助函数
-function addCopyButton(pre, code) {
+function addCopyButton(pre: HTMLElement, code: string) {
   const copyBtn = document.createElement('button');
   copyBtn.className = 'code-copy-btn';
   copyBtn.innerHTML = '<i class="fa fa-copy"></i><span class="copy-text">复制</span>';
@@ -766,7 +769,7 @@ function addCopyButton(pre, code) {
 }
 
 // 复制代码到剪贴板 - 增强版本
-function copyCodeToClipboard(text, button) {
+function copyCodeToClipboard(text: string, button: HTMLElement) {
   // 清理代码内容，移除多余的空行和缩进
   const cleanedText = text
     .split('\n')
@@ -793,7 +796,10 @@ function copyCodeToClipboard(text, button) {
     try {
       const range = document.createRange();
       const selection = window.getSelection();
-      range.selectNodeContents(button.parentElement.querySelector('code'));
+      const parent = button.parentElement;
+      const codeEl = parent ? parent.querySelector('code') : null;
+      if (!selection || !codeEl) return;
+      range.selectNodeContents(codeEl);
       selection.removeAllRanges();
       selection.addRange(range);
     } catch (e) {
@@ -805,14 +811,14 @@ function copyCodeToClipboard(text, button) {
 // 代码主题切换功能已移除
 
 // ========== 工具函数 ==========
-function formatNumber(num) {
+function formatNumber(num: number) {
   if (num >= 1000) {
     return (num / 1000).toFixed(1) + 'k';
   }
   return String(num);
 }
 
-function formatPublishDate(dateString) {
+function formatPublishDate(dateString: string) {
   if (!dateString) return '';
   
   try {
@@ -847,7 +853,7 @@ function formatPublishDate(dateString) {
   }
 }
 
-function calculateReadTime(content) {
+function calculateReadTime(content: string) {
   if (!content) return 0;
   const plainText = content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
   const chineseChars = (plainText.match(/[\u4e00-\u9fa5]/g) || []).length;
@@ -856,18 +862,18 @@ function calculateReadTime(content) {
   return Math.max(1, Math.ceil(totalWords / 275));
 }
 
-function getStatusType(status) {
-  const statusMap = {
+function getStatusType(status?: string) {
+  const statusMap: Record<string, 'info' | 'success' | 'primary' | 'warning' | 'danger'> = {
     'draft': 'info',
     'pending': 'warning', 
     'published': 'success',
     'scheduled': 'primary'
   };
-  return statusMap[status] || 'info';
+  return statusMap[status || ''] || 'info';
 }
 
-function getStatusText(status) {
-  const statusMap = {
+function getStatusText(status?: string) {
+  const statusMap: Record<string, string> = {
     'draft': '草稿',
     'pending': '待审核',
     'published': '已发布',
@@ -876,8 +882,8 @@ function getStatusText(status) {
   return statusMap[status] || status;
 }
 
-function handleAuthorAvatarError(e) {
-  e.target.style.display = 'none';
+function handleAuthorAvatarError(e: Event) {
+  (e.target as HTMLElement).style.display = 'none';
 }
 
 function shareArticle() {
@@ -917,7 +923,7 @@ function generateTOC() {
 }
 
 // 滚动到指定标题
-function scrollToHeading(id) {
+function scrollToHeading(id: string) {
   const element = document.getElementById(id);
   if (element) {
     element.scrollIntoView({ 
@@ -971,7 +977,7 @@ onUnmounted(() => {
 // ===== 内容渲染器处理方法 =====
 
 // 处理内容类型检测结果
-const handleContentTypeDetected = (analysis) => {
+const handleContentTypeDetected = (analysis: { type: string; features?: { estimatedPreservationNeeded?: boolean } }) => {
   contentTypeInfo.value = analysis;
   
   // 静默处理，不输出调试信息
@@ -985,7 +991,7 @@ const handleContentTypeDetected = (analysis) => {
 };
 
 // 处理内容渲染完成
-const handleContentRendered = (renderInfo) => {
+const handleContentRendered = (renderInfo: { contentType: string }) => {
   // 静默处理渲染完成事件
   
   // 内容渲染完成后的后续处理
@@ -1001,7 +1007,7 @@ const handleContentRendered = (renderInfo) => {
 };
 
 // 处理内容渲染错误
-const handleContentError = (error) => {
+const handleContentError = (error: Error) => {
   console.error('❌ ArticleDetail: 内容渲染错误', error);
   ElMessage.error(`内容渲染失败: ${error.message || '未知错误'}`);
   
@@ -1012,7 +1018,7 @@ const handleContentError = (error) => {
 };
 
 // 处理内容点击事件
-const handleContentClick = (clickInfo) => {
+const handleContentClick = (clickInfo: { event: Event; contentType: string; target: HTMLElement }) => {
   const { event, contentType, target } = clickInfo;
   
   // 处理外部链接
@@ -1027,10 +1033,10 @@ const handleContentClick = (clickInfo) => {
   // 如果是代码块点击，可能需要特殊处理
   if (target.closest('pre') && contentType === 'html_source') {
     // HTML源码中的代码块点击处理
-    const codeBlock = target.closest('pre');
-    if (!codeBlock.querySelector('.code-copy-btn')) {
+    const codeBlock = target.closest<HTMLPreElement>('pre');
+    if (codeBlock && !codeBlock.querySelector('.code-copy-btn')) {
       // 为HTML内容中的代码块添加复制按钮
-      addCopyButton(codeBlock, codeBlock.textContent);
+      addCopyButton(codeBlock, codeBlock.textContent || '');
     }
   }
 };

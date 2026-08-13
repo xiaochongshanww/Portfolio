@@ -1,10 +1,12 @@
 import { defineStore } from 'pinia';
 import apiClient from '../apiClient';
+/** @typedef {import('../types').User} User */
 
 export const useUserStore = defineStore('user', {
   state: () => ({
     token: localStorage.getItem('access_token') || '',
     role: localStorage.getItem('role') || '',
+    /** @type {User | null} */
     user: null,
     isAuthenticated: false
   }),

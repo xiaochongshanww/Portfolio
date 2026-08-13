@@ -7,6 +7,9 @@ import API from './index'
 const deprecate = (name) =>
   console.warn(`[deprecated] backupApi.${name}() — 请改用 API.${name}()`)
 
+/**
+ * @type {Record<string, (...args: any[]) => Promise<any>>}
+ */
 const api = new Proxy({}, {
   get(_, method) {
     deprecate(method)

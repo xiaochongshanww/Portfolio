@@ -292,7 +292,7 @@
                       v-for="tag in availableTags"
                       :key="tag.id"
                       :label="tag.name"
-                      :value="tag.name"
+                      :value="tag.name || ''"
                     >
                       <span class="tag-option">
                         <span class="tag-name">#{{ tag.name }}</span>
@@ -497,6 +497,12 @@ import {
   Document, EditPen, InfoFilled, Picture, Link, UploadFilled, Loading,
   Edit, Search, Clock, Check, DocumentCopy, Setting
 } from '@element-plus/icons-vue';
+/** @typedef {import('../types').Article} Article */
+/** @typedef {import('../types').Category} Category */
+/**
+ * @typedef {{ id?: number, name?: string, article_count?: number }} NewTag
+ * @typedef {{ title: string, content_md: string, tags_raw: string, seo_title: string, seo_desc: string, slug: string, summary: string, featured_image: string, featured_focal_x: number | null, featured_focal_y: number | null, enable_schedule: boolean, scheduled_at: string, category_id: number | null }} ArticleForm
+ */
 
 const router = useRouter();
 const route = useRoute();
@@ -504,10 +510,13 @@ const userStore = useUserStore();
 
 // 编辑模式状态
 const isEditMode = ref(false);
+/** @type {import('vue').Ref<number | null>} */
 const editingArticleId = ref(null);
+/** @type {import('vue').Ref<Article | null>} */
 const originalArticle = ref(null);
 
 // 表单状态
+/** @type {import('vue').Ref<ArticleForm>} */
 const form = ref({ 
   title: '', 
   content_md: '', 
@@ -528,12 +537,15 @@ const form = ref({
 const loading = ref(false);
 const error = ref('');
 const success = ref(false);
+/** @type {import('vue').Ref<Category[]>} */
 const categories = ref([]);
 const categoryLoading = ref(false);
 
 // 标签相关状态
+/** @type {import('vue').Ref<NewTag[]>} */
 const availableTags = ref([]);
 const showMediaSelector = ref(false);
+/** @type {import('vue').Ref<string[]>} */
 const selectedTags = ref([]);
 const tagsLoading = ref(false);
 
@@ -546,9 +558,11 @@ const handleDraftRestored = () => {
 };
 
 // 编辑器引用
+/** @type {import('vue').Ref<{ syncContent?: () => string, setContent?: (content: string) => void } | null>} */
 const blockEditorRef = ref(null);
 
 // 表单验证状态
+/** @type {import('vue').Ref<Record<string, string>>} */
 const formErrors = ref({});
 const showValidation = ref(false);
 const validationRules = {
@@ -590,12 +604,15 @@ const uploadProgress = ref(0);
 
 // 自动保存状态
 const autoSaving = ref(false);
+/** @type {import('vue').Ref<Date | null>} */
 const lastSaveTime = ref(null);
+/** @type {import('vue').Ref<ReturnType<typeof setTimeout> | null>} */
 const autoSaveInterval = ref(null);
 const hasUnsavedChanges = ref(false);
 const isRestoringDraft = ref(false); // 标记是否正在恢复草稿
 const AUTOSAVE_DELAY = 3000; // 3秒后自动保存
 // 工具函数
+/** @param {string} code @param {string} fallback */
 function mapErr(code, fallback) { 
   return ERROR_CODE_MAP.get(code) || fallback; 
 }
@@ -622,11 +639,12 @@ function debugFormValidation() {
 }
 
 // 格式化保存时间
+/** @param {Date | string | null} time */
 function formatSaveTime(time) {
   if (!time) return '';
   
   const now = new Date();
-  const diff = now - time;
+  const diff = now.getTime() - new Date(time).getTime();
   const minutes = Math.floor(diff / (1000 * 60));
   const hours = Math.floor(diff / (1000 * 60 * 60));
   
@@ -634,15 +652,18 @@ function formatSaveTime(time) {
   if (minutes < 60) return `${minutes}分钟前`;
   if (hours < 24) return `${hours}小时前`;
   
-  return time.toLocaleDateString() + ' ' + time.toLocaleTimeString();
+  const date = new Date(time);
+  return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
 }
 
 // 图片处理函数
+/** @param {{ width?: number, height?: number, url: string }} meta */
 function insertImage(meta) {
   const tag = `![${meta.width || ''}x${meta.height || ''}](${meta.url})`;
   form.value.content_md = (form.value.content_md || '') + (form.value.content_md ? '\n' : '') + tag + '\n';
 }
 
+/** @param {{ url?: string }} meta */
 function onFeaturedCandidate(meta) {
   // 若尚未设置封面图，首次上传默认填入 featured_image
   if (!form.value.featured_image && meta?.url) { 
@@ -650,12 +671,14 @@ function onFeaturedCandidate(meta) {
   }
 }
 
+/** @param {{ x?: number, y?: number }} f */
 function onFocal(f) { 
-  form.value.featured_focal_x = f.x; 
-  form.value.featured_focal_y = f.y; 
+  form.value.featured_focal_x = f.x ?? form.value.featured_focal_x; 
+  form.value.featured_focal_y = f.y ?? form.value.featured_focal_y; 
 }
 
 // 加载文章数据用于编辑
+/** @param {string} articleId */
 async function loadArticleForEdit(articleId) {
   try {
     console.log('正在加载文章数据用于编辑:', articleId);
@@ -706,7 +729,9 @@ async function loadArticleForEdit(articleId) {
     }
   } catch (error) {
     console.error('加载文章数据失败:', error);
-    message.critical('加载文章失败: ' + error.message);
+    /** @type {{ message?: string }} */
+    const err = error;
+    message.critical('加载文章失败: ' + (err.message || '网络错误'));
     router.push('/');
   } finally {
     loading.value = false;
@@ -785,8 +810,11 @@ function handleMediaSelected(selectedMedia) {
   showMediaSelector.value = false;
 }
 // 表单验证功能
+/** @param {string} fieldName @param {unknown} value */
 function validateField(fieldName, value) {
-  const rules = validationRules[fieldName];
+  /** @type {Record<string, Array<{ required?: boolean, min?: number, max?: number, message?: string, trigger?: string, pattern?: RegExp, type?: string }>>} */
+  const rulesMap = validationRules;
+  const rules = rulesMap[fieldName];
   if (!rules) return null;
   
   for (const rule of rules) {
@@ -811,12 +839,15 @@ function validateField(fieldName, value) {
 }
 
 function validateForm() {
+  /** @type {Record<string, string>} */
   const errors = {};
   let hasErrors = false;
   
   // 验证所有字段
   Object.keys(validationRules).forEach(fieldName => {
-    const value = form.value[fieldName];
+    /** @type {Record<string, unknown>} */
+    const formData = form.value;
+    const value = formData[fieldName];
     const error = validateField(fieldName, value);
     if (error) {
       errors[fieldName] = error;
@@ -966,6 +997,7 @@ async function submit() {
     
     // 构建提交数据
     const tags = form.value.tags_raw.split(',').map(s => s.trim()).filter(Boolean);
+    /** @type {Record<string, unknown>} */
     const payload = { 
       title: form.value.title.trim(), 
       content_md: form.value.content_md, 
@@ -1018,6 +1050,7 @@ async function submit() {
     
     // 提交文章审核
     let publishMessage = '';
+    /** @type {'success' | 'warning'} */
     let publishType = 'success';
     
     if (!isEditMode.value) {
@@ -1334,7 +1367,7 @@ function handleCategoryChange(categoryId) {
       
       // 触发自动保存（如果有其他内容）
       if (form.value.title || form.value.content_md) {
-        markAsChanged();
+        triggerAutoSave();
       }
     }
   }
@@ -1368,7 +1401,7 @@ function updateTagsRaw() {
   
   // 触发自动保存
   if (form.value.title || form.value.content_md) {
-    markAsChanged();
+    triggerAutoSave();
   }
 }
 
@@ -1430,6 +1463,7 @@ async function saveDraft() {
     }
     
     // 构建草稿数据
+    /** @type {Record<string, unknown>} */
     const draftData = {
       title: form.value.title?.trim() || '未命名草稿',
       content_md: form.value.content_md || '',
@@ -1481,7 +1515,7 @@ function cleanupOldDrafts() {
       const draftsWithTime = draftKeys.map(key => {
         const draft = JSON.parse(localStorage.getItem(key) || '{}');
         return { key, savedAt: draft.savedAt || '1970-01-01' };
-      }).sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
+      }).sort((a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime());
       
       // 删除超过5个的旧草稿
       draftsWithTime.slice(5).forEach(draft => {
@@ -1533,7 +1567,7 @@ async function loadLatestDraft() {
     const draftData = JSON.parse(localStorage.getItem(latestDraftKey) || '{}');
     const saveTime = new Date(draftData.savedAt);
     const now = new Date();
-    const hoursDiff = (now - saveTime) / (1000 * 60 * 60);
+    const hoursDiff = (now.getTime() - saveTime.getTime()) / (1000 * 60 * 60);
     
     // 如果草稿是24小时内的，显示统一的卡片对话框询问是否恢复
     if (hoursDiff < 24) {
@@ -1649,9 +1683,11 @@ async function loadLatestDraft() {
           
           // 同步恢复基础表单数据（不包含content_md，避免触发编辑器更新）
           Object.keys(draftData).forEach(key => {
+            /** @type {Record<string, unknown>} */
+            const formData = form.value;
             if (key !== 'savedAt' && key !== 'id' && key !== 'status' && 
-                key !== 'content_md' && form.value.hasOwnProperty(key)) {
-              form.value[key] = draftData[key];
+                key !== 'content_md' && formData.hasOwnProperty(key)) {
+              formData[key] = draftData[key];
             }
           });
           
@@ -1812,7 +1848,9 @@ function handleKeyDown(e) {
         if (e.shiftKey) {
           e.preventDefault();
           // 触发图片上传
-          document.querySelector('.cover-uploader input[type="file"]')?.click();
+          /** @type {HTMLElement | null} */
+          const uploadInput = document.querySelector('.cover-uploader input[type="file"]');
+          uploadInput && uploadInput.click();
         }
         break;
         
@@ -1821,6 +1859,7 @@ function handleKeyDown(e) {
         if (e.shiftKey) {
           e.preventDefault();
           // 聚焦到编辑器区域
+          /** @type {HTMLElement | null} */
           const editorElement = document.querySelector('.editor-content');
           if (editorElement) {
             editorElement.focus();
@@ -1916,10 +1955,11 @@ onMounted(async () => {
   await loadAvailableTags();
   
   // 检查是否为编辑模式
-  const articleId = route.params.id;
+  const articleIdParam = route.params.id;
+  const articleId = Array.isArray(articleIdParam) ? articleIdParam[0] : (articleIdParam || '');
   if (articleId && route.meta.editMode) {
     isEditMode.value = true;
-    editingArticleId.value = parseInt(articleId);
+    editingArticleId.value = parseInt(articleId, 10) || null;
     setMeta({ title: '编辑文章', description: '编辑现有文章内容' });
     
     // 在分类数据加载完成后再加载文章数据

@@ -653,6 +653,9 @@ import {
   View, Download, RefreshLeft, Delete, Loading, Close
 } from '@element-plus/icons-vue'
 import backupApi from '@/api/backup'
+/** @typedef {import('../../types').BackupRecord} BackupRecord */
+/** @typedef {import('../../types').RestoreRecord} RestoreRecord */
+/** @typedef {{ message?: string, config?: unknown, response?: { status?: number, statusText?: string, data?: { message?: string } } }} ApiError */
 
 // 路由
 const router = useRouter()
@@ -660,10 +663,13 @@ const router = useRouter()
 // 响应式数据
 const loading = ref(false)
 const creating = ref(false)
+/** @type {import('vue').Ref<Record<string, number>>} */
 const stats = ref({})
+/** @type {import('vue').Ref<BackupRecord[]>} */
 const backups = ref([])
 
 // 实时监控相关
+/** @type {import('vue').Ref<ReturnType<typeof setInterval> | null>} */
 const pollingInterval = ref(null)
 const pollingEnabled = ref(true)
 const POLLING_INTERVAL = 3000 // 3秒轮询间隔
@@ -675,7 +681,7 @@ const isUpdatingBackups = ref(false)
 const runningBackups = computed(() => {
   return backups.value.filter(backup => {
     // 只显示真正运行中或等待中的任务
-    if (!['pending', 'running'].includes(backup.status)) {
+    if (!['pending', 'running'].includes(backup.status || '')) {
       return false
     }
     
@@ -728,6 +734,7 @@ const createRules = {
 // 备份详情对话框
 const detailDialog = reactive({
   visible: false,
+  /** @type {BackupRecord | null} */
   backup: null
 })
 
@@ -740,12 +747,13 @@ const getBackupStats = async () => {
     stats.value = response.data?.data || response.data || {}
     console.log('📊 设置统计数据:', stats.value)
   } catch (error) {
+    const err = /** @type {ApiError} */ (error)
     console.error('❌ 获取备份统计失败:', error)
     console.error('❌ 错误详情:', {
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      data: error.response?.data,
-      message: error.message
+      status: err.response?.status,
+      statusText: err.response?.statusText,
+      data: err.response?.data,
+      message: err.message
     })
     
     // 设置默认统计数据，避免页面显示异常
@@ -758,7 +766,7 @@ const getBackupStats = async () => {
     
     // 只在非首次加载时显示错误消息
     if (Object.keys(stats.value).length > 4) {
-      ElMessage.error('获取备份统计失败: ' + (error.response?.data?.message || error.message || '网络错误'))
+      ElMessage.error('获取备份统计失败: ' + (err.response?.data?.message || err.message || '网络错误'))
     }
     
     throw error // 重新抛出错误供上层处理
@@ -788,13 +796,14 @@ const getBackupList = async () => {
     pagination.pages = data.pages || 1
     console.log('📋 设置备份列表:', backups.value.length, '条记录')
   } catch (error) {
+    const err = /** @type {ApiError} */ (error)
     console.error('❌ 获取备份列表失败:', error)
     console.error('❌ 错误详情:', {
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      data: error.response?.data,
-      message: error.message,
-      config: error.config
+      status: err.response?.status,
+      statusText: err.response?.statusText,
+      data: err.response?.data,
+      message: err.message,
+      config: err.config
     })
     
     // 设置默认值，避免页面显示异常
@@ -804,7 +813,7 @@ const getBackupList = async () => {
     
     // 只在非首次加载时显示错误消息
     if (backups.value.length > 0) {
-      ElMessage.error('获取备份列表失败: ' + (error.response?.data?.message || error.message || '网络错误'))
+      ElMessage.error('获取备份列表失败: ' + (err.response?.data?.message || err.message || '网络错误'))
     }
     
     throw error // 重新抛出错误供上层处理
@@ -917,7 +926,8 @@ const createBackup = async () => {
     })
   } catch (error) {
     console.error('创建备份失败:', error)
-    ElMessage.error('创建备份失败: ' + (error.response?.data?.message || error.message || '网络错误'))
+    const err = /** @type {ApiError} */ (error)
+    ElMessage.error('创建备份失败: ' + (err.response?.data?.message || err.message || '网络错误'))
   } finally {
     creating.value = false
   }
@@ -949,11 +959,12 @@ const startPolling = () => {
       
       const response = await backupApi.getBackupRecords(params)
       const data = response.data?.data || response.data || {}
+      /** @type {BackupRecord[]} */
       const newBackups = data.records || []
       
       // 检查是否有状态变化
-      const hasRunningBackups = newBackups.some(backup => 
-        ['pending', 'running'].includes(backup.status)
+      const hasRunningBackups = newBackups.some((backup) => 
+        ['pending', 'running'].includes(backup.status || '')
       )
       
       // 更新数据
@@ -970,7 +981,7 @@ const startPolling = () => {
         setTimeout(() => {
           // 再次检查是否有新的运行中任务
           const stillNoRunning = backups.value.filter(backup => 
-            ['pending', 'running'].includes(backup.status)
+            ['pending', 'running'].includes(backup.status || '')
           ).length === 0
           
           if (stillNoRunning) {
@@ -1004,6 +1015,7 @@ const stopPolling = () => {
 }
 
 // 取消备份
+/** @param {BackupRecord} backup */
 const cancelBackup = async (backup) => {
   try {
     await ElMessageBox.confirm(
@@ -1033,13 +1045,15 @@ const cancelBackup = async (backup) => {
     
   } catch (error) {
     if (error !== 'cancel') {
+      const err = /** @type {ApiError} */ (error)
       console.error('❌ 取消备份失败:', error)
-      ElMessage.error('取消备份失败: ' + (error.response?.data?.message || error.message))
+      ElMessage.error('取消备份失败: ' + (err.response?.data?.message || err.message))
     }
   }
 }
 
 // 判断备份是否可以下载
+/** @param {BackupRecord} backup */
 const canDownloadBackup = (backup) => {
   // 完成状态的备份肯定可以下载
   if (backup.status === 'completed') return true
@@ -1058,6 +1072,7 @@ const canDownloadBackup = (backup) => {
 }
 
 // 判断备份是否可以用于恢复
+/** @param {BackupRecord} backup */
 const canRestoreBackup = (backup) => {
   // 完成状态的备份肯定可以恢复
   if (backup.status === 'completed') return true
@@ -1074,6 +1089,7 @@ const canRestoreBackup = (backup) => {
 }
 
 // 获取备份进度百分比
+/** @param {BackupRecord} backup */
 const getBackupProgress = (backup) => {
   if (backup.status === 'completed') return 100
   if (backup.status === 'failed' || backup.status === 'cancelled') return 0
@@ -1081,6 +1097,7 @@ const getBackupProgress = (backup) => {
 }
 
 // 获取进度条状态
+/** @param {BackupRecord | string | undefined} backupOrStatus */
 const getProgressStatus = (backupOrStatus) => {
   // 兼容两种参数：对象或字符串
   const status = typeof backupOrStatus === 'string' ? backupOrStatus : backupOrStatus?.status
@@ -1092,6 +1109,7 @@ const getProgressStatus = (backupOrStatus) => {
 }
 
 // 计算运行时长
+/** @param {BackupRecord} backup */
 const getRunningDuration = (backup) => {
   // 如果任务还在pending状态，显示等待时间
   if (backup.status === 'pending') {
@@ -1099,7 +1117,7 @@ const getRunningDuration = (backup) => {
     
     const created = new Date(backup.created_at)
     const now = new Date()
-    const waitTime = Math.floor((now - created) / 1000)
+    const waitTime = Math.floor((now.getTime() - created.getTime()) / 1000)
     
     if (waitTime < 60) {
       return `等待中 (${waitTime}秒)`
@@ -1136,7 +1154,7 @@ const getRunningDuration = (backup) => {
   }
   
   const now = new Date()
-  const duration = Math.floor((now - start) / 1000)
+  const duration = Math.floor((now.getTime() - start.getTime()) / 1000)
   
   // 如果计算出负数时间，说明时区处理有问题，显示警告
   if (duration < 0) {
@@ -1157,22 +1175,26 @@ const getRunningDuration = (backup) => {
 }
 
 // 显示备份详情
+/** @param {BackupRecord} backup */
 const showBackupDetail = (backup) => {
   detailDialog.backup = backup
   detailDialog.visible = true
 }
 
 // 下载备份
+/** @param {BackupRecord} backup */
 const downloadBackup = async (backup) => {
   try {
     ElMessage.info('开始下载备份文件...')
     await backupApi.downloadBackup(backup.backup_id)
   } catch (error) {
-    ElMessage.error('下载备份失败: ' + error.message)
+    const err = /** @type {ApiError} */ (error)
+    ElMessage.error('下载备份失败: ' + (err.message || '网络错误'))
   }
 }
 
 // 恢复选项
+/** @type {import('vue').Ref<{ restore_type: string, target_path: string, include_database: boolean, include_files: boolean, test_mode: boolean }>} */
 const restoreOptions = ref({
   restore_type: 'full', // full, database_only, files_only, partial
   target_path: '',
@@ -1184,15 +1206,19 @@ const restoreOptions = ref({
 
 // 恢复对话框显示状态
 const restoreDialogVisible = ref(false)
+/** @type {import('vue').Ref<BackupRecord | null>} */
 const currentRestoreBackup = ref(null)
 const restoring = ref(false)
 
 // 恢复进度监控
+/** @type {import('vue').Ref<RestoreRecord | null>} */
 const currentRestoreTask = ref(null)
 const cancelling = ref(false)
+/** @type {ReturnType<typeof setTimeout> | null} */
 let restoreProgressTimer = null
 
 // 测试结果
+/** @type {import('vue').Ref<string[]>} */
 const testResults = ref([])
 
 // 计算属性：是否为测试模式
@@ -1201,6 +1227,7 @@ const isTestMode = computed(() => {
 })
 
 // 显示恢复对话框
+/** @param {BackupRecord} backup */
 const showRestoreDialog = (backup) => {
   currentRestoreBackup.value = backup
   restoreOptions.value = {
@@ -1220,6 +1247,7 @@ const performRestore = async () => {
   try {
     restoring.value = true
     
+    /** @type {{ restore_type: string, target_path?: string, options: { include_database: boolean, include_files: boolean, test_mode: boolean } }} */
     const options = {
       restore_type: restoreOptions.value.restore_type,
       options: {
@@ -1261,13 +1289,15 @@ const performRestore = async () => {
     
   } catch (error) {
     console.error('恢复失败:', error)
-    ElMessage.error(`恢复失败: ${error.response?.data?.message || error.message}`)
+    const err = /** @type {ApiError} */ (error)
+    ElMessage.error(`恢复失败: ${err.response?.data?.message || err.message || '网络错误'}`)
   } finally {
     restoring.value = false
   }
 }
 
 // 跳转到恢复任务管理页面
+/** @param {string} restoreId */
 const navigateToRestoreManagement = async (restoreId) => {
   try {
     // 使用Vue Router进行页面跳转
@@ -1284,6 +1314,7 @@ const navigateToRestoreManagement = async (restoreId) => {
 }
 
 // 开始恢复进度监控
+/** @param {string} restoreId */
 const startRestoreProgressMonitoring = (restoreId) => {
   if (restoreProgressTimer) {
     clearInterval(restoreProgressTimer)
@@ -1352,8 +1383,9 @@ const cancelCurrentRestore = async () => {
     
   } catch (error) {
     if (error !== 'cancel') {
+      const err = /** @type {ApiError} */ (error)
       console.error('取消恢复任务失败:', error)
-      ElMessage.error(`取消恢复任务失败: ${error.response?.data?.message || error.message}`)
+      ElMessage.error(`取消恢复任务失败: ${err.response?.data?.message || err.message}`)
     }
   } finally {
     cancelling.value = false
@@ -1375,7 +1407,9 @@ const closeRestoreDialog = () => {
 }
 
 // 恢复状态相关工具函数
+/** @param {string | undefined} status */
 const getStatusText = (status) => {
+  /** @type {Record<string, string>} */
   const statusMap = {
     'pending': '等待中',
     'running': '执行中',
@@ -1383,10 +1417,15 @@ const getStatusText = (status) => {
     'failed': '失败',
     'cancelled': '已取消'
   }
-  return statusMap[status] || status
+  return statusMap[status || ''] || status
 }
 
+/**
+ * @param {string | undefined} status
+ * @returns {'info' | 'success' | 'primary' | 'warning' | 'danger'}
+ */
 const getStatusTagType = (status) => {
+  /** @type {Record<string, 'info' | 'success' | 'primary' | 'warning' | 'danger'>} */
   const typeMap = {
     'pending': 'info',
     'running': 'warning',
@@ -1394,14 +1433,16 @@ const getStatusTagType = (status) => {
     'failed': 'danger',
     'cancelled': 'warning'
   }
-  return typeMap[status] || 'info'
+  return typeMap[status || ''] || 'info'
 }
 
+/** @param {string | undefined} status */
 const canCancelRestore = (status) => {
-  return ['pending', 'running'].includes(status)
+  return ['pending', 'running'].includes(status || '')
 }
 
 // 删除备份
+/** @param {BackupRecord} backup */
 const deleteBackup = async (backup) => {
   try {
     await ElMessageBox.confirm(
@@ -1419,27 +1460,31 @@ const deleteBackup = async (backup) => {
     await refreshBackups()
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('删除备份失败: ' + error.message)
+      const err = /** @type {ApiError} */ (error)
+      ElMessage.error('删除备份失败: ' + (err.message || '网络错误'))
     }
   }
 }
 
 // 分页处理
+/** @param {number | string} val */
 const handleSizeChange = (val) => {
-  pagination.per_page = val
+  pagination.per_page = Number(val)
   pagination.page = 1
   getBackupList()
 }
 
+/** @param {number | string} val */
 const handleCurrentChange = (val) => {
-  pagination.page = val
+  pagination.page = Number(val)
   getBackupList()
 }
 
 // 工具函数
+/** @param {number | string | undefined} bytes */
 const formatFileSize = (bytes) => {
   if (!bytes || bytes === '0' || bytes === 0) return '0 B'
-  const size = parseInt(bytes) || 0
+  const size = parseInt(String(bytes)) || 0
   if (size === 0) return '0 B'
   
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
@@ -1454,6 +1499,7 @@ const formatFileSize = (bytes) => {
   return currentSize.toFixed(unitIndex === 0 ? 0 : 1) + ' ' + units[unitIndex]
 }
 
+/** @param {string | undefined} dateStr */
 const formatDateTime = (dateStr) => {
   if (!dateStr) return '-'
   return new Date(dateStr).toLocaleString('zh-CN', {
@@ -1467,22 +1513,29 @@ const formatDateTime = (dateStr) => {
   })
 }
 
+/** @param {string | undefined} type */
 const getBackupTypeLabel = (type) => {
+  /** @type {Record<string, string>} */
   const labels = {
     full: '全量',
     incremental: '增量',
     snapshot: '快照'
   }
-  return labels[type] || type
+  return labels[type || ''] || type
 }
 
+/**
+ * @param {string | undefined} type
+ * @returns {'info' | 'success' | 'primary' | 'warning' | 'danger'}
+ */
 const getBackupTypeTagType = (type) => {
+  /** @type {Record<string, 'info' | 'success' | 'primary' | 'warning' | 'danger'>} */
   const types = {
     full: 'primary',
     incremental: 'success',
     snapshot: 'warning'
   }
-  return types[type] || 'info'
+  return types[type || ''] || 'info'
 }
 
 // 统一使用 getStatusText 函数

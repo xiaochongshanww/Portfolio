@@ -9,6 +9,21 @@ const ensureTag = (selector, create) => {
   return el;
 };
 
+/**
+ * @typedef {Object} MetaOptions
+ * @property {string} [title]
+ * @property {string} [description]
+ * @property {string} [image]
+ * @property {string} [url]
+ * @property {string} [type]
+ * @property {string} [siteName]
+ * @property {string} [prevUrl]
+ * @property {string} [nextUrl]
+ */
+
+/**
+ * @param {MetaOptions} [options]
+ */
 export function setMeta({
   title,
   description,
