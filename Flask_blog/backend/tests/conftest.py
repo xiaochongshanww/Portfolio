@@ -10,12 +10,19 @@ BACKEND_DIR = os.path.abspath(os.path.join(CURRENT_DIR, '..'))
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
+# 强制测试使用内存 SQLite，避免本机 backend/.env 的 DATABASE_URL(MySQL) 被 load_dotenv 读入
+os.environ['DATABASE_URL'] = 'sqlite://'
+
 # 提前替换 flask_limiter.Limiter 为 no-op 版本，避免使用不支持的 storage uri
 import flask_limiter
 class _NoopLimiter:
     def __init__(self, *a, **k):
         pass
     def limit(self, *a, **k):
+        def deco(fn):
+            return fn
+        return deco
+    def exempt(self, *a, **k):
         def deco(fn):
             return fn
         return deco
@@ -51,9 +58,10 @@ _redis_pkg.from_url = _patched_from_url  # noqa
 app_module.redis.from_url = _patched_from_url  # 双重保障
 
 # 强制使用内存 fake redis url（实际被 patched 函数忽略）
-app_module.BaseConfig.REDIS_URL = 'redis://unused'
-app_module.DevelopmentConfig.REDIS_URL = 'redis://unused'
-app_module.ProductionConfig.REDIS_URL = 'redis://unused'
+from app.config import BaseConfig, DevelopmentConfig, ProductionConfig
+BaseConfig.REDIS_URL = 'redis://unused'
+DevelopmentConfig.REDIS_URL = 'redis://unused'
+ProductionConfig.REDIS_URL = 'redis://unused'
 
 import pytest
 from app import create_app, db
@@ -84,23 +92,23 @@ def app(monkeypatch):
     monkeypatch.setattr('app.search.indexer.ensure_index', fake_ensure_index, raising=False)
     monkeypatch.setattr('app.search.routes.ensure_index', fake_ensure_index, raising=False)
 
+    # 保持 app context 在整个测试期间有效，使测试体内可直接使用 db.session / Model.query
     with app.app_context():
         db.create_all()
-    yield app
+        yield app
 
 @pytest.fixture(autouse=True)
 def _clean_db(app):
-    # 每个测试前后清理，保持隔离
-    with app.app_context():
-        db.drop_all()
-        db.create_all()
-        # 清理 FakeRedis 缓存（避免跨测试缓存影响访问控制）
-        try:
-            from app import redis_client as _rc
-            if _rc and hasattr(_rc, 'store'):
-                _rc.store.clear()
-        except Exception:
-            pass
+    # 每个测试前后清理，保持隔离（app context 已由 app fixture 保持）
+    db.drop_all()
+    db.create_all()
+    # 清理 FakeRedis 缓存（避免跨测试缓存影响访问控制）
+    try:
+        from app import redis_client as _rc
+        if _rc and hasattr(_rc, 'store'):
+            _rc.store.clear()
+    except Exception:
+        pass
     yield
 
 @pytest.fixture()

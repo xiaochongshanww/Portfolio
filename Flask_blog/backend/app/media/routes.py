@@ -34,14 +34,15 @@ def _err(code, message, status=400):
 
 
 def _serialize_media(m: Media):
+    variants = m.get_variants_dict()
     return {
-        'id': m.id, 'filename': m.filename, 'stored_name': m.stored_name,
-        'file_path': m.file_path, 'thumbnail_path': m.thumbnail_path,
+        'id': m.id, 'filename': m.filename, 'original_name': m.original_name,
+        'file_path': m.file_path, 'thumbnail_path': variants.get('thumbnail'),
         'file_size': m.file_size, 'mime_type': m.mime_type,
         'media_type': m.media_type, 'file_hash': m.file_hash,
-        'folder_id': m.folder_id, 'uploader_id': m.uploader_id,
+        'folder_id': m.folder_id, 'owner_id': m.owner_id,
         'width': m.width, 'height': m.height,
-        'alt_text': m.alt_text, 'caption': m.caption,
+        'alt_text': m.alt_text, 'description': m.description,
         'created_at': m.created_at.isoformat() + 'Z' if m.created_at else None,
     }
 
@@ -100,7 +101,7 @@ def update_media(media_id: int):
     if not can_modify_media(m, request.user_id, request.user_role):
         return _err(4030, 'Forbidden', 403)
     data = request.get_json() or {}
-    for field in ('alt_text', 'caption', 'folder_id'):
+    for field in ('alt_text', 'description', 'title', 'folder_id'):
         if field in data:
             setattr(m, field, data[field])
     db.session.commit()
@@ -116,8 +117,9 @@ def delete_media(media_id: int):
     file_path = os.path.join(current_app.config['UPLOAD_DIR'], m.file_path)
     if os.path.exists(file_path):
         os.remove(file_path)
-    if m.thumbnail_path:
-        thumb = os.path.join(current_app.config['UPLOAD_DIR'], m.thumbnail_path)
+    thumb_path = m.get_variants_dict().get('thumbnail')
+    if thumb_path:
+        thumb = os.path.join(current_app.config['UPLOAD_DIR'], thumb_path)
         if os.path.exists(thumb):
             os.remove(thumb)
     db.session.delete(m)

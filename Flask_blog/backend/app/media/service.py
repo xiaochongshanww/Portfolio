@@ -63,6 +63,7 @@ def upload_media_file(file_storage, user_id: int, folder_id: int = None) -> Medi
 
     # 生成缩略图
     thumb_path = None
+    thumb_name = None
     if media_type == 'image':
         try:
             img = Image.open(file_path)
@@ -74,13 +75,18 @@ def upload_media_file(file_storage, user_id: int, folder_id: int = None) -> Medi
             thumb_path = None
 
     media = Media(
-        filename=original_filename, stored_name=stored_name,
+        filename=stored_name,
+        original_name=original_filename,
         file_path=os.path.join(relative_dir, stored_name),
-        thumbnail_path=os.path.join(relative_dir, thumb_name) if thumb_name else None,
-        file_size=file_size, mime_type=mime_type, media_type=media_type,
-        file_hash=file_hash, folder_id=folder_id,
-        uploader_id=user_id,
+        file_size=file_size,
+        mime_type=mime_type,
+        media_type=media_type,
+        file_hash=file_hash,
+        folder_id=folder_id,
+        owner_id=user_id,
     )
+    if thumb_name:
+        media.set_variants_dict({'thumbnail': os.path.join(relative_dir, thumb_name)})
     db.session.add(media)
     db.session.commit()
     return media
@@ -124,7 +130,7 @@ def get_folders_tree(parent_id: int = None):
 
 def create_folder(name: str, parent_id: int = None, user_id: int = None) -> MediaFolder:
     """创建文件夹。"""
-    folder = MediaFolder(name=name, parent_id=parent_id, created_by=user_id)
+    folder = MediaFolder(name=name, parent_id=parent_id, owner_id=user_id)
     db.session.add(folder)
     db.session.commit()
     return folder

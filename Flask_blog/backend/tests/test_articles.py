@@ -11,8 +11,8 @@ def test_create_article_flow(client):
     assert r.status_code == 201
     slug = r.get_json()['data']['slug']
 
-    # 获取文章（通过 slug）
-    r2 = client.get(f'/api/v1/articles/slug/{slug}')
+    # 获取文章（通过 slug，草稿需携带作者 token）
+    r2 = client.get(f'/api/v1/articles/slug/{slug}', headers={'Authorization':'Bearer '+access})
     assert r2.status_code == 200
     body = r2.get_json()['data']
     assert body['title'] == '测试标题'

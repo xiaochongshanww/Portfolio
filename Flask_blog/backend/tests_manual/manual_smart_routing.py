@@ -10,7 +10,7 @@ def test_smart_data_routing():
     import json
     
     # Add current directory to Python path
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     
     try:
         print("=== 测试智能数据源路由逻辑 ===\n")

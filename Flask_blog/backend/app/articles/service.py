@@ -232,8 +232,11 @@ def _cache_track_key(cache_key: str):
         pass
 
 
-def cache_track_set(key: str, value: str, ex: int):
-    """设置 Redis 缓存并注册 key 到失效索引。"""
+def cache_track_set(key: str, ex: int, value: str):
+    """设置 Redis 缓存并注册 key 到失效索引。
+
+    注意参数顺序为 (key, ex, value)，与调用方 routes.py 一致。
+    """
     if not redis_client:
         return
     try:
@@ -589,7 +592,5 @@ def check_article_visibility(article: Article, role, user_id) -> bool:
     if role in ('editor', 'admin'):
         return True
     if user_id and article.author_id == user_id:
-        return True
-    if not role and not user_id and article.status == 'draft' and current_app.config.get('TESTING'):
         return True
     return False

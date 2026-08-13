@@ -53,6 +53,7 @@ def upload_image():
     width = height = None
     variants_meta = []
     lqip_b64 = None
+    webp_path = None
     try:
         img = Image.open(f.stream)
         width, height = img.size
@@ -111,6 +112,6 @@ def upload_image():
         'variants': variants_meta,
         'srcset': srcset,
         'lqip': lqip_b64,
-        'webp': f"/uploads/{subdir}/{name_root}.webp" if os.path.exists(webp_path) else None
+        'webp': f"/uploads/{subdir}/{name_root}.webp" if webp_path and os.path.exists(webp_path) else None
     }
     return jsonify({'code':0,'message':'ok','data':data}), 201

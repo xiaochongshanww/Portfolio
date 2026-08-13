@@ -64,13 +64,15 @@ def test_admin_users_list_etag(client):
     # register & promote to admin
     client.post('/api/v1/auth/register', json={'email':'admin@test.com','password':'pass123'})
     login = client.post('/api/v1/auth/login', json={'email':'admin@test.com','password':'pass123'})
-    token = login.get_json()['data']['access_token']
     from app import db
     from app.models import User
     with client.application.app_context():
         u = User.query.filter_by(email='admin@test.com').first()
         u.role = 'admin'
         db.session.commit()
+    # 重新登录获取含 admin 角色的新 token
+    login = client.post('/api/v1/auth/login', json={'email':'admin@test.com','password':'pass123'})
+    token = login.get_json()['data']['access_token']
     r1 = client.get('/api/v1/users/', headers={'Authorization':'Bearer '+token})
     assert r1.status_code == 200
     etag = r1.headers.get('ETag')

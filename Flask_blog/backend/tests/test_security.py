@@ -31,6 +31,6 @@ class TestSecurity:
     def test_block_ip(self, client):
         h = auth_header(client, role='admin')
         resp = client.post('/api/v1/security/block-ip', json={
-            'ip': '10.0.0.99', 'reason': 'test',
+            'ip_address': '10.0.0.99', 'reason': 'test',
         }, headers=h)
         assert resp.status_code in (200,)

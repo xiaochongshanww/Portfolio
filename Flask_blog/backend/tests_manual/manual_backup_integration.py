@@ -9,7 +9,7 @@ def test_backup_creation_flow():
     import sys
     
     # Add current directory to Python path
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     
     try:
         print("=== 测试备份创建完整流程 ===\n")

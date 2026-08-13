@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, current_app, jsonify, request
 
-from .. import db, limiter, require_auth, require_roles
+from .. import db, limiter, redis_client, require_auth, require_roles
 from ..models import Article, ArticleVersion, AuditLog, Category
 from ..security.enforcer import BusinessError, permission_required, workflow_transition
 from ..utils import compute_etag

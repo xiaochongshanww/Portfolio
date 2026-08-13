@@ -7,13 +7,13 @@ def test_internal_article_detail_etag(client):
     # 创建文章
     create = client.post('/api/v1/articles/', json={'title':'细节文章','content_md':'正文'}, headers={'Authorization':'Bearer '+token})
     art_id = create.get_json()['data']['id']
-    # 第一次获取
-    r1 = client.get(f'/api/v1/articles/{art_id}')
+    # 第一次获取（草稿需携带作者 token）
+    r1 = client.get(f'/api/v1/articles/{art_id}', headers={'Authorization':'Bearer '+token})
     assert r1.status_code == 200
     etag = r1.headers.get('ETag')
     assert etag
     # 条件请求
-    r2 = client.get(f'/api/v1/articles/{art_id}', headers={'If-None-Match': etag})
+    r2 = client.get(f'/api/v1/articles/{art_id}', headers={'If-None-Match': etag, 'Authorization':'Bearer '+token})
     assert r2.status_code == 304
 
 
@@ -24,9 +24,9 @@ def test_internal_article_slug_detail_etag(client):
     token = login.get_json()['data']['access_token']
     create = client.post('/api/v1/articles/', json={'title':'Slug细节','content_md':'正文'}, headers={'Authorization':'Bearer '+token})
     slug = create.get_json()['data']['slug']
-    r1 = client.get(f'/api/v1/articles/slug/{slug}')
+    r1 = client.get(f'/api/v1/articles/slug/{slug}', headers={'Authorization':'Bearer '+token})
     assert r1.status_code == 200
     etag = r1.headers.get('ETag')
     assert etag
-    r2 = client.get(f'/api/v1/articles/slug/{slug}', headers={'If-None-Match': etag})
+    r2 = client.get(f'/api/v1/articles/slug/{slug}', headers={'If-None-Match': etag, 'Authorization':'Bearer '+token})
     assert r2.status_code == 304

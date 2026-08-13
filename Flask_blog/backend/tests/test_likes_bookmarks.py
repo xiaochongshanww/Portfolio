@@ -7,7 +7,7 @@ def test_like_bookmark_flow(client):
     # 创建文章
     create = client.post('/api/v1/articles/', json={'title':'Like文章','content_md':'内容'}, headers={'Authorization':'Bearer '+token})
     slug = create.get_json()['data']['slug']
-    art_detail = client.get(f'/api/v1/articles/slug/{slug}')
+    art_detail = client.get(f'/api/v1/articles/slug/{slug}', headers={'Authorization':'Bearer '+token})
     art_id = art_detail.get_json()['data']['id']
 
     # 发布模拟

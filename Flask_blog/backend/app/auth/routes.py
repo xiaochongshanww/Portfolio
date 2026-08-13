@@ -92,6 +92,22 @@ def _issue_csrf(resp):
     return token
 
 
+def _validation_errors(ve):
+    """将 pydantic ValidationError 序列化为 JSON 安全结构。
+
+    pydantic v2 的 errors() 中 ctx.error 可能携带原始异常对象（如 ValueError），
+    Flask jsonify 无法直接序列化，此处统一转成字符串。
+    """
+    out = []
+    for e in getattr(ve, 'errors', lambda: [])():
+        item = {'loc': [str(x) for x in e.get('loc', [])], 'msg': str(e.get('msg', ''))}
+        ctx = e.get('ctx') or {}
+        if ctx:
+            item['ctx'] = {k: str(v) for k, v in ctx.items()}
+        out.append(item)
+    return out
+
+
 @auth_bp.route('/register', methods=['POST'])
 @limiter.limit('5/minute')
 def register():
@@ -99,7 +115,7 @@ def register():
     try:
         parsed = RegisterModel(**data)
     except ValidationError as ve:
-        return jsonify({'code': 4001, 'message': 'validation error', 'data': ve.errors()}), 400
+        return jsonify({'code': 4001, 'message': 'validation error', 'data': _validation_errors(ve)}), 400
     try:
         user = register_user(parsed.email, parsed.password)
         return jsonify({'code': 0, 'data': {'id': user.id, 'email': user.email}, 'message': 'ok'}), 201
@@ -116,7 +132,7 @@ def login():
     try:
         parsed = LoginModel(**data)
     except ValidationError as ve:
-        return jsonify({'code': 4001, 'message': 'validation error', 'data': ve.errors()}), 400
+        return jsonify({'code': 4001, 'message': 'validation error', 'data': _validation_errors(ve)}), 400
 
     email = parsed.email
     password = parsed.password
@@ -190,7 +206,7 @@ def change_password_route():
     try:
         parsed = ChangePasswordModel(**data)
     except ValidationError as ve:
-        return jsonify({'code': 4001, 'message': 'validation error', 'data': ve.errors()}), 400
+        return jsonify({'code': 4001, 'message': 'validation error', 'data': _validation_errors(ve)}), 400
     ok, msg = change_password(parsed.email, parsed.old_password, parsed.new_password)
     if not ok:
         return jsonify({'code': 4010, 'message': msg}), 401

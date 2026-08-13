@@ -9,7 +9,7 @@ def test_external_metadata_integration():
     import sys
     
     # Add current directory to Python path
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     
     try:
         print("Testing external metadata system integration...")
