@@ -19,7 +19,7 @@
           <div class="flex items-baseline gap-3">
             <!-- 时间指示器 -->
             <div class="time-indicator">
-              <div class="time-dot"></div>
+              <div class="time-dot" />
             </div>
             
             <!-- 文章信息 -->

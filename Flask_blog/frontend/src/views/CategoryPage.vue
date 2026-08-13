@@ -12,7 +12,7 @@
     <div v-else class="category-content">
       <!-- 分类头部 -->
       <header class="category-header">
-        <div class="header-background"></div>
+        <div class="header-background" />
         <div class="header-content">
           <!-- 面包屑导航 -->
           <nav class="breadcrumb-nav" aria-label="面包屑导航">
@@ -26,7 +26,7 @@
           <!-- 分类信息 -->
           <div class="category-info">
             <div class="category-icon">
-              <i class="fa fa-folder-open" aria-hidden="true"></i>
+              <i class="fa fa-folder-open" aria-hidden="true" />
             </div>
             <div class="category-details">
               <h1 class="category-title">{{ categoryName || (loaded ? `分类 ${slugOrId}` : '正在加载...') }}</h1>
@@ -35,11 +35,11 @@
               </p>
               <div class="category-stats">
                 <span class="stat-item">
-                  <i class="fa fa-file-text-o" aria-hidden="true"></i>
+                  <i class="fa fa-file-text-o" aria-hidden="true" />
                   {{ articles.length }} 篇文章
                 </span>
-                <span class="stat-item" v-if="lastUpdated">
-                  <i class="fa fa-clock-o" aria-hidden="true"></i>
+                <span v-if="lastUpdated" class="stat-item">
+                  <i class="fa fa-clock-o" aria-hidden="true" />
                   最近更新: {{ formatDate(lastUpdated) }}
                 </span>
               </div>
@@ -57,17 +57,17 @@
               <el-button-group>
                 <el-button 
                   :type="viewMode === 'grid' ? 'primary' : ''" 
-                  @click="viewMode = 'grid'"
                   :icon="Grid"
                   size="small"
+                  @click="viewMode = 'grid'"
                 >
                   网格
                 </el-button>
                 <el-button 
                   :type="viewMode === 'list' ? 'primary' : ''" 
-                  @click="viewMode = 'list'"
                   :icon="List"
                   size="small"
+                  @click="viewMode = 'list'"
                 >
                   列表
                 </el-button>
@@ -100,9 +100,9 @@
                   :alt="article.title"
                   class="article-img"
                   loading="lazy"
-                />
+                >
                 <div v-else class="article-img-placeholder">
-                  <i class="fa fa-file-text-o" aria-hidden="true"></i>
+                  <i class="fa fa-file-text-o" aria-hidden="true" />
                 </div>
               </div>
 
@@ -114,23 +114,23 @@
                 <!-- 文章元信息 -->
                 <div class="article-meta">
                   <div class="meta-primary">
-                    <span class="author" v-if="article.author">
-                      <i class="fa fa-user" aria-hidden="true"></i>
+                    <span v-if="article.author" class="author">
+                      <i class="fa fa-user" aria-hidden="true" />
                       {{ article.author.name || article.author.nickname }}
                     </span>
                     <time class="publish-date" :datetime="article.published_at || article.created_at">
-                      <i class="fa fa-calendar" aria-hidden="true"></i>
+                      <i class="fa fa-calendar" aria-hidden="true" />
                       {{ formatDate(article.published_at || article.created_at) }}
                     </time>
                   </div>
                   
                   <div class="meta-secondary">
-                    <span class="views" v-if="article.views_count">
-                      <i class="fa fa-eye" aria-hidden="true"></i>
+                    <span v-if="article.views_count" class="views">
+                      <i class="fa fa-eye" aria-hidden="true" />
                       {{ formatNumber(article.views_count) }}
                     </span>
-                    <span class="likes" v-if="article.likes_count">
-                      <i class="fa fa-heart-o" aria-hidden="true"></i>
+                    <span v-if="article.likes_count" class="likes">
+                      <i class="fa fa-heart-o" aria-hidden="true" />
                       {{ formatNumber(article.likes_count) }}
                     </span>
                   </div>
@@ -161,7 +161,7 @@
               <div class="article-action">
                 <el-button type="primary" size="small" class="read-more-btn">
                   阅读全文
-                  <i class="fa fa-arrow-right" aria-hidden="true"></i>
+                  <i class="fa fa-arrow-right" aria-hidden="true" />
                 </el-button>
               </div>
             </article>
@@ -171,7 +171,7 @@
           <div v-else class="empty-state">
             <div class="empty-content">
               <div class="empty-icon">
-                <i class="fa fa-folder-open-o" aria-hidden="true"></i>
+                <i class="fa fa-folder-open-o" aria-hidden="true" />
               </div>
               <h3 class="empty-title">暂无文章</h3>
               <p class="empty-description">该分类下还没有发布任何文章</p>

@@ -2,8 +2,8 @@
   <footer class="modern-footer">
     <div class="footer-container">
       <!-- 装饰性背景元素 -->
-      <div class="footer-decoration"></div>
-      <div class="footer-pattern"></div>
+      <div class="footer-decoration" />
+      <div class="footer-pattern" />
       
       <!-- 主要内容区域 -->
       <div class="footer-content">
@@ -52,7 +52,7 @@
         
         <!-- 底部版权信息 -->
         <div class="footer-bottom">
-          <div class="footer-divider"></div>
+          <div class="footer-divider" />
           <div class="footer-copyright">
             <div class="copyright-text">
               <p>&copy; 2025 <span class="highlight">小重山的博客</span>. All rights reserved.</p>

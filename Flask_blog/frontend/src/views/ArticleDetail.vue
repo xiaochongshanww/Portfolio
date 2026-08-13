@@ -46,8 +46,8 @@
                 type="primary" 
                 size="small" 
                 :icon="Edit" 
-                @click="editArticle"
                 class="edit-btn"
+                @click="editArticle"
               >
                 编辑文章
               </el-button>
@@ -67,9 +67,9 @@
                       :alt="article.author.name"
                       class="avatar-img"
                       @error="handleAuthorAvatarError"
-                    />
+                    >
                     <div v-else class="avatar-fallback">
-                      <i class="fa fa-user" aria-hidden="true"></i>
+                      <i class="fa fa-user" aria-hidden="true" />
                     </div>
                   </div>
                   <div class="author-details">
@@ -83,15 +83,15 @@
                 <!-- 文章统计 -->
                 <div class="article-stats">
                   <span class="stat-item">
-                    <i class="fa fa-clock-o" aria-hidden="true"></i>
+                    <i class="fa fa-clock-o" aria-hidden="true" />
                     {{ calculateReadTime(article.content_md || article.content_html || '') }} 分钟阅读
                   </span>
                   <span class="stat-item">
-                    <i class="fa fa-eye" aria-hidden="true"></i>
+                    <i class="fa fa-eye" aria-hidden="true" />
                     {{ formatNumber(article.views_count || 0) }} 次浏览
                   </span>
                   <span class="stat-item">
-                    <i class="fa fa-heart-o" aria-hidden="true"></i>
+                    <i class="fa fa-heart-o" aria-hidden="true" />
                     {{ formatNumber(article.likes_count || 0) }} 点赞
                   </span>
                 </div>
@@ -108,7 +108,7 @@
                       effect="plain"
                       class="category-tag"
                     >
-                      <i class="fa fa-folder-o" aria-hidden="true"></i>
+                      <i class="fa fa-folder-o" aria-hidden="true" />
                       {{ article.category }}
                     </el-tag>
                   </router-link>
@@ -124,7 +124,7 @@
                     effect="plain"
                     class="tag-item"
                   >
-                    <i class="fa fa-tag" aria-hidden="true"></i>
+                    <i class="fa fa-tag" aria-hidden="true" />
                     {{ tag }}
                   </el-tag>
                 </div>
@@ -147,10 +147,10 @@
             <div class="admin-actions-content">
               <span class="admin-actions-label">管理操作:</span>
               <div class="admin-actions-buttons">
-                <el-button v-for="n in nextList" :key="n" @click="doTransition(n)" :disabled="acting || !canOperate(n)" size="small">{{ n }}</el-button>
-                <el-button v-if="canSchedule" @click="schedule" :disabled="acting" size="small">定时发布</el-button>
-                <el-button v-if="canUnschedule" @click="unschedule" :disabled="acting" size="small">取消定时</el-button>
-                <el-button v-if="canUnpublish" @click="unpublish" :disabled="acting" size="small" type="warning">下线</el-button>
+                <el-button v-for="n in nextList" :key="n" :disabled="acting || !canOperate(n)" size="small" @click="doTransition(n)">{{ n }}</el-button>
+                <el-button v-if="canSchedule" :disabled="acting" size="small" @click="schedule">定时发布</el-button>
+                <el-button v-if="canUnschedule" :disabled="acting" size="small" @click="unschedule">取消定时</el-button>
+                <el-button v-if="canUnpublish" :disabled="acting" size="small" type="warning" @click="unpublish">下线</el-button>
               </div>
             </div>
           </div>
@@ -173,18 +173,18 @@
             <div class="interaction-section">
               <div class="interaction-buttons">
                 <button 
-                  @click="toggleLike" 
-                  :disabled="liking"
+                  :disabled="liking" 
                   :class="['interaction-btn', 'like-btn', { 
                     'liked': liked, 
                     'liking': liking 
                   }]"
+                  @click="toggleLike"
                 >
                   <div class="like-btn-content">
                     <div class="like-icon-wrapper">
-                      <i v-if="!liking" :class="liked ? 'fa fa-heart' : 'fa fa-heart-o'" aria-hidden="true"></i>
+                      <i v-if="!liking" :class="liked ? 'fa fa-heart' : 'fa fa-heart-o'" aria-hidden="true" />
                       <div v-else class="like-loading-spinner">
-                        <i class="fa fa-heart beating-heart" aria-hidden="true"></i>
+                        <i class="fa fa-heart beating-heart" aria-hidden="true" />
                       </div>
                     </div>
                     <span class="like-text">{{ liking ? '处理中...' : (liked ? '已点赞' : '点赞') }}</span>
@@ -193,24 +193,24 @@
                 </button>
                 
                 <button 
-                  @click="toggleBookmark" 
-                  :disabled="bookmarking"
+                  :disabled="bookmarking" 
                   :class="['interaction-btn', 'bookmark-btn', { 'bookmarked': bookmarked }]"
+                  @click="toggleBookmark"
                 >
-                  <i :class="bookmarked ? 'fa fa-bookmark' : 'fa fa-bookmark-o'" aria-hidden="true"></i>
+                  <i :class="bookmarked ? 'fa fa-bookmark' : 'fa fa-bookmark-o'" aria-hidden="true" />
                   <span>{{ bookmarked ? '已收藏' : '收藏' }}</span>
                   <span class="count">{{ formatNumber(bookmarkCount) }}</span>
                 </button>
                 
                 <button class="interaction-btn share-btn" @click="shareArticle">
-                  <i class="fa fa-share-alt" aria-hidden="true"></i>
+                  <i class="fa fa-share-alt" aria-hidden="true" />
                   <span>分享</span>
                 </button>
               </div>
             </div>
             
             <!-- 分隔线 -->
-            <div class="section-divider"></div>
+            <div class="section-divider" />
             
             <!-- 作者信息卡片 -->
             <div class="author-card">
@@ -220,9 +220,9 @@
                   :src="article.author.avatar" 
                   :alt="article.author.name"
                   class="author-card-img"
-                />
+                >
                 <div v-else class="author-card-fallback">
-                  <i class="fa fa-user" aria-hidden="true"></i>
+                  <i class="fa fa-user" aria-hidden="true" />
                 </div>
               </div>
               <div class="author-card-info">
@@ -239,7 +239,7 @@
         <!-- 文章目录 -->
         <div class="sidebar-section toc-section">
           <h3 class="sidebar-title">目录</h3>
-          <nav class="table-of-contents" v-if="tocItems.length">
+          <nav v-if="tocItems.length" class="table-of-contents">
             <ol class="toc-list">
               <li 
                 v-for="item in tocItems" 
@@ -264,12 +264,11 @@
           <h3 class="sidebar-title">阅读进度</h3>
           <div class="reading-progress">
             <div class="progress-bar">
-              <div class="progress-fill" :style="{ width: readingProgress + '%' }"></div>
+              <div class="progress-fill" :style="{ width: readingProgress + '%' }" />
             </div>
             <span class="progress-text">{{ Math.round(readingProgress) }}%</span>
           </div>
         </div>
-        
       </aside>
     </div>
     

@@ -3,15 +3,15 @@
     <h1>评论审核</h1>
     <p>这里列出了所有等待审核的评论。</p>
 
-    <el-table :data="comments" v-loading="loading" border stripe>
-      <el-table-column prop="id" label="ID" width="80"></el-table-column>
+    <el-table v-loading="loading" :data="comments" border stripe>
+      <el-table-column prop="id" label="ID" width="80" />
       <el-table-column prop="content" label="评论内容" min-width="250">
         <template #default="scope">
           <div class="comment-content">{{ scope.row.content }}</div>
         </template>
       </el-table-column>
-      <el-table-column prop="user_id" label="用户ID" width="100"></el-table-column>
-      <el-table-column prop="article_id" label="文章ID" width="100"></el-table-column>
+      <el-table-column prop="user_id" label="用户ID" width="100" />
+      <el-table-column prop="article_id" label="文章ID" width="100" />
       <el-table-column prop="created_at" label="提交时间" width="180">
         <template #default="scope">
           {{ new Date(scope.row.created_at).toLocaleString() }}
@@ -28,16 +28,15 @@
     </el-table>
 
     <div class="pagination-toolbar">
-        <el-pagination
-            background
-            layout="prev, pager, next, total"
-            :total="pagination.total"
-            :current-page="pagination.page"
-            :page-size="pagination.pageSize"
-            @current-change="handlePageChange"
-        />
+      <el-pagination
+        background
+        layout="prev, pager, next, total"
+        :total="pagination.total"
+        :current-page="pagination.page"
+        :page-size="pagination.pageSize"
+        @current-change="handlePageChange"
+      />
     </div>
-
   </div>
 </template>
 

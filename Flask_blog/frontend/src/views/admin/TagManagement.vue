@@ -13,19 +13,19 @@
           </div>
         </div>
         <div class="header-actions">
-          <button @click="loadData" :disabled="loading" class="action-btn secondary">
+          <button :disabled="loading" class="action-btn secondary" @click="loadData">
             <el-icon size="16" :class="{ 'is-loading': loading }"><Refresh /></el-icon>
             <span>刷新</span>
           </button>
           <button 
+            :disabled="stats.unused_tags === 0"
+            class="action-btn danger" 
             @click="cleanUnusedTags"
-            :disabled="stats.unused_tags === 0" 
-            class="action-btn danger"
           >
             <el-icon size="16"><Delete /></el-icon>
             <span>清理未使用 ({{ stats.unused_tags }})</span>
           </button>
-          <button @click="showCreateDialog" class="action-btn primary">
+          <button class="action-btn primary" @click="showCreateDialog">
             <el-icon size="16"><Plus /></el-icon>
             <span>新建标签</span>
           </button>
@@ -79,8 +79,8 @@
               v-model="searchKeyword"
               placeholder="搜索标签名称..."
               clearable
-              @input="handleSearch"
               class="search-input"
+              @input="handleSearch"
             >
               <template #prefix>
                 <el-icon><Search /></el-icon>
@@ -89,7 +89,7 @@
           </div>
           
           <div class="modern-select">
-            <el-select v-model="sortBy" placeholder="排序方式" @change="handleSort" class="sort-select">
+            <el-select v-model="sortBy" placeholder="排序方式" class="sort-select" @change="handleSort">
               <el-option label="按使用量降序" value="usage_desc" />
               <el-option label="按使用量升序" value="usage_asc" />
               <el-option label="按名称A-Z" value="name_asc" />
@@ -100,7 +100,7 @@
         </div>
         
         <div class="modern-view-toggle">
-          <el-radio-group v-model="viewMode" @change="handleViewModeChange" class="view-mode-selector">
+          <el-radio-group v-model="viewMode" class="view-mode-selector" @change="handleViewModeChange">
             <el-radio-button label="table">表格视图</el-radio-button>
             <el-radio-button label="cloud">标签云</el-radio-button>
           </el-radio-group>
@@ -113,9 +113,9 @@
       <el-table
         v-loading="loading"
         :data="filteredTags"
-        @selection-change="handleSelectionChange"
         size="default"
         class="modern-table"
+        @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="55" />
         
@@ -150,7 +150,7 @@
                       width: getUsagePercentage(row.article_count) + '%',
                       background: getProgressGradient(row.article_count)
                     }"
-                  ></div>
+                  />
                 </div>
                 <div class="usage-stats">
                   <span class="usage-number">{{ row.article_count }}</span>
@@ -165,18 +165,18 @@
           <template #default="{ row }">
             <div class="modern-action-buttons">
               <button
-                @click="showEditDialog(row)"
                 class="table-btn edit"
+                @click="showEditDialog(row)"
               >
                 <el-icon size="14"><Edit /></el-icon>
                 <span>编辑</span>
               </button>
               
               <button
-                @click="handleDelete(row)"
                 :disabled="row.article_count > 0"
                 class="table-btn delete"
                 :class="{ 'disabled': row.article_count > 0 }"
+                @click="handleDelete(row)"
               >
                 <el-icon size="14"><Delete /></el-icon>
                 <span>删除</span>
@@ -212,7 +212,7 @@
         </div>
         <h3 class="empty-title">暂无标签数据</h3>
         <p class="empty-description">您还没有创建任何标签，赶快创建您的第一个标签吧！</p>
-        <button @click="showCreateDialog" class="empty-action-btn">
+        <button class="empty-action-btn" @click="showCreateDialog">
           <el-icon size="16"><Plus /></el-icon>
           <span>创建第一个标签</span>
         </button>
@@ -224,10 +224,10 @@
       v-model="dialogVisible"
       :title="dialogMode === 'create' ? '新建标签' : '编辑标签'"
       width="500px"
-      @close="resetForm"
       class="modern-dialog"
       :show-close="false"
       align-center
+      @close="resetForm"
     >
       <template #header>
         <div class="dialog-header">
@@ -235,7 +235,7 @@
             <el-icon size="24" class="dialog-icon"><Document /></el-icon>
             <span>{{ dialogMode === 'create' ? '新建标签' : '编辑标签' }}</span>
           </div>
-          <button @click="dialogVisible = false" class="dialog-close">
+          <button class="dialog-close" @click="dialogVisible = false">
             <el-icon size="18"><Close /></el-icon>
           </button>
         </div>
@@ -268,7 +268,7 @@
               </el-tooltip>
             </template>
           </el-input>
-          <div class="slug-preview" v-if="form.slug">
+          <div v-if="form.slug" class="slug-preview">
             <span class="preview-label">预览URL：</span>
             <code class="preview-url">/tag/{{ form.slug }}</code>
           </div>
@@ -277,13 +277,13 @@
       
       <template #footer>
         <div class="modern-dialog-footer">
-          <button @click="dialogVisible = false" class="dialog-btn secondary">
+          <button class="dialog-btn secondary" @click="dialogVisible = false">
             <span>取消</span>
           </button>
           <button
-            @click="handleSubmit"
             :disabled="submitting"
             class="dialog-btn primary"
+            @click="handleSubmit"
           >
             <el-icon v-if="submitting" size="16" class="loading-icon"><Refresh /></el-icon>
             <el-icon v-else size="16"><Check /></el-icon>

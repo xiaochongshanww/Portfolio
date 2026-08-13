@@ -70,7 +70,7 @@
     <template #footer>
       <span class="dialog-footer">
         <el-button @click="handleClose">取消</el-button>
-        <el-button type="primary" @click="handleSubmit" :loading="loading">
+        <el-button type="primary" :loading="loading" @click="handleSubmit">
           创建
         </el-button>
       </span>

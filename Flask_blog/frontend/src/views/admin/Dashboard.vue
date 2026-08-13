@@ -8,9 +8,9 @@
     <!-- 统计卡片 -->
     <div class="stats-grid">
       <div 
+        v-if="hasRole(['editor', 'admin'])"
         class="stat-card clickable-card"
         @click="navigateToArticles"
-        v-if="hasRole(['editor', 'admin'])"
       >
         <div class="stat-icon total-articles">
           <el-icon size="32"><Document /></el-icon>
@@ -35,9 +35,9 @@
       </div>
 
       <div 
+        v-if="hasRole(['editor', 'admin'])"
         class="stat-card clickable-card"
         @click="navigateToReview"
-        v-if="hasRole(['editor', 'admin'])"
       >
         <div class="stat-icon pending-articles">
           <el-icon size="32"><Clock /></el-icon>
@@ -62,9 +62,9 @@
       </div>
 
       <div 
+        v-if="hasRole(['editor', 'admin'])"
         class="stat-card clickable-card"
         @click="navigateToArticles"
-        v-if="hasRole(['editor', 'admin'])"
       >
         <div class="stat-icon published-articles">
           <el-icon size="32"><Check /></el-icon>
@@ -89,9 +89,9 @@
       </div>
 
       <div 
+        v-if="hasRole(['admin'])"
         class="stat-card clickable-card"
         @click="navigateToUsers"
-        v-if="hasRole(['admin'])"
       >
         <div class="stat-icon total-users">
           <el-icon size="32"><User /></el-icon>

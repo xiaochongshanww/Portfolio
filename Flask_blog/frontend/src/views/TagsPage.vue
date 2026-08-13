@@ -18,7 +18,7 @@
             <div class="stat-number">{{ tags.length }}</div>
             <div class="stat-label">总标签数</div>
           </div>
-          <div class="stat-decoration"></div>
+          <div class="stat-decoration" />
         </div>
         
         <div class="stat-card stat-card-green">
@@ -29,7 +29,7 @@
             <div class="stat-number">{{ totalArticles }}</div>
             <div class="stat-label">关联文章</div>
           </div>
-          <div class="stat-decoration"></div>
+          <div class="stat-decoration" />
         </div>
         
         <div class="stat-card stat-card-purple">
@@ -40,7 +40,7 @@
             <div class="stat-number">{{ popularTags.length }}</div>
             <div class="stat-label">热门标签</div>
           </div>
-          <div class="stat-decoration"></div>
+          <div class="stat-decoration" />
         </div>
         
         <div class="stat-card stat-card-orange">
@@ -51,28 +51,28 @@
             <div class="stat-number">{{ averagePerTag }}</div>
             <div class="stat-label">平均文章数</div>
           </div>
-          <div class="stat-decoration"></div>
+          <div class="stat-decoration" />
         </div>
       </div>
 
       <!-- 现代化视图切换器 -->
       <div class="modern-view-switcher">
         <div class="view-switcher-container">
-          <div class="switcher-background"></div>
+          <div class="switcher-background" />
           <button 
             v-for="view in viewModes" 
             :key="view.value"
-            @click="currentView = view.value"
             :class="[
               'view-switcher-btn',
               currentView === view.value ? 'active' : ''
             ]"
+            @click="currentView = view.value"
           >
             <div class="btn-icon-wrapper">
               <el-icon size="18"><component :is="view.icon" /></el-icon>
             </div>
             <span class="btn-label">{{ view.label }}</span>
-            <div class="btn-glow"></div>
+            <div class="btn-glow" />
           </button>
         </div>
       </div>
@@ -83,8 +83,8 @@
           <button
             v-for="tag in tags" 
             :key="tag.id"
-            @click="handleTagClick(tag.slug)"
             class="tag-cloud-item"
+            @click="handleTagClick(tag.slug)"
           >
             <span :class="getTagCloudClass(tag.article_count || 0)">#{{ tag.name }}</span>
             <span class="tag-count">({{ tag.article_count || 0 }})</span>
@@ -95,7 +95,7 @@
       <!-- 卡片网格视图 -->
       <div v-if="currentView === 'grid'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <div v-for="tag in tags" :key="tag.id" class="modern-tag-card group">
-          <button @click="handleTagClick(tag.slug)" class="tag-card-button">
+          <button class="tag-card-button" @click="handleTagClick(tag.slug)">
             <!-- 卡片头部 -->
             <div class="card-header">
               <div class="tag-icon">
@@ -133,8 +133,8 @@
           <div 
             v-for="tag in sortedTags" 
             :key="tag.id"
-            @click="handleTagClick(tag.slug)"
             class="tag-list-item flex items-center justify-between group"
+            @click="handleTagClick(tag.slug)"
           >
             <div class="flex items-center gap-3">
               <div class="tag-list-icon">

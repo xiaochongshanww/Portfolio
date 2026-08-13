@@ -6,7 +6,7 @@
       :class="imageClass"
       @error="handleImageError"
       @load="handleImageLoad"
-    />
+    >
   </div>
 </template>
 

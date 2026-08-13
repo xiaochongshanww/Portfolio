@@ -140,6 +140,7 @@ const BACKLINK = {
 
 
 /** 完整工具栏配置（适用于新建/编辑文章） */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const FULL_TOOLBAR: any[] = [
   MODE_SWITCH,
   '|',
@@ -178,6 +179,7 @@ export const FULL_TOOLBAR: any[] = [
 
 
 /** 精简工具栏（适用于快速评论/短内容） */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const MINIMAL_TOOLBAR: any[] = [
   BOLD,
   ITALIC,

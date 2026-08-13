@@ -5,7 +5,7 @@
       :width="width" 
       :height="height"
       class="threat-chart"
-    ></canvas>
+    />
     <div v-if="loading" class="chart-loading">
       <el-icon class="is-loading"><Loading /></el-icon>
       <span>加载数据中...</span>

@@ -1,7 +1,7 @@
 <template>
   <li class="comment-node" :class="node.status">
     <div class="body">
-      <div class="meta">#{{ node.id }} 用户 {{ node.user_id }} · {{ node.created_at }} <span class="status" :class="node.status">{{ statusLabel }}</span></div>
+      <div class="meta">{{ node.author_name || ('用户 ' + node.user_id) }} · {{ node.created_at }} <span class="status" :class="node.status">{{ statusLabel }}</span></div>
       <div class="content">{{ node.content }}</div>
       <div class="ops">
         <button @click="$emit('reply', node)">回复</button>
@@ -13,6 +13,7 @@
   </li>
 </template>
 <script setup>
+import { computed } from 'vue';
 import CommentNode from './CommentNode.vue';
 const props = defineProps({ node: { type: Object, required: true }});
 const statusLabel = computed(()=> props.node.status==='approved' ? '已审核' : (props.node.status==='pending' ? '待审核' : (props.node.status==='rejected' ? '已拒绝' : '')));

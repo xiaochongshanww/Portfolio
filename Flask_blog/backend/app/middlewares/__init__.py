@@ -2,4 +2,4 @@
 
 from .visitor_tracker import VisitorTrackingMiddleware
 
-__all__ = ['VisitorTrackingMiddleware']
+__all__ = ["VisitorTrackingMiddleware"]

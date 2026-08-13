@@ -21,11 +21,11 @@
         <button 
           v-for="view in viewModes" 
           :key="view.value"
-          @click="currentView = view.value"
           :class="[
             'view-switcher-btn',
             currentView === view.value ? 'active' : ''
           ]"
+          @click="currentView = view.value"
         >
           <div class="btn-icon-wrapper">
             <el-icon size="18"><component :is="view.icon" /></el-icon>

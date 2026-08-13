@@ -1,7 +1,7 @@
 <template>
   <div class="uploader">
-    <input ref="input" type="file" accept="image/*" @change="onFile" hidden />
-    <button type="button" @click="select" :disabled="uploading">{{ uploading? '上传中...' : '上传图片' }}</button>
+    <input ref="input" type="file" accept="image/*" hidden @change="onFile">
+    <button type="button" :disabled="uploading" @click="select">{{ uploading? '上传中...' : '上传图片' }}</button>
     <span v-if="error" class="err">{{ error }}</span>
   </div>
 </template>
@@ -14,7 +14,7 @@ const input = ref(null);
 const uploading = ref(false);
 const error = ref('');
 
-function select(){ input.value && input.value.click(); }
+function select(){ if(input.value){ input.value.click(); } }
 async function onFile(e){
   const f = e.target.files && e.target.files[0];
   if(!f) return;
@@ -28,9 +28,9 @@ async function onFile(e){
     if(data){
       emit('uploaded', data);
     }
-  } catch(e){
+  } catch(_e){
     error.value = '上传失败';
-  } finally { uploading.value=false; input.value && (input.value.value=''); }
+  } finally { uploading.value=false; if(input.value){ input.value.value=''; } }
 }
 </script>
 <style scoped>

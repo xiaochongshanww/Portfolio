@@ -25,8 +25,8 @@
             clearable
             maxlength="50"
             show-word-limit
-            @input="generateSlug"
             :disabled="creating"
+            @input="generateSlug"
           >
             <template #prefix>
               <el-icon><Collection /></el-icon>
@@ -162,14 +162,14 @@
 
     <template #footer>
       <div class="dialog-footer">
-        <el-button @click="handleClose" :disabled="creating">
+        <el-button :disabled="creating" @click="handleClose">
           取消
         </el-button>
         <el-button
           type="primary"
           :loading="creating"
-          @click="handleCreate"
           :disabled="!form.name.trim()"
+          @click="handleCreate"
         >
           <el-icon v-if="!creating"><Check /></el-icon>
           {{ creating ? '创建中...' : '创建分类' }}

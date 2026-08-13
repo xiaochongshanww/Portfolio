@@ -2,8 +2,8 @@
   <div class="article-management">
     <!-- 页面头部 -->
     <div class="page-header">
-      <div class="header-decoration"></div>
-      <div class="header-pattern"></div>
+      <div class="header-decoration" />
+      <div class="header-pattern" />
       <div class="header-content">
         <div class="title-container">
           <div class="title-icon">
@@ -29,7 +29,7 @@
         <div class="filter-left">
           <div class="filter-group">
             <div class="filter-item">
-              <el-select v-model="filters.status" placeholder="状态筛选" clearable @change="handleFilterChange" class="modern-select">
+              <el-select v-model="filters.status" placeholder="状态筛选" clearable class="modern-select" @change="handleFilterChange">
                 <el-option label="全部状态" value="" />
                 <el-option label="草稿" value="draft" />
                 <el-option label="待审核" value="pending" />
@@ -39,7 +39,7 @@
             </div>
 
             <div class="filter-item">
-              <el-select v-model="filters.category_id" placeholder="分类筛选" clearable @change="handleFilterChange" class="modern-select">
+              <el-select v-model="filters.category_id" placeholder="分类筛选" clearable class="modern-select" @change="handleFilterChange">
                 <el-option label="全部分类" value="" />
                 <el-option 
                   v-for="cat in categories" 
@@ -50,13 +50,13 @@
               </el-select>
             </div>
 
-            <div class="filter-item" v-if="userStore.isAdmin">
+            <div v-if="userStore.isAdmin" class="filter-item">
               <el-select 
                 v-model="filters.author_id" 
                 placeholder="作者筛选" 
                 clearable 
-                @change="handleFilterChange"
                 class="modern-select"
+                @change="handleFilterChange"
               >
                 <el-option label="全部作者" value="" />
                 <el-option 
@@ -73,9 +73,9 @@
                 v-model="filters.search"
                 placeholder="搜索文章标题..."
                 clearable
+                class="modern-search-input"
                 @clear="handleFilterChange"
                 @keyup.enter="handleFilterChange"
-                class="modern-search-input"
               >
                 <template #prefix>
                   <el-icon><Search /></el-icon>
@@ -86,7 +86,7 @@
         </div>
 
         <div class="filter-right">
-          <button @click="handleRefresh" :disabled="loading" class="refresh-btn">
+          <button :disabled="loading" class="refresh-btn" @click="handleRefresh">
             <el-icon size="16" :class="{ 'is-loading': loading }"><Refresh /></el-icon>
             <span>刷新</span>
           </button>
@@ -96,7 +96,7 @@
 
     <!-- 批量操作栏 -->
     <div v-if="selectedArticles.length > 0" class="modern-bulk-actions">
-      <div class="bulk-decoration"></div>
+      <div class="bulk-decoration" />
       <div class="bulk-content">
         <div class="selected-info">
           <el-icon size="18"><Select /></el-icon>
@@ -105,23 +105,23 @@
         <div class="bulk-buttons">
           <button 
             v-if="userStore.canModerateContent" 
-            @click="handleBulkApprove" 
-            class="bulk-btn success"
+            class="bulk-btn success" 
             :disabled="!canBulkApprove"
+            @click="handleBulkApprove"
           >
             <el-icon size="16"><Check /></el-icon>
             <span>批量审核通过</span>
           </button>
           <button 
             v-if="userStore.canModerateContent" 
-            @click="handleBulkReject" 
-            class="bulk-btn warning"
+            class="bulk-btn warning" 
             :disabled="!canBulkReject"
+            @click="handleBulkReject"
           >
             <el-icon size="16"><Close /></el-icon>
             <span>批量拒绝</span>
           </button>
-          <button @click="selectedArticles = []" class="bulk-btn cancel">
+          <button class="bulk-btn cancel" @click="selectedArticles = []">
             <el-icon size="16"><RefreshLeft /></el-icon>
             <span>取消选择</span>
           </button>
@@ -132,11 +132,11 @@
     <!-- 文章列表 -->
     <div class="modern-article-list">
       <el-table
-        :data="articles"
         v-loading="loading"
-        @selection-change="handleSelectionChange"
+        :data="articles"
         row-key="id"
         class="modern-table"
+        @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="55" />
         
@@ -214,8 +214,8 @@
             <div class="action-buttons">
               <el-button 
                 size="small" 
-                @click="handleEdit(row)"
                 :disabled="!canEdit(row)"
+                @click="handleEdit(row)"
               >
                 <el-icon><Edit /></el-icon>
                 编辑
@@ -287,9 +287,9 @@
           :current-page="meta.page"
           :page-size="meta.page_size"
           :page-sizes="[10, 20, 50, 100]"
+          class="modern-pagination-component"
           @current-change="handlePageChange"
           @size-change="handleSizeChange"
-          class="modern-pagination-component"
         />
       </div>
     </div>
@@ -317,8 +317,8 @@
         <el-button @click="rejectDialog.visible = false">取消</el-button>
         <el-button 
           type="danger" 
-          @click="confirmReject"
           :loading="rejectDialog.loading"
+          @click="confirmReject"
         >
           确认拒绝
         </el-button>

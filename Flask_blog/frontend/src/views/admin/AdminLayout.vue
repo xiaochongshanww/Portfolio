@@ -150,7 +150,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <button @click="logout" class="logout-btn">
+        <button class="logout-btn" @click="logout">
           <el-icon size="16"><SwitchButton /></el-icon>
           <span>退出登录</span>
         </button>
@@ -161,7 +161,7 @@
     <main class="admin-main">
       <!-- 顶部导航栏 -->
       <header class="admin-header">
-        <div class="header-decoration"></div>
+        <div class="header-decoration" />
         <div class="header-content">
           <div class="header-left">
             <div class="breadcrumb-container">
@@ -177,7 +177,7 @@
           
           <div class="header-right">
             <div class="header-actions">
-              <button @click="$router.push('/')" class="home-btn">
+              <button class="home-btn" @click="$router.push('/')">
                 <el-icon size="16"><HomeFilled /></el-icon>
                 <span>返回网站</span>
               </button>

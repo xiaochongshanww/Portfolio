@@ -36,7 +36,7 @@
       </div>
 
       <!-- 文件列表 -->
-      <div class="file-list" v-if="fileList.length > 0">
+      <div v-if="fileList.length > 0" class="file-list">
         <div class="list-header">
           <span>上传文件 ({{ fileList.length }})</span>
           <el-button text @click="clearFiles">清空</el-button>
@@ -49,7 +49,7 @@
             class="file-item"
           >
             <div class="file-preview">
-              <img v-if="file.preview" :src="file.preview" />
+              <img v-if="file.preview" :src="file.preview">
               <el-icon v-else size="32"><Document /></el-icon>
             </div>
             
@@ -84,8 +84,8 @@
             <div class="file-actions">
               <el-button 
                 text 
-                @click="removeFile(index)"
                 :disabled="file.status === 'uploading'"
+                @click="removeFile(index)"
               >
                 删除
               </el-button>
@@ -148,9 +148,9 @@
         <el-button @click="handleClose">取消</el-button>
         <el-button 
           type="primary" 
-          @click="startUpload"
           :loading="uploading"
           :disabled="fileList.length === 0"
+          @click="startUpload"
         >
           {{ uploading ? '上传中...' : '开始上传' }}
         </el-button>

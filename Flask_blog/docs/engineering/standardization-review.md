@@ -3,6 +3,12 @@
 > 归档日期：2026-08-12
 > 评估方式：静态审查 + 实测验证（后端测试套件实际执行）
 > 后续更新：本报告归档后，已按大型项目标准完成文档结构重组（见 [docs/](../README.md)），报告中"文档松散"相关问题已部分解决。
+>
+> **P0/P1 质量门禁整改进展（2026-08-13）**：
+> - **S1 已解决**：测试套件已修复并可运行（79 后端用例 + 20 前端用例全绿）。
+> - **M1 已解决**：CI 中 flake8 `--exit-zero` 与 isort `|| true` 已撤除；后端 flake8（新增 `.flake8` 配置，fix `pyproject.toml` 不被原生读取的问题）、black、isort 现为真实门禁且全量通过；前端 eslint flat config 已修复（此前直接崩溃无法运行），现 0 error 通过。
+> - **M2 部分解决**：CI 新增 `typecheck-backend`（mypy）与 `typecheck-frontend`（vue-tsc）非阻断 job，用于建立错误基线（存量 ~1774 前端类型错误需后续排期修复）。
+> - **额外修复**：格式化/静态检查过程中发现并修复 `backend/app/backup/service.py` 中 `timedelta` 未导入的真 bug。
 
 ## 一、评估方法与结论
 

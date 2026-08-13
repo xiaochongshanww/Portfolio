@@ -1,5 +1,5 @@
 <template>
-  <div class="tag-page" v-if="loaded">
+  <div v-if="loaded" class="tag-page">
     <h1>#{{ tagSlug }}</h1>
     <ul>
       <li v-for="a in articles" :key="a.id">

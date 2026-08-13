@@ -20,7 +20,7 @@ api.interceptors.request.use(cfg => {
       const val = decodeURIComponent(kv.split('=')[1]);
       cfg.headers['X-XSRF-TOKEN'] = val;
     }
-  }catch(e){ /* ignore */ }
+  }catch(_e){ /* ignore */ }
   return cfg;
 });
 

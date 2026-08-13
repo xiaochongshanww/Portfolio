@@ -6,8 +6,10 @@
 import apiClient from '@/apiClient'
 
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getBestVariant(variants: any[], label: string): string | null {
   if (!variants || !variants.length) return null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const v = variants.find((x: any) => x.label === label)
   return v?.url || null
 }
@@ -45,7 +47,7 @@ export function getUploadConfig(token: string) {
     headers: { 'Authorization': `Bearer ${token}` },
     accept: 'image/jpeg,image/png,image/webp,image/gif',
     filename() { return 'file' },
-    success(editor: any, msg: string) {
+    success(editor: any, msg: string) { // eslint-disable-line @typescript-eslint/no-explicit-any
       const info = parseUploadResponse(msg)
       if (info?.url) {
         editor.insertValue(`![image](${info.url})`)

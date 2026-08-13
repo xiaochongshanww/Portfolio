@@ -7,7 +7,7 @@
       </div>
       
       <el-card class="auth-card" shadow="always">
-        <el-form @submit.prevent="submit" @keyup.enter="submit" label-position="top" class="auth-form">
+        <el-form label-position="top" class="auth-form" @submit.prevent="submit" @keyup.enter="submit">
           <el-form-item label="邮箱地址" class="auth-form-item">
             <el-input 
               v-model="email" 
@@ -44,9 +44,9 @@
             <el-button 
               type="primary" 
               :loading="loading" 
-              @click="submit" 
               class="auth-submit-btn" 
-              size="large"
+              size="large" 
+              @click="submit"
             >
               登录
             </el-button>

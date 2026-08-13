@@ -8,12 +8,12 @@
       </div>
       <div class="header-actions">
         <el-select 
+          :key="`mode-selector-${currentMode}`" 
           v-model="currentMode" 
-          size="small" 
+          size="small"
           style="width: 120px"
-          @change="changeMode"
-          :key="`mode-selector-${currentMode}`"
           placeholder="选择模式"
+          @change="changeMode"
         >
           <el-option label="所见即所得" value="wysiwyg" />  
           <el-option label="即时渲染" value="ir" />

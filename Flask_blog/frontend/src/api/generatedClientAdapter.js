@@ -33,7 +33,7 @@ async function refreshTokenOnce(){
     const token = r.data?.data?.access_token;
     if(token){
       localStorage.setItem('access_token', token);
-      const s = getSession(); s && s.setAuth(token, s.role);
+      const s = getSession(); if(s){ s.setAuth(token, s.role); }
     }
     return token;
   }).catch(e=>{ throw e; }).finally(()=>{ setTimeout(()=>{ refreshTokenOnce._p=null; }, 0); });
@@ -49,7 +49,7 @@ function makeCacheKey(req){
 
 function handleAuthFailure(){
   const s = getSession();
-  s && s.logout();
+  if(s){ s.logout(); }
   if(router.currentRoute.value.path !== '/login'){
     router.push({ path: '/login', query: { redirect: router.currentRoute.value.fullPath } });
   }
@@ -121,7 +121,7 @@ export function createServices(Services){
       const { page, page_size, tag, category_id, author_id, sort } = (opts||{});
       try {
         return await Services.ArticlesService.getApiV1ArticlesPublic(page, page_size, tag, category_id, author_id, sort);
-      } catch(e){
+      } catch(_e){
         // fallback to legacy public API when generated endpoint not available
         const r = await api.get('/public/v1/articles', { params: { page, page_size, tag, category_id, author_id, sort }, baseURL: '' });
         return r.data;

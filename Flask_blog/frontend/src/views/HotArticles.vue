@@ -5,14 +5,16 @@
       <div v-if="loading" class="space-y-6">
         <div v-for="n in 5" :key="n" class="bg-white rounded-lg shadow-sm p-6">
           <div class="animate-pulse">
-            <div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-            <div class="h-3 bg-gray-200 rounded w-1/2"></div>
+            <div class="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+            <div class="h-3 bg-gray-200 rounded w-1/2" />
           </div>
         </div>
       </div>
       <div v-else class="space-y-6">
-        <article v-for="article in articles" :key="article.id" 
-                 class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+        <article
+          v-for="article in articles" :key="article.id" 
+          class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+        >
           <RouterLink :to="`/article/${article.slug}`" class="block">
             <h2 class="text-xl font-semibold text-gray-900 mb-2 hover:text-blue-600 transition-colors">
               {{ article.title }}

@@ -19,8 +19,8 @@
             size="small" 
             :type="selectedCategory === String(category.id) ? 'primary' : ''"
             plain
-            @click="handleCategoryClick(category.id)"
             class="mobile-category-btn"
+            @click="handleCategoryClick(category.id)"
           >
             {{ category.name }}
           </el-button>
@@ -30,8 +30,8 @@
             v-if="categories.length > categoryLimit"
             size="small" 
             text
-            @click="toggleShowAllCategories"
             class="text-gray-500"
+            @click="toggleShowAllCategories"
           >
             {{ showAllCategories ? '收起' : `+${categories.length - categoryLimit}` }}
           </el-button>

@@ -81,7 +81,7 @@
       </div>
 
       <!-- 媒体列表 -->
-      <div class="selector-body" v-loading="loading">
+      <div v-loading="loading" class="selector-body">
         <!-- 文件夹列表 -->
         <div v-if="folderList.length > 0" class="folders-section">
           <div v-if="viewMode === 'grid'" class="folders-grid">
@@ -135,7 +135,7 @@
                   :src="getPreviewUrl(media)"
                   :alt="media.alt_text"
                   @error="handleImageError"
-                />
+                >
                 <div v-else class="media-placeholder">
                   <el-icon size="32" :component="getMediaIcon(media.media_type)" />
                 </div>
@@ -164,10 +164,10 @@
           <div v-else class="media-list">
             <el-table 
               :data="mediaList"
-              @row-click="toggleSelection"
-              @row-dblclick="confirmSelection"
               row-class-name="media-row"
               :row-style="getRowStyle"
+              @row-click="toggleSelection"
+              @row-dblclick="confirmSelection"
             >
               <el-table-column width="60" align="center">
                 <template #default="{ row }">
@@ -177,7 +177,7 @@
                       :src="getPreviewUrl(row)"
                       :alt="row.alt_text"
                       @error="handleImageError"
-                    />
+                    >
                     <el-icon v-else size="24" :component="getMediaIcon(row.media_type)" />
                   </div>
                 </template>
@@ -266,7 +266,7 @@
     <!-- 上传对话框 -->
     <MediaUploadDialog 
       v-model:visible="showUploadDialog"
-      :currentFolderId="currentFolderId"
+      :current-folder-id="currentFolderId"
       @uploaded="handleUploaded"
     />
   </el-dialog>

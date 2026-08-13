@@ -2,8 +2,8 @@
   <div class="system-performance">
     <!-- 页面头部 -->
     <div class="modern-page-header">
-      <div class="header-decoration"></div>
-      <div class="header-pattern"></div>
+      <div class="header-decoration" />
+      <div class="header-pattern" />
       <div class="header-content">
         <div class="title-container">
           <div class="title-icon">
@@ -39,7 +39,7 @@
             15分钟
           </el-button>
         </el-button-group>
-        <el-button @click="toggleAutoRefresh" :type="autoRefresh ? 'primary' : ''" icon="Refresh">
+        <el-button :type="autoRefresh ? 'primary' : ''" icon="Refresh" @click="toggleAutoRefresh">
           {{ autoRefresh ? '自动刷新' : '手动模式' }}
         </el-button>
       </div>

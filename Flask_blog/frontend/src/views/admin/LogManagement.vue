@@ -7,9 +7,9 @@
         <p class="page-description">查看系统运行日志，监控应用状态和用户行为</p>
       </div>
       <div class="header-actions">
-        <el-button @click="refreshLogs" :loading="loading" icon="Refresh">刷新</el-button>
-        <el-button @click="showExportDialog" type="primary" icon="Download">导出</el-button>
-        <el-button @click="showCleanupDialog" type="danger" icon="Delete">清理</el-button>
+        <el-button :loading="loading" icon="Refresh" @click="refreshLogs">刷新</el-button>
+        <el-button type="primary" icon="Download" @click="showExportDialog">导出</el-button>
+        <el-button type="danger" icon="Delete" @click="showCleanupDialog">清理</el-button>
       </div>
     </div>
 
@@ -149,8 +149,8 @@
           </div>
           
           <div class="filter-actions">
-            <el-button @click="handleSearch" type="primary" icon="Search">搜索</el-button>
-            <el-button @click="resetFilters" icon="RefreshLeft">重置</el-button>
+            <el-button type="primary" icon="Search" @click="handleSearch">搜索</el-button>
+            <el-button icon="RefreshLeft" @click="resetFilters">重置</el-button>
           </div>
         </div>
       </div>
@@ -164,9 +164,9 @@
           <div class="table-actions">
             <el-switch
               v-model="autoRefresh"
-              @change="toggleAutoRefresh"
               active-text="自动刷新"
               inactive-text="手动刷新"
+              @change="toggleAutoRefresh"
             />
           </div>
         </div>
@@ -175,10 +175,10 @@
       <el-table
         v-loading="loading"
         :data="logs"
-        @row-click="showLogDetail"
         stripe
         style="width: 100%"
         :default-sort="{ prop: 'timestamp', order: 'descending' }"
+        @row-click="showLogDetail"
       >
         <el-table-column prop="timestamp" label="时间" width="180" sortable>
           <template #default="{ row }">
@@ -200,7 +200,7 @@
         
         <el-table-column prop="message" label="消息" min-width="300" show-overflow-tooltip>
           <template #default="{ row }">
-            <span v-html="highlightKeyword(row.message)"></span>
+            <span v-html="highlightKeyword(row.message)" />
           </template>
         </el-table-column>
         
@@ -216,10 +216,10 @@
         <el-table-column label="操作" width="100" fixed="right">
           <template #default="{ row }">
             <el-button
-              @click.stop="showLogDetail(row)"
               type="text"
               size="small"
               icon="View"
+              @click.stop="showLogDetail(row)"
             >
               详情
             </el-button>
@@ -270,22 +270,22 @@
           <el-descriptions-item label="IP地址">
             {{ selectedLog.ip_address || '-' }}
           </el-descriptions-item>
-          <el-descriptions-item label="请求ID" v-if="selectedLog.request_id">
+          <el-descriptions-item v-if="selectedLog.request_id" label="请求ID">
             {{ selectedLog.request_id }}
           </el-descriptions-item>
-          <el-descriptions-item label="端点" v-if="selectedLog.endpoint">
+          <el-descriptions-item v-if="selectedLog.endpoint" label="端点">
             {{ selectedLog.endpoint }}
           </el-descriptions-item>
-          <el-descriptions-item label="HTTP方法" v-if="selectedLog.method">
+          <el-descriptions-item v-if="selectedLog.method" label="HTTP方法">
             {{ selectedLog.method }}
           </el-descriptions-item>
-          <el-descriptions-item label="状态码" v-if="selectedLog.status_code">
+          <el-descriptions-item v-if="selectedLog.status_code" label="状态码">
             {{ selectedLog.status_code }}
           </el-descriptions-item>
-          <el-descriptions-item label="耗时" v-if="selectedLog.duration_ms">
+          <el-descriptions-item v-if="selectedLog.duration_ms" label="耗时">
             {{ selectedLog.duration_ms }}ms
           </el-descriptions-item>
-          <el-descriptions-item label="User-Agent" v-if="selectedLog.user_agent" span="2">
+          <el-descriptions-item v-if="selectedLog.user_agent" label="User-Agent" span="2">
             {{ selectedLog.user_agent }}
           </el-descriptions-item>
         </el-descriptions>
@@ -316,8 +316,8 @@
           <el-button @click="detailVisible = false">关闭</el-button>
           <el-button 
             v-if="selectedLog && selectedLog.request_id"
-            @click="searchRelatedLogs"
             type="primary"
+            @click="searchRelatedLogs"
           >
             查看相关日志
           </el-button>
@@ -347,7 +347,7 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="exportVisible = false">取消</el-button>
-          <el-button @click="handleExport" type="primary" :loading="exporting">
+          <el-button type="primary" :loading="exporting" @click="handleExport">
             导出
           </el-button>
         </div>
@@ -381,7 +381,7 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="cleanupVisible = false">取消</el-button>
-          <el-button @click="handleCleanup" type="danger" :loading="cleaning">
+          <el-button type="danger" :loading="cleaning" @click="handleCleanup">
             确认清理
           </el-button>
         </div>

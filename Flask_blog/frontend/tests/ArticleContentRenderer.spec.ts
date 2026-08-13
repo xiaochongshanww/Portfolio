@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import ArticleContentRenderer from '../src/components/ArticleContentRenderer.vue'
 
 // Mock katex which has ESM/CJS compatibility issues in test
@@ -10,7 +10,7 @@ vi.mock('katex', () => ({
 }))
 
 describe('ArticleContentRenderer', () => {
-  it('renders HTML content', () => {
+  it('renders HTML content', async () => {
     const wrapper = mount(ArticleContentRenderer, {
       props: {
         content: '<h1>Hello</h1><p>Test content</p>',
@@ -21,6 +21,7 @@ describe('ArticleContentRenderer', () => {
         },
       },
     })
+    await flushPromises()
     expect(wrapper.html()).toContain('Hello')
     expect(wrapper.html()).toContain('Test content')
   })
@@ -33,13 +34,14 @@ describe('ArticleContentRenderer', () => {
     expect(wrapper.exists()).toBe(true)
   })
 
-  it('sanitizes dangerous HTML', () => {
+  it('sanitizes dangerous HTML', async () => {
     const wrapper = mount(ArticleContentRenderer, {
       props: {
         content: '<script>alert("xss")</script><p>Safe</p>',
       },
       global: { stubs: { 'el-backtop': true } },
     })
+    await flushPromises()
     // DOMPurify should strip the script tag
     expect(wrapper.html()).not.toContain('<script>')
     expect(wrapper.html()).toContain('Safe')

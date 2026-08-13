@@ -25,6 +25,7 @@ export class HTMLMathProcessor {
     const {
       throwOnError = false,
       errorColor = '#cc0000',
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       displayMode = 'auto', // 'auto', 'inline', 'display'
       strict = 'warn'
     } = options

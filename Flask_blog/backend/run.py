@@ -2,7 +2,6 @@ from app import create_app
 
 app = create_app()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # 使用 Alembic 迁移管理数据库结构，参见 docs/backend/overview.md 与 migrations/README_migrations.md
-    app.run(debug=True, host='0.0.0.0')
-
+    app.run(debug=True, host="0.0.0.0")

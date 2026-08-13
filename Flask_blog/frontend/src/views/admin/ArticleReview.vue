@@ -2,8 +2,8 @@
   <div class="article-review">
     <!-- 页面头部 -->
     <div class="modern-page-header">
-      <div class="header-decoration"></div>
-      <div class="header-pattern"></div>
+      <div class="header-decoration" />
+      <div class="header-pattern" />
       <div class="header-content">
         <div class="title-container">
           <div class="title-icon">
@@ -148,11 +148,11 @@
           <!-- 操作按钮 -->
           <div class="modern-card-actions">
             <div class="action-left">
-              <button @click="previewArticle(article)" class="action-btn preview">
+              <button class="action-btn preview" @click="previewArticle(article)">
                 <el-icon size="16"><View /></el-icon>
                 <span>预览</span>
               </button>
-              <button @click="viewHistory(article)" class="action-btn history">
+              <button class="action-btn history" @click="viewHistory(article)">
                 <el-icon size="16"><Clock /></el-icon>
                 <span>历史版本</span>
               </button>
@@ -166,15 +166,15 @@
             
             <div v-if="article.status === 'pending'" class="action-right">
               <button 
-                @click="showRejectDialog(article)" 
-                class="action-btn reject"
+                class="action-btn reject" 
+                @click="showRejectDialog(article)"
               >
                 <el-icon size="16"><Close /></el-icon>
                 <span>拒绝</span>
               </button>
               <button 
-                @click="approveArticle(article)" 
-                class="action-btn approve"
+                class="action-btn approve" 
+                @click="approveArticle(article)"
               >
                 <el-icon size="16"><Check /></el-icon>
                 <span>通过</span>
@@ -193,8 +193,8 @@
         :total="meta.total"
         :current-page="meta.page"
         :page-size="meta.page_size"
-        @current-change="handlePageChange"
         class="modern-pagination-component"
+        @current-change="handlePageChange"
       />
     </div>
 
@@ -212,7 +212,7 @@
           <div><strong>标签:</strong> {{ previewDialog.article.tags?.join(', ') || '无' }}</div>
           <div><strong>创建时间:</strong> {{ formatDate(previewDialog.article.created_at) }}</div>
         </div>
-        <div class="preview-body" v-html="previewDialog.article.content_html"></div>
+        <div class="preview-body" v-html="previewDialog.article.content_html" />
       </div>
     </el-dialog>
 
@@ -251,8 +251,8 @@
         <el-button @click="rejectDialog.visible = false">取消</el-button>
         <el-button 
           type="danger" 
-          @click="confirmReject"
           :loading="rejectDialog.loading"
+          @click="confirmReject"
         >
           确认拒绝
         </el-button>

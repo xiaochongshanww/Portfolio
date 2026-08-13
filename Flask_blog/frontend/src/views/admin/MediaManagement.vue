@@ -80,7 +80,7 @@
     </div>
 
     <!-- 统计信息 -->
-    <div class="stats-bar" v-if="stats">
+    <div v-if="stats" class="stats-bar">
       <div class="stat-item">
         <span class="stat-label">总文件数：</span>
         <span class="stat-value">{{ stats.total_count }}</span>
@@ -89,7 +89,7 @@
         <span class="stat-label">总大小：</span>
         <span class="stat-value">{{ formatFileSize(stats.total_size) }}</span>
       </div>
-      <div class="stat-item" v-if="currentFolder">
+      <div v-if="currentFolder" class="stat-item">
         <span class="stat-label">当前文件夹：</span>
         <span class="stat-value">{{ currentFolder.name }}</span>
       </div>
@@ -98,7 +98,7 @@
     <!-- 内容区域 -->
     <div class="content-area">
       <!-- 文件夹列表 -->
-      <div class="folders-section" v-if="folders.length > 0">
+      <div v-if="folders.length > 0" class="folders-section">
         <div class="section-title">文件夹</div>
         <div class="folders-grid">
           <div 
@@ -138,7 +138,7 @@
 
       <!-- 媒体文件列表 -->
       <div class="media-section">
-        <div class="section-title" v-if="folders.length > 0">媒体文件</div>
+        <div v-if="folders.length > 0" class="section-title">媒体文件</div>
         
         <!-- 网格视图 -->
         <div v-if="viewMode === 'grid'" class="media-grid">
@@ -146,11 +146,11 @@
             v-for="media in mediaList" 
             :key="'media-' + media.id"
             class="media-item"
-            @click="selectMedia(media)"
             :class="{ selected: selectedMedia.includes(media.id) }"
+            @click="selectMedia(media)"
           >
             <div class="media-preview">
-              <img v-if="media.media_type === 'image'" :src="media.url" :alt="media.alt_text" />
+              <img v-if="media.media_type === 'image'" :src="media.url" :alt="media.alt_text">
               <div v-else class="media-placeholder">
                 <el-icon size="48" :component="getMediaIcon(media.media_type)" />
               </div>
@@ -202,7 +202,7 @@
             <el-table-column label="预览" width="80">
               <template #default="{ row }">
                 <div class="table-preview">
-                  <img v-if="row.media_type === 'image'" :src="row.url" />
+                  <img v-if="row.media_type === 'image'" :src="row.url">
                   <el-icon v-else size="32" :component="getMediaIcon(row.media_type)" />
                 </div>
               </template>
@@ -240,7 +240,7 @@
         </div>
 
         <!-- 分页 -->
-        <div class="pagination-wrapper" v-if="pagination.total > 0">
+        <div v-if="pagination.total > 0" class="pagination-wrapper">
           <el-pagination
             v-model:current-page="pagination.page"
             v-model:page-size="pagination.size"
@@ -268,14 +268,14 @@
     <!-- 上传对话框 -->
     <MediaUploadDialog 
       v-model:visible="showUploadDialog"
-      :currentFolderId="currentFolderId"
+      :current-folder-id="currentFolderId"
       @uploaded="handleFileUploaded"
     />
 
     <!-- 创建文件夹对话框 -->
     <FolderCreateDialog
       v-model:visible="showCreateFolderDialog"
-      :parentFolderId="currentFolderId"
+      :parent-folder-id="currentFolderId"
       @created="handleFolderCreated"
     />
 

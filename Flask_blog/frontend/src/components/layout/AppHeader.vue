@@ -1,7 +1,8 @@
 <template>
-  <div class="rounded-lg shadow-sm transition-all duration-300" 
+  <div
+    ref="headerRef" 
+    class="rounded-lg shadow-sm transition-all duration-300"
     :class="{ 'shadow-md': isScrolled }"
-    ref="headerRef"
   >
     <div class="px-6 py-4">
       <div class="flex justify-between items-center w-full">
@@ -9,29 +10,29 @@
         <div class="flex-shrink-0">
           <a 
             href="/" 
-            @click="handleLogoClick"
             class="flex items-center text-blue-600 hover:text-blue-700 transition-colors logo-container"
             title="小重山的博客"
+            @click="handleLogoClick"
           >
             <!-- Original SVG Logo - Larger size, no text -->
             <svg class="w-14 h-14 logo-icon" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
-              <path d="M12 60 L32 44 L32 52 L18 60 L32 68 L32 76 Z" fill="#2563EB" opacity="0.32"/>
-              <path d="M108 60 L88 44 L88 52 L102 60 L88 68 L88 76 Z" fill="#2563EB" opacity="0.32"/>
+              <path d="M12 60 L32 44 L32 52 L18 60 L32 68 L32 76 Z" fill="#2563EB" opacity="0.32" />
+              <path d="M108 60 L88 44 L88 52 L102 60 L88 68 L88 76 Z" fill="#2563EB" opacity="0.32" />
               <g stroke="#2563EB" stroke-width="3.25" fill="none" stroke-linecap="round">
-                <path d="M20.5 92.5 L60.5 24.5 L100.5 92.5 Z"/>
-                <path d="M40.5 92.5 L60.5 24.5 L80.5 92.5 Z"/>
-                <path d="M20.5 92.5 L60.5 60.5 L100.5 92.5 Z"/>
-                <path d="M30.5 76.5 L60.5 60.5 L90.5 76.5"/>
+                <path d="M20.5 92.5 L60.5 24.5 L100.5 92.5 Z" />
+                <path d="M40.5 92.5 L60.5 24.5 L80.5 92.5 Z" />
+                <path d="M20.5 92.5 L60.5 60.5 L100.5 92.5 Z" />
+                <path d="M30.5 76.5 L60.5 60.5 L90.5 76.5" />
               </g>
               <g fill="#2563EB">
-                <circle cx="60.5" cy="24.5" r="2.9"/>
-                <circle cx="20.5" cy="92.5" r="2.9"/>
-                <circle cx="100.5" cy="92.5" r="2.9"/>
-                <circle cx="40.5" cy="92.5" r="2.9"/>
-                <circle cx="80.5" cy="92.5" r="2.9"/>
-                <circle cx="60.5" cy="60.5" r="2.9"/>
-                <circle cx="30.5" cy="76.5" r="2.9"/>
-                <circle cx="90.5" cy="76.5" r="2.9"/>
+                <circle cx="60.5" cy="24.5" r="2.9" />
+                <circle cx="20.5" cy="92.5" r="2.9" />
+                <circle cx="100.5" cy="92.5" r="2.9" />
+                <circle cx="40.5" cy="92.5" r="2.9" />
+                <circle cx="80.5" cy="92.5" r="2.9" />
+                <circle cx="60.5" cy="60.5" r="2.9" />
+                <circle cx="30.5" cy="76.5" r="2.9" />
+                <circle cx="90.5" cy="76.5" r="2.9" />
               </g>
             </svg>
           </a>
@@ -41,27 +42,27 @@
         <nav class="desktop-nav items-center space-x-8 flex-1 justify-center">
           <a 
             href="/" 
-            @click="handleNavClick('/', $event)"
             class="nav-link"
             :class="{ 'nav-link-active': $route.path === '/' }"
+            @click="handleNavClick('/', $event)"
           >
             <el-icon class="mr-1"><HomeFilled /></el-icon>
             主页
           </a>
           <a 
             href="/archive" 
-            @click="handleNavClick('/archive', $event)"
             class="nav-link"
             :class="{ 'nav-link-active': $route.path === '/archive' }"
+            @click="handleNavClick('/archive', $event)"
           >
             <el-icon class="mr-1"><Calendar /></el-icon>
             归档
           </a>
           <a 
             href="/about" 
-            @click="handleNavClick('/about', $event)"
             class="nav-link"
             :class="{ 'nav-link-active': $route.path === '/about' }"
+            @click="handleNavClick('/about', $event)"
           >
             <el-icon class="mr-1"><InfoFilled /></el-icon>
             关于
@@ -98,7 +99,7 @@
             </router-link>
 
             <!-- 用户头像下拉菜单 -->
-            <el-dropdown @command="handleCommand" trigger="click">
+            <el-dropdown trigger="click" @command="handleCommand">
               <div class="user-dropdown-trigger">
                 <div class="user-avatar-container">
                   <img 
@@ -107,7 +108,7 @@
                     :alt="me.nickname || me.email"
                     class="user-avatar-img"
                     @error="handleAvatarError"
-                  />
+                  >
                   <el-icon v-else class="user-avatar-icon"><User /></el-icon>
                 </div>
                 <div class="user-info">
@@ -120,7 +121,7 @@
               </div>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item :command="`/author/${me.id}`" v-if="me.id">
+                  <el-dropdown-item v-if="me.id" :command="`/author/${me.id}`">
                     <el-icon><User /></el-icon>
                     个人主页
                   </el-dropdown-item>
@@ -135,18 +136,18 @@
                     <el-icon><Picture /></el-icon>
                     我的媒体库
                   </el-dropdown-item>
-                  <el-dropdown-item divided v-if="userStore.canAccessAdmin">
+                  <el-dropdown-item v-if="userStore.canAccessAdmin" divided>
                     管理功能
                   </el-dropdown-item>
-                  <el-dropdown-item :command="'/admin'" v-if="userStore.canAccessAdmin">
+                  <el-dropdown-item v-if="userStore.canAccessAdmin" :command="'/admin'">
                     <el-icon><DataBoard /></el-icon>
                     管理控制台
                   </el-dropdown-item>
-                  <el-dropdown-item :command="'/admin/users'" v-if="me.role === 'admin'">
+                  <el-dropdown-item v-if="me.role === 'admin'" :command="'/admin/users'">
                     <el-icon><UserFilled /></el-icon>
                     用户管理
                   </el-dropdown-item>
-                  <el-dropdown-item :command="'/admin/metrics'" v-if="me.role === 'editor' || me.role === 'admin'">
+                  <el-dropdown-item v-if="me.role === 'editor' || me.role === 'admin'" :command="'/admin/metrics'">
                     <el-icon><DataAnalysis /></el-icon>
                     统计分析
                   </el-dropdown-item>
@@ -163,10 +164,10 @@
         <!-- Mobile Menu Button -->
         <div class="mobile-menu-btn items-center">
           <button
-            @click="drawer = true"
             class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 transition-colors"
             type="button"
             aria-label="打开菜单"
+            @click="drawer = true"
           >
             <el-icon size="20"><Menu /></el-icon>
           </button>
@@ -194,7 +195,7 @@
                 :src="me.avatar" 
                 :alt="me.nickname || me.email"
                 class="w-full h-full object-cover"
-              />
+              >
               <el-icon v-else class="text-white"><User /></el-icon>
             </div>
             <div class="ml-3">
@@ -212,9 +213,9 @@
           <nav class="space-y-1">
             <a 
               href="/" 
-              @click="handleMobileHomeClick"
               class="mobile-nav-link"
               :class="{ 'mobile-nav-link-active': $route.path === '/' }"
+              @click="handleMobileHomeClick"
             >
               <el-icon class="mr-3"><HomeFilled /></el-icon>
               主页
@@ -222,9 +223,9 @@
             
             <router-link 
               to="/archive" 
-              @click="drawer = false" 
-              class="mobile-nav-link"
+              class="mobile-nav-link" 
               :class="{ 'mobile-nav-link-active': $route.path === '/archive' }"
+              @click="drawer = false"
             >
               <el-icon class="mr-3"><Calendar /></el-icon>
               归档
@@ -232,8 +233,8 @@
             
             <router-link 
               to="/about" 
-              @click="drawer = false" 
-              class="mobile-nav-link"
+              class="mobile-nav-link" 
+              @click="drawer = false"
             >
               <el-icon class="mr-3"><InfoFilled /></el-icon>
               关于
@@ -254,18 +255,18 @@
             <div v-if="me" class="pt-4 border-t border-gray-200">
               <router-link 
                 to="/articles/new" 
-                @click="drawer = false" 
-                class="mobile-nav-link"
+                class="mobile-nav-link" 
+                @click="drawer = false"
               >
                 <el-icon class="mr-3"><EditPen /></el-icon>
                 写文章
               </router-link>
               
               <router-link 
+                v-if="me.id" 
                 :to="`/author/${me.id}`" 
-                @click="drawer = false" 
                 class="mobile-nav-link"
-                v-if="me.id"
+                @click="drawer = false"
               >
                 <el-icon class="mr-3"><User /></el-icon>
                 我的主页
@@ -273,8 +274,8 @@
               
               <router-link 
                 to="/me/profile" 
-                @click="drawer = false" 
-                class="mobile-nav-link"
+                class="mobile-nav-link" 
+                @click="drawer = false"
               >
                 <el-icon class="mr-3"><Setting /></el-icon>
                 设置
@@ -282,8 +283,8 @@
               
               <router-link 
                 to="/media" 
-                @click="drawer = false" 
-                class="mobile-nav-link"
+                class="mobile-nav-link" 
+                @click="drawer = false"
               >
                 <el-icon class="mr-3"><Picture /></el-icon>
                 我的媒体库
@@ -296,10 +297,10 @@
               
               
               <router-link 
+                v-if="me.role === 'admin'" 
                 to="/admin/users" 
-                @click="drawer = false" 
                 class="mobile-nav-link"
-                v-if="me.role === 'admin'"
+                @click="drawer = false"
               >
                 <el-icon class="mr-3"><UserFilled /></el-icon>
                 用户管理
@@ -307,8 +308,8 @@
               
               <router-link 
                 to="/admin/metrics" 
-                @click="drawer = false" 
-                class="mobile-nav-link"
+                class="mobile-nav-link" 
+                @click="drawer = false"
               >
                 <el-icon class="mr-3"><DataAnalysis /></el-icon>
                 统计分析
@@ -322,15 +323,15 @@
           <div v-if="!me" class="space-y-3">
             <router-link 
               to="/login" 
-              @click="drawer = false"
               class="block w-full text-center py-2 px-4 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              @click="drawer = false"
             >
               登录
             </router-link>
             <router-link 
               to="/register" 
-              @click="drawer = false"
               class="block w-full text-center py-2 px-4 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+              @click="drawer = false"
             >
               注册
             </router-link>
@@ -338,8 +339,8 @@
           
           <button 
             v-else
-            @click="handleLogout"
             class="w-full flex items-center justify-center py-2 px-4 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            @click="handleLogout"
           >
             <el-icon class="mr-2"><SwitchButton /></el-icon>
             退出登录

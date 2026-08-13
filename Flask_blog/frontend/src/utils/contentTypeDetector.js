@@ -150,7 +150,7 @@ export class ContentTypeDetector {
   /**
    * 基于分析结果对内容进行分类
    */
-  static classifyContent(analysis, originalContent) {
+  static classifyContent(analysis, _originalContent) {
     const {
       htmlTagCount,
       inlineStyleCount,
@@ -282,7 +282,7 @@ export class ContentTypeDetector {
    * 获取内容类型的中文描述
    */
   static getTypeDescription(analysisResult) {
-    const { type, confidence, features } = analysisResult;
+    const { type, confidence } = analysisResult;
     
     const descriptions = {
       'html_source': `HTML源码内容 (${Math.round(confidence * 100)}% 置信度)`,

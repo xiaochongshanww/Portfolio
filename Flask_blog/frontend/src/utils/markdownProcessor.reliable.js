@@ -107,7 +107,7 @@ const createMarkdownProcessor = async () => {
   
   if (highlighter) {
     // 自定义fence渲染规则 - 最简单可靠的方法
-    md.renderer.rules.fence = function (tokens, idx, options, env, renderer) {
+    md.renderer.rules.fence = function (tokens, idx, _options, _env, _renderer) {
       const token = tokens[idx]
       const code = token.content
       const info = token.info ? token.info.trim() : ''
@@ -263,7 +263,7 @@ const createMarkdownProcessor = async () => {
     console.warn('⚠️ 使用基础代码块渲染')
     
     // 基础代码块渲染
-    md.renderer.rules.fence = function (tokens, idx, options, env, renderer) {
+    md.renderer.rules.fence = function (tokens, idx, _options, _env, _renderer) {
       const token = tokens[idx]
       const code = token.content
       const info = token.info ? token.info.trim() : ''
@@ -291,11 +291,11 @@ const createMarkdownProcessor = async () => {
     return self.renderToken(tokens, idx, options)
   }
   
-  md.renderer.rules.table_open = function(tokens, idx, options, env, self) {
-    return '<div class="table-wrapper">' + defaultTableOpenRenderer(tokens, idx, options, env, self)
+  md.renderer.rules.table_open = function(tokens, idx, _options, _env, _self) {
+    return '<div class="table-wrapper">' + defaultTableOpenRenderer(tokens, idx, _options, _env, _self)
   }
   
-  md.renderer.rules.table_close = function(tokens, idx, options, env, self) {
+  md.renderer.rules.table_close = function(_tokens, _idx, _options, _env, _self) {
     return '</table></div>'
   }
   

@@ -38,11 +38,11 @@
           </el-select>
         </el-col>
         <el-col :span="12">
-          <el-button type="primary" @click="loadRestoreRecords" :loading="loading">
+          <el-button type="primary" :loading="loading" @click="loadRestoreRecords">
             <el-icon><Refresh /></el-icon>
             刷新
           </el-button>
-          <el-button type="warning" @click="cleanupStuckTasks" :loading="cleaningUp" style="margin-left: 10px;">
+          <el-button type="warning" :loading="cleaningUp" style="margin-left: 10px;" @click="cleanupStuckTasks">
             <el-icon><Delete /></el-icon>
             清理卡住的任务
           </el-button>
@@ -52,11 +52,11 @@
 
     <!-- 恢复记录表格 -->
     <el-table 
-      :data="restoreRecords" 
       v-loading="loading" 
+      :data="restoreRecords" 
       style="width: 100%"
-      @row-click="showRestoreDetail"
       :row-class-name="getRowClassName"
+      @row-click="showRestoreDetail"
     >
       <el-table-column prop="restore_id" label="恢复ID" width="200" show-overflow-tooltip>
         <template #default="scope">
@@ -141,8 +141,8 @@
             v-if="canCancel(scope.row.status)"
             type="danger" 
             size="small" 
-            @click.stop="cancelRestore(scope.row.restore_id)"
             :loading="scope.row._cancelling"
+            @click.stop="cancelRestore(scope.row.restore_id)"
           >
             取消
           </el-button>
@@ -209,7 +209,7 @@
         </div>
 
         <!-- 实时进度 -->
-        <div class="section" v-if="detailDialog.data.status === 'running'">
+        <div v-if="detailDialog.data.status === 'running'" class="section">
           <h4>实时进度监控</h4>
           <el-progress 
             :percentage="detailDialog.data.progress || 0" 
@@ -223,7 +223,7 @@
         </div>
 
         <!-- 源备份信息 -->
-        <div class="section" v-if="detailDialog.data.backup_info">
+        <div v-if="detailDialog.data.backup_info" class="section">
           <h4>源备份信息</h4>
           <el-row :gutter="20">
             <el-col :span="12">
@@ -279,7 +279,7 @@
         </div>
 
         <!-- 恢复配置 -->
-        <div class="section" v-if="detailDialog.data.restore_options">
+        <div v-if="detailDialog.data.restore_options" class="section">
           <h4>恢复配置</h4>
           <pre class="config-display">{{ formatJSON(detailDialog.data.restore_options) }}</pre>
         </div>
@@ -290,8 +290,8 @@
           <el-button 
             v-if="canCancel(detailDialog.data?.status)"
             type="danger" 
-            @click="cancelRestoreFromDialog(detailDialog.data.restore_id)"
             :loading="detailDialog.data?._cancelling"
+            @click="cancelRestoreFromDialog(detailDialog.data.restore_id)"
           >
             取消任务
           </el-button>

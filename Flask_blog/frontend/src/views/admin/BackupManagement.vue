@@ -9,11 +9,11 @@
         <p class="page-description">管理数据库和文件的备份与恢复</p>
       </div>
       <div class="header-actions">
-        <el-button type="primary" @click="showCreateDialog" :loading="creating">
+        <el-button type="primary" :loading="creating" @click="showCreateDialog">
           <el-icon><Plus /></el-icon>
           创建备份
         </el-button>
-        <el-button @click="refreshBackups" :loading="loading">
+        <el-button :loading="loading" @click="refreshBackups">
           <el-icon><Refresh /></el-icon>
           刷新
         </el-button>
@@ -79,7 +79,7 @@
             <el-icon class="running-icon"><Loading /></el-icon>
             进行中的备份任务
           </span>
-          <el-button size="small" @click="refreshBackups" :loading="loading">
+          <el-button size="small" :loading="loading" @click="refreshBackups">
             <el-icon><Refresh /></el-icon>
             刷新状态
           </el-button>
@@ -120,8 +120,8 @@
           <div class="backup-actions">
             <el-button 
               size="small" 
-              @click="showBackupDetail(backup)"
               title="查看详情"
+              @click="showBackupDetail(backup)"
             >
               <el-icon><View /></el-icon>
             </el-button>
@@ -129,8 +129,8 @@
               v-if="backup.status !== 'completed'"
               size="small" 
               type="danger"
-              @click="cancelBackup(backup)"
               title="取消备份"
+              @click="cancelBackup(backup)"
             >
               <el-icon><Close /></el-icon>
             </el-button>
@@ -228,8 +228,8 @@
             <div class="action-buttons">
               <el-button 
                 size="small" 
-                @click="showBackupDetail(row)"
                 title="查看详情"
+                @click="showBackupDetail(row)"
               >
                 <el-icon><View /></el-icon>
               </el-button>
@@ -238,8 +238,8 @@
                 v-if="canDownloadBackup(row)"
                 size="small" 
                 type="success"
-                @click="downloadBackup(row)"
                 title="下载备份"
+                @click="downloadBackup(row)"
               >
                 <el-icon><Download /></el-icon>
               </el-button>
@@ -248,8 +248,8 @@
                 v-if="canRestoreBackup(row)"
                 size="small" 
                 type="warning"
-                @click="showRestoreDialog(row)"
                 title="恢复备份"
+                @click="showRestoreDialog(row)"
               >
                 <el-icon><RefreshLeft /></el-icon>
               </el-button>
@@ -257,8 +257,8 @@
               <el-button 
                 size="small" 
                 type="danger"
-                @click="deleteBackup(row)"
                 title="删除备份"
+                @click="deleteBackup(row)"
               >
                 <el-icon><Delete /></el-icon>
               </el-button>
@@ -343,7 +343,7 @@
 
       <template #footer>
         <el-button @click="createDialog.visible = false">取消</el-button>
-        <el-button type="primary" @click="createBackup" :loading="creating">
+        <el-button type="primary" :loading="creating" @click="createBackup">
           {{ creating ? '创建中...' : '创建备份' }}
         </el-button>
       </template>
@@ -520,7 +520,7 @@
               </el-form-item>
             </div>
 
-            <el-form-item label="目标路径" v-if="restoreOptions.restore_type !== 'database_only'">
+            <el-form-item v-if="restoreOptions.restore_type !== 'database_only'" label="目标路径">
               <el-input
                 v-model="restoreOptions.target_path"
                 placeholder="留空则恢复到原位置（高风险）"
@@ -611,9 +611,9 @@
           <el-button
             v-if="!currentRestoreTask"
             type="danger"
-            @click="performRestore"
             :loading="restoring"
             :disabled="restoreOptions.restore_type === 'partial' && !restoreOptions.include_database && !restoreOptions.include_files"
+            @click="performRestore"
           >
             {{ restoring ? '恢复中，请稍候...' : '开始恢复' }}
           </el-button>
@@ -623,8 +623,8 @@
             <el-button 
               v-if="canCancelRestore(currentRestoreTask.status)"
               type="warning"
-              @click="cancelCurrentRestore"
               :loading="cancelling"
+              @click="cancelCurrentRestore"
             >
               取消恢复
             </el-button>
@@ -632,8 +632,8 @@
               查看详情
             </el-button>
             <el-button 
-              @click="closeRestoreDialog"
               :disabled="currentRestoreTask.status === 'running'"
+              @click="closeRestoreDialog"
             >
               {{ currentRestoreTask.status === 'running' ? '恢复中...' : '关闭' }}
             </el-button>

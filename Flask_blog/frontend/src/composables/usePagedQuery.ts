@@ -1,9 +1,11 @@
-import { ref, watch, type Ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 export interface PagedQueryOptions<T> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   fetcher: (params: { page: number; page_size: number; [k:string]: any }) => Promise<T>;
   initialPageSize?: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   extraParams?: () => Record<string, any>;
 }
 
@@ -19,15 +21,18 @@ export function usePagedQuery<TData>(opts: PagedQueryOptions<TData>) {
     loading.value = true; error.value='';
     try {
       const page = Number(route.query.page) || 1;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const base: any = { page, page_size: pageSize.value };
       const extra = opts.extraParams ? opts.extraParams() : {};
       data.value = await opts.fetcher({ ...base, ...extra });
-    } catch(e:any){
-      error.value = e?.message || '加载失败';
+    } catch(e: unknown){
+      error.value = (e as Error)?.message || '加载失败';
     } finally { loading.value=false; }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function buildQuery(newQuery: any){
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const q: any = { ...route.query, ...newQuery };
     Object.keys(q).forEach(k=>{ if(q[k]===''||q[k]==null) delete q[k]; });
     return q;

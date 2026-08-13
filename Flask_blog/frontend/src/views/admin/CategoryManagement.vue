@@ -13,11 +13,11 @@
           </div>
         </div>
         <div class="header-actions">
-          <button @click="loadData" :disabled="loading" class="action-btn secondary">
+          <button :disabled="loading" class="action-btn secondary" @click="loadData">
             <el-icon size="16" :class="{ 'is-loading': loading }"><Refresh /></el-icon>
             <span>刷新</span>
           </button>
-          <button @click="showCreateDialog" class="action-btn primary">
+          <button class="action-btn primary" @click="showCreateDialog">
             <el-icon size="16"><Plus /></el-icon>
             <span>新建分类</span>
           </button>
@@ -110,9 +110,9 @@
             <div class="action-buttons">
               <el-button
                 size="small"
-                @click="showEditDialog(row)"
                 :icon="Edit"
                 class="action-btn-edit"
+                @click="showEditDialog(row)"
               >
                 编辑
               </el-button>
@@ -120,9 +120,9 @@
               <el-button
                 size="small"
                 type="primary"
-                @click="showCreateDialog(row)"
                 :icon="Plus"
                 class="action-btn-add"
+                @click="showCreateDialog(row)"
               >
                 添加子类
               </el-button>
@@ -130,9 +130,9 @@
               <el-button
                 size="small"
                 type="danger"
-                @click="handleDelete(row)"
                 :icon="Delete"
                 class="action-btn-delete"
+                @click="handleDelete(row)"
               >
                 删除
               </el-button>
@@ -200,8 +200,8 @@
           <el-button @click="dialogVisible = false">取消</el-button>
           <el-button
             type="primary"
-            @click="handleSubmit"
             :loading="submitting"
+            @click="handleSubmit"
           >
             {{ dialogMode === 'create' ? '创建' : '保存' }}
           </el-button>

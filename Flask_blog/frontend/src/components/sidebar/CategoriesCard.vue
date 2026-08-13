@@ -23,11 +23,11 @@
         <button
           v-for="category in displayCategories" 
           :key="category.id" 
-          @click="handleCategoryClick(category.id)"
           :class="[
             'sidebar-category-btn',
             selectedCategory === String(category.id) ? 'sidebar-category-btn-active' : 'sidebar-category-btn-default'
           ]"
+          @click="handleCategoryClick(category.id)"
         >
           <span class="category-text">{{ category.name }}</span>
           <el-icon v-if="selectedCategory === String(category.id)" size="12" class="close-icon">
@@ -38,8 +38,8 @@
         <!-- 显示更多分类按钮 -->
         <button 
           v-if="categories.length > showCategoryLimit"
-          @click="toggleShowAllCategories"
           class="sidebar-show-more-btn"
+          @click="toggleShowAllCategories"
         >
           {{ showAllCategories ? '收起' : `+${categories.length - showCategoryLimit}` }}
         </button>

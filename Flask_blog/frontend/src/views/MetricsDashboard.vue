@@ -13,12 +13,12 @@
       </div>
       <div class="refresh-button">
         <el-button 
-          @click="fetchStats" 
           :loading="loading" 
           type="primary" 
-          :icon="Refresh"
+          :icon="Refresh" 
           circle
           size="large"
+          @click="fetchStats"
         />
       </div>
     </div>
@@ -26,9 +26,9 @@
     <div v-if="loading" class="modern-loading">
       <div class="loading-grid">
         <div v-for="n in 4" :key="n" class="loading-card">
-          <div class="loading-header"></div>
+          <div class="loading-header" />
           <div class="loading-content">
-            <div v-for="i in 3" :key="i" class="loading-stat"></div>
+            <div v-for="i in 3" :key="i" class="loading-stat" />
           </div>
         </div>
       </div>
@@ -66,10 +66,10 @@
         </div>
         
         <div class="error-actions">
-          <el-button @click="fetchStats" type="primary" :icon="Refresh">
+          <el-button type="primary" :icon="Refresh" @click="fetchStats">
             重新加载
           </el-button>
-          <el-button @click="() => fetchStats(999)" type="success" plain>
+          <el-button type="success" plain @click="() => fetchStats(999)">
             使用备用数据源
           </el-button>
         </div>
@@ -232,7 +232,6 @@
           </div>
         </div>
       </div>
-
     </div>
   </div>
 </template>

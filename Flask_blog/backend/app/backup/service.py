@@ -1,12 +1,11 @@
 """备份系统业务逻辑 — 供 routes.py 编排调用"""
 
-import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from flask import current_app
 
 from .. import db
-from ..models import SHANGHAI_TZ, BackupConfig, BackupRecord, BackupTask, RestoreRecord
+from ..models import SHANGHAI_TZ, BackupConfig, BackupRecord
 from .physical_backup_engine import PhysicalBackupEngine
 from .physical_restore_engine import PhysicalRestoreEngine
 
@@ -17,11 +16,13 @@ _physical_restore_engine = None
 
 def _get_backup_config() -> dict:
     return {
-        "mysql_container": current_app.config.get('MYSQL_CONTAINER_NAME', 'blog-mysql'),
-        "mysql_volume": current_app.config.get('MYSQL_VOLUME_NAME', 'auto-detect'),
-        "backup_root": current_app.config.get('PHYSICAL_BACKUP_ROOT', './backups/physical'),
-        "hot_backup": current_app.config.get('PHYSICAL_HOT_BACKUP', True),
-        "compress_backup": current_app.config.get('PHYSICAL_COMPRESS_BACKUP', True),
+        "mysql_container": current_app.config.get("MYSQL_CONTAINER_NAME", "blog-mysql"),
+        "mysql_volume": current_app.config.get("MYSQL_VOLUME_NAME", "auto-detect"),
+        "backup_root": current_app.config.get(
+            "PHYSICAL_BACKUP_ROOT", "./backups/physical"
+        ),
+        "hot_backup": current_app.config.get("PHYSICAL_HOT_BACKUP", True),
+        "compress_backup": current_app.config.get("PHYSICAL_COMPRESS_BACKUP", True),
     }
 
 
@@ -45,12 +46,14 @@ def get_physical_restore_engine():
 def should_resolve_conflict(conflict) -> bool:
     """判断是否应当在统计页面自动解决冲突（保守策略）。"""
     try:
-        reason = conflict.conflict_reason or ''
-        if 'MySQL=running' in reason and '外部=completed' in reason:
+        reason = conflict.conflict_reason or ""
+        if "MySQL=running" in reason and "外部=completed" in reason:
             return True
-        if 'MySQL=completed' in reason and ('外部=pending' in reason or '外部=running' in reason):
+        if "MySQL=completed" in reason and (
+            "外部=pending" in reason or "外部=running" in reason
+        ):
             return True
-        if conflict.completed_at and conflict.status in ('pending', 'running'):
+        if conflict.completed_at and conflict.status in ("pending", "running"):
             return True
         return False
     except Exception:
@@ -63,11 +66,13 @@ def sync_physical_backups_to_database():
     physical_backups = engine.list_backups()
     synced = 0
     for pb in physical_backups:
-        bid = pb.get('backup_id')
+        bid = pb.get("backup_id")
         if BackupRecord.query.filter_by(backup_id=bid).first():
             continue
         record = BackupRecord(
-            backup_id=bid, backup_type='physical', status='completed',
+            backup_id=bid,
+            backup_type="physical",
+            status="completed",
             created_at=datetime.now(SHANGHAI_TZ),
         )
         db.session.add(record)
@@ -85,7 +90,7 @@ def list_backup_records(page, size, status, backup_type, sort_by, sort_order):
     if backup_type:
         q = q.filter(BackupRecord.backup_type == backup_type)
     sort_col = getattr(BackupRecord, sort_by, BackupRecord.created_at)
-    order = sort_col.desc() if sort_order == 'desc' else sort_col.asc()
+    order = sort_col.desc() if sort_order == "desc" else sort_col.asc()
     total = q.count()
     items = q.order_by(order).offset((page - 1) * size).limit(size).all()
     return total, items
@@ -99,12 +104,12 @@ def get_config():
         db.session.add(config)
         db.session.commit()
     return {
-        'auto_backup': config.auto_backup,
-        'backup_interval_hours': config.backup_interval_hours,
-        'retention_days': config.retention_days,
-        'backup_time': config.backup_time,
-        'backup_type': config.backup_type,
-        'include_external_metadata': config.include_external_metadata,
+        "auto_backup": config.auto_backup,
+        "backup_interval_hours": config.backup_interval_hours,
+        "retention_days": config.retention_days,
+        "backup_time": config.backup_time,
+        "backup_type": config.backup_type,
+        "include_external_metadata": config.include_external_metadata,
     }
 
 
@@ -114,8 +119,14 @@ def update_config(data: dict):
     if not config:
         config = BackupConfig()
         db.session.add(config)
-    for key in ('auto_backup', 'backup_interval_hours', 'retention_days',
-                'backup_time', 'backup_type', 'include_external_metadata'):
+    for key in (
+        "auto_backup",
+        "backup_interval_hours",
+        "retention_days",
+        "backup_time",
+        "backup_type",
+        "include_external_metadata",
+    ):
         if key in data:
             setattr(config, key, data[key])
     db.session.commit()
@@ -128,10 +139,10 @@ def cleanup_expired(force: bool = False):
     cutoff = datetime.now(SHANGHAI_TZ) - timezone(timedelta(days=retention))
     expired = BackupRecord.query.filter(
         BackupRecord.created_at < cutoff,
-        BackupRecord.status.in_(['completed', 'failed']),
+        BackupRecord.status.in_(["completed", "failed"]),
     )
     if not force:
-        expired = expired.filter(BackupRecord.backup_type != 'physical')
+        expired = expired.filter(BackupRecord.backup_type != "physical")
     count = expired.count()
     expired.delete(synchronize_session=False)
     db.session.commit()

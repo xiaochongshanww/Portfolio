@@ -31,7 +31,7 @@
               </el-form-item>
               
               <el-form-item>
-                <el-button type="primary" @click="saveSettings" :loading="saving">
+                <el-button type="primary" :loading="saving" @click="saveSettings">
                   保存设置
                 </el-button>
               </el-form-item>

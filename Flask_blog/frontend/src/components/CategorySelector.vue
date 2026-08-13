@@ -60,9 +60,9 @@
         :icon="MagicStick"
         size="large"
         :loading="recommendationLoading"
-        @click="showRecommendations"
         class="ai-recommend-btn"
         title="AI智能推荐分类"
+        @click="showRecommendations"
       >
         智能推荐
       </el-button>
@@ -79,8 +79,8 @@
           <el-button 
             text 
             size="small" 
-            @click="showRecommendationPanel = false"
             class="close-btn"
+            @click="showRecommendationPanel = false"
           >
             <el-icon><Close /></el-icon>
           </el-button>
@@ -143,8 +143,8 @@
           :key="related.id"
           size="small"
           text
-          @click="selectedCategoryId = related.id"
           class="related-btn"
+          @click="selectedCategoryId = related.id"
         >
           {{ related.name }}
         </el-button>

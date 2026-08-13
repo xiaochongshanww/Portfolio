@@ -13,7 +13,7 @@ SIZE_VARIANTS: List[Tuple[str, int]] = [
 
 # Aspect ratios to crop (name, ratio = width/height)
 CROP_ASPECTS: List[Tuple[str, float]] = [
-    ("16x9", 16/9),
+    ("16x9", 16 / 9),
     ("1x1", 1.0),
 ]
 
@@ -24,20 +24,23 @@ def _safe_open(path: str):
     except Exception:
         return None
 
+
 def _derive_paths(image_url: str, upload_dir: str):
     # image_url like /uploads/2025/08/uuid.jpg
-    rel = image_url.lstrip('/')
-    if not rel.startswith('uploads/'):
+    rel = image_url.lstrip("/")
+    if not rel.startswith("uploads/"):
         return None, None, None
-    fs_path = os.path.join(upload_dir, rel.replace('uploads/', ''))
+    fs_path = os.path.join(upload_dir, rel.replace("uploads/", ""))
     base_dir = os.path.dirname(fs_path)
     filename = os.path.basename(fs_path)
     name_root, ext = os.path.splitext(filename)
-    return fs_path, base_dir, (name_root, ext or '.jpg')
+    return fs_path, base_dir, (name_root, ext or ".jpg")
 
 
-def generate_focal_crops(image_url: str, focal_x: float, focal_y: float, upload_dir: str) -> Dict[str, Dict]:
-    """Generate cropped variants focusing at focal_x / focal_y (0-1) for each aspect & size.
+def generate_focal_crops(
+    image_url: str, focal_x: float, focal_y: float, upload_dir: str
+) -> Dict[str, Dict]:
+    """Generate cropped variants focusing at focal_x / focal_y (0-1) for each aspect & size.  # noqa: E501
     Returns mapping: aspect -> { variants: [ {label,url,width,height} ], srcset: str }
     Idempotent: skips existing files.
     """
@@ -59,8 +62,10 @@ def generate_focal_crops(image_url: str, focal_x: float, focal_y: float, upload_
         for label, target_w in SIZE_VARIANTS:
             if orig_w < 50 or orig_h < 50:
                 break
-            # Skip upsizing aggressively: allow if original width >= target_w * 0.6 (else break smaller sizes ok)
-            effective_w = min(orig_w, target_w) if orig_w >= target_w * 0.6 else int(orig_w)
+            # Skip upsizing aggressively: allow if original width >= target_w * 0.6 (else break smaller sizes ok)  # noqa: E501
+            effective_w = (
+                min(orig_w, target_w) if orig_w >= target_w * 0.6 else int(orig_w)
+            )
             if effective_w < 40:
                 continue
             target_w_final = min(target_w, effective_w)
@@ -77,10 +82,14 @@ def generate_focal_crops(image_url: str, focal_x: float, focal_y: float, upload_
             left = int(round(cx - crop_w / 2))
             top = int(round(cy - crop_h / 2))
             # Clamp
-            if left < 0: left = 0
-            if top < 0: top = 0
-            if left + crop_w > orig_w: left = orig_w - crop_w
-            if top + crop_h > orig_h: top = orig_h - crop_h
+            if left < 0:
+                left = 0
+            if top < 0:
+                top = 0
+            if left + crop_w > orig_w:
+                left = orig_w - crop_w
+            if top + crop_h > orig_h:
+                top = orig_h - crop_h
             box = (left, top, left + crop_w, top + crop_h)
             variant_name = f"{name_root}_f{aspect_name}_{label}{ext}"
             variant_path = os.path.join(base_dir, variant_name)
@@ -91,22 +100,26 @@ def generate_focal_crops(image_url: str, focal_x: float, focal_y: float, upload_
                         region = region.resize((target_w_final, target_h_final))
                     # Save
                     save_kwargs = {}
-                    if ext.lower() in ('.jpg', '.jpeg'):
-                        save_kwargs['quality'] = 85
-                        save_kwargs['optimize'] = True
+                    if ext.lower() in (".jpg", ".jpeg"):
+                        save_kwargs["quality"] = 85
+                        save_kwargs["optimize"] = True
                     region.save(variant_path, **save_kwargs)
                 except Exception:
                     continue
-            rel_url = '/uploads/' + os.path.relpath(variant_path, upload_dir).replace('\\', '/')
-            variants.append({
-                'label': label,
-                'url': rel_url,
-                'width': target_w_final,
-                'height': target_h_final
-            })
+            rel_url = "/uploads/" + os.path.relpath(variant_path, upload_dir).replace(
+                "\\", "/"
+            )
+            variants.append(
+                {
+                    "label": label,
+                    "url": rel_url,
+                    "width": target_w_final,
+                    "height": target_h_final,
+                }
+            )
         if variants:
-            srcset = ', '.join(f"{v['url']} {v['width']}w" for v in variants)
-            out[aspect_name] = {'variants': variants, 'srcset': srcset}
+            srcset = ", ".join(f"{v['url']} {v['width']}w" for v in variants)
+            out[aspect_name] = {"variants": variants, "srcset": srcset}
     return out
 
 

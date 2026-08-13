@@ -50,20 +50,20 @@
         </div>
         
         <div class="action-group">
-          <el-button @click="loadComments" :loading="loading" :icon="Refresh">刷新</el-button>
+          <el-button :loading="loading" :icon="Refresh" @click="loadComments">刷新</el-button>
           <el-button 
             type="danger" 
             :disabled="selectedComments.length === 0"
-            @click="handleBatchAction('reject')"
             :icon="Delete"
+            @click="handleBatchAction('reject')"
           >
             批量拒绝 ({{ selectedComments.length }})
           </el-button>
           <el-button 
             type="success" 
             :disabled="selectedComments.length === 0"
-            @click="handleBatchAction('approve')"
             :icon="Check"
+            @click="handleBatchAction('approve')"
           >
             批量通过 ({{ selectedComments.length }})
           </el-button>
@@ -76,9 +76,9 @@
       <el-table
         v-loading="loading"
         :data="comments"
-        @selection-change="handleSelectionChange"
         row-key="id"
         size="default"
+        @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="55" />
         
@@ -140,9 +140,9 @@
             <div class="modern-action-buttons">
               <button
                 v-if="row.status === 'pending'"
-                @click="handleModerate(row, 'approve')"
                 :disabled="moderatingIds.has(row.id)"
                 class="table-btn approve"
+                @click="handleModerate(row, 'approve')"
               >
                 <el-icon size="14" :class="{ 'is-loading': moderatingIds.has(row.id) }"><Check /></el-icon>
                 <span>通过</span>
@@ -150,9 +150,9 @@
               
               <button
                 v-if="row.status === 'pending'"
-                @click="handleModerate(row, 'reject')"
                 :disabled="moderatingIds.has(row.id)"
                 class="table-btn reject"
+                @click="handleModerate(row, 'reject')"
               >
                 <el-icon size="14" :class="{ 'is-loading': moderatingIds.has(row.id) }"><Close /></el-icon>
                 <span>拒绝</span>
@@ -160,9 +160,9 @@
               
               <button
                 v-if="row.status === 'approved'"
-                @click="handleModerate(row, 'reject')"
                 :disabled="moderatingIds.has(row.id)"
                 class="table-btn revoke"
+                @click="handleModerate(row, 'reject')"
               >
                 <el-icon size="14" :class="{ 'is-loading': moderatingIds.has(row.id) }"><Hide /></el-icon>
                 <span>撤销</span>
@@ -170,17 +170,17 @@
               
               <button
                 v-if="row.status === 'rejected'"
-                @click="handleModerate(row, 'approve')"
                 :disabled="moderatingIds.has(row.id)"
                 class="table-btn restore"
+                @click="handleModerate(row, 'approve')"
               >
                 <el-icon size="14" :class="{ 'is-loading': moderatingIds.has(row.id) }"><Refresh /></el-icon>
                 <span>恢复</span>
               </button>
               
               <button
-                @click="viewArticle(row.article_id)"
                 class="table-btn view"
+                @click="viewArticle(row.article_id)"
               >
                 <el-icon size="14"><View /></el-icon>
                 <span>查看文章</span>
@@ -192,7 +192,7 @@
     </div>
 
     <!-- 分页 -->
-    <div class="pagination-wrapper" v-if="pagination.total > 0">
+    <div v-if="pagination.total > 0" class="pagination-wrapper">
       <el-pagination
         v-model:current-page="pagination.page"
         v-model:page-size="pagination.page_size"

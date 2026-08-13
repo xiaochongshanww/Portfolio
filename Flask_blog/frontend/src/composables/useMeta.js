@@ -51,7 +51,7 @@ export function setMeta({
     };
     setRel('prev', prevUrl);
     setRel('next', nextUrl);
-  } catch(e){ /* ignore */ }
+  } catch(_e){ /* ignore */ }
 }
 
 export function injectJsonLd(obj){
@@ -59,7 +59,7 @@ export function injectJsonLd(obj){
     let script = document.head.querySelector('script[data-jsonld="dynamic"]');
     if(!script){ script = document.createElement('script'); script.type='application/ld+json'; script.dataset.jsonld='dynamic'; document.head.appendChild(script); }
     script.textContent = JSON.stringify(obj);
-  }catch(e){ /* ignore */ }
+  }catch(_e){ /* ignore */ }
 }
 
 export function resetMeta(){

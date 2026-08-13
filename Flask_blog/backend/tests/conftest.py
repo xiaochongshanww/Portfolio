@@ -1,101 +1,136 @@
-import sys, os
-import types
+import os
+import sys
 
 # 在导入 app 之前处理依赖
-from importlib import import_module
 
 # 先将 backend 加入路径
 CURRENT_DIR = os.path.dirname(__file__)
-BACKEND_DIR = os.path.abspath(os.path.join(CURRENT_DIR, '..'))
+BACKEND_DIR = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
 # 强制测试使用内存 SQLite，避免本机 backend/.env 的 DATABASE_URL(MySQL) 被 load_dotenv 读入
-os.environ['DATABASE_URL'] = 'sqlite://'
+os.environ["DATABASE_URL"] = "sqlite://"
 
 # 提前替换 flask_limiter.Limiter 为 no-op 版本，避免使用不支持的 storage uri
-import flask_limiter
+import flask_limiter  # noqa: E402
+
+
 class _NoopLimiter:
     def __init__(self, *a, **k):
         pass
+
     def limit(self, *a, **k):
         def deco(fn):
             return fn
+
         return deco
+
     def exempt(self, *a, **k):
         def deco(fn):
             return fn
+
         return deco
+
     def init_app(self, app):
         pass
+
+
 flask_limiter.Limiter = _NoopLimiter  # noqa
 
 # 导入应用模块
-import app as app_module
+import app as app_module  # noqa: E402
+
 
 # FakeRedis 提供最小接口
 class FakeRedis:
     def __init__(self):
         self.store = {}
+
     def get(self, key):
         return self.store.get(key)
+
     def setex(self, key, ttl, value):
         self.store[key] = value
+
     def delete(self, key):
         self.store.pop(key, None)
+
     def scan_iter(self, match=None):
         return iter([])
+
     def ping(self):
         return True
 
+
 # patch redis.from_url 返回 FakeRedis
-import redis as _redis_pkg
+import redis as _redis_pkg  # noqa: E402
+
 _orig_from_url = _redis_pkg.from_url
+
 
 def _patched_from_url(url, *a, **k):
     return FakeRedis()
+
+
 _redis_pkg.from_url = _patched_from_url  # noqa
 app_module.redis.from_url = _patched_from_url  # 双重保障
 
 # 强制使用内存 fake redis url（实际被 patched 函数忽略）
-from app.config import BaseConfig, DevelopmentConfig, ProductionConfig
-BaseConfig.REDIS_URL = 'redis://unused'
-DevelopmentConfig.REDIS_URL = 'redis://unused'
-ProductionConfig.REDIS_URL = 'redis://unused'
+from app.config import BaseConfig, DevelopmentConfig, ProductionConfig  # noqa: E402
 
-import pytest
-from app import create_app, db
+BaseConfig.REDIS_URL = "redis://unused"
+DevelopmentConfig.REDIS_URL = "redis://unused"
+ProductionConfig.REDIS_URL = "redis://unused"
+
+import pytest  # noqa: E402
+from app import create_app, db  # noqa: E402
+
 
 # Dummy 搜索索引
 class DummyIdx:
     def search(self, q, params=None):
-        return {'estimatedTotalHits': 0, 'hits': []}
+        return {"estimatedTotalHits": 0, "hits": []}
+
     def add_documents(self, docs):
         pass
+
     def delete_document(self, doc_id):
         pass
+
     def delete_all_documents(self):
         pass
+
 
 @pytest.fixture()
 def app(monkeypatch):
     app = create_app()
-    app.config.update({
-        'TESTING': True,
-        'SQLALCHEMY_DATABASE_URI': 'sqlite://',
-    })
+    app.config.update(
+        {
+            "TESTING": True,
+            "SQLALCHEMY_DATABASE_URI": "sqlite://",
+        }
+    )
 
     # 搜索 ensure_index 替换
     def fake_ensure_index():
         return DummyIdx()
-    monkeypatch.setattr('app.search.client.ensure_index', fake_ensure_index, raising=False)
-    monkeypatch.setattr('app.search.indexer.ensure_index', fake_ensure_index, raising=False)
-    monkeypatch.setattr('app.search.routes.ensure_index', fake_ensure_index, raising=False)
+
+    monkeypatch.setattr(
+        "app.search.client.ensure_index", fake_ensure_index, raising=False
+    )
+    monkeypatch.setattr(
+        "app.search.indexer.ensure_index", fake_ensure_index, raising=False
+    )
+    monkeypatch.setattr(
+        "app.search.routes.ensure_index", fake_ensure_index, raising=False
+    )
 
     # 保持 app context 在整个测试期间有效，使测试体内可直接使用 db.session / Model.query
     with app.app_context():
         db.create_all()
         yield app
+
 
 @pytest.fixture(autouse=True)
 def _clean_db(app):
@@ -104,12 +139,14 @@ def _clean_db(app):
     db.create_all()
     # 清理 FakeRedis 缓存（避免跨测试缓存影响访问控制）
     try:
-        from app import redis_client as _rc
-        if _rc and hasattr(_rc, 'store'):
+        from app import redis_client as _rc  # noqa: E402
+
+        if _rc and hasattr(_rc, "store"):
             _rc.store.clear()
     except Exception:
         pass
     yield
+
 
 @pytest.fixture()
 def client(app):

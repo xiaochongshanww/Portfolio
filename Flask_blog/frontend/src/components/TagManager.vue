@@ -10,8 +10,8 @@
           default-first-option
           placeholder="选择或创建标签"
           class="tags-select"
-          @change="onChange"
           :loading="loading"
+          @change="onChange"
         >
           <el-option
             v-for="tag in availableTags"
@@ -21,24 +21,24 @@
           >
             <span class="tag-option">
               <span class="tag-name">#{{ tag.name }}</span>
-              <span class="tag-count" v-if="tag.article_count">({{ tag.article_count }})</span>
+              <span v-if="tag.article_count" class="tag-count">({{ tag.article_count }})</span>
             </span>
           </el-option>
         </el-select>
 
-        <div class="selected-tags" v-if="selected.length > 0">
+        <div v-if="selected.length > 0" class="selected-tags">
           <el-tag
             v-for="tag in selected"
             :key="tag"
             closable
-            @close="removeTag(tag)"
             class="selected-tag"
+            @close="removeTag(tag)"
           >
             #{{ tag }}
           </el-tag>
         </div>
 
-        <p class="tag-hint" v-if="!selected.length">
+        <p v-if="!selected.length" class="tag-hint">
           从现有标签中选择或创建新标签，建议3-5个标签
         </p>
       </div>

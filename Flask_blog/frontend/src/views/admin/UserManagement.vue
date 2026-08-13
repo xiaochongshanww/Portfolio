@@ -13,7 +13,7 @@
           </div>
         </div>
         <div class="header-actions">
-          <button @click="handleRefresh" :disabled="loading" class="action-btn secondary">
+          <button :disabled="loading" class="action-btn secondary" @click="handleRefresh">
             <el-icon size="16" :class="{ 'is-loading': loading }"><Refresh /></el-icon>
             <span>刷新</span>
           </button>
@@ -63,7 +63,7 @@
       <div class="filter-row">
         <div class="filter-group">
           <div class="modern-select">
-            <el-select v-model="filters.role" placeholder="角色筛选" clearable @change="handleFilterChange" class="role-select">
+            <el-select v-model="filters.role" placeholder="角色筛选" clearable class="role-select" @change="handleFilterChange">
               <el-option label="全部角色" value="" />
               <el-option label="管理员" value="admin" />
               <el-option label="编辑" value="editor" />
@@ -76,9 +76,9 @@
               v-model="filters.search"
               placeholder="搜索用户名或邮箱..."
               clearable
+              class="search-input"
               @clear="handleFilterChange"
               @keyup.enter="handleFilterChange"
-              class="search-input"
             >
               <template #prefix>
                 <el-icon><Search /></el-icon>
@@ -92,9 +92,9 @@
               type="daterange"
               start-placeholder="注册开始日期"
               end-placeholder="注册结束日期"
-              @change="handleFilterChange"
               size="default"
               class="date-range-picker"
+              @change="handleFilterChange"
             />
           </div>
         </div>
@@ -104,8 +104,8 @@
     <!-- 现代化用户列表 -->
     <div class="modern-user-list-container">
       <el-table
-        :data="users"
         v-loading="loading"
+        :data="users"
         row-key="id"
         class="modern-table"
       >
@@ -118,7 +118,7 @@
                   :src="row.avatar" 
                   :alt="row.nickname || row.email"
                   @error="handleAvatarError"
-                />
+                >
                 <div v-else class="avatar-placeholder">
                   <el-icon size="24"><User /></el-icon>
                 </div>
@@ -189,17 +189,17 @@
           <template #default="{ row }">
             <div class="modern-action-buttons">
               <button 
-                @click="viewUserDetail(row)"
                 class="table-btn view"
+                @click="viewUserDetail(row)"
               >
                 <el-icon size="14"><View /></el-icon>
                 <span>详情</span>
               </button>
               
               <el-dropdown 
-                @command="(command) => handleUserAction(row, command)"
                 :disabled="row.id === userStore.user?.id"
                 class="modern-dropdown"
+                @command="(command) => handleUserAction(row, command)"
               >
                 <button class="table-btn more" :disabled="row.id === userStore.user?.id">
                   <span>操作</span>
@@ -338,8 +338,8 @@
         <el-button @click="roleDialog.visible = false">取消</el-button>
         <el-button 
           type="primary" 
-          @click="confirmRoleChange"
           :loading="roleDialog.loading"
+          @click="confirmRoleChange"
         >
           确认修改
         </el-button>

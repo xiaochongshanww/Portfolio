@@ -26,7 +26,7 @@ function preprocessShortcodes(raw){
     if(!m) return line;
     const kind = m[1]; const url = m[2];
     if(kind==='video'){ const html = buildVideoIframe(url); return html || line; }
-    if(kind==='gist'){ return `<div class="embed-gist" data-gist="${url}"></div>`; }
+    if(kind==='gist'){ return `<div class="embed-gist" data-gist="${url}">gist</div>`; }
     return line;
   }).join('\n');
 }

@@ -1,19 +1,19 @@
 <template>
   <div class="synonyms-admin">
     <h1>搜索同义词管理</h1>
-    <form @submit.prevent="add" class="form">
-      <input v-model="term" placeholder="主词" required />
-      <input v-model="synonymsRaw" placeholder="同义词(逗号)" required />
+    <form class="form" @submit.prevent="add">
+      <input v-model="term" placeholder="主词" required>
+      <input v-model="synonymsRaw" placeholder="同义词(逗号)" required>
       <button :disabled="loading">添加/更新</button>
     </form>
     <p v-if="error" class="err">{{ error }}</p>
     <table v-if="list.length" class="table">
-      <thead><tr><th>主词</th><th>同义词</th><th></th></tr></thead>
+      <thead><tr><th>主词</th><th>同义词</th><th /></tr></thead>
       <tbody>
         <tr v-for="row in list" :key="row.term">
           <td>{{ row.term }}</td>
           <td>{{ row.synonyms.join(', ') }}</td>
-          <td><button @click="del(row.term)" :disabled="loading">删除</button></td>
+          <td><button :disabled="loading" @click="del(row.term)">删除</button></td>
         </tr>
       </tbody>
     </table>

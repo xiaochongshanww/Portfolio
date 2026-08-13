@@ -1,23 +1,23 @@
 <template>
-  <div class="modern-author-profile" v-if="loaded">
+  <div v-if="loaded" class="modern-author-profile">
     <!-- 现代化作者头部 -->
     <header class="modern-author-header">
-      <div class="header-decoration"></div>
+      <div class="header-decoration" />
       <div class="header-content">
         <div class="avatar-section">
           <div class="avatar-container">
-            <img v-if="profile.avatar" :src="profile.avatar" class="modern-avatar" loading="lazy" />
+            <img v-if="profile.avatar" :src="profile.avatar" class="modern-avatar" loading="lazy">
             <div v-else class="avatar-placeholder">
               <el-icon size="48"><User /></el-icon>
             </div>
 
-            <div class="avatar-ring"></div>
+            <div class="avatar-ring" />
           </div>
         </div>
         <div class="author-meta">
           <h1 class="author-name">{{ profile.nickname || ('作者 #' + profile.id) }}</h1>
-          <p class="author-bio" v-if="profile.bio">{{ profile.bio }}</p>
-          <div class="quick-stats" v-if="statsLoaded">
+          <p v-if="profile.bio" class="author-bio">{{ profile.bio }}</p>
+          <div v-if="statsLoaded" class="quick-stats">
             <span class="stat-item">
               <el-icon><Document /></el-icon>
               {{ stats.articles_count }} 篇文章
@@ -36,7 +36,7 @@
     </header>
 
     <!-- 现代化统计卡片 -->
-    <section class="modern-stats-section" v-if="statsLoaded">
+    <section v-if="statsLoaded" class="modern-stats-section">
       <div class="stats-grid">
         <div class="modern-stat-card stat-articles">
           <div class="stat-icon">
@@ -46,7 +46,7 @@
             <div class="stat-number">{{ stats.articles_count }}</div>
             <div class="stat-label">文章数</div>
           </div>
-          <div class="stat-decoration"></div>
+          <div class="stat-decoration" />
         </div>
         <div class="modern-stat-card stat-views">
           <div class="stat-icon">
@@ -56,7 +56,7 @@
             <div class="stat-number">{{ stats.total_views }}</div>
             <div class="stat-label">总阅读</div>
           </div>
-          <div class="stat-decoration"></div>
+          <div class="stat-decoration" />
         </div>
         <div class="modern-stat-card stat-likes">
           <div class="stat-icon">
@@ -66,9 +66,9 @@
             <div class="stat-number">{{ stats.total_likes }}</div>
             <div class="stat-label">总点赞</div>
           </div>
-          <div class="stat-decoration"></div>
+          <div class="stat-decoration" />
         </div>
-        <div class="modern-stat-card stat-date" v-if="stats.last_published_at">
+        <div v-if="stats.last_published_at" class="modern-stat-card stat-date">
           <div class="stat-icon">
             <el-icon size="24"><Clock /></el-icon>
           </div>
@@ -76,7 +76,7 @@
             <div class="stat-number">{{ formatDate(stats.last_published_at) }}</div>
             <div class="stat-label">最近发布</div>
           </div>
-          <div class="stat-decoration"></div>
+          <div class="stat-decoration" />
         </div>
       </div>
     </section>
@@ -105,7 +105,7 @@
                 </div>
               </div>
               
-              <p class="article-summary" v-if="article.summary">
+              <p v-if="article.summary" class="article-summary">
                 {{ article.summary }}
               </p>
               
@@ -118,14 +118,14 @@
                   <el-icon size="14"><Calendar /></el-icon>
                   {{ formatDate(article.published_at || article.created_at) }}
                 </span>
-                <span class="meta-item" v-if="article.category">
+                <span v-if="article.category" class="meta-item">
                   <el-icon size="14"><Folder /></el-icon>
                   {{ article.category.name }}
                 </span>
               </div>
             </div>
             
-            <div class="article-decoration"></div>
+            <div class="article-decoration" />
           </router-link>
         </article>
       </div>
@@ -138,11 +138,11 @@
       </div>
       
       <!-- 现代化分页 -->
-      <div class="modern-pagination" v-if="total > pageSize">
+      <div v-if="total > pageSize" class="modern-pagination">
         <button 
-          @click="prev" 
-          :disabled="page === 1"
+          :disabled="page === 1" 
           class="pagination-btn prev-btn"
+          @click="prev"
         >
           <el-icon><ArrowLeft /></el-icon>
           上一页
@@ -155,9 +155,9 @@
         </div>
         
         <button 
-          @click="next" 
-          :disabled="page * pageSize >= total"
+          :disabled="page * pageSize >= total" 
           class="pagination-btn next-btn"
+          @click="next"
         >
           下一页
           <el-icon><ArrowRight /></el-icon>
@@ -168,7 +168,7 @@
   <!-- 现代化加载状态 -->
   <div v-else class="modern-loading">
     <div class="loading-container">
-      <div class="loading-spinner"></div>
+      <div class="loading-spinner" />
       <p class="loading-text">加载中...</p>
     </div>
   </div>

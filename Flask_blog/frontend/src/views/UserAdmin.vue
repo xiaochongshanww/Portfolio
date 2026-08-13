@@ -3,44 +3,44 @@
     <h1>用户管理</h1>
     <p>在这里可以查看和管理所有用户及其角色。</p>
 
-    <el-table :data="users" v-loading="loading" border stripe>
-      <el-table-column prop="id" label="ID" width="80"></el-table-column>
-      <el-table-column prop="email" label="邮箱" min-width="200"></el-table-column>
-      <el-table-column prop="nickname" label="昵称" min-width="150"></el-table-column>
+    <el-table v-loading="loading" :data="users" border stripe>
+      <el-table-column prop="id" label="ID" width="80" />
+      <el-table-column prop="email" label="邮箱" min-width="200" />
+      <el-table-column prop="nickname" label="昵称" min-width="150" />
       <el-table-column prop="role" label="角色" width="200">
         <template #default="scope">
           <el-select 
             v-model="scope.row.role" 
-            @change="(newRole) => handleRoleChange(scope.row.id, newRole)"
-            :disabled="scope.row.id === 1"  placeholder="选择角色">
+            :disabled="scope.row.id === 1"
+            placeholder="选择角色" @change="(newRole) => handleRoleChange(scope.row.id, newRole)"
+          >
             <el-option
               v-for="item in roles"
               :key="item.value"
               :label="item.label"
-              :value="item.value">
-            </el-option>
+              :value="item.value"
+            />
           </el-select>
         </template>
       </el-table-column>
-       <el-table-column label="操作" width="120">
-         <template #default="scope">
-            <!-- 物理删除功能后端暂未提供 -->
-           <el-button size="small" type="danger" disabled>删除</el-button>
-         </template>
+      <el-table-column label="操作" width="120">
+        <template #default>
+          <!-- 物理删除功能后端暂未提供 -->
+          <el-button size="small" type="danger" disabled>删除</el-button>
+        </template>
       </el-table-column>
     </el-table>
 
     <div class="pagination-toolbar">
-        <el-pagination
-            background
-            layout="prev, pager, next, total"
-            :total="pagination.total"
-            :current-page="pagination.page"
-            :page-size="pagination.pageSize"
-            @current-change="handlePageChange"
-        />
+      <el-pagination
+        background
+        layout="prev, pager, next, total"
+        :total="pagination.total"
+        :current-page="pagination.page"
+        :page-size="pagination.pageSize"
+        @current-change="handlePageChange"
+      />
     </div>
-
   </div>
 </template>
 

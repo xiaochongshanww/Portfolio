@@ -13,13 +13,14 @@ try:
 except Exception:
     ARTICLE_PUBLISHED_TOTAL = None
 
-CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', CELERY_BROKER_URL)
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", CELERY_BROKER_URL)
 
-celery_app = Celery('tasks', broker=CELERY_BROKER_URL, backend=CELERY_RESULT_BACKEND)
+celery_app = Celery("tasks", broker=CELERY_BROKER_URL, backend=CELERY_RESULT_BACKEND)
 
 # 将 Flask 配置传入 Celery（如需要）
 flask_app = create_app()
+
 
 def _invalidate_article_cache(article_id=None):
     if not redis_client:
@@ -32,15 +33,21 @@ def _invalidate_article_cache(article_id=None):
     except Exception:
         pass
 
+
 @celery_app.task
 def publish_scheduled_articles():
     """扫描 scheduled 状态且时间已到的文章并发布。"""
     with flask_app.app_context():
         now = datetime.now(timezone.utc)
-        q = Article.query.filter(Article.status=='scheduled', Article.scheduled_at!=None, Article.scheduled_at <= now, Article.deleted==False)
+        q = Article.query.filter(
+            Article.status == "scheduled",
+            Article.scheduled_at.isnot(None),
+            Article.scheduled_at <= now,
+            Article.deleted.is_(False),
+        )
         updated = []
         for art in q.all():
-            art.status = 'published'
+            art.status = "published"
             art.published_at = now
             updated.append(art)
         if updated:
@@ -52,6 +59,8 @@ def publish_scheduled_articles():
                     pass
                 _invalidate_article_cache(art.id)
                 if ARTICLE_PUBLISHED_TOTAL:
-                    try: ARTICLE_PUBLISHED_TOTAL.labels('schedule').inc()
-                    except Exception: pass
+                    try:
+                        ARTICLE_PUBLISHED_TOTAL.labels("schedule").inc()
+                    except Exception:
+                        pass
         return len(updated)

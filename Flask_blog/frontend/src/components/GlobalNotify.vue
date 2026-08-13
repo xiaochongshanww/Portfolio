@@ -1,5 +1,5 @@
 <template>
-  <div class="notify-wrap" v-if="queue.length">
+  <div v-if="queue.length" class="notify-wrap">
     <div v-for="m in queue" :key="m.id" class="notice" :class="m.type">{{ m.text }}</div>
   </div>
 </template>

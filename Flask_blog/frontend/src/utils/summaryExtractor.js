@@ -143,7 +143,7 @@ export class SummaryExtractor {
       try {
         const elements = doc.querySelectorAll(selector);
         elements.forEach(el => el.remove());
-      } catch (error) {
+      } catch (_error) {
         // 忽略选择器错误
       }
     });

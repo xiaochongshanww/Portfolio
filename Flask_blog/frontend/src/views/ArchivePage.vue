@@ -18,7 +18,7 @@
             <div class="stat-number">{{ totalArticles }}</div>
             <div class="stat-label">总文章数</div>
           </div>
-          <div class="stat-decoration"></div>
+          <div class="stat-decoration" />
         </div>
         <div class="modern-stat-card stat-card-2">
           <div class="stat-icon">
@@ -28,7 +28,7 @@
             <div class="stat-number">{{ totalMonths }}</div>
             <div class="stat-label">活跃月份</div>
           </div>
-          <div class="stat-decoration"></div>
+          <div class="stat-decoration" />
         </div>
         <div class="modern-stat-card stat-card-3">
           <div class="stat-icon">
@@ -38,7 +38,7 @@
             <div class="stat-number">{{ currentYear }}</div>
             <div class="stat-label">当前年份</div>
           </div>
-          <div class="stat-decoration"></div>
+          <div class="stat-decoration" />
         </div>
         <div class="modern-stat-card stat-card-4">
           <div class="stat-icon">
@@ -48,7 +48,7 @@
             <div class="stat-number">{{ latestMonth }}</div>
             <div class="stat-label">最新更新</div>
           </div>
-          <div class="stat-decoration"></div>
+          <div class="stat-decoration" />
         </div>
       </div>
 
@@ -63,24 +63,24 @@
             <button 
               v-for="year in availableYears" 
               :key="year"
-              @click="selectedYear = year"
               :class="[
                 'year-filter-btn',
                 selectedYear === year ? 'year-filter-btn-active' : 'year-filter-btn-default'
               ]"
+              @click="selectedYear = year"
             >
               <span class="year-text">{{ year }}</span>
-              <div v-if="selectedYear === year" class="active-indicator"></div>
+              <div v-if="selectedYear === year" class="active-indicator" />
             </button>
             <button 
-              @click="selectedYear = null"
               :class="[
                 'year-filter-btn all-years-btn',
                 selectedYear === null ? 'year-filter-btn-active' : 'year-filter-btn-default'
               ]"
+              @click="selectedYear = null"
             >
               <span class="year-text">全部</span>
-              <div v-if="selectedYear === null" class="active-indicator"></div>
+              <div v-if="selectedYear === null" class="active-indicator" />
             </button>
           </div>
         </div>
@@ -92,8 +92,8 @@
           <!-- 年份标题 -->
           <div class="year-header">
             <div class="year-marker">
-              <div class="year-dot"></div>
-              <div class="year-line"></div>
+              <div class="year-dot" />
+              <div class="year-line" />
             </div>
             <div class="year-title">
               <h2 class="text-2xl font-bold text-gray-900">{{ year }}年</h2>
@@ -107,7 +107,7 @@
               <!-- 月份标题 -->
               <div class="month-header">
                 <div class="month-marker">
-                  <div class="month-dot"></div>
+                  <div class="month-dot" />
                 </div>
                 <div class="month-title">
                   <h3 class="text-lg font-semibold text-gray-800">{{ formatMonth(month) }}</h3>
@@ -120,8 +120,8 @@
                 <article 
                   v-for="article in monthData.articles" 
                   :key="article.id"
-                  @click="goToArticle(article.slug)"
                   class="article-item group"
+                  @click="goToArticle(article.slug)"
                 >
                   <div class="article-content">
                     <div class="article-date">

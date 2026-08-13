@@ -97,7 +97,7 @@
                     </el-button>
                   </el-upload>
                   
-                  <div class="upload-progress" v-if="uploading">
+                  <div v-if="uploading" class="upload-progress">
                     <el-progress :percentage="uploadProgress" />
                   </div>
                 </div>
@@ -113,9 +113,9 @@
                     type="success"
                     size="large"
                     :icon="Picture"
-                    @click="showMediaSelector = true"
                     :disabled="uploading"
                     plain
+                    @click="showMediaSelector = true"
                   >
                     从媒体库选择
                   </el-button>
@@ -193,8 +193,8 @@
             <el-button 
               size="small" 
               text 
-              @click="showKeyboardShortcuts"
               class="shortcuts-hint-btn"
+              @click="showKeyboardShortcuts"
             >
               <el-icon><Setting /></el-icon>
               快捷键提示 (Ctrl+K)
@@ -285,8 +285,8 @@
                     reserve-keyword
                     placeholder="选择或创建标签"
                     class="tags-select"
-                    @change="updateTagsRaw"
                     :loading="tagsLoading"
+                    @change="updateTagsRaw"
                   >
                     <el-option
                       v-for="tag in availableTags"
@@ -302,13 +302,13 @@
                   </el-select>
                   
                   <!-- 已选标签预览 -->
-                  <div class="selected-tags" v-if="selectedTags.length > 0">
+                  <div v-if="selectedTags.length > 0" class="selected-tags">
                     <el-tag
                       v-for="tag in selectedTags"
                       :key="tag"
                       closable
-                      @close="removeTag(tag)"
                       class="selected-tag"
+                      @close="removeTag(tag)"
                     >
                       #{{ tag }}
                     </el-tag>
@@ -337,10 +337,10 @@
                   }"
                   :auto-recommend="true"
                   size="large"
+                  class="category-selector-field"
                   @change="handleCategoryChange"
                   @recommendation-selected="handleRecommendationSelected"
                   @refresh-categories="loadCategories"
-                  class="category-selector-field"
                 />
                 <div v-if="!formErrors.category_id" class="input-hint">
                   <el-icon class="hint-icon"><InfoFilled /></el-icon>
@@ -399,8 +399,8 @@
           type="primary" 
           size="large"
           :loading="loading" 
-          @click.prevent="submit"
           class="submit-button"
+          @click.prevent="submit"
         >
           <el-icon class="button-icon"><Check /></el-icon>
           {{ loading ? (isEditMode ? '更新中...' : '发布中...') : (isEditMode ? '更新文章' : '发布文章') }}
@@ -408,10 +408,10 @@
 
         <el-button 
           size="large" 
-          @click="saveDraft"
           :disabled="loading || autoSaving"
           :loading="autoSaving"
           class="draft-button"
+          @click="saveDraft"
         >
           <el-icon class="button-icon"><DocumentCopy /></el-icon>
           {{ autoSaving ? '保存中...' : '保存草稿' }}
@@ -451,8 +451,8 @@
         :title="error" 
         type="error" 
         :closable="true"
-        @close="error = ''"
         class="error-alert"
+        @close="error = ''"
       />
 
       <el-alert 
@@ -461,8 +461,8 @@
         :description="isEditMode ? '您的文章修改已保存并重新提交审核，编辑审核通过后将更新发布' : '您的文章已提交审核，编辑审核通过后将自动发布给读者'"
         type="warning" 
         :closable="true"
-        @close="success = false"
         class="success-alert"
+        @close="success = false"
       />
     </div>
 

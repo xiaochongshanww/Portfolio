@@ -16,8 +16,8 @@ jobs:
       - run: pip install flake8 black isort
       - run: black --check backend/
       - name: flake8
-        run: flake8 backend/ --exit-zero
-      - run: isort --check-only backend/ --diff || true
+        run: flake8 backend/
+      - run: isort --check-only backend/ --diff
 
   lint-frontend:
     runs-on: ubuntu-latest
@@ -58,6 +58,30 @@ jobs:
         run: npm run test
       - working-directory: frontend
         run: npm run build --if-present
+
+  typecheck-backend:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install mypy
+      - run: mypy backend/app --ignore-missing-imports --no-error-summary
+
+  typecheck-frontend:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - working-directory: frontend
+        run: npm ci
+      - working-directory: frontend
+        run: npm run typecheck
 
   lhci:
     needs: [test-backend, test-frontend]

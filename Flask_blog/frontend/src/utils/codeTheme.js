@@ -1,5 +1,5 @@
 // 全局代码主题管理器
-import { ref, reactive } from 'vue';
+import { ref } from 'vue';
 
 // 主题配置
 export const codeThemes = [
@@ -77,7 +77,7 @@ export const getThemeColors = (theme) => {
 };
 
 // 动态更新主题样式
-export const updateGlobalCodeTheme = (theme, targetContainer = 'body') => {
+export const updateGlobalCodeTheme = (theme, _targetContainer = 'body') => {
   const themeColors = getThemeColors(theme);
   const styleId = 'global-code-theme';
   let styleElement = document.getElementById(styleId);

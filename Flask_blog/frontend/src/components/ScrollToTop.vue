@@ -2,11 +2,11 @@
   <Transition name="scroll-to-top" appear>
     <button
       v-show="isVisible"
-      @click="scrollToTop"
       class="scroll-to-top-btn"
       :class="{ 'is-scrolling': isScrolling }"
       :aria-label="'回到顶部'"
       title="回到顶部"
+      @click="scrollToTop"
     >
       <!-- 向上箭头图标 -->
       <div class="btn-icon">
@@ -21,7 +21,7 @@
           stroke-linejoin="round"
           class="arrow-icon"
         >
-          <path d="m18 15-6-6-6 6"/>
+          <path d="m18 15-6-6-6 6" />
         </svg>
       </div>
       

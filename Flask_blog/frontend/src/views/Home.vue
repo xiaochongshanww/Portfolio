@@ -4,9 +4,9 @@
     <section class="hero-section bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-12 px-6 rounded-xl relative overflow-hidden mb-6">
       <!-- 背景装饰 -->
       <div class="absolute inset-0 opacity-10">
-        <div class="absolute top-10 left-10 w-20 h-20 bg-blue-400 rounded-full blur-xl"></div>
-        <div class="absolute top-20 right-20 w-16 h-16 bg-purple-400 rounded-full blur-lg"></div>
-        <div class="absolute bottom-10 left-1/3 w-12 h-12 bg-indigo-400 rounded-full blur-lg"></div>
+        <div class="absolute top-10 left-10 w-20 h-20 bg-blue-400 rounded-full blur-xl" />
+        <div class="absolute top-20 right-20 w-16 h-16 bg-purple-400 rounded-full blur-lg" />
+        <div class="absolute bottom-10 left-1/3 w-12 h-12 bg-indigo-400 rounded-full blur-lg" />
       </div>
       
       <div class="relative z-10 text-center max-w-3xl mx-auto">
@@ -25,14 +25,14 @@
               placeholder="搜索文章、标签或作者..." 
               clearable 
               size="large"
-              @keyup.enter="applySearch"
               class="search-input"
+              @keyup.enter="applySearch"
             >
               <template #prefix>
                 <el-icon class="text-gray-400"><Search /></el-icon>
               </template>
               <template #append>
-                <el-button :loading="loading" @click="applySearch" type="primary" size="large">
+                <el-button :loading="loading" type="primary" size="large" @click="applySearch">
                   搜索
                 </el-button>
               </template>
@@ -45,11 +45,11 @@
           <button
             v-for="c in categories.slice(0, 6)" 
             :key="c.id" 
-            @click="clickCategory(c.id)"
             :class="[
               'modern-category-btn',
               selectedCategory === String(c.id) ? 'modern-category-btn-active' : 'modern-category-btn-default'
             ]"
+            @click="clickCategory(c.id)"
           >
             <span class="category-name">{{ c.name }}</span>
             <el-icon v-if="selectedCategory === String(c.id)" size="14" class="close-icon">
@@ -78,15 +78,19 @@
           <div class="flex flex-col sm:flex-row sm:items-center mb-10 bg-white rounded-lg p-6 shadow-sm gap-4">
             <div class="flex flex-col sm:flex-row sm:items-center gap-4">
               <h2 class="text-xl font-semibold text-gray-800">文章列表</h2>
-              <el-segmented v-model="listType" :options="[
-                { label: '最新发布', value: 'latest' },
-                { label: '热门推荐', value: 'hot' }
-              ]" @change="onListTypeChange" size="large" />
+              <el-segmented
+                v-model="listType" :options="[
+                  { label: '最新发布', value: 'latest' },
+                  { label: '热门推荐', value: 'hot' }
+                ]" size="large" @change="onListTypeChange"
+              />
               
               <!-- 热门推荐状态提示 -->
-              <el-tooltip v-if="listType === 'hot'" 
+              <el-tooltip
+                v-if="listType === 'hot'" 
                 content="基于文章浏览量和互动数据的智能推荐" 
-                placement="top">
+                placement="top"
+              >
                 <el-tag type="info" size="small" effect="plain">
                   <el-icon><TrendCharts /></el-icon>
                   智能推荐
@@ -100,7 +104,7 @@
             <div v-for="n in 3" :key="n" class="bg-white rounded-xl overflow-hidden shadow-sm">
               <div class="md:flex">
                 <div class="md:w-80 md:flex-shrink-0">
-                  <div class="h-48 md:h-56 bg-gray-200 animate-pulse"></div>
+                  <div class="h-48 md:h-56 bg-gray-200 animate-pulse" />
                 </div>
                 <div class="p-6 flex-1">
                   <el-skeleton :rows="4" animated />
@@ -117,7 +121,7 @@
             <template #description>
               <p class="text-gray-500">{{ searchInput || selectedCategory || selectedTag ? '没有找到相关文章' : '暂无文章' }}</p>
             </template>
-            <el-button type="primary" @click="clearAll" v-if="searchInput || selectedCategory || selectedTag">
+            <el-button v-if="searchInput || selectedCategory || selectedTag" type="primary" @click="clearAll">
               清空筛选
             </el-button>
           </el-empty>
@@ -141,147 +145,147 @@
                       style="border-radius: 24px;"
                     />
                     <!-- 渐变遮罩 -->
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" style="border-radius: 24px;"></div>
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" style="border-radius: 24px;" />
                   </div>
                 </RouterLink>
               </div>
 
               <!-- 主要内容区域 -->
               <div>
-                  <!-- 文章标题 -->
-                  <RouterLink 
-                    :to="'/article/' + a.slug"
-                    class="block group-hover:text-blue-600 transition-colors duration-200 text-center"
-                  >
-                    <h3 class="text-xl font-bold text-gray-900 leading-tight mb-4 line-clamp-2 hover:text-blue-600 transition-colors">
-                      {{ a.title }}
-                    </h3>
-                  </RouterLink>
+                <!-- 文章标题 -->
+                <RouterLink 
+                  :to="'/article/' + a.slug"
+                  class="block group-hover:text-blue-600 transition-colors duration-200 text-center"
+                >
+                  <h3 class="text-xl font-bold text-gray-900 leading-tight mb-4 line-clamp-2 hover:text-blue-600 transition-colors">
+                    {{ a.title }}
+                  </h3>
+                </RouterLink>
 
-                  <!-- 文章元信息 -->
-                  <div class="post-meta text-sm text-gray-500 mb-4 text-center">
-                    <!-- 第一行：基础信息 -->
-                    <div class="flex items-center flex-wrap mb-1 justify-center">
-                      <!-- 发布时间 -->
-                      <div class="post-meta-item">
-                        <i class="fa fa-clock-o" aria-hidden="true"></i>
-                        {{ formatDate(a.published_at) }}
-                      </div>
-                      
-                      <div class="post-meta-divider">|</div>
-                      
-                      <!-- 浏览次数 -->
-                      <div v-if="a.views_count != null" class="post-meta-item">
-                        <i class="fa fa-eye" aria-hidden="true"></i>
-                        {{ formatNumber(a.views_count) }}
-                      </div>
-                      
-                      <div v-if="a.views_count != null" class="post-meta-divider">|</div>
-                      
-                      <!-- 评论数 -->
-                      <div class="post-meta-item">
-                        <i class="fa fa-comments-o" aria-hidden="true"></i>
-                        {{ a.comments_count || 0 }}
-                      </div>
-                      
-                      <div class="post-meta-divider">|</div>
-                      
-                      <!-- 文章分类 -->
-                      <div v-if="a.category" class="post-meta-item">
-                        <i class="fa fa-bookmark-o" aria-hidden="true"></i>
-                        <span class="text-blue-600 hover:text-blue-800 transition-colors cursor-pointer" @click="clickCategory(a.category_id)">
-                          {{ a.category }}
-                        </span>
-                      </div>
-                      
-                      <div v-if="a.category" class="post-meta-divider">|</div>
-                      
-                      <!-- 最后编辑时间 -->
-                      <div v-if="a.updated_at && a.updated_at !== a.published_at" class="post-meta-item">
-                        <i class="fa fa-clock-o" aria-hidden="true"></i>
-                        {{ formatDate(a.updated_at) }}
-                      </div>
-                      
-                      <div v-if="a.updated_at && a.updated_at !== a.published_at" class="post-meta-divider">|</div>
-                      
-                      <!-- 文章作者 -->
-                      <div class="post-meta-item">
-                        <i class="fa fa-user-circle-o" aria-hidden="true"></i>
-                        {{ a.author?.name || '匿名作者' }}
-                      </div>
+                <!-- 文章元信息 -->
+                <div class="post-meta text-sm text-gray-500 mb-4 text-center">
+                  <!-- 第一行：基础信息 -->
+                  <div class="flex items-center flex-wrap mb-1 justify-center">
+                    <!-- 发布时间 -->
+                    <div class="post-meta-item">
+                      <i class="fa fa-clock-o" aria-hidden="true" />
+                      {{ formatDate(a.published_at) }}
                     </div>
-                    
-                    <!-- 第二行：字数和阅读时间 -->
-                    <div class="flex items-center justify-center">
-                      <!-- 字数统计 -->
-                      <div class="post-meta-item">
-                        <i class="fa fa-file-word-o" aria-hidden="true"></i>
-                        {{ calculateWordCount(a.content_md || a.summary || '') }} 字
-                      </div>
                       
-                      <div class="post-meta-divider">|</div>
+                    <div class="post-meta-divider">|</div>
                       
-                      <!-- 预计阅读时间 -->
-                      <div class="post-meta-item">
-                        <i class="fa fa-hourglass-end" aria-hidden="true"></i>
-                        {{ calculateReadTime(a.content_md || a.summary || '') }} 分钟
-                      </div>
+                    <!-- 浏览次数 -->
+                    <div v-if="a.views_count != null" class="post-meta-item">
+                      <i class="fa fa-eye" aria-hidden="true" />
+                      {{ formatNumber(a.views_count) }}
+                    </div>
+                      
+                    <div v-if="a.views_count != null" class="post-meta-divider">|</div>
+                      
+                    <!-- 评论数 -->
+                    <div class="post-meta-item">
+                      <i class="fa fa-comments-o" aria-hidden="true" />
+                      {{ a.comments_count || 0 }}
+                    </div>
+                      
+                    <div class="post-meta-divider">|</div>
+                      
+                    <!-- 文章分类 -->
+                    <div v-if="a.category" class="post-meta-item">
+                      <i class="fa fa-bookmark-o" aria-hidden="true" />
+                      <span class="text-blue-600 hover:text-blue-800 transition-colors cursor-pointer" @click="clickCategory(a.category_id)">
+                        {{ a.category }}
+                      </span>
+                    </div>
+                      
+                    <div v-if="a.category" class="post-meta-divider">|</div>
+                      
+                    <!-- 最后编辑时间 -->
+                    <div v-if="a.updated_at && a.updated_at !== a.published_at" class="post-meta-item">
+                      <i class="fa fa-clock-o" aria-hidden="true" />
+                      {{ formatDate(a.updated_at) }}
+                    </div>
+                      
+                    <div v-if="a.updated_at && a.updated_at !== a.published_at" class="post-meta-divider">|</div>
+                      
+                    <!-- 文章作者 -->
+                    <div class="post-meta-item">
+                      <i class="fa fa-user-circle-o" aria-hidden="true" />
+                      {{ a.author?.name || '匿名作者' }}
                     </div>
                   </div>
-
-                  <!-- 文章摘要 -->
-                  <p class="text-gray-600 leading-relaxed mb-4 line-clamp-3">
-                    {{ getArticleSummary(a) }}
-                  </p>
-
-                  <!-- 底部操作区域 -->
-                  <div class="flex flex-col gap-4">
-                    <!-- 标签区域 -->
-                    <div v-if="Array.isArray(a.tags) && a.tags.length" class="flex items-center gap-2 flex-wrap justify-center">
-                      <el-tag 
-                        v-for="t in a.tags.slice(0, 3)" 
-                        :key="t" 
-                        size="small" 
-                        type="info"
-                        class="cursor-pointer hover:bg-gray-200 transition-colors"
-                        @click="clickTag(t)"
-                      >
-                        #{{ t }}
-                      </el-tag>
-                      <span v-if="a.tags.length > 3" class="text-xs text-gray-400">+{{ a.tags.length - 3 }}</span>
-                    </div>
                     
-                    <!-- 互动按钮 - 移除分割线和边距 -->
-                    <div class="interaction-buttons-container">
-                      <!-- 点赞按钮 -->
-                      <button 
-                        @click="toggleLike(a)"
-                        :class="[
-                          'interaction-btn',
-                          a.is_liked ? 'liked' : ''
-                        ]"
-                        :disabled="likingIds.includes(a.id)"
-                        :title="a.is_liked ? '取消点赞' : '点赞'"
-                      >
-                        <i :class="a.is_liked ? 'fa fa-heart' : 'fa fa-heart-o'" aria-hidden="true"></i>
-                        <span>{{ formatNumber(a.likes_count || 0) }}</span>
-                      </button>
+                  <!-- 第二行：字数和阅读时间 -->
+                  <div class="flex items-center justify-center">
+                    <!-- 字数统计 -->
+                    <div class="post-meta-item">
+                      <i class="fa fa-file-word-o" aria-hidden="true" />
+                      {{ calculateWordCount(a.content_md || a.summary || '') }} 字
+                    </div>
                       
-                      <!-- 收藏按钮 -->
-                      <button 
-                        @click="toggleBookmark(a)"
-                        :class="[
-                          'interaction-btn',
-                          a.is_bookmarked ? 'bookmarked' : ''
-                        ]"
-                        :disabled="bookmarkingIds.includes(a.id)"
-                        :title="a.is_bookmarked ? '取消收藏' : '收藏文章'"
-                      >
-                        <i :class="a.is_bookmarked ? 'fa fa-bookmark' : 'fa fa-bookmark-o'" aria-hidden="true"></i>
-                        <span>收藏</span>
-                      </button>
+                    <div class="post-meta-divider">|</div>
+                      
+                    <!-- 预计阅读时间 -->
+                    <div class="post-meta-item">
+                      <i class="fa fa-hourglass-end" aria-hidden="true" />
+                      {{ calculateReadTime(a.content_md || a.summary || '') }} 分钟
                     </div>
                   </div>
+                </div>
+
+                <!-- 文章摘要 -->
+                <p class="text-gray-600 leading-relaxed mb-4 line-clamp-3">
+                  {{ getArticleSummary(a) }}
+                </p>
+
+                <!-- 底部操作区域 -->
+                <div class="flex flex-col gap-4">
+                  <!-- 标签区域 -->
+                  <div v-if="Array.isArray(a.tags) && a.tags.length" class="flex items-center gap-2 flex-wrap justify-center">
+                    <el-tag 
+                      v-for="t in a.tags.slice(0, 3)" 
+                      :key="t" 
+                      size="small" 
+                      type="info"
+                      class="cursor-pointer hover:bg-gray-200 transition-colors"
+                      @click="clickTag(t)"
+                    >
+                      #{{ t }}
+                    </el-tag>
+                    <span v-if="a.tags.length > 3" class="text-xs text-gray-400">+{{ a.tags.length - 3 }}</span>
+                  </div>
+                    
+                  <!-- 互动按钮 - 移除分割线和边距 -->
+                  <div class="interaction-buttons-container">
+                    <!-- 点赞按钮 -->
+                    <button 
+                      :class="[
+                        'interaction-btn',
+                        a.is_liked ? 'liked' : ''
+                      ]"
+                      :disabled="likingIds.includes(a.id)"
+                      :title="a.is_liked ? '取消点赞' : '点赞'"
+                      @click="toggleLike(a)"
+                    >
+                      <i :class="a.is_liked ? 'fa fa-heart' : 'fa fa-heart-o'" aria-hidden="true" />
+                      <span>{{ formatNumber(a.likes_count || 0) }}</span>
+                    </button>
+                      
+                    <!-- 收藏按钮 -->
+                    <button 
+                      :class="[
+                        'interaction-btn',
+                        a.is_bookmarked ? 'bookmarked' : ''
+                      ]"
+                      :disabled="bookmarkingIds.includes(a.id)"
+                      :title="a.is_bookmarked ? '取消收藏' : '收藏文章'"
+                      @click="toggleBookmark(a)"
+                    >
+                      <i :class="a.is_bookmarked ? 'fa fa-bookmark' : 'fa fa-bookmark-o'" aria-hidden="true" />
+                      <span>收藏</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </article>
           </div>
@@ -308,12 +312,12 @@
         <DesktopSidebar 
           :categories="categories"
           :tags="tags"
-          :hotArticles="hot"
-          :latestArticles="latest"
-          :hotLoading="hotLoading"
-          :latestLoading="sideLoading"
-          :selectedCategory="selectedCategory"
-          :selectedTag="selectedTag"
+          :hot-articles="hot"
+          :latest-articles="latest"
+          :hot-loading="hotLoading"
+          :latest-loading="sideLoading"
+          :selected-category="selectedCategory"
+          :selected-tag="selectedTag"
           @category-click="clickCategory"
           @tag-click="clickTag"
         />

@@ -1,5 +1,5 @@
 <template>
-  <div class="focal-cropper-container" v-if="imageSrc">
+  <div v-if="imageSrc" class="focal-cropper-container">
     <div class="cropper-header">
       <h4 class="cropper-title">
         <el-icon class="title-icon"><Crop /></el-icon>
@@ -10,16 +10,16 @@
 
     <div class="cropper-content">
       <div class="image-container">
-        <div class="canvas-wrap" ref="wrapRef" @click="setFocal($event)">
-          <img :src="imageSrc" ref="imgRef" @load="onLoad" class="preview-image" />
+        <div ref="wrapRef" class="canvas-wrap" @click="setFocal($event)">
+          <img ref="imgRef" :src="imageSrc" class="preview-image" @load="onLoad">
           <div v-if="focalSet" class="focal-dot" :style="dotStyle">
-            <div class="focal-pulse"></div>
+            <div class="focal-pulse" />
           </div>
           <div class="overlay-grid">
-            <div class="grid-line grid-line-v" style="left: 33.33%"></div>
-            <div class="grid-line grid-line-v" style="left: 66.67%"></div>
-            <div class="grid-line grid-line-h" style="top: 33.33%"></div>
-            <div class="grid-line grid-line-h" style="top: 66.67%"></div>
+            <div class="grid-line grid-line-v" style="left: 33.33%" />
+            <div class="grid-line grid-line-v" style="left: 66.67%" />
+            <div class="grid-line grid-line-h" style="top: 33.33%" />
+            <div class="grid-line grid-line-h" style="top: 66.67%" />
           </div>
         </div>
       </div>
@@ -64,8 +64,8 @@
           <el-button 
             type="primary" 
             size="large"
-            @click="emitResult"
             :disabled="!focalSet"
+            @click="emitResult"
           >
             <el-icon><Check /></el-icon>
             应用设置

@@ -8,7 +8,7 @@
 
     <!-- 加载状态 -->
     <div v-if="!loaded" class="loading-container">
-      <div class="loading-spinner"></div>
+      <div class="loading-spinner" />
       <p class="loading-text">加载中...</p>
     </div>
 
@@ -33,13 +33,13 @@
                 class="avatar-img"
                 @error="handleAvatarError"
                 @load="handleAvatarLoad"
-              />
+              >
               <div v-else class="avatar-placeholder">
                 <el-icon class="placeholder-icon"><User /></el-icon>
               </div>
             </div>
             <div class="avatar-info">
-              <p class="avatar-status" v-if="form.avatar">
+              <p v-if="form.avatar" class="avatar-status">
                 <span v-if="avatarLoading" class="status-loading">检测中...</span>
                 <span v-else-if="avatarError" class="status-error">头像加载失败</span>
                 <span v-else class="status-success">头像正常</span>
@@ -70,7 +70,7 @@
                       {{ uploading ? '上传中...' : '选择图片' }}
                     </el-button>
                   </el-upload>
-                  <div class="upload-progress" v-if="uploading">
+                  <div v-if="uploading" class="upload-progress">
                     <el-progress :percentage="uploadProgress" />
                   </div>
                 </div>
@@ -176,8 +176,8 @@
 
         <div class="password-section">
           <el-form 
-            :model="passwordForm" 
-            ref="passwordFormRef"
+            ref="passwordFormRef" 
+            :model="passwordForm"
             :rules="passwordRules"
             label-position="top" 
             class="password-form"
@@ -243,7 +243,7 @@
                   class="strength-fill" 
                   :class="passwordStrengthClass"
                   :style="{ width: passwordStrengthPercent + '%' }"
-                ></div>
+                />
               </div>
               <span 
                 class="strength-text"
@@ -259,8 +259,8 @@
                 type="primary" 
                 size="large"
                 :loading="changingPassword"
-                @click="changePassword"
                 class="change-password-button"
+                @click="changePassword"
               >
                 <el-icon class="button-icon"><Key /></el-icon>
                 {{ changingPassword ? '修改中...' : '修改密码' }}
@@ -268,9 +268,9 @@
               
               <el-button 
                 size="large" 
-                @click="resetPasswordForm"
                 :disabled="changingPassword"
                 class="reset-password-button"
+                @click="resetPasswordForm"
               >
                 <el-icon class="button-icon"><RefreshLeft /></el-icon>
                 清空
@@ -285,8 +285,8 @@
             description="您的密码已成功修改，请使用新密码登录"
             type="success" 
             :closable="true"
-            @close="passwordChanged = false"
             class="password-success-alert"
+            @close="passwordChanged = false"
           />
 
           <!-- 密码修改错误提示 -->
@@ -295,8 +295,8 @@
             :title="passwordError" 
             type="error" 
             :closable="true"
-            @close="passwordError = ''"
             class="password-error-alert"
+            @close="passwordError = ''"
           />
         </div>
       </el-card>
@@ -316,12 +316,12 @@
               v-model="form.social_links_raw" 
               type="textarea" 
               :rows="6" 
-              placeholder='请输入 JSON 格式的社交链接：
+              placeholder="请输入 JSON 格式的社交链接：
 {
-  "github": "https://github.com/username",
-  "twitter": "https://twitter.com/username",
-  "linkedin": "https://linkedin.com/in/username"
-}'
+  &quot;github&quot;: &quot;https://github.com/username&quot;,
+  &quot;twitter&quot;: &quot;https://twitter.com/username&quot;,
+  &quot;linkedin&quot;: &quot;https://linkedin.com/in/username&quot;
+}"
               class="json-input"
             />
             <div class="input-hint">
@@ -363,8 +363,8 @@
           type="primary" 
           size="large" 
           :loading="saving" 
-          @click="save"
           class="save-button"
+          @click="save"
         >
           <el-icon class="button-icon"><Check /></el-icon>
           {{ saving ? '保存中...' : '保存设置' }}
@@ -372,9 +372,9 @@
 
         <el-button 
           size="large" 
-          @click="resetForm"
           :disabled="saving"
           class="reset-button"
+          @click="resetForm"
         >
           <el-icon class="button-icon"><RefreshLeft /></el-icon>
           重置
@@ -387,8 +387,8 @@
         :title="error" 
         type="error" 
         :closable="true"
-        @close="error = ''"
         class="error-alert"
+        @close="error = ''"
       />
 
       <el-alert 
@@ -397,8 +397,8 @@
         description="您的个人信息已成功更新"
         type="success" 
         :closable="true"
-        @close="saved = false"
         class="success-alert"
+        @close="saved = false"
       />
     </div>
   </div>

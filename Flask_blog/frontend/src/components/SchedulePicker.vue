@@ -4,20 +4,20 @@
       <div class="schedule-row">
         <el-switch
           :model-value="enabled"
-          @update:model-value="onToggle"
           active-text="启用定时发布"
           class="schedule-switch"
+          @update:model-value="onToggle"
         />
         <el-date-picker
           v-if="enabled"
           :model-value="date"
-          @update:model-value="$emit('update:date', $event)"
           type="datetime"
           placeholder="选择发布时间"
           :disabled-date="disabledDate"
           class="schedule-datepicker"
           format="YYYY-MM-DD HH:mm"
           value-format="YYYY-MM-DDTHH:mm:ss"
+          @update:model-value="$emit('update:date', $event)"
         />
       </div>
     </el-form-item>

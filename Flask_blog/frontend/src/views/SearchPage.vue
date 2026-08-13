@@ -1,6 +1,6 @@
 <template>
   <div class="search-page">
-    <form @submit.prevent="doSearch" class="search-bar">
+    <form class="search-bar" @submit.prevent="doSearch">
       <el-input v-model="q" placeholder="搜索文章..." class="flex1" clearable @keyup.enter="doSearch">
         <template #append>
           <el-button type="primary" :loading="loading" @click="doSearch">搜索</el-button>
@@ -20,16 +20,16 @@
       <el-date-picker v-model="dateFrom" type="date" placeholder="起始日期" class="w160" />
       <el-date-picker v-model="dateTo" type="date" placeholder="结束日期" class="w160" />
     </form>
-    <aside class="facets" v-if="Object.keys(facets).length">
-      <div class="facet" v-if="facets.tags">
+    <aside v-if="Object.keys(facets).length" class="facets">
+      <div v-if="facets.tags" class="facet">
         <h4>标签</h4>
         <ul>
           <li v-for="(count, slug) in limitedFacet(facets.tags)" :key="slug">
-            <label><input type="checkbox" :value="slug" v-model="selectedFacetTags" @change="applyFacetTags"/> {{ slug }} ({{ count }})</label>
+            <label><input v-model="selectedFacetTags" type="checkbox" :value="slug" @change="applyFacetTags"> {{ slug }} ({{ count }})</label>
           </li>
         </ul>
       </div>
-      <div class="facet" v-if="facets.category_id">
+      <div v-if="facets.category_id" class="facet">
         <h4>分类</h4>
         <ul>
           <li v-for="(count, cid) in facets.category_id" :key="cid">
@@ -37,7 +37,7 @@
           </li>
         </ul>
       </div>
-      <div class="facet" v-if="facets.author_id">
+      <div v-if="facets.author_id" class="facet">
         <h4>作者</h4>
         <ul>
           <li v-for="(count, aid) in facets.author_id" :key="aid">
@@ -47,22 +47,22 @@
       </div>
     </aside>
 
-    <div class="results" v-if="results.length">
+    <div v-if="results.length" class="results">
       <p class="hint">共 {{ total }} 条结果</p>
       <ul>
         <li v-for="r in results" :key="r.id">
           <router-link :to="'/article/' + r.slug">
-            <strong v-html="sanitize(r.title)"></strong>
+            <strong v-html="sanitize(r.title)" />
             <small class="meta">{{ r.views_count || 0 }} 阅读 · {{ formatDate(r.published_at || r.created_at) }}</small>
-            <p class="excerpt" v-html="sanitize(r.excerpt)"></p>
-            <span class="tag" v-for="t in r.tags || []" :key="t">#{{ t }}</span>
+            <p class="excerpt" v-html="sanitize(r.excerpt)" />
+            <span v-for="t in r.tags || []" :key="t" class="tag">#{{ t }}</span>
           </router-link>
         </li>
       </ul>
-      <div class="pager" v-if="total > pageSize">
-        <el-button @click="page-- && doSearch()" :disabled="page===1">上一页</el-button>
+      <div v-if="total > pageSize" class="pager">
+        <el-button :disabled="page===1" @click="page-- && doSearch()">上一页</el-button>
         <span>{{ page }} / {{ Math.ceil(total / pageSize) }}</span>
-        <el-button @click="page++ && doSearch()" :disabled="page>= total/pageSize">下一页</el-button>
+        <el-button :disabled="page>= total/pageSize" @click="page++ && doSearch()">下一页</el-button>
       </div>
     </div>
     <div v-else-if="searched && !loading" class="empty">无结果</div>

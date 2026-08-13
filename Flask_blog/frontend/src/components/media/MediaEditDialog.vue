@@ -20,7 +20,7 @@
             :src="media.url" 
             :alt="form.alt_text"
             class="preview-image"
-          />
+          >
           <div v-else class="preview-placeholder">
             <el-icon size="48" :component="getMediaIcon(media.media_type)" />
             <p>{{ media.original_name }}</p>
@@ -47,7 +47,7 @@
         />
       </el-form-item>
 
-      <el-form-item label="替代文本" prop="alt_text" v-if="media.media_type === 'image'">
+      <el-form-item v-if="media.media_type === 'image'" label="替代文本" prop="alt_text">
         <el-input
           v-model="form.alt_text"
           placeholder="用于描述图片内容，提升无障碍访问体验"
@@ -179,7 +179,7 @@
     <template #footer>
       <span class="dialog-footer">
         <el-button @click="handleClose">取消</el-button>
-        <el-button type="primary" @click="handleSubmit" :loading="loading">
+        <el-button type="primary" :loading="loading" @click="handleSubmit">
           保存
         </el-button>
       </span>

@@ -7,8 +7,8 @@
         <p class="page-description">实时监控系统安全状态，检测和响应安全威胁</p>
       </div>
       <div class="header-actions">
-        <el-button @click="refreshData" :loading="loading" icon="Refresh">刷新数据</el-button>
-        <el-button @click="showSecuritySettings" type="primary" icon="Setting">
+        <el-button :loading="loading" icon="Refresh" @click="refreshData">刷新数据</el-button>
+        <el-button type="primary" icon="Setting" @click="showSecuritySettings">
           安全设置
         </el-button>
       </div>
@@ -96,9 +96,9 @@
             <div class="card-header">
               <span>实时威胁趋势</span>
               <el-select v-model="threatTimeRange" size="small" style="width: 120px">
-                <el-option label="1小时" value="1h"></el-option>
-                <el-option label="6小时" value="6h"></el-option>
-                <el-option label="24小时" value="24h"></el-option>
+                <el-option label="1小时" value="1h" />
+                <el-option label="6小时" value="6h" />
+                <el-option label="24小时" value="24h" />
               </el-select>
             </div>
           </template>
@@ -121,11 +121,11 @@
           <template #header>
             <div class="card-header">
               <span>最近安全事件</span>
-              <el-button @click="showAllEvents" type="text" size="small">查看全部</el-button>
+              <el-button type="text" size="small" @click="showAllEvents">查看全部</el-button>
             </div>
           </template>
           
-          <el-table :data="recentEvents" v-loading="loading" size="default" style="width: 100%">
+          <el-table v-loading="loading" :data="recentEvents" size="default" style="width: 100%">
             <el-table-column prop="timestamp" label="时间" width="160">
               <template #default="{row}">
                 <span>{{ formatDateTime(row.timestamp) }}</span>
@@ -148,14 +148,14 @@
               </template>
             </el-table-column>
             
-            <el-table-column prop="source_ip" label="源IP" width="130" show-overflow-tooltip></el-table-column>
+            <el-table-column prop="source_ip" label="源IP" width="130" show-overflow-tooltip />
             
-            <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip></el-table-column>
+            <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
             
             <el-table-column label="操作" width="120" fixed="right">
               <template #default="{row}">
-                <el-button @click="viewEventDetail(row)" type="text" size="small">详情</el-button>
-                <el-button @click="handleEvent(row)" type="text" size="small">处理</el-button>
+                <el-button type="text" size="small" @click="viewEventDetail(row)">详情</el-button>
+                <el-button type="text" size="small" @click="handleEvent(row)">处理</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -244,19 +244,19 @@
           </template>
           
           <div class="quick-actions">
-            <el-button @click="blockIP" type="danger" icon="CircleCloseFilled" size="small" block>
+            <el-button type="danger" icon="CircleCloseFilled" size="small" block @click="blockIP">
               封禁IP地址
             </el-button>
             
-            <el-button @click="suspendUser" type="warning" icon="UserFilled" size="small" block>
+            <el-button type="warning" icon="UserFilled" size="small" block @click="suspendUser">
               暂停用户账户
             </el-button>
             
-            <el-button @click="enableProtectionMode" type="primary" icon="Lock" size="small" block>
+            <el-button type="primary" icon="Lock" size="small" block @click="enableProtectionMode">
               启用保护模式
             </el-button>
             
-            <el-button @click="downloadSecurityReport" type="info" icon="Download" size="small" block>
+            <el-button type="info" icon="Download" size="small" block @click="downloadSecurityReport">
               下载安全报告
             </el-button>
           </div>
@@ -345,8 +345,8 @@
           <el-button @click="eventDetailVisible = false">关闭</el-button>
           <el-button 
             v-if="selectedEvent && !selectedEvent.handled" 
-            @click="handleSelectedEvent" 
-            type="primary"
+            type="primary" 
+            @click="handleSelectedEvent"
           >
             标记已处理
           </el-button>

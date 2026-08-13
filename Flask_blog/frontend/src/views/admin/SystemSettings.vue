@@ -7,8 +7,8 @@
         <p class="page-description">配置和管理系统的各项参数</p>
       </div>
       <div class="header-actions">
-        <el-button @click="refreshSettings" :loading="loading" icon="Refresh">刷新</el-button>
-        <el-button @click="exportSettings" type="primary" icon="Download">
+        <el-button :loading="loading" icon="Refresh" @click="refreshSettings">刷新</el-button>
+        <el-button type="primary" icon="Download" @click="exportSettings">
           导出配置
         </el-button>
       </div>
@@ -22,13 +22,13 @@
           <template #header>
             <div class="card-header">
               <span>网站基本信息</span>
-              <el-button @click="saveGeneralSettings" :loading="savingGeneral" type="primary" size="small">
+              <el-button :loading="savingGeneral" type="primary" size="small" @click="saveGeneralSettings">
                 保存设置
               </el-button>
             </div>
           </template>
           
-          <el-form :model="generalSettings" :rules="generalRules" ref="generalFormRef" label-width="120px">
+          <el-form ref="generalFormRef" :model="generalSettings" :rules="generalRules" label-width="120px">
             <el-row :gutter="24">
               <el-col :span="12">
                 <el-form-item label="网站名称" prop="siteName">
@@ -93,13 +93,13 @@
           <template #header>
             <div class="card-header">
               <span>内容发布与管理</span>
-              <el-button @click="saveContentSettings" :loading="savingContent" type="primary" size="small">
+              <el-button :loading="savingContent" type="primary" size="small" @click="saveContentSettings">
                 保存设置
               </el-button>
             </div>
           </template>
           
-          <el-form :model="contentSettings" :rules="contentRules" ref="contentFormRef" label-width="140px">
+          <el-form ref="contentFormRef" :model="contentSettings" :rules="contentRules" label-width="140px">
             <el-row :gutter="24">
               <el-col :span="12">
                 <el-form-item label="每页文章数量" prop="articlesPerPage">
@@ -162,13 +162,13 @@
           <template #header>
             <div class="card-header">
               <span>系统安全配置</span>
-              <el-button @click="saveSecuritySettings" :loading="savingSecurity" type="primary" size="small">
+              <el-button :loading="savingSecurity" type="primary" size="small" @click="saveSecuritySettings">
                 保存设置
               </el-button>
             </div>
           </template>
           
-          <el-form :model="securitySettings" :rules="securityRules" ref="securityFormRef" label-width="160px">
+          <el-form ref="securityFormRef" :model="securitySettings" :rules="securityRules" label-width="160px">
             <el-row :gutter="24">
               <el-col :span="12">
                 <el-form-item label="登录失败限制次数" prop="maxLoginAttempts">
@@ -255,25 +255,25 @@
             <h3>数据库维护</h3>
             <el-row :gutter="16" class="maintenance-actions">
               <el-col :span="6">
-                <el-button @click="optimizeDatabase" :loading="dbOptimizing" type="primary" block>
+                <el-button :loading="dbOptimizing" type="primary" block @click="optimizeDatabase">
                   <el-icon><Setting /></el-icon>
                   优化数据库
                 </el-button>
               </el-col>
               <el-col :span="6">
-                <el-button @click="clearCache" :loading="cacheClearing" type="warning" block>
+                <el-button :loading="cacheClearing" type="warning" block @click="clearCache">
                   <el-icon><Delete /></el-icon>
                   清理缓存
                 </el-button>
               </el-col>
               <el-col :span="6">
-                <el-button @click="cleanupLogs" :loading="logsCleaning" type="info" block>
+                <el-button :loading="logsCleaning" type="info" block @click="cleanupLogs">
                   <el-icon><Document /></el-icon>
                   清理日志
                 </el-button>
               </el-col>
               <el-col :span="6">
-                <el-button @click="generateSitemap" :loading="sitemapGenerating" type="success" block>
+                <el-button :loading="sitemapGenerating" type="success" block @click="generateSitemap">
                   <el-icon><Folder /></el-icon>
                   生成站点地图
                 </el-button>
@@ -315,7 +315,7 @@
             <h3>备份与恢复</h3>
             <el-row :gutter="16" class="maintenance-actions">
               <el-col :span="8">
-                <el-button @click="createBackup" :loading="backupCreating" type="primary" block>
+                <el-button :loading="backupCreating" type="primary" block @click="createBackup">
                   <el-icon><FolderAdd /></el-icon>
                   创建备份
                 </el-button>
@@ -334,7 +334,7 @@
                 </el-upload>
               </el-col>
               <el-col :span="8">
-                <el-button @click="showBackupHistory" type="info" block>
+                <el-button type="info" block @click="showBackupHistory">
                   <el-icon><Clock /></el-icon>
                   备份历史
                 </el-button>
@@ -353,8 +353,8 @@
         <el-table-column prop="createTime" label="创建时间" width="180" />
         <el-table-column label="操作" width="150">
           <template #default="{row}">
-            <el-button @click="downloadBackup(row)" type="text" size="small">下载</el-button>
-            <el-button @click="deleteBackup(row)" type="text" size="small" class="delete-btn">删除</el-button>
+            <el-button type="text" size="small" @click="downloadBackup(row)">下载</el-button>
+            <el-button type="text" size="small" class="delete-btn" @click="deleteBackup(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>

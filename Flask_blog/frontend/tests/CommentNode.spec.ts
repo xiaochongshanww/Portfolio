@@ -14,7 +14,7 @@ describe('CommentNode', () => {
 
   it('renders comment content', () => {
     const wrapper = mount(CommentNode, {
-      props: { comment: baseComment },
+      props: { node: baseComment },
       global: { stubs: ['el-avatar', 'el-button', 'el-input'] },
     })
     expect(wrapper.text()).toContain('This is a test comment')
@@ -34,7 +34,7 @@ describe('CommentNode', () => {
       }],
     }
     const wrapper = mount(CommentNode, {
-      props: { comment: commentWithChild },
+      props: { node: commentWithChild },
       global: { stubs: ['el-avatar', 'el-button', 'el-input'] },
     })
     expect(wrapper.text()).toContain('Nested reply')

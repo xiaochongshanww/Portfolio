@@ -11,7 +11,7 @@
 
     <!-- 加载状态 -->
     <div v-if="loading" class="loading-state">
-      <div class="loading-spinner"></div>
+      <div class="loading-spinner" />
       <span class="loading-text">加载评论中...</span>
     </div>
     
@@ -60,7 +60,7 @@
           <span v-if="replyTo">回复 @{{ replyTo.user?.nickname || replyTo.id }}</span>
           <span v-else>发表评论</span>
         </h4>
-        <el-button v-if="replyTo" @click="cancelReply" size="small" text>
+        <el-button v-if="replyTo" size="small" text @click="cancelReply">
           <el-icon><Close /></el-icon>
           取消回复
         </el-button>
@@ -79,12 +79,12 @@
           </div>
           <div class="input-actions">
             <el-button 
-              @click="submit" 
               :disabled="submitting || !trimmed || content.length > 500" 
-              type="primary"
+              type="primary" 
               size="large"
               class="submit-btn"
               :loading="submitting"
+              @click="submit"
             >
               <el-icon v-if="!submitting"><Position /></el-icon>
               {{ submitting ? '发布中...' : '发布评论' }}

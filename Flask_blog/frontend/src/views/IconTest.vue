@@ -38,11 +38,11 @@
         <button 
           v-for="view in viewModes" 
           :key="view.value"
-          @click="currentView = view.value"
           :class="[
             'px-4 py-2 border rounded',
             currentView === view.value ? 'bg-blue-500 text-white' : 'bg-gray-100'
           ]"
+          @click="currentView = view.value"
         >
           <div class="flex items-center gap-2">
             <el-icon size="18"><component :is="view.icon" /></el-icon>

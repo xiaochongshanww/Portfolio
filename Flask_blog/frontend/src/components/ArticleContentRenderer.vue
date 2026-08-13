@@ -39,9 +39,9 @@
     >
       <div 
         class="article-body markdown-content"
-        v-html="processedContent"
         @click="handleContentClick"
-      ></div>
+        v-html="processedContent"
+      />
     </div>
     
     <!-- HTML源码内容渲染器 -->
@@ -53,9 +53,9 @@
       <div 
         class="html-content-isolated"
         :class="getHTMLContentClasses()"
-        v-html="processedContent"
         @click="handleContentClick"
-      ></div>
+        v-html="processedContent"
+      />
     </div>
     
     <!-- 加载状态 -->

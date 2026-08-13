@@ -77,7 +77,7 @@
     </div>
 
     <!-- 媒体内容区 -->
-    <div class="gallery-content" v-loading="loading">
+    <div v-loading="loading" class="gallery-content">
       <!-- 网格视图 -->
       <div v-if="viewMode === 'grid'" class="media-grid">
         <div 
@@ -93,7 +93,7 @@
               :alt="media.alt_text || media.title"
               loading="lazy"
               @error="handleImageError"
-            />
+            >
             <div v-else class="media-placeholder">
               <el-icon size="48" :component="getMediaIcon(media.media_type)" />
               <p class="placeholder-text">{{ getMediaTypeName(media.media_type) }}</p>
@@ -161,7 +161,7 @@
               :alt="media.alt_text || media.title"
               loading="lazy"
               @error="handleImageError"
-            />
+            >
             <div v-else class="media-placeholder">
               <el-icon size="64" :component="getMediaIcon(media.media_type)" />
               <p class="placeholder-text">{{ getMediaTypeName(media.media_type) }}</p>
@@ -207,7 +207,7 @@
             <div class="error-actions">
               <el-button @click="testApiConnection">测试连接</el-button>
               <el-button @click="loadMediaData">重试</el-button>
-              <el-button type="primary" @click="$router.push('/admin/media')" v-if="userStore.canAccessAdmin">
+              <el-button v-if="userStore.canAccessAdmin" type="primary" @click="$router.push('/admin/media')">
                 前往管理控制台
               </el-button>
             </div>
@@ -257,7 +257,7 @@
             :src="currentMedia.url"
             :alt="currentMedia.alt_text || currentMedia.title"
             class="lightbox-image"
-          />
+          >
           <video 
             v-else-if="currentMedia.media_type === 'video'"
             :src="currentMedia.url"

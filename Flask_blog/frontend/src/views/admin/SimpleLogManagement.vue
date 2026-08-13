@@ -9,7 +9,7 @@
       </template>
 
       <!-- 统计信息 -->
-      <div class="stats-section" v-if="stats">
+      <div v-if="stats" class="stats-section">
         <el-row :gutter="20">
           <el-col :span="6">
             <el-statistic title="总日志数" :value="stats.total" />
@@ -53,9 +53,9 @@
 
       <!-- 日志表格 -->
       <el-table 
+        v-loading="loading" 
         :data="logs" 
-        style="width: 100%" 
-        v-loading="loading"
+        style="width: 100%"
         :default-sort="{ prop: 'timestamp', order: 'descending' }"
       >
         <el-table-column prop="timestamp" label="时间" width="180" sortable>

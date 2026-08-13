@@ -12,40 +12,40 @@
     <template v-else>
       <!-- 文章列表 -->
       <div v-if="articles.length" class="space-y-1">
-      <article 
-        v-for="(article, index) in articles" 
-        :key="article.id" 
-        class="hot-article-item group cursor-pointer"
-      >
-        <router-link :to="'/article/' + article.slug" class="block">
-          <div class="flex gap-3 items-baseline">
-            <!-- 排名徽章 -->
-            <div class="ranking-badge">
-              {{ index + 1 }}
-            </div>
+        <article 
+          v-for="(article, index) in articles" 
+          :key="article.id" 
+          class="hot-article-item group cursor-pointer"
+        >
+          <router-link :to="'/article/' + article.slug" class="block">
+            <div class="flex gap-3 items-baseline">
+              <!-- 排名徽章 -->
+              <div class="ranking-badge">
+                {{ index + 1 }}
+              </div>
             
-            <!-- 文章信息 -->
-            <div class="flex-1 min-w-0">
-              <h4 class="article-title">
-                {{ article.title }}
-              </h4>
-              <div class="article-meta">
-                <span class="meta-item">
-                  <el-icon size="12"><View /></el-icon>
-                  {{ formatNumber(article.views_count || 0) }}
-                </span>
-                <span class="meta-item">
-                  <el-icon size="12"><Star /></el-icon>
-                  {{ formatNumber(article.likes_count || 0) }}
-                </span>
-                <span v-if="article.published_at" class="meta-item">
-                  {{ formatDate(article.published_at) }}
-                </span>
+              <!-- 文章信息 -->
+              <div class="flex-1 min-w-0">
+                <h4 class="article-title">
+                  {{ article.title }}
+                </h4>
+                <div class="article-meta">
+                  <span class="meta-item">
+                    <el-icon size="12"><View /></el-icon>
+                    {{ formatNumber(article.views_count || 0) }}
+                  </span>
+                  <span class="meta-item">
+                    <el-icon size="12"><Star /></el-icon>
+                    {{ formatNumber(article.likes_count || 0) }}
+                  </span>
+                  <span v-if="article.published_at" class="meta-item">
+                    {{ formatDate(article.published_at) }}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-        </router-link>
-      </article>
+          </router-link>
+        </article>
       </div>
       
       <!-- 空状态 -->

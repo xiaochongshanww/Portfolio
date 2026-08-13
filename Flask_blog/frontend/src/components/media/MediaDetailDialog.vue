@@ -16,7 +16,7 @@
               :alt="media.alt_text"
               @load="handleImageLoad"
               @error="handleImageError"
-            />
+            >
             <div v-else class="media-placeholder">
               <el-icon size="96" :component="getMediaIcon(media.media_type)" />
               <p>{{ getMediaTypeName(media.media_type) }}文件</p>
@@ -29,7 +29,7 @@
               <span class="label">尺寸：</span>
               <span class="value">{{ media.width }} × {{ media.height }} 像素</span>
             </div>
-            <div class="info-item" v-if="media.variants?.srcset">
+            <div v-if="media.variants?.srcset" class="info-item">
               <span class="label">变体：</span>
               <span class="value">{{ getVariantsCount(media.variants) }} 个尺寸</span>
             </div>
@@ -89,22 +89,22 @@
           <div class="metadata-info">
             <h3>元数据</h3>
             
-            <div class="info-item full-width" v-if="media.title">
+            <div v-if="media.title" class="info-item full-width">
               <span class="label">标题：</span>
               <span class="value">{{ media.title }}</span>
             </div>
             
-            <div class="info-item full-width" v-if="media.alt_text">
+            <div v-if="media.alt_text" class="info-item full-width">
               <span class="label">替代文本：</span>
               <span class="value">{{ media.alt_text }}</span>
             </div>
             
-            <div class="info-item full-width" v-if="media.description">
+            <div v-if="media.description" class="info-item full-width">
               <span class="label">描述：</span>
               <span class="value">{{ media.description }}</span>
             </div>
             
-            <div class="info-item full-width" v-if="media.tags?.length > 0">
+            <div v-if="media.tags?.length > 0" class="info-item full-width">
               <span class="label">标签：</span>
               <div class="tags-list">
                 <el-tag v-for="tag in media.tags" :key="tag" size="small" class="tag-item">
@@ -141,12 +141,12 @@
                 <span class="value code">{{ media.file_path }}</span>
               </div>
               
-              <div class="info-item" v-if="media.file_hash">
+              <div v-if="media.file_hash" class="info-item">
                 <span class="label">文件哈希：</span>
                 <span class="value code">{{ media.file_hash }}</span>
               </div>
               
-              <div class="info-item" v-if="media.media_type === 'image'">
+              <div v-if="media.media_type === 'image'" class="info-item">
                 <span class="label">焦点坐标：</span>
                 <span class="value">{{ media.focal_x?.toFixed(2) }}, {{ media.focal_y?.toFixed(2) }}</span>
               </div>
