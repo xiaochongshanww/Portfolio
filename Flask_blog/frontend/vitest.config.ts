@@ -28,11 +28,11 @@ export default defineConfig({
     },
     coverage: {
       provider: 'v8',
-      enabled: false,
+      enabled: true,
       include: ['src/stores/', 'src/views/Login.vue', 'src/components/ArticleContentRenderer.vue'],
       thresholds: {
-        lines: 20,
-        statements: 20,
+        lines: 60,
+        statements: 60,
       },
     },
   },

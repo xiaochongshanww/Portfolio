@@ -45,6 +45,7 @@ import message from '../utils/message';
 import Vditor from 'vditor';
 import 'vditor/dist/index.css';
 import { useUserStore } from '../stores/user';
+import { API } from '../api';
 import { getUploadConfig as buildUploadConfig, uploadImageFile, processMarkdownImages } from '../utils/vditorUploader';
 import { FULL_TOOLBAR } from '../utils/vditorToolbar';
 // MediaSelector组件已用原生JavaScript实现
@@ -606,28 +607,22 @@ function setupModalEventHandlers(modal: HTMLElement) {
     emptyState.style.display = 'none';
     
     try {
-      const params = new URLSearchParams({
-        page: currentPage.toString(),
+      const response = await API.getMediaList({
+        page: currentPage,
         size: '20',
         type: 'image',
         keyword: searchInput.value || ''
       });
       
-      const response = await fetch(`/api/v1/media?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${userStore.token}`
-        }
-      });
-      
-      const result = await response.json();
+      const result = response.data;
       let data = result;
       
       // 处理嵌套响应格式
-      if (result.code === 0 && result.data) {
+      if (result && result.code === 0 && result.data) {
         data = result.data;
       }
       
-      mediaData = data.items || data.media || [];
+      mediaData = (data && (data.items || data.media)) || [];
       
       mediaLoading.style.display = 'none';
       
@@ -810,15 +805,12 @@ function handleFileUpload(file: File, progressDiv: HTMLElement, refreshMediaData
   formData.append('file', file);
 
   // 上传文件
-  fetch('/api/v1/media/upload', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${userStore.token}`
-    },
-    body: formData
+  API.uploadMedia(formData)
+  .then((response: any) => {
+    const data = response.data || response;
+    return data;
   })
-  .then(response => response.json())
-  .then(data => {
+  .then((data: any) => {
     progressDiv.style.display = 'none';
     
     if (data.code === 0 && data.data) {
@@ -863,7 +855,7 @@ function handleFileUpload(file: File, progressDiv: HTMLElement, refreshMediaData
       showNativeMessage('图片上传失败', 'error');
     }
   })
-  .catch(error => {
+  .catch((error: any) => {
     progressDiv.style.display = 'none';
     console.error('上传失败:', error);
     showNativeMessage('图片上传失败', 'error');

@@ -178,6 +178,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useNotify } from '../composables/useNotify';
 import { UsersService } from '../generated';
+import { API } from '../api';
 import type { UserPublic } from '../generated';
 import type { Article } from '@/types';
 import { setMeta, injectJsonLd } from '../composables/useMeta';
@@ -208,8 +209,8 @@ async function loadProfile(){
 }
 async function loadStats(){
   try {
-    const r = await fetch(`/api/v1/users/public/${userId.value}/stats`);
-    const j = await r.json();
+    const r = await API.getPublicUserStats(userId.value);
+    const j = r.data;
     if(j && j.data) stats.value = j.data; statsLoaded.value=true;
   }catch(e){ statsLoaded.value=true; }
 }

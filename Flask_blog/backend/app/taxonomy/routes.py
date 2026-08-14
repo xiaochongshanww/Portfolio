@@ -1,16 +1,26 @@
-import re
-
 from flask import Blueprint, jsonify, request
 from pydantic import BaseModel, ValidationError, field_validator
-from sqlalchemy import and_, func
 
-from .. import db, require_auth, require_roles
+from .. import require_auth, require_roles
 from ..models import Category, Tag
 from ..utils import audit_log
+from .service import (
+    TaxonomyError,
+    create_category,
+    create_tag,
+    delete_category,
+    delete_tag,
+    get_stats,
+    is_valid_slug,
+    list_categories,
+    list_categories_public,
+    list_tags,
+    list_tags_public,
+    update_category,
+    update_tag,
+)
 
 taxonomy_bp = Blueprint("taxonomy", __name__)
-
-slug_re = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
 class CategoryCreateModel(BaseModel):
@@ -28,11 +38,9 @@ class CategoryCreateModel(BaseModel):
     @field_validator("slug")
     @classmethod
     def slug_fmt(cls, v: str | None):
-        if v is None:
+        if v is None or is_valid_slug(v):
             return v
-        if not slug_re.match(v):
-            raise ValueError("invalid slug")
-        return v
+        raise ValueError("invalid slug")
 
 
 class CategoryUpdateModel(BaseModel):
@@ -43,11 +51,9 @@ class CategoryUpdateModel(BaseModel):
     @field_validator("slug")
     @classmethod
     def slug_fmt(cls, v: str | None):
-        if v is None:
+        if v is None or is_valid_slug(v):
             return v
-        if not slug_re.match(v):
-            raise ValueError("invalid slug")
-        return v
+        raise ValueError("invalid slug")
 
 
 class TagCreateModel(BaseModel):
@@ -64,11 +70,9 @@ class TagCreateModel(BaseModel):
     @field_validator("slug")
     @classmethod
     def slug_fmt(cls, v: str | None):
-        if v is None:
+        if v is None or is_valid_slug(v):
             return v
-        if not slug_re.match(v):
-            raise ValueError("invalid slug")
-        return v
+        raise ValueError("invalid slug")
 
 
 class TagUpdateModel(BaseModel):
@@ -78,53 +82,46 @@ class TagUpdateModel(BaseModel):
     @field_validator("slug")
     @classmethod
     def slug_fmt(cls, v: str | None):
-        if v is None:
+        if v is None or is_valid_slug(v):
             return v
-        if not slug_re.match(v):
-            raise ValueError("invalid slug")
-        return v
+        raise ValueError("invalid slug")
+
+
+def _ok(data):
+    return jsonify({"code": 0, "message": "ok", "data": data})
+
+
+def _validation_error(e):
+    return (
+        jsonify({"code": 4001, "message": "validation error", "data": e.errors()}),
+        400,
+    )
 
 
 # Categories
 @taxonomy_bp.route("/categories/", methods=["POST"])
 @require_roles("editor", "admin")
-def create_category():
-    print("访问 create_category")
+def create_category_route():
     try:
         data = CategoryCreateModel(**request.json)
     except ValidationError as e:
-        return (
-            jsonify({"code": 4001, "message": "validation error", "data": e.errors()}),
-            400,
-        )
-    slug = data.slug or re.sub(r"[^a-z0-9]+", "-", data.name.lower()).strip("-")
-    # ensure unique slug
-    if Category.query.filter(func.lower(Category.slug) == slug.lower()).first():
-        return jsonify({"code": 4090, "message": "slug exists"}), 409
-    parent = None
-    if data.parent_id:
-        parent = Category.query.get(data.parent_id)
-        if not parent:
-            return jsonify({"code": 4040, "message": "parent not found"}), 404
-    c = Category(name=data.name, slug=slug, parent_id=parent.id if parent else None)
-    db.session.add(c)
-    db.session.commit()
+        return _validation_error(e)
+    try:
+        c = create_category(data.name, data.slug, data.parent_id)
+    except TaxonomyError as e:
+        return jsonify({"code": e.code, "message": e.message}), e.status
     audit_log(
         "category:create",
         getattr(request, "user_id", 0),
         f"创建分类: {c.name} (slug={c.slug})",
     )
     return (
-        jsonify(
+        _ok(
             {
-                "code": 0,
-                "message": "ok",
-                "data": {
-                    "id": c.id,
-                    "name": c.name,
-                    "slug": c.slug,
-                    "parent_id": c.parent_id,
-                },
+                "id": c.id,
+                "name": c.name,
+                "slug": c.slug,
+                "parent_id": c.parent_id,
             }
         ),
         201,
@@ -133,349 +130,120 @@ def create_category():
 
 @taxonomy_bp.route("/categories/", methods=["GET"])
 @require_auth
-def list_categories():
-    print("访问 list_categories")
-    # allow filter parent_id
+def list_categories_route():
     parent_id = request.args.get("parent_id", type=int)
-    q = Category.query
-    if parent_id is not None:
-        q = q.filter(Category.parent_id == parent_id)
-    items = q.order_by(Category.id.desc()).all()
+    items = list_categories(parent_id)
     data = [
         {"id": c.id, "name": c.name, "slug": c.slug, "parent_id": c.parent_id}
         for c in items
     ]
-    return jsonify({"code": 0, "message": "ok", "data": data})
+    return _ok(data)
 
 
 @taxonomy_bp.route("/categories/<int:cid>", methods=["PATCH"])
 @require_roles("editor", "admin")
-def update_category(cid):
+def update_category_route(cid):
     c = Category.query.get(cid)
     if not c:
         return jsonify({"code": 4040, "message": "not found"}), 404
     try:
         data = CategoryUpdateModel(**request.json)
     except ValidationError as e:
-        return (
-            jsonify({"code": 4001, "message": "validation error", "data": e.errors()}),
-            400,
-        )
-    if data.name is not None:
-        c.name = data.name.strip()
-    if data.slug is not None:
-        if Category.query.filter(
-            func.lower(Category.slug) == data.slug.lower(), Category.id != c.id
-        ).first():
-            return jsonify({"code": 4090, "message": "slug exists"}), 409
-        c.slug = data.slug
-    if data.parent_id is not None:
-        if data.parent_id == c.id:
-            return jsonify({"code": 4001, "message": "cannot set self as parent"}), 400
-        parent = Category.query.get(data.parent_id)
-        if not parent:
-            return jsonify({"code": 4040, "message": "parent not found"}), 404
-        c.parent_id = parent.id
-    db.session.commit()
+        return _validation_error(e)
+    try:
+        update_category(c, data.name, data.slug, data.parent_id)
+    except TaxonomyError as e:
+        return jsonify({"code": e.code, "message": e.message}), e.status
     audit_log(
         "category:update", getattr(request, "user_id", 0), f"更新分类 {cid}: {c.name}"
     )
-    return jsonify(
-        {
-            "code": 0,
-            "message": "ok",
-            "data": {
-                "id": c.id,
-                "name": c.name,
-                "slug": c.slug,
-                "parent_id": c.parent_id,
-            },
-        }
-    )
+    return _ok({"id": c.id, "name": c.name, "slug": c.slug, "parent_id": c.parent_id})
 
 
 @taxonomy_bp.route("/categories/<int:cid>", methods=["DELETE"])
 @require_roles("editor", "admin")
-def delete_category(cid):
+def delete_category_route(cid):
     c = Category.query.get(cid)
     if not c:
         return jsonify({"code": 4040, "message": "not found"}), 404
-
-    # 将使用此分类的文章设为无分类（category_id = NULL）
-    from ..models import Article
-
-    affected_articles = Article.query.filter(Article.category_id == cid).count()
-    Article.query.filter(Article.category_id == cid).update({"category_id": None})
-
-    db.session.delete(c)
-    db.session.commit()
+    affected = delete_category(c)
     audit_log(
         "category:delete", getattr(request, "user_id", 0), f"删除分类 {cid}: {c.name}"
     )
-
-    return jsonify(
-        {"code": 0, "message": "ok", "data": {"affected_articles": affected_articles}}
-    )
+    return _ok({"affected_articles": affected})
 
 
 # Tags
 @taxonomy_bp.route("/tags/", methods=["POST"])
 @require_roles("editor", "admin")
-def create_tag():
+def create_tag_route():
     try:
         data = TagCreateModel(**request.json)
     except ValidationError as e:
-        return (
-            jsonify({"code": 4001, "message": "validation error", "data": e.errors()}),
-            400,
-        )
-    slug = data.slug or re.sub(r"[^a-z0-9]+", "-", data.name.lower()).strip("-")
-    if Tag.query.filter(func.lower(Tag.slug) == slug.lower()).first():
-        return jsonify({"code": 4090, "message": "slug exists"}), 409
-    t = Tag(name=data.name.strip(), slug=slug)
-    db.session.add(t)
-    db.session.commit()
+        return _validation_error(e)
+    try:
+        t = create_tag(data.name, data.slug)
+    except TaxonomyError as e:
+        return jsonify({"code": e.code, "message": e.message}), e.status
     audit_log("tag:create", getattr(request, "user_id", 0), f"创建标签: {t.name}")
-    return (
-        jsonify(
-            {
-                "code": 0,
-                "message": "ok",
-                "data": {"id": t.id, "name": t.name, "slug": t.slug},
-            }
-        ),
-        201,
-    )
+    return _ok({"id": t.id, "name": t.name, "slug": t.slug}), 201
 
 
 @taxonomy_bp.route("/tags/", methods=["GET"])
 @require_auth
-def list_tags():
-    items = Tag.query.order_by(Tag.id.desc()).all()
-    return jsonify(
-        {
-            "code": 0,
-            "message": "ok",
-            "data": [{"id": t.id, "name": t.name, "slug": t.slug} for t in items],
-        }
-    )
+def list_tags_route():
+    items = list_tags()
+    return _ok([{"id": t.id, "name": t.name, "slug": t.slug} for t in items])
 
 
 @taxonomy_bp.route("/tags/<int:tid>", methods=["PATCH"])
 @require_roles("editor", "admin")
-def update_tag(tid):
+def update_tag_route(tid):
     t = Tag.query.get(tid)
     if not t:
         return jsonify({"code": 4040, "message": "not found"}), 404
     try:
         data = TagUpdateModel(**request.json)
     except ValidationError as e:
-        return (
-            jsonify({"code": 4001, "message": "validation error", "data": e.errors()}),
-            400,
-        )
-    if data.name is not None:
-        t.name = data.name.strip()
-    if data.slug is not None:
-        if Tag.query.filter(
-            func.lower(Tag.slug) == data.slug.lower(), Tag.id != t.id
-        ).first():
-            return jsonify({"code": 4090, "message": "slug exists"}), 409
-        t.slug = data.slug
-    db.session.commit()
+        return _validation_error(e)
+    try:
+        update_tag(t, data.name, data.slug)
+    except TaxonomyError as e:
+        return jsonify({"code": e.code, "message": e.message}), e.status
     audit_log("tag:update", getattr(request, "user_id", 0), f"更新标签 {tid}: {t.name}")
-    return jsonify(
-        {
-            "code": 0,
-            "message": "ok",
-            "data": {"id": t.id, "name": t.name, "slug": t.slug},
-        }
-    )
+    return _ok({"id": t.id, "name": t.name, "slug": t.slug})
 
 
 @taxonomy_bp.route("/tags/<int:tid>", methods=["DELETE"])
 @require_roles("editor", "admin")
-def delete_tag(tid):
+def delete_tag_route(tid):
     t = Tag.query.get(tid)
     if not t:
         return jsonify({"code": 4040, "message": "not found"}), 404
-    from ..models import ArticleTag
-
-    if ArticleTag.query.filter_by(tag_id=tid).first():
-        return jsonify({"code": 4002, "message": "tag in use"}), 400
-    db.session.delete(t)
-    db.session.commit()
+    try:
+        delete_tag(t)
+    except TaxonomyError as e:
+        return jsonify({"code": e.code, "message": e.message}), e.status
     audit_log("tag:delete", getattr(request, "user_id", 0), f"删除标签 {tid}: {t.name}")
     return jsonify({"code": 0, "message": "ok"})
 
 
 # Public endpoints for unauthenticated access
 @taxonomy_bp.route("/categories/public", methods=["GET"])
-def list_categories_public():
+def list_categories_public_route():
     """公开的分类列表API，包含文章数量统计"""
-    print("访问 list_categories_public")
-    from sqlalchemy import and_, func
-
-    from ..models import Article
-
-    # 获取分类及其文章数量（只统计已发布的文章）
-    categories_with_count = (
-        db.session.query(
-            Category.id,
-            Category.name,
-            Category.slug,
-            Category.parent_id,
-            func.count(Article.id).label("article_count"),
-        )
-        .outerjoin(
-            Article,
-            and_(
-                Category.id == Article.category_id,
-                Article.deleted.isnot(True),
-                Article.status == "published",  # 只统计已发布的文章
-            ),
-        )
-        .group_by(Category.id, Category.name, Category.slug, Category.parent_id)
-        .order_by(Category.id.desc())
-        .all()
-    )
-
-    data = [
-        {
-            "id": c.id,
-            "name": c.name,
-            "slug": c.slug,
-            "parent_id": c.parent_id,
-            "article_count": c.article_count,
-            "description": None,  # 可以后续扩展分类描述字段
-        }
-        for c in categories_with_count
-    ]
-
-    return jsonify({"code": 0, "message": "ok", "data": data})
+    return _ok(list_categories_public())
 
 
 @taxonomy_bp.route("/tags/public", methods=["GET"])
-def list_tags_public():
+def list_tags_public_route():
     """公开的标签列表API，包含文章数量统计"""
-    print("访问 list_tags_public")
-    from sqlalchemy import and_, func
-
-    from ..models import Article, ArticleTag
-
-    # 获取标签及其文章数量（只统计已发布的文章）
-    tags_with_count = (
-        db.session.query(
-            Tag.id,
-            Tag.name,
-            Tag.slug,
-            func.count(ArticleTag.article_id).label("article_count"),
-        )
-        .outerjoin(ArticleTag, Tag.id == ArticleTag.tag_id)
-        .outerjoin(
-            Article,
-            and_(
-                ArticleTag.article_id == Article.id,
-                Article.deleted.isnot(True),
-                Article.status == "published",  # 只统计已发布的文章
-            ),
-        )
-        .group_by(Tag.id, Tag.name, Tag.slug)
-        .order_by(func.count(ArticleTag.article_id).desc())
-        .all()
-    )
-
-    data = [
-        {"id": t.id, "name": t.name, "slug": t.slug, "article_count": t.article_count}
-        for t in tags_with_count
-    ]
-
-    return jsonify({"code": 0, "message": "ok", "data": data})
+    return _ok(list_tags_public())
 
 
 # Statistics
 @taxonomy_bp.route("/stats", methods=["GET"])
 @require_roles("editor", "admin")
-def get_stats():
+def get_stats_route():
     """获取分类和标签的统计信息"""
-    from ..models import Article, ArticleTag
-
-    # 分类统计
-    categories_with_count = (
-        db.session.query(
-            Category.id,
-            Category.name,
-            Category.slug,
-            Category.parent_id,
-            func.count(Article.id).label("article_count"),
-        )
-        .outerjoin(
-            Article,
-            and_(
-                Category.id == Article.category_id, Article.deleted.isnot(True)
-            ),  # noqa: E501
-        )
-        .group_by(Category.id, Category.name, Category.slug, Category.parent_id)
-        .order_by(Category.id.desc())
-        .all()
-    )
-
-    categories_data = [
-        {
-            "id": c.id,
-            "name": c.name,
-            "slug": c.slug,
-            "parent_id": c.parent_id,
-            "article_count": c.article_count,
-        }
-        for c in categories_with_count
-    ]
-
-    # 标签统计
-    tags_with_count = (
-        db.session.query(
-            Tag.id,
-            Tag.name,
-            Tag.slug,
-            func.count(ArticleTag.article_id).label("article_count"),
-        )
-        .outerjoin(ArticleTag, Tag.id == ArticleTag.tag_id)
-        .group_by(Tag.id, Tag.name, Tag.slug)
-        .order_by(func.count(ArticleTag.article_id).desc())
-        .all()
-    )
-
-    tags_data = [
-        {"id": t.id, "name": t.name, "slug": t.slug, "article_count": t.article_count}
-        for t in tags_with_count
-    ]
-
-    # 总计统计
-    total_categories = Category.query.count()
-    total_tags = Tag.query.count()
-    categories_with_articles = (
-        Category.query.join(Article)
-        .filter(Article.deleted.isnot(True))
-        .distinct()
-        .count()  # noqa: E501
-    )
-    tags_with_articles = Tag.query.join(ArticleTag).distinct().count()
-
-    return jsonify(
-        {
-            "code": 0,
-            "message": "ok",
-            "data": {
-                "categories": categories_data,
-                "tags": tags_data,
-                "summary": {
-                    "total_categories": total_categories,
-                    "total_tags": total_tags,
-                    "categories_with_articles": categories_with_articles,
-                    "tags_with_articles": tags_with_articles,
-                    "unused_categories": total_categories - categories_with_articles,
-                    "unused_tags": total_tags - tags_with_articles,
-                },
-            },
-        }
-    )
+    return _ok(get_stats())

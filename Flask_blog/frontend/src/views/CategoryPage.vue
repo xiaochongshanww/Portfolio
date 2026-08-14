@@ -233,8 +233,8 @@ async function load() {
   try {
     // 获取分类信息
     console.log('🔍 正在获取分类信息，ID:', slugOrId.value);
-    const response = await fetch('/public/v1/taxonomy');
-    const result = await response.json();
+    const response = await API.getPublicTaxonomy();
+    const result = response.data;
     const cats = (result.data?.categories || []) as Category[];
     console.log('📋 获取到分类列表:', cats);
     const idNum = Number(slugOrId.value);
@@ -258,8 +258,8 @@ async function load() {
   
   try {
     // 获取文章列表
-    const resp = await fetch(`/api/v1/articles/public?category_id=${slugOrId.value}`);
-    const j = await resp.json();
+    const resp = await API.getPublicArticles({ category_id: slugOrId.value });
+    const j = resp.data;
     articles.value = j.data?.list || [];
     
     // 计算最近更新时间

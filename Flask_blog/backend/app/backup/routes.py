@@ -225,7 +225,7 @@ def get_backup_statistics():
     failed = BackupRecord.query.filter_by(status="failed").count()
     pending = BackupRecord.query.filter_by(status="pending").count()
     running = BackupRecord.query.filter_by(status="running").count()
-    total_size = db.session.query(db.func.sum(BackupRecord.size_bytes)).scalar() or 0
+    total_size = db.session.query(db.func.sum(BackupRecord.file_size)).scalar() or 0
     latest = BackupRecord.query.order_by(BackupRecord.created_at.desc()).first()
     return _ok(
         {

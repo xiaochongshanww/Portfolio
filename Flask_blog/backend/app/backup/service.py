@@ -1,6 +1,7 @@
 """备份系统业务逻辑 — 供 routes.py 编排调用"""
 
-from datetime import datetime, timedelta, timezone
+import json
+from datetime import datetime, timedelta
 
 from flask import current_app
 
@@ -96,39 +97,85 @@ def list_backup_records(page, size, status, backup_type, sort_by, sort_order):
     return total, items
 
 
+DEFAULT_CONFIG = {
+    "auto_backup": False,
+    "backup_interval_hours": 24,
+    "retention_days": 30,
+    "backup_time": "02:00",
+    "backup_type": "full",
+    "include_external_metadata": False,
+}
+
+
+_CONFIG_KEY_MAP = {
+    "auto_backup": "backup_auto_backup",
+    "backup_interval_hours": "backup_interval_hours",
+    "retention_days": "backup_retention_days",
+    "backup_time": "backup_time",
+    "backup_type": "backup_type",
+    "include_external_metadata": "backup_include_external_metadata",
+}
+
+
+def _config_value(key):
+    rec = BackupConfig.query.filter_by(config_key=key).first()
+    if not rec or rec.config_value is None:
+        return None
+    val = rec.config_value
+    if rec.config_type == "int":
+        try:
+            return int(val)
+        except (TypeError, ValueError):
+            return None
+    if rec.config_type == "bool":
+        return str(val).lower() in ("1", "true", "yes", "on")
+    if rec.config_type == "json":
+        try:
+            return json.loads(val)
+        except (TypeError, ValueError):
+            return None
+    return val
+
+
 def get_config():
-    """获取备份配置。"""
-    config = BackupConfig.query.first()
-    if not config:
-        config = BackupConfig()
-        db.session.add(config)
-        db.session.commit()
-    return {
-        "auto_backup": config.auto_backup,
-        "backup_interval_hours": config.backup_interval_hours,
-        "retention_days": config.retention_days,
-        "backup_time": config.backup_time,
-        "backup_type": config.backup_type,
-        "include_external_metadata": config.include_external_metadata,
-    }
+    """获取备份配置（key-value 存储）。"""
+    result = {}
+    for field, key in _CONFIG_KEY_MAP.items():
+        val = _config_value(key)
+        result[field] = val if val is not None else DEFAULT_CONFIG[field]
+    return result
 
 
 def update_config(data: dict):
-    """更新备份配置。"""
-    config = BackupConfig.query.first()
-    if not config:
-        config = BackupConfig()
-        db.session.add(config)
-    for key in (
-        "auto_backup",
-        "backup_interval_hours",
-        "retention_days",
-        "backup_time",
-        "backup_type",
-        "include_external_metadata",
-    ):
-        if key in data:
-            setattr(config, key, data[key])
+    """更新备份配置（key-value 存储）。"""
+    for field, key in _CONFIG_KEY_MAP.items():
+        if field not in data:
+            continue
+        value = data[field]
+        rec = BackupConfig.query.filter_by(config_key=key).first()
+        if isinstance(value, bool):
+            config_type = "bool"
+            stored = "1" if value else "0"
+        elif isinstance(value, int):
+            config_type = "int"
+            stored = str(value)
+        elif isinstance(value, (dict, list)):
+            config_type = "json"
+            stored = json.dumps(value, ensure_ascii=False)
+        else:
+            config_type = "string"
+            stored = str(value)
+        if rec is None:
+            rec = BackupConfig(
+                config_key=key,
+                config_value=stored,
+                config_type=config_type,
+                category="backup",
+            )
+            db.session.add(rec)
+        else:
+            rec.config_value = stored
+            rec.config_type = config_type
     db.session.commit()
 
 
@@ -136,7 +183,7 @@ def cleanup_expired(force: bool = False):
     """清理过期备份。"""
     config = BackupConfig.query.first()
     retention = config.retention_days if config else 30
-    cutoff = datetime.now(SHANGHAI_TZ) - timezone(timedelta(days=retention))
+    cutoff = datetime.now(SHANGHAI_TZ) - timedelta(days=retention)
     expired = BackupRecord.query.filter(
         BackupRecord.created_at < cutoff,
         BackupRecord.status.in_(["completed", "failed"]),

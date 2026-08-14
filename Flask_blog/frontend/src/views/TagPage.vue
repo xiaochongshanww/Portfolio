@@ -14,6 +14,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
+import { API } from '../api';
 import type { Article } from '@/types';
 const props = withDefaults(defineProps<{ slug?: string }>(), { slug: "" })
 import { setMeta, injectJsonLd } from '../composables/useMeta';
@@ -24,8 +25,8 @@ const articles = ref<Article[]>([]);
 async function load(){
   loaded.value=false;
   try{
-    const resp = await fetch(`/api/v1/articles/public?tag=${encodeURIComponent(String(tagSlug.value))}`);
-    const j = await resp.json();
+    const resp = await API.getPublicArticles({ tag: String(tagSlug.value) });
+    const j = resp.data;
     articles.value = j.data?.list || [];
   }catch(e){ articles.value=[]; }
   const url = window.location.href;

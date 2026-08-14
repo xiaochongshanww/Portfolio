@@ -43,7 +43,7 @@ jobs:
         run: pip install -r requirements.txt pytest-cov
       - name: Run tests (SQLite in-memory + FakeRedis)
         working-directory: backend
-        run: pytest --cov=app --cov-report=term-missing --cov-fail-under=30
+        run: pytest --cov=app --cov-report=term-missing --cov-fail-under=33
 
   test-frontend:
     runs-on: ubuntu-latest
@@ -55,7 +55,7 @@ jobs:
       - working-directory: frontend
         run: npm ci
       - working-directory: frontend
-        run: npm run test
+        run: npm run test:cov
       - working-directory: frontend
         run: npm run build --if-present
 

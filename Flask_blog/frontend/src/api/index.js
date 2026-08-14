@@ -380,6 +380,10 @@ const HandwrittenAPI = {
   deleteUser(id) {
     return apiClient.delete(`/users/${id}`)
   },
+  /** @param {number} id */
+  getPublicUserStats(id) {
+    return apiClient.get(`/users/public/${id}/stats`)
+  },
 
   // ── 评论 / 搜索 ───────────────────────────────────
   /** @param {number} articleId */
