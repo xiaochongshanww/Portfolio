@@ -37,10 +37,10 @@ const props = withDefaults(defineProps<Props>(), {
 // 响应式数据
 const chartCanvas = ref<HTMLCanvasElement | null>(null);
 const loading = ref(false);
-const chartData = ref([]);
+const chartData = ref<Array<{ timestamp: string; threat_score: number; events_count: number; blocked_count: number }>>([]);
 
 // 自动刷新定时器
-let refreshTimer: number | null = null;
+let refreshTimer: ReturnType<typeof setInterval> | null = null;
 
 // 颜色配置
 const colors = {

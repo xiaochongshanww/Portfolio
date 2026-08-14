@@ -8,7 +8,11 @@ export const MESSAGE_PRIORITY = {
   INFO: 1         // ℹ️ 状态信息
 };
 
+/** @typedef {{ content: string, priority: number, type: string, timestamp: number, icon?: string, showClose?: boolean, duration?: number, details?: string[], merged?: boolean, instance?: any, close?: () => void }} MsgInfo */
+/** @typedef {{ message?: string, content?: string, priority?: number, type?: string, showClose?: boolean, duration?: number, icon?: string }} ShowOptions */
+
 // 消息类型配置
+/** @type {Record<number, { duration: number, maxCount: number, color: string, showClose: boolean }>} */
 const MESSAGE_CONFIG = {
   [MESSAGE_PRIORITY.CRITICAL]: {
     duration: 8000,
@@ -39,6 +43,7 @@ const MESSAGE_CONFIG = {
 class MessageManager {
   constructor() {
     // 活跃消息队列，按优先级分组
+    /** @type {Record<number, MsgInfo[]>} */
     this.activeMessages = {
       [MESSAGE_PRIORITY.CRITICAL]: [],
       [MESSAGE_PRIORITY.WARNING]: [],
@@ -47,13 +52,17 @@ class MessageManager {
     };
     
     // 消息去重缓存 (内容 -> 时间戳)
+    /** @type {Map<string, number>} */
     this.messageCache = new Map();
     
     // 批处理缓冲区
+    /** @type {MsgInfo[]} */
     this.batchBuffer = [];
+    /** @type {ReturnType<typeof setTimeout> | null} */
     this.batchTimeout = null;
     
     // 默认消息配置
+    /** @type {{ customClass: string, offset: number, center: boolean }} */
     this.defaultConfig = {
       customClass: 'enhanced-message',
       offset: 90,
@@ -63,6 +72,7 @@ class MessageManager {
 
   /**
    * 显示消息 - 主要入口方法
+   * @param {string | ShowOptions} options
    */
   show(options) {
     const message = this._normalizeMessage(options);
@@ -88,6 +98,8 @@ class MessageManager {
 
   /**
    * 标准化消息对象
+   * @param {string | ShowOptions} options
+   * @returns {MsgInfo}
    */
   _normalizeMessage(options) {
     if (typeof options === 'string') {
@@ -100,7 +112,7 @@ class MessageManager {
     }
     
     return {
-      content: options.message || options.content,
+      content: /** @type {string} */ (options.message || options.content),
       priority: options.priority || MESSAGE_PRIORITY.INFO,
       type: options.type || 'info',
       timestamp: Date.now(),
@@ -112,19 +124,24 @@ class MessageManager {
 
   /**
    * 获取默认图标
+   * @param {string | undefined} type
+   * @returns {string}
    */
   _getDefaultIcon(type) {
+    /** @type {Record<string, string>} */
     const icons = {
       'error': '🚨',
       'warning': '⚠️',
       'success': '✅',
       'info': 'ℹ️'
     };
-    return icons[type] || '';
+    return icons[type ?? ''] || '';
   }
 
   /**
    * 检查重复消息
+   * @param {MsgInfo} message
+   * @returns {boolean}
    */
   _isDuplicateMessage(message) {
     const cacheKey = message.content;
@@ -185,8 +202,11 @@ class MessageManager {
 
   /**
    * 合并相似消息
+   * @param {MsgInfo[]} messages
+   * @returns {MsgInfo[]}
    */
   _mergeSimilarMessages(messages) {
+    /** @type {Record<string, MsgInfo[]>} */
     const grouped = {};
     
     messages.forEach(message => {
@@ -199,6 +219,7 @@ class MessageManager {
       grouped[key].push(message);
     });
     
+    /** @type {MsgInfo[]} */
     const result = [];
     
     Object.values(grouped).forEach(group => {
@@ -216,6 +237,8 @@ class MessageManager {
 
   /**
    * 创建合并消息
+   * @param {MsgInfo[]} messages
+   * @returns {MsgInfo}
    */
   _createMergedMessage(messages) {
     const first = messages[0];
@@ -238,8 +261,11 @@ class MessageManager {
 
   /**
    * 获取优先级名称
+   * @param {number} priority
+   * @returns {string}
    */
   _getPriorityName(priority) {
+    /** @type {Record<number, string>} */
     const names = {
       [MESSAGE_PRIORITY.CRITICAL]: '错误',
       [MESSAGE_PRIORITY.WARNING]: '警告',
@@ -251,6 +277,7 @@ class MessageManager {
 
   /**
    * 显示单条消息
+   * @param {MsgInfo} message
    */
   _displayMessage(message) {
     const config = MESSAGE_CONFIG[message.priority];
@@ -278,7 +305,7 @@ class MessageManager {
     };
     
     // 显示消息
-    const instance = ElMessage(messageConfig);
+    const instance = ElMessage(/** @type {any} */ (messageConfig));
     message.instance = instance;
     
     // 添加到活跃列表
@@ -289,9 +316,11 @@ class MessageManager {
 
   /**
    * 格式化合并消息
+   * @param {MsgInfo} message
+   * @returns {string}
    */
   _formatMergedMessage(message) {
-    const detailsList = message.details.map(detail => `• ${detail}`).join('<br>');
+    const detailsList = (message.details || []).map(detail => `• ${detail}`).join('<br>');
     
     return `
       <div style="line-height: 1.6;">
@@ -307,6 +336,8 @@ class MessageManager {
 
   /**
    * 消息关闭回调
+   * @param {MsgInfo} message
+   * @param {MsgInfo[]} activeList
    */
   _onMessageClose(message, activeList) {
     const index = activeList.indexOf(message);
@@ -317,6 +348,8 @@ class MessageManager {
 
   /**
    * 便捷方法
+   * @param {string} content
+   * @param {Object} [options]
    */
   critical(content, options = {}) {
     this.show({
@@ -327,6 +360,10 @@ class MessageManager {
     });
   }
 
+  /**
+   * @param {string} content
+   * @param {Object} [options]
+   */
   warning(content, options = {}) {
     this.show({
       ...options,
@@ -336,6 +373,10 @@ class MessageManager {
     });
   }
 
+  /**
+   * @param {string} content
+   * @param {Object} [options]
+   */
   success(content, options = {}) {
     this.show({
       ...options,
@@ -345,6 +386,10 @@ class MessageManager {
     });
   }
 
+  /**
+   * @param {string} content
+   * @param {Object} [options]
+   */
   info(content, options = {}) {
     this.show({
       ...options,

@@ -71,6 +71,7 @@ import { ElMessage } from 'element-plus';
 // Simplified API for demonstration
 const API = {
   AuthService: {
+    /** @param {{ requestBody: { email: string; password: string } }} body */
     register: (body) => apiClient.post('/auth/register', body.requestBody)
   }
 }
@@ -97,7 +98,8 @@ async function submit() {
     ElMessage.success('注册成功！现在您可以登录了。');
     router.push('/login');
   } catch (e) {
-    error.value = e.response?.data?.message || '注册失败，邮箱可能已被使用';
+    const err = /** @type {{ response?: { data?: { message?: string } } }} */ (e);
+    error.value = err.response?.data?.message || '注册失败，邮箱可能已被使用';
   } finally {
     loading.value = false;
   }

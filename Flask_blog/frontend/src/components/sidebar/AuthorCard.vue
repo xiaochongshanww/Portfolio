@@ -113,12 +113,14 @@ import { ref, onMounted } from 'vue'
 import { User } from '@element-plus/icons-vue'
 
 // 头像管理
+/** @type {import('vue').Ref<string | null>} */
 const authorAvatar = ref(null)
 const avatarError = ref(false)
 
 // 微信二维码弹窗
 const showWechatDialog = ref(false)
 const qrError = ref(false)
+/** @type {import('vue').Ref<string | null>} */
 const qrImageSrc = ref(null)
 
 // 二维码图片备选方案

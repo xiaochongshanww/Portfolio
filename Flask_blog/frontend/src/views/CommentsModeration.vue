@@ -45,6 +45,7 @@ import { ref, reactive, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import apiClient from '../apiClient';
 
+/** @type {import('vue').Ref<import('@/types').Comment[]>} */
 const comments = ref([]);
 const loading = ref(false);
 const pagination = reactive({
@@ -55,8 +56,10 @@ const pagination = reactive({
 
 // --- API 调用封装 ---
 const api = {
+  /** @param {number} page @param {number} pageSize */
   getPendingComments: (page, pageSize) => 
     apiClient.get(`/comments/pending?page=${page}&page_size=${pageSize}`),
+  /** @param {number} id @param {'approve' | 'reject'} action */
   moderateComment: (id, action) => 
     apiClient.post(`/comments/moderate/${id}`, { action }),
 };
@@ -82,12 +85,14 @@ onMounted(() => {
 });
 
 // --- 分页操作 ---
+/** @param {number} newPage */
 const handlePageChange = (newPage) => {
   pagination.page = newPage;
   fetchPendingComments();
 };
 
 // --- 审核操作 ---
+/** @param {number} id @param {'approve' | 'reject'} action */
 const handleModerate = async (id, action) => {
   try {
     await api.moderateComment(id, action);
@@ -109,7 +114,8 @@ const handleModerate = async (id, action) => {
     }
 
   } catch (error) {
-    const errMsg = error.response?.data?.message || '操作失败';
+    const err = /** @type {{ response?: { data?: { message?: string } } }} */ (error);
+    const errMsg = err.response?.data?.message || '操作失败';
     ElMessage.error(errMsg);
     console.error(error);
   }

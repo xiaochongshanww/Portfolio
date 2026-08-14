@@ -12,6 +12,11 @@ export const ERROR_CODE_MAP = new Map([
   [5000, '服务器内部错误'],
 ]);
 
+/**
+ * @param {number} code
+ * @param {string} [fallback]
+ * @returns {string}
+ */
 export function translateError(code, fallback){
   return ERROR_CODE_MAP.get(code) || fallback || '操作失败';
 }

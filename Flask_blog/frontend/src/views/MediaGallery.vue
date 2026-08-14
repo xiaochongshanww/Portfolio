@@ -90,7 +90,7 @@
             <img 
               v-if="media.media_type === 'image'" 
               :src="getPreviewUrl(media)"
-              :alt="media.alt_text || media.title"
+              :alt="(media.alt_text || media.title) || ''"
               loading="lazy"
               @error="handleImageError"
             >
@@ -158,7 +158,7 @@
             <img 
               v-if="media.media_type === 'image'" 
               :src="getPreviewUrl(media)"
-              :alt="media.alt_text || media.title"
+              :alt="(media.alt_text || media.title) || ''"
               loading="lazy"
               @error="handleImageError"
             >
@@ -353,6 +353,7 @@ import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import mediaApi from '@/api/media'
+import { formatFileSize, getMediaTypeName, getMediaIcon } from '@/utils/mediaUtils'
 import MediaUploadDialog from '@/components/media/MediaUploadDialog.vue'
 
 export default {
@@ -364,6 +365,7 @@ export default {
     const router = useRouter()
     const userStore = useUserStore()
     const loading = ref(false)
+    /** @type {import('vue').Ref<import('@/types').MediaFile[]>} */
     const mediaList = ref([])
     const searchQuery = ref('')
     const selectedCategory = ref('')
@@ -377,6 +379,7 @@ export default {
     
     // 灯箱
     const lightboxVisible = ref(false)
+    /** @type {import('vue').Ref<import('@/types').MediaFile | null>} */
     const currentMedia = ref(null)
     
     // 上传对话框
@@ -385,42 +388,44 @@ export default {
     // API错误状态
     const apiError = ref(false)
 
-    // 从 API 获取辅助方法
-    const { 
-      formatFileSize, 
-      getMediaTypeName, 
-      getMediaIcon 
-    } = mediaApi
-
     // 格式化日期
+    /** @param {string | undefined} dateStr */
     const formatDate = (dateStr) => {
       if (!dateStr) return ''
       return new Date(dateStr).toLocaleDateString('zh-CN')
     }
 
     // 格式化完整日期时间
+    /** @param {string | undefined} dateStr */
     const formatDateTime = (dateStr) => {
       if (!dateStr) return ''
       return new Date(dateStr).toLocaleString('zh-CN')
     }
 
     // 获取预览URL
+    /** @param {import('@/types').MediaFile} media @returns {string} */
     const getPreviewUrl = (media) => {
-      if (media.variants?.variants?.find(v => v.label === 'medium')) {
-        return media.variants.variants.find(v => v.label === 'medium').url
+      const medium = media.variants?.variants?.find(v => v.label === 'medium')
+      if (medium && medium.url) {
+        return medium.url
       }
-      return media.url
+      return media.url || ''
     }
 
     // 获取媒体类型颜色
+    /**
+     * @param {string | undefined} type
+     * @returns {'success' | 'primary' | 'warning' | 'info' | 'danger'}
+     */
     const getMediaTypeColor = (type) => {
+      /** @type {Record<string, 'success' | 'primary' | 'warning' | 'info' | 'danger'>} */
       const colorMap = {
         image: 'success',
         video: 'primary',
         audio: 'warning',
         document: 'info'
       }
-      return colorMap[type] || 'default'
+      return (type && colorMap[type]) || 'danger'
     }
 
     // 加载媒体数据
@@ -429,6 +434,7 @@ export default {
         loading.value = true
         apiError.value = false
         
+        /** @type {Record<string, unknown>} */
         const params = {}
         
         // 只添加非空参数
@@ -475,20 +481,21 @@ export default {
         }
 
       } catch (error) {
+        const err = /** @type {{ response?: { data?: { message?: string }, status?: number }, message?: string }} */ (error);
         console.error('加载媒体数据失败:', error)
-        console.error('错误详情:', error.response?.data)
+        console.error('错误详情:', err.response?.data)
         
         // 根据错误类型显示不同的提示信息
-        if (error.response?.status === 404) {
+        if (err.response?.status === 404) {
           apiError.value = true
           ElMessage.error('媒体库接口不存在，请检查后端配置')
-        } else if (error.response?.status === 401) {
+        } else if (err.response?.status === 401) {
           ElMessage.error('请先登录后访问媒体库')
-        } else if (error.response?.status === 403) {
+        } else if (err.response?.status === 403) {
           ElMessage.error('没有权限访问媒体库')
         } else {
           apiError.value = true
-          ElMessage.error(`加载媒体内容失败: ${error.response?.data?.message || error.message || '未知错误'}`)
+          ElMessage.error(`加载媒体内容失败: ${err.response?.data?.message || err.message || '未知错误'}`)
         }
         
         mediaList.value = []
@@ -511,11 +518,13 @@ export default {
     }
 
     // 分页处理
+    /** @param {number} page */
     const handlePageChange = (page) => {
       currentPage.value = page
       loadMediaData()
     }
 
+    /** @param {number} size */
     const handleSizeChange = (size) => {
       pageSize.value = size
       currentPage.value = 1
@@ -523,6 +532,7 @@ export default {
     }
 
     // 打开灯箱
+    /** @param {import('@/types').MediaFile} media */
     const openLightbox = (media) => {
       currentMedia.value = media
       lightboxVisible.value = true
@@ -535,6 +545,7 @@ export default {
     }
 
     // 下载媒体
+    /** @param {import('@/types').MediaFile | null} media */
     const downloadMedia = async (media) => {
       if (!media) return
       
@@ -543,7 +554,7 @@ export default {
         const url = window.URL.createObjectURL(new Blob([response.data]))
         const link = document.createElement('a')
         link.href = url
-        link.download = media.original_name
+        link.download = media.original_name || ''
         document.body.appendChild(link)
         link.click()
         window.URL.revokeObjectURL(url)
@@ -556,6 +567,7 @@ export default {
     }
 
     // 复制URL
+    /** @param {string | undefined} url */
     const copyUrl = async (url) => {
       if (!url) return
       
@@ -579,8 +591,10 @@ export default {
     }
 
     // 处理图片加载错误
+    /** @param {Event} event */
     const handleImageError = (event) => {
-      event.target.style.display = 'none'
+      const target = /** @type {HTMLElement} */ (event.target)
+      target.style.display = 'none'
     }
 
     // 处理上传成功
@@ -591,6 +605,14 @@ export default {
         await loadMediaData()
         ElMessage.success('文件上传成功！')
       }, 500)
+    }
+
+    // 测试 API 连接（重新加载媒体数据以验证连通性）
+    const testApiConnection = async () => {
+      await loadMediaData()
+      if (!apiError.value) {
+        ElMessage.success('连接正常')
+      }
     }
 
 
@@ -643,7 +665,8 @@ export default {
       copyUrl,
       clearFilters,
       handleImageError,
-      handleUploaded
+      handleUploaded,
+      testApiConnection
     }
   }
 }

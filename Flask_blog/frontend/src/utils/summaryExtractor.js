@@ -5,6 +5,8 @@
 
 import { ContentTypeDetector } from './contentTypeDetector.js';
 
+/** @typedef {{ preserveLineBreaks?: boolean, removeCodeBlocks?: boolean, removeLinkTexts?: boolean, smartTruncation?: boolean }} ExtractOptions */
+
 export class SummaryExtractor {
   
   /**
@@ -12,7 +14,7 @@ export class SummaryExtractor {
    * @param {string} htmlContent - HTML内容
    * @param {string} contentType - 内容类型 ('auto', 'markdown', 'html_source')
    * @param {number} maxLength - 最大长度
-   * @param {Object} options - 提取选项
+   * @param {ExtractOptions} [options] - 提取选项
    * @returns {string} 提取的摘要
    */
   static extractSummary(htmlContent, contentType = 'auto', maxLength = 150, options = {}) {
@@ -54,6 +56,9 @@ export class SummaryExtractor {
   
   /**
    * 从HTML源码内容提取摘要
+   * @param {string} htmlContent
+   * @param {number} maxLength
+   * @param {ExtractOptions} options
    */
   static extractFromHTMLSource(htmlContent, maxLength, options) {
     // 方法1: 使用DOMParser（浏览器环境）
@@ -67,6 +72,9 @@ export class SummaryExtractor {
   
   /**
    * 使用DOMParser提取HTML内容的文本
+   * @param {string} htmlContent
+   * @param {number} maxLength
+   * @param {ExtractOptions} options
    */
   static extractUsingDOMParser(htmlContent, maxLength, options) {
     try {
@@ -89,6 +97,9 @@ export class SummaryExtractor {
   
   /**
    * 使用正则表达式提取HTML内容的文本
+   * @param {string} htmlContent
+   * @param {number} maxLength
+   * @param {ExtractOptions} options
    */
   static extractUsingRegex(htmlContent, maxLength, options) {
     let text = htmlContent;
@@ -110,6 +121,9 @@ export class SummaryExtractor {
   
   /**
    * 从Markdown内容提取摘要
+   * @param {string} htmlContent
+   * @param {number} maxLength
+   * @param {ExtractOptions} options
    */
   static extractFromMarkdown(htmlContent, maxLength, options) {
     let text = htmlContent;
@@ -128,6 +142,8 @@ export class SummaryExtractor {
   
   /**
    * 移除不需要的DOM元素
+   * @param {Document} doc
+   * @param {ExtractOptions} options
    */
   static removeUnwantedElements(doc, options) {
     const unwantedSelectors = [
@@ -151,6 +167,9 @@ export class SummaryExtractor {
   
   /**
    * 移除Markdown语法标记
+   * @param {string} text
+   * @param {ExtractOptions} options
+   * @returns {string}
    */
   static removeMarkdownSyntax(text, options) {
     // 移除代码块
@@ -193,6 +212,10 @@ export class SummaryExtractor {
   
   /**
    * 处理提取的文本内容
+   * @param {string} text
+   * @param {number} maxLength
+   * @param {ExtractOptions} options
+   * @returns {string}
    */
   static processExtractedText(text, maxLength, options) {
     if (!text) return '';
@@ -222,6 +245,9 @@ export class SummaryExtractor {
   
   /**
    * 智能截断文本，避免截断单词
+   * @param {string} text
+   * @param {number} maxLength
+   * @returns {string}
    */
   static smartTruncate(text, maxLength) {
     if (text.length <= maxLength) {
@@ -253,8 +279,11 @@ export class SummaryExtractor {
   
   /**
    * 解码HTML实体
+   * @param {string} text
+   * @returns {string}
    */
   static decodeHTMLEntities(text) {
+    /** @type {Record<string, string>} */
     const entityMap = {
       '&lt;': '<',
       '&gt;': '>',
@@ -297,6 +326,9 @@ export class SummaryExtractor {
   
   /**
    * 最终清理和验证
+   * @param {string} text
+   * @param {number} maxLength
+   * @returns {string}
    */
   static finalCleanup(text, maxLength) {
     if (!text) return '';
@@ -317,6 +349,9 @@ export class SummaryExtractor {
   
   /**
    * 降级提取方法（当主要方法失败时使用）
+   * @param {string} htmlContent
+   * @param {number} maxLength
+   * @returns {string}
    */
   static fallbackExtraction(htmlContent, maxLength) {
     // 最简单的文本提取
@@ -334,6 +369,8 @@ export class SummaryExtractor {
   
   /**
    * 批量提取摘要
+   * @param {string[]} contentList
+   * @param {ExtractOptions & { contentType?: string, maxLength?: number }} [options]
    */
   static batchExtract(contentList, options = {}) {
     if (!Array.isArray(contentList)) {
@@ -348,11 +385,12 @@ export class SummaryExtractor {
           success: true
         };
       } catch (error) {
+        const err = /** @type {{ message?: string }} */ (error);
         return {
           index,
           summary: '',
           success: false,
-          error: error.message
+          error: err.message
         };
       }
     });
@@ -360,6 +398,7 @@ export class SummaryExtractor {
   
   /**
    * 获取摘要统计信息
+   * @param {string} summary
    */
   static getSummaryStats(summary) {
     if (!summary) {
@@ -379,8 +418,19 @@ export class SummaryExtractor {
 }
 
 // 导出便捷方法
+/**
+ * @param {string} content
+ * @param {number} maxLength
+ * @returns {string}
+ */
 export const extractSummary = (content, maxLength = 150) => 
   SummaryExtractor.extractSummary(content, 'auto', maxLength);
 
+/**
+ * @param {string} content
+ * @param {string} type
+ * @param {number} maxLength
+ * @returns {string}
+ */
 export const extractSummaryWithType = (content, type, maxLength = 150) =>
   SummaryExtractor.extractSummary(content, type, maxLength);

@@ -118,7 +118,7 @@
                       <i class="fa fa-user" aria-hidden="true" />
                       {{ article.author.name || article.author.nickname }}
                     </span>
-                    <time class="publish-date" :datetime="article.published_at || article.created_at">
+                    <time class="publish-date" :datetime="(article.published_at || article.created_at) || ''">
                       <i class="fa fa-calendar" aria-hidden="true" />
                       {{ formatDate(article.published_at || article.created_at) }}
                     </time>
@@ -188,6 +188,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import type { Article, Category } from '@/types';
 const props = withDefaults(defineProps<{ id?: string|number }>(), { id: "" })
 import { setMeta, injectJsonLd } from '../composables/useMeta';
 import { Grid, List } from '@element-plus/icons-vue';
@@ -196,11 +197,11 @@ import { API } from '../api';
 const route = useRoute();
 const router = useRouter();
 const loaded = ref(false);
-const articles = ref([]);
+const articles = ref<Article[]>([]);
 const slugOrId = ref(props.id || route.params.id || route.params.slug);
 const categoryName = ref('');
 const categoryDescription = ref('');
-const lastUpdated = ref(null);
+const lastUpdated = ref<Date | null>(null);
 const viewMode = ref('grid'); // 'grid' or 'list'
 const sortBy = ref('date_desc');
 
@@ -211,11 +212,11 @@ const sortedArticles = computed(() => {
   switch (sortBy.value) {
     case 'date_asc':
       return articlesArray.sort((a, b) => 
-        new Date(a.published_at || a.created_at) - new Date(b.published_at || b.created_at)
+        new Date((a.published_at || a.created_at) || 0).getTime() - new Date((b.published_at || b.created_at) || 0).getTime()
       );
     case 'date_desc':
       return articlesArray.sort((a, b) => 
-        new Date(b.published_at || b.created_at) - new Date(a.published_at || a.created_at)
+        new Date((b.published_at || b.created_at) || 0).getTime() - new Date((a.published_at || a.created_at) || 0).getTime()
       );
     case 'title_asc':
       return articlesArray.sort((a, b) => a.title.localeCompare(b.title, 'zh-CN'));
@@ -234,14 +235,14 @@ async function load() {
     console.log('🔍 正在获取分类信息，ID:', slugOrId.value);
     const response = await fetch('/public/v1/taxonomy');
     const result = await response.json();
-    const cats = result.data?.categories || [];
+    const cats = (result.data?.categories || []) as Category[];
     console.log('📋 获取到分类列表:', cats);
     const idNum = Number(slugOrId.value);
     const category = cats.find(c => c.id === idNum);
     console.log('🎯 匹配到的分类:', category);
     
     if (category) {
-      categoryName.value = category.name;
+      categoryName.value = category.name || '';
       categoryDescription.value = category.description || '';
       console.log('✅ 分类信息设置成功:', categoryName.value);
     } else {
@@ -263,8 +264,8 @@ async function load() {
     
     // 计算最近更新时间
     if (articles.value.length > 0) {
-      const dates = articles.value.map(a => new Date(a.published_at || a.created_at));
-      lastUpdated.value = new Date(Math.max(...dates));
+      const dates = articles.value.map(a => new Date((a.published_at || a.created_at) || 0));
+      lastUpdated.value = new Date(Math.max(...dates.map(d => d.getTime())));
     }
   } catch (e) {
     console.error('Failed to load articles:', e);
@@ -304,7 +305,7 @@ async function load() {
 }
 
 // 导航到文章详情页
-function navigateToArticle(slug) {
+function navigateToArticle(slug: string | undefined) {
   router.push(`/article/${slug}`);
 }
 
@@ -314,12 +315,12 @@ function sortArticles() {
 }
 
 // 格式化日期
-function formatDate(dateStr) {
+function formatDate(dateStr: string | Date | null | undefined) {
   if (!dateStr) return '';
   
-  const date = new Date(dateStr);
+  const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
   const now = new Date();
-  const diffTime = now - date;
+  const diffTime = now.getTime() - date.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   
   if (diffDays === 1) return '昨天';
@@ -332,7 +333,7 @@ function formatDate(dateStr) {
 }
 
 // 格式化数字
-function formatNumber(num) {
+function formatNumber(num: number) {
   if (!num) return '0';
   if (num >= 10000) return `${(num / 10000).toFixed(1)}万`;
   if (num >= 1000) return `${(num / 1000).toFixed(1)}k`;

@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 /**
  * 响应式布局检测工具函数 (动态计算版本)
  * 基于容器实际可用宽度动态判断是否显示侧边栏
+ * @param {import('vue').Ref<HTMLElement | null>} [containerElement]
  */
 export function useResponsiveLayout(containerElement = ref(null)) {
   // 窗口宽度
@@ -25,6 +26,7 @@ export function useResponsiveLayout(containerElement = ref(null)) {
   })
   
   // ResizeObserver 实例
+  /** @type {ResizeObserver | null} */
   let resizeObserver = null
   
   // 更新窗口宽度

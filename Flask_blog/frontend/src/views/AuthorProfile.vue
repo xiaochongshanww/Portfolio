@@ -120,7 +120,7 @@
                 </span>
                 <span v-if="article.category" class="meta-item">
                   <el-icon size="14"><Folder /></el-icon>
-                  {{ article.category.name }}
+                  {{ articleCategoryName(article) }}
                 </span>
               </div>
             </div>
@@ -178,6 +178,8 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useNotify } from '../composables/useNotify';
 import { UsersService } from '../generated';
+import type { UserPublic } from '../generated';
+import type { Article } from '@/types';
 import { setMeta, injectJsonLd } from '../composables/useMeta';
 import { 
   User, Document, View, Star, Clock, Collection, ArrowRight, Calendar, 
@@ -189,8 +191,8 @@ const { pushError } = useNotify();
 
 const props = withDefaults(defineProps<{ id?: string|number }>(), { id: "" })
 const userId = computed(() => Number(props.id || route.params.id));
-const profile = ref({});
-const articles = ref([]);
+const profile = ref<Partial<UserPublic>>({});
+const articles = ref<Article[]>([]);
 const stats = ref({ articles_count:0,total_views:0,total_likes:0,last_published_at:null });
 const statsLoaded = ref(false);
 const loaded = ref(false);
@@ -201,23 +203,23 @@ const total = ref(0);
 async function loadProfile(){
   try {
     const r = await UsersService.getApiV1UsersPublic(userId.value);
-    profile.value = r.data?.data || r.data || r; // 兼容包装
+    profile.value = (r.data || r) as Partial<UserPublic>; // 兼容包装
   } catch(e){ pushError('作者信息获取失败'); }
 }
 async function loadStats(){
   try {
     const r = await fetch(`/api/v1/users/public/${userId.value}/stats`);
-    const j = r.data || await r.json();
+    const j = await r.json();
     if(j && j.data) stats.value = j.data; statsLoaded.value=true;
   }catch(e){ statsLoaded.value=true; }
 }
 async function loadArticles(){
   try {
     const r = await UsersService.getApiV1UsersPublicArticles(userId.value, page.value, pageSize, '-published_at');
-    const data = r.data?.data || r.data || r;
+    const data = r.data;
     // data 可能是 ArticleListResponse
-    articles.value = data.list || data.items || [];
-    total.value = data.total || articles.value.length;
+    articles.value = (data?.list || []) as unknown as Article[];
+    total.value = data?.total || articles.value.length;
   } catch(e){ pushError('作者文章列表获取失败'); }
 }
 async function load(){
@@ -238,13 +240,18 @@ async function load(){
   injectJsonLd({ '@context':'https://schema.org', '@type':'ProfilePage', name: profile.value.nickname || ('作者 #' + profile.value.id), url, mainEntity:{ '@type':'Person', name: profile.value.nickname || ('作者 #' + profile.value.id), description: profile.value.bio || undefined, image: profile.value.avatar || undefined }, mainEntityOfPage:{ '@type':'ItemList', itemListElement: articles.value.map((a,i)=>({ '@type':'ListItem', position:i+1, url: window.location.origin + '/article/' + a.slug, name:a.title })) }});
   loaded.value=true;
 }
-function formatDate(dt){ if(!dt) return ''; return new Date(dt).toLocaleDateString(); }
+function articleCategoryName(article: Article): string {
+  const cat = article.category;
+  if (!cat) return '';
+  return typeof cat === 'string' ? cat : (cat.name || '');
+}
+function formatDate(dt: string | null | undefined){ if(!dt) return ''; return new Date(dt).toLocaleDateString(); }
 function prev(){ if(page.value>1){ page.value--; loadArticles(); } }
 function next(){ if(page.value*pageSize < total.value){ page.value++; loadArticles(); } }
-function buildPageUrl(p){ const u=new URL(window.location.href); u.searchParams.set('page', p); return u.toString(); }
+function buildPageUrl(p: number){ const u=new URL(window.location.href); u.searchParams.set('page', String(p)); return u.toString(); }
 
 onMounted(load);
-watch(()=>route.params.id, v=>{ userId.value=Number(v); page.value=1; load(); });
+watch(()=>route.params.id, ()=>{ page.value=1; load(); });
 </script>
 <style scoped>
 /* ===== 现代化作者主页样式 ===== */

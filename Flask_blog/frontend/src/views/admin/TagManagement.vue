@@ -295,7 +295,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, reactive, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus, Search, Edit, Delete, Refresh, Document, DataBoard, Close, Check, QuestionFilled } from '@element-plus/icons-vue';
@@ -306,13 +306,17 @@ const loading = ref(false);
 const submitting = ref(false);
 const dialogVisible = ref(false);
 const dialogMode = ref('create');
+/** @type {import('vue').Ref<number | null>} */
 const editingId = ref(null);
 const searchKeyword = ref('');
 const sortBy = ref('usage_desc');
 const viewMode = ref('table');
+/** @type {import('vue').Ref<any[]>} */
 const selectedTags = ref([]);
 
+/** @type {import('vue').Ref<import('@/types').Tag[]>} */
 const tags = ref([]);
+/** @type {import('vue').Ref<any>} */
 const formRef = ref();
 
 // 统计数据
@@ -341,6 +345,7 @@ const formRules = {
 
 // 计算属性：筛选后的标签
 const filteredTags = computed(() => {
+  /** @type {import('@/types').Tag[]} */
   let filtered = [...tags.value];
   
   // 搜索筛选
@@ -348,7 +353,7 @@ const filteredTags = computed(() => {
     const keyword = searchKeyword.value.toLowerCase();
     filtered = filtered.filter(tag => 
       tag.name.toLowerCase().includes(keyword) ||
-      tag.slug.toLowerCase().includes(keyword)
+      (tag.slug || '').toLowerCase().includes(keyword)
     );
   }
   
@@ -356,9 +361,9 @@ const filteredTags = computed(() => {
   filtered.sort((a, b) => {
     switch (sortBy.value) {
       case 'usage_desc':
-        return b.article_count - a.article_count;
+        return (b.article_count || 0) - (a.article_count || 0);
       case 'usage_asc':
-        return a.article_count - b.article_count;
+        return (a.article_count || 0) - (b.article_count || 0);
       case 'name_asc':
         return a.name.localeCompare(b.name);
       case 'name_desc':
@@ -404,11 +409,12 @@ const showCreateDialog = () => {
 };
 
 // 显示编辑对话框
+/** @param {import('@/types').Tag} tag */
 const showEditDialog = (tag) => {
   dialogMode.value = 'edit';
   editingId.value = tag.id;
   form.name = tag.name;
-  form.slug = tag.slug;
+  form.slug = tag.slug || '';
   dialogVisible.value = true;
 };
 
@@ -425,6 +431,7 @@ const resetForm = () => {
 const generateSlug = () => {
   if (!form.slug && form.name) {
     // 中文转拼音的简单映射（可以扩展）
+    /** @type {Record<string, string>} */
     const chineseToPinyin = {
       '技术': 'jishu',
       '前端': 'qianduan', 
@@ -502,19 +509,20 @@ const handleSubmit = async () => {
       ElMessage.error(response.data.message || '操作失败');
     }
   } catch (error) {
+    const err = /** @type {{ response?: { status?: number, data?: { message?: string } } }} */ (error);
     if (error !== 'validation failed') {
       console.error('提交失败:', error);
       
       // 根据错误类型提供更详细的错误信息
       let errorMessage = '操作失败';
-      if (error.response?.status === 401) {
+      if (err.response?.status === 401) {
         errorMessage = '认证失败，请重新登录';
-      } else if (error.response?.status === 403) {
+      } else if (err.response?.status === 403) {
         errorMessage = '权限不足，需要编辑者或管理员权限';
-      } else if (error.response?.status === 409) {
+      } else if (err.response?.status === 409) {
         errorMessage = '标签名称或Slug已存在，请使用其他名称';
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
       }
       
       ElMessage({
@@ -531,8 +539,9 @@ const handleSubmit = async () => {
 };
 
 // 删除标签
+/** @param {import('@/types').Tag} tag */
 const handleDelete = async (tag) => {
-  if (tag.article_count > 0) {
+  if ((tag.article_count || 0) > 0) {
     ElMessage.warning('该标签还在使用中，无法删除');
     return;
   }
@@ -599,6 +608,7 @@ const cleanUnusedTags = async () => {
 };
 
 // 处理选择变化
+/** @param {any[]} selection */
 const handleSelectionChange = (selection) => {
   selectedTags.value = selection;
 };
@@ -619,6 +629,7 @@ const handleViewModeChange = () => {
 };
 
 // 获取标签类型
+/** @param {number} count */
 const getTagType = (count) => {
   if (count === 0) return 'info';
   if (count >= 10) return 'danger';
@@ -627,6 +638,7 @@ const getTagType = (count) => {
 };
 
 // 获取标签样式类
+/** @param {number} count */
 const getTagClass = (count) => {
   if (count === 0) return 'unused';
   if (count >= 10) return 'high-usage';
@@ -635,12 +647,15 @@ const getTagClass = (count) => {
 };
 
 // 获取使用百分比
+/** @param {number} count */
 const getUsagePercentage = (count) => {
-  const maxCount = Math.max(...tags.value.map(t => t.article_count));
-  return maxCount === 0 ? 0 : Math.round((count / maxCount) * 100);
+  const maxCount = Math.max(...tags.value.map(t => t.article_count || 0));
+  const current = count || 0;
+  return maxCount === 0 ? 0 : Math.round((current / maxCount) * 100);
 };
 
 // 获取进度条颜色
+/** @param {number} count */
 const getProgressColor = (count) => {
   if (count === 0) return '#e5e7eb';
   if (count >= 10) return '#ef4444';
@@ -649,6 +664,7 @@ const getProgressColor = (count) => {
 };
 
 // 获取进度条渐变
+/** @param {number} count */
 const getProgressGradient = (count) => {
   if (count === 0) return 'linear-gradient(135deg, #e5e7eb, #d1d5db)';
   if (count >= 10) return 'linear-gradient(135deg, #ef4444, #f87171)';
@@ -657,16 +673,18 @@ const getProgressGradient = (count) => {
 };
 
 // 获取标签云样式
+/** @param {import('@/types').Tag} tag */
 const getCloudTagStyle = (tag) => {
   const baseSize = 14;
   const maxSize = 32;
-  const maxCount = Math.max(...tags.value.map(t => t.article_count));
+  const maxCount = Math.max(...tags.value.map(t => t.article_count || 0));
+  const count = tag.article_count || 0;
   const size = maxCount === 0 ? baseSize : 
-    baseSize + (tag.article_count / maxCount) * (maxSize - baseSize);
+    baseSize + (count / maxCount) * (maxSize - baseSize);
   
   return {
     fontSize: size + 'px',
-    opacity: tag.article_count === 0 ? 0.5 : 1
+    opacity: count === 0 ? 0.5 : 1
   };
 };
 

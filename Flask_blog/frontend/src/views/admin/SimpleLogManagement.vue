@@ -110,8 +110,11 @@ import axios from 'axios'
 
 // 响应式数据
 const loading = ref(false)
+/** @type {import('vue').Ref<import('@/types').LogEntry[]>} */
 const logs = ref([])
+/** @type {import('vue').Ref<{ total: number, today: number, errors: number, warnings: number } | null>} */
 const stats = ref(null)
+/** @type {import('vue').Ref<string[]>} */
 const sources = ref([])
 
 const filters = reactive({
@@ -132,6 +135,7 @@ const getToken = () => {
 }
 
 // API请求配置
+/** @param {string} url @param {{ method?: string, data?: unknown, params?: Record<string, unknown>, headers?: Record<string, string> }} [options] */
 const apiRequest = (url, options = {}) => {
   const token = getToken()
   return axios({
@@ -169,8 +173,9 @@ const loadLogs = async () => {
       throw new Error(response.data.error || '加载失败')
     }
   } catch (error) {
+    const err = /** @type {{ response?: { data?: { error?: string } }, message?: string }} */ (error);
     console.error('加载日志失败:', error)
-    ElMessage.error('加载日志失败: ' + (error.response?.data?.error || error.message))
+    ElMessage.error('加载日志失败: ' + (err.response?.data?.error || err.message))
   } finally {
     loading.value = false
   }
@@ -216,32 +221,37 @@ const refreshLogs = async () => {
 }
 
 // 分页处理
+/** @param {number} val */
 const handleSizeChange = (val) => {
   pagination.size = val
   pagination.page = 1
   loadLogs()
 }
 
+/** @param {number} val */
 const handleCurrentChange = (val) => {
   pagination.page = val
   loadLogs()
 }
 
 // 格式化时间
+/** @param {string | undefined} timestamp */
 const formatTime = (timestamp) => {
   if (!timestamp) return ''
   return new Date(timestamp).toLocaleString('zh-CN')
 }
 
 // 获取级别对应的标签类型
+/** @param {string | undefined} level @returns {'danger' | 'warning' | 'info' | 'success'} */
 const getLevelType = (level) => {
+  /** @type {Record<string, 'danger' | 'warning' | 'info' | 'success'>} */
   const types = {
     'ERROR': 'danger',
     'WARNING': 'warning',
     'INFO': 'info',
     'DEBUG': 'success'
   }
-  return types[level] || 'info'
+  return types[level || ''] || 'info'
 }
 
 // 初始化

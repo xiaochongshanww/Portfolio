@@ -411,6 +411,7 @@ const nicknameSuggestion = computed(() => {
 })
 
 // 处理下拉菜单命令
+/** @param {string} command */
 function handleCommand(command) {
   if (command === 'logout') {
     handleLogout();
@@ -479,28 +480,33 @@ async function handleLogout() {
 }
 
 // 处理头像加载错误
+/** @param {Event} e */
 function handleAvatarError(e) {
-  const img = e.target;
+  const img = /** @type {HTMLElement} */ (e.target);
   img.style.display = 'none';
 }
 
 // 移动端汉堡菜单中的处理函数
+/** @param {number | string} categoryId */
 function handleCategoryClick(categoryId) {
   router.push({ path: '/', query: { category_id: categoryId } });
   drawer.value = false;
 }
 
+/** @param {string} tagSlug */
 function handleTagClick(tagSlug) {
   router.push({ path: '/', query: { tag: tagSlug } });
   drawer.value = false;
 }
 
+/** @param {string} articleSlug */
 function handleArticleClick(articleSlug) {
   router.push(`/article/${articleSlug}`);
   drawer.value = false;
 }
 
 // 处理Logo点击 - 使用原生导航避免组件状态冲突
+/** @param {MouseEvent} e */
 function handleLogoClick(e) {
   console.log('🏠 AppHeader: Logo点击，检查是否需要原生导航');
   
@@ -536,6 +542,7 @@ function handleLogoClick(e) {
 }
 
 // 处理导航链接点击 - 智能选择导航方式
+/** @param {string} path @param {MouseEvent} e */
 function handleNavClick(path, e) {
   console.log(`🧭 AppHeader: 导航到 ${path}，检查是否需要原生导航`);
   
@@ -583,6 +590,7 @@ function handleNavClick(path, e) {
 }
 
 // 处理移动端主页点击
+/** @param {MouseEvent} e */
 function handleMobileHomeClick(e) {
   console.log('📱 AppHeader: 移动端主页点击');
   

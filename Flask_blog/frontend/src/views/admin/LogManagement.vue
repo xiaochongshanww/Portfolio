@@ -138,7 +138,7 @@
           <div class="filter-item">
             <label>用户筛选</label>
             <el-select v-model="filters.userId" placeholder="全部用户" clearable filterable>
-              <el-option label="全部" :value="null" />
+              <el-option label="全部" :value="''" />
               <el-option
                 v-for="user in availableUsers"
                 :key="user.id"
@@ -285,7 +285,7 @@
           <el-descriptions-item v-if="selectedLog.duration_ms" label="耗时">
             {{ selectedLog.duration_ms }}ms
           </el-descriptions-item>
-          <el-descriptions-item v-if="selectedLog.user_agent" label="User-Agent" span="2">
+          <el-descriptions-item v-if="selectedLog.user_agent" label="User-Agent" :span="2">
             {{ selectedLog.user_agent }}
           </el-descriptions-item>
         </el-descriptions>
@@ -401,6 +401,7 @@ import api from '@/apiClient'
 
 // 响应式数据
 const loading = ref(false)
+/** @type {import('vue').Ref<import('@/types').LogEntry[]>} */
 const logs = ref([])
 const stats = reactive({
   total: 0,
@@ -426,17 +427,21 @@ const pagination = reactive({
 })
 
 // 可用选项
+/** @type {import('vue').Ref<string[]>} */
 const availableSources = ref([])
+/** @type {import('vue').Ref<Array<{ id: number, name: string }>>} */
 const availableUsers = ref([])
 
 // 对话框状态
 const detailVisible = ref(false)
 const exportVisible = ref(false)
 const cleanupVisible = ref(false)
+/** @type {import('vue').Ref<import('@/types').LogEntry | null>} */
 const selectedLog = ref(null)
 
 // 自动刷新
 const autoRefresh = ref(false)
+/** @type {ReturnType<typeof setInterval> | null} */
 let refreshTimer = null
 
 // 导出和清理表单
@@ -478,7 +483,9 @@ const loadLogs = async (retry=false) => {
       level: filters.level,
       source: filters.source,
       keyword: filters.keyword,
-      user_id: filters.userId
+      user_id: filters.userId,
+      start_time: null,
+      end_time: null
     }
     
     // 添加时间范围
@@ -530,14 +537,14 @@ const loadOptions = async () => {
     const sourcesResponse = await api.get('/admin/logs/sources')
     if (sourcesResponse.data.code === 0) {
       // 过滤掉null和空值
-      availableSources.value = (sourcesResponse.data.data || []).filter(source => source)
+      availableSources.value = (sourcesResponse.data.data || []).filter(/** @param {unknown} source */ (source) => source)
     }
     
     // 加载用户列表
     const usersResponse = await api.get('/admin/logs/users')
     if (usersResponse.data.code === 0) {
       // 过滤掉null和空值
-      availableUsers.value = (usersResponse.data.data || []).filter(user => user && user.id)
+      availableUsers.value = (usersResponse.data.data || []).filter(/** @param {{ id?: number }} user */ (user) => user && user.id)
     }
   } catch (error) {
     console.error('加载选项失败:', error)
@@ -569,11 +576,13 @@ const refreshLogs = async () => {
 }
 
 // 分页处理
+/** @param {number} page */
 const handlePageChange = (page) => {
   pagination.page = page
   loadLogs()
 }
 
+/** @param {number} size */
 const handleSizeChange = (size) => {
   pagination.size = size
   pagination.page = 1
@@ -581,6 +590,7 @@ const handleSizeChange = (size) => {
 }
 
 // 显示日志详情
+/** @param {import('@/types').LogEntry} row */
 const showLogDetail = (row) => {
   selectedLog.value = row
   detailVisible.value = true
@@ -603,6 +613,7 @@ const searchRelatedLogs = () => {
 }
 
 // 自动刷新
+/** @param {string | number | boolean} enabled */
 const toggleAutoRefresh = (enabled) => {
   if (enabled) {
     refreshTimer = setInterval(() => {
@@ -632,7 +643,9 @@ const handleExport = async () => {
       limit: exportForm.limit,
       level: filters.level,
       source: filters.source,
-      keyword: filters.keyword
+      keyword: filters.keyword,
+      start_time: null,
+      end_time: null
     }
     
     if (filters.timeRange && filters.timeRange.length === 2) {
@@ -711,11 +724,12 @@ const handleCleanup = async () => {
 }
 
 // 工具函数
+/** @param {string | number | Date | null | undefined} timestamp */
 const formatTime = (timestamp) => {
   if (!timestamp) return '-'
   const date = new Date(timestamp)
   const now = new Date()
-  const diff = now - date
+  const diff = now.getTime() - date.getTime()
   
   if (diff < 60000) return '刚刚'
   if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
@@ -724,11 +738,13 @@ const formatTime = (timestamp) => {
   return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
 }
 
+/** @param {string | number | Date | null | undefined} timestamp */
 const formatFullTime = (timestamp) => {
   if (!timestamp) return '-'
   return new Date(timestamp).toLocaleString('zh-CN')
 }
 
+/** @param {unknown} data */
 const formatJSON = (data) => {
   try {
     return JSON.stringify(data, null, 2)
@@ -737,16 +753,19 @@ const formatJSON = (data) => {
   }
 }
 
+/** @param {string | undefined} level @returns {'danger' | 'warning' | 'info'} */
 const getLevelType = (level) => {
+  /** @type {Record<string, 'danger' | 'warning' | 'info'>} */
   const typeMap = {
     ERROR: 'danger',
     WARNING: 'warning',
     INFO: 'info',
     DEBUG: 'info'
   }
-  return typeMap[level] || 'info'
+  return typeMap[level || ''] || 'info'
 }
 
+/** @param {string | undefined} text */
 const highlightKeyword = (text) => {
   if (!filters.keyword || !text) return text
   const regex = new RegExp(`(${filters.keyword})`, 'gi')

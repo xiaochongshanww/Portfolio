@@ -126,10 +126,12 @@ const submitting = ref(false);
 /** @type {import('vue').Ref<Array<any>>} */
 const tree = ref([]);
 const content = ref('');
+/** @type {import('vue').Ref<import('@/types').Comment | null>} */
 const replyTo = ref(null);
 const canComment = computed(()=> !!userStore.token && !!props.articleId);
 const trimmed = computed(()=> content.value.trim());
 
+/** @param {string | undefined} dateStr */
 function formatDate(dateStr) {
   if (!dateStr) return '';
   try {
@@ -151,6 +153,7 @@ async function load(){
     loading.value=false; 
   } 
 }
+/** @param {import('@/types').Comment} node */
 function prepareReply(node){ replyTo.value = node; }
 function cancelReply(){ replyTo.value=null; }
 async function submit(){ 

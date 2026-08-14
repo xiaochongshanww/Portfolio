@@ -138,6 +138,7 @@ function onLoad() {
   console.log('Image loaded');
 }
 
+/** @param {MouseEvent} e */
 function setFocal(e) {
   if (!wrapRef.value) return;
   

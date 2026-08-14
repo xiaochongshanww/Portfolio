@@ -5,6 +5,9 @@
 
 import katex from 'katex'
 
+/** @typedef {{ throwOnError?: boolean, errorColor?: string, displayMode?: string, strict?: boolean | 'error' | 'warn' | 'ignore' }} MathOptions */
+/** @typedef {{ start: number, end: number }} RangeItem */
+
 /**
  * HTML中的数学公式处理器
  * 在HTML内容中查找数学公式标记并渲染为KaTeX
@@ -14,7 +17,7 @@ export class HTMLMathProcessor {
   /**
    * 处理HTML内容中的数学公式
    * @param {string} htmlContent - HTML内容
-   * @param {Object} options - 配置选项
+   * @param {MathOptions} [options] - 配置选项
    * @returns {string} 处理后的HTML内容
    */
   static processHTMLMath(htmlContent, options = {}) {
@@ -71,6 +74,9 @@ export class HTMLMathProcessor {
 
   /**
    * 处理行内数学公式 $...$
+   * @param {string} html
+   * @param {MathOptions} options
+   * @returns {string}
    */
   static processInlineMath(html, options) {
     // 匹配单个$包围的公式，但避免匹配$$
@@ -89,14 +95,18 @@ export class HTMLMathProcessor {
         return rendered
         
       } catch (error) {
-        console.warn('⚠️ 行内公式渲染失败:', mathContent.trim(), error.message)
-        return `<span class="math-error" title="${error.message}">$${mathContent}$</span>`
+        const err = /** @type {{ message?: string }} */ (error);
+        console.warn('⚠️ 行内公式渲染失败:', mathContent.trim(), err.message)
+        return `<span class="math-error" title="${err.message}">$${mathContent}$</span>`
       }
     })
   }
 
   /**
    * 处理块级数学公式 $$...$$
+   * @param {string} html
+   * @param {MathOptions} options
+   * @returns {string}
    */
   static processDisplayMath(html, options) {
     // 匹配$$包围的公式
@@ -115,14 +125,18 @@ export class HTMLMathProcessor {
         return `<div class="katex-display">${rendered}</div>`
         
       } catch (error) {
-        console.warn('⚠️ 块级公式渲染失败:', mathContent.trim(), error.message)
-        return `<div class="math-error" title="${error.message}">$$${mathContent}$$</div>`
+        const err = /** @type {{ message?: string }} */ (error);
+        console.warn('⚠️ 块级公式渲染失败:', mathContent.trim(), err.message)
+        return `<div class="math-error" title="${err.message}">$$${mathContent}$$</div>`
       }
     })
   }
 
   /**
    * 处理LaTeX风格的数学公式 \(...\) 和 \[...\]
+   * @param {string} html
+   * @param {MathOptions} options
+   * @returns {string}
    */
   static processLatexMath(html, options) {
     // 处理行内LaTeX公式 \(...\)
@@ -140,8 +154,9 @@ export class HTMLMathProcessor {
         return rendered
         
       } catch (error) {
-        console.warn('⚠️ LaTeX行内公式渲染失败:', mathContent.trim(), error.message)
-        return `<span class="math-error" title="${error.message}">\\(${mathContent}\\)</span>`
+        const err = /** @type {{ message?: string }} */ (error);
+        console.warn('⚠️ LaTeX行内公式渲染失败:', mathContent.trim(), err.message)
+        return `<span class="math-error" title="${err.message}">\\(${mathContent}\\)</span>`
       }
     })
 
@@ -160,8 +175,9 @@ export class HTMLMathProcessor {
         return `<div class="katex-display">${rendered}</div>`
         
       } catch (error) {
-        console.warn('⚠️ LaTeX块级公式渲染失败:', mathContent.trim(), error.message)
-        return `<div class="math-error" title="${error.message}">\\[${mathContent}\\]</div>`
+        const err = /** @type {{ message?: string }} */ (error);
+        console.warn('⚠️ LaTeX块级公式渲染失败:', mathContent.trim(), err.message)
+        return `<div class="math-error" title="${err.message}">\\[${mathContent}\\]</div>`
       }
     })
 
@@ -170,6 +186,8 @@ export class HTMLMathProcessor {
 
   /**
    * 计算原始内容中的数学公式数量
+   * @param {string} content
+   * @returns {number}
    */
   static countMathFormulas(content) {
     const patterns = [
@@ -190,6 +208,8 @@ export class HTMLMathProcessor {
 
   /**
    * 计算处理后内容中的KaTeX元素数量
+   * @param {string} content
+   * @returns {number}
    */
   static countKatexElements(content) {
     const katexPattern = /<span class="katex"/g
@@ -199,6 +219,8 @@ export class HTMLMathProcessor {
 
   /**
    * 检查内容是否包含数学公式标记
+   * @param {string} content
+   * @returns {boolean}
    */
   static containsMathFormulas(content) {
     if (!content || typeof content !== 'string') return false
@@ -215,6 +237,8 @@ export class HTMLMathProcessor {
 
   /**
    * 预处理HTML内容 - 保护数学公式不被HTML解析干扰
+   * @param {string} html
+   * @returns {{ html: string, protectedRanges: RangeItem[] }}
    */
   static preprocessHTML(html) {
     // 保护HTML标签内的数学公式不被处理
@@ -246,6 +270,9 @@ export class HTMLMathProcessor {
 
   /**
    * 检查位置是否在受保护区域内
+   * @param {number} position
+   * @param {RangeItem[]} protectedRanges
+   * @returns {boolean}
    */
   static isProtectedPosition(position, protectedRanges) {
     return protectedRanges.some(range => 
@@ -256,11 +283,18 @@ export class HTMLMathProcessor {
 
 /**
  * 便捷的导出函数
+ * @param {string} htmlContent
+ * @param {MathOptions} [options]
+ * @returns {string}
  */
 export const processHTMLMath = (htmlContent, options = {}) => {
   return HTMLMathProcessor.processHTMLMath(htmlContent, options)
 }
 
+/**
+ * @param {string} content
+ * @returns {boolean}
+ */
 export const containsMathFormulas = (content) => {
   return HTMLMathProcessor.containsMathFormulas(content)
 }

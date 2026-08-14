@@ -879,7 +879,7 @@ function getStatusText(status?: string) {
     'published': '已发布',
     'scheduled': '定时发布'
   };
-  return statusMap[status] || status;
+  return statusMap[status || ''] || status;
 }
 
 function handleAuthorAvatarError(e: Event) {

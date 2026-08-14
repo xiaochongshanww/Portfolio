@@ -47,7 +47,7 @@
           >
             <div class="option-content">
               <span class="option-label">{{ category.displayName }}</span>
-              <span v-if="category.articleCount" class="option-count">{{ category.articleCount }}</span>
+              <span v-if="category.article_count" class="option-count">{{ category.article_count }}</span>
             </div>
           </el-option>
         </el-option-group>
@@ -223,27 +223,32 @@ const props = defineProps({
 });
 
 // Emits
-const emit = defineEmits(['update:modelValue', 'change', 'recommendation-selected']);
+const emit = defineEmits(['update:modelValue', 'change', 'recommendation-selected', 'refresh-categories']);
 
 // Stores
 const userStore = useUserStore();
 
 // State
+/** @type {import('vue').Ref<number | null>} */
 const selectedCategoryId = ref(props.modelValue);
 const searchKeyword = ref('');
 const showRecommendationPanel = ref(false);
 const showQuickCreator = ref(false);
 const recommendationLoading = ref(false);
+/** @type {import('vue').Ref<Array<{ category: import('@/types').Category, score: number, confidence?: number, reason?: string }>>} */
 const recommendations = ref([]);
+/** @type {import('vue').Ref<{ valid: boolean, warning?: string | null, error?: string } | null>} */
 const validationResult = ref(null);
 
 // 构建分类树结构
 const categoryTree = computed(() => {
+  /** @type {Array<import('@/types').Category & { children: any[], level: number, displayName: string }>} */
   const tree = [];
+  /** @type {Map<number, import('@/types').Category & { children: any[], level: number, displayName: string }>} */
   const categoryMap = new Map();
   
   // 确保 categories 是数组格式
-  const categoriesArray = Array.isArray(props.categories) ? props.categories : [];
+  const categoriesArray = /** @type {Array<import('@/types').Category>} */ (Array.isArray(props.categories) ? props.categories : []);
   
   if (categoriesArray.length === 0) {
     console.warn('⚠️ CategorySelector: categories 为空数组');
@@ -256,19 +261,21 @@ const categoryTree = computed(() => {
       ...category,
       children: [],
       level: 0,
-      displayName: category.name
+      displayName: category.name || ''
     });
   });
   
   // 构建树结构
   categoriesArray.forEach(category => {
     const item = categoryMap.get(category.id);
-    if (category.parent_id && categoryMap.has(category.parent_id)) {
+    if (item && category.parent_id && categoryMap.has(category.parent_id)) {
       const parent = categoryMap.get(category.parent_id);
-      parent.children.push(item);
-      item.level = parent.level + 1;
-      item.displayName = `${'  '.repeat(item.level)}${category.name}`;
-    } else {
+      if (parent) {
+        parent.children.push(item);
+        item.level = parent.level + 1;
+        item.displayName = `${'  '.repeat(item.level)}${category.name || ''}`;
+      }
+    } else if (item) {
       tree.push(item);
     }
   });
@@ -278,7 +285,9 @@ const categoryTree = computed(() => {
 
 // 扁平化分类列表（用于搜索）
 const flatCategories = computed(() => {
+  /** @param {Array<import('@/types').Category & { children?: any[], level?: number, displayName?: string }>} categories @param {number} level */
   const flatten = (categories, level = 0) => {
+    /** @type {Array<import('@/types').Category & { level: number, displayName: string }>} */
     const result = [];
     categories.forEach(category => {
       result.push({
@@ -300,12 +309,13 @@ const flatCategories = computed(() => {
 const filteredCategoryGroups = computed(() => {
   const filtered = flatCategories.value.filter(category => {
     if (!searchKeyword.value) return true;
-    return category.name.toLowerCase().includes(searchKeyword.value.toLowerCase());
+    return (category.name || '').toLowerCase().includes(searchKeyword.value.toLowerCase());
   });
   
   if (filtered.length === 0) return [];
   
   // 按级别分组
+  /** @type {Record<string, Array<import('@/types').Category & { level: number, displayName: string }>>} */
   const groups = {};
   filtered.forEach(category => {
     const level = category.level;
@@ -333,23 +343,25 @@ const filteredCategoryGroups = computed(() => {
 
 // 父级分类列表（用于快速创建）
 const parentCategories = computed(() => {
-  const categoriesArray = Array.isArray(props.categories) ? props.categories : [];
+  const categoriesArray = /** @type {Array<import('@/types').Category>} */ (Array.isArray(props.categories) ? props.categories : []);
   return categoriesArray.filter(cat => !cat.parent_id);
 });
 
 // 相关分类
 const relatedCategories = computed(() => {
   if (!selectedCategoryId.value) return [];
-  const categoriesArray = Array.isArray(props.categories) ? props.categories : [];
+  const categoriesArray = /** @type {Array<import('@/types').Category>} */ (Array.isArray(props.categories) ? props.categories : []);
   return getRelatedCategories(selectedCategoryId.value, categoriesArray);
 });
 
 // 搜索过滤
+/** @param {string} value */
 const handleFilter = (value) => {
   searchKeyword.value = value;
 };
 
 // 选择变更处理
+/** @param {number | null} value */
 const handleSelectionChange = (value) => {
   selectedCategoryId.value = value;
   emit('update:modelValue', value);
@@ -357,7 +369,7 @@ const handleSelectionChange = (value) => {
   
   // 验证选择
   if (value) {
-    const categoriesArray = Array.isArray(props.categories) ? props.categories : [];
+    const categoriesArray = /** @type {Array<import('@/types').Category>} */ (Array.isArray(props.categories) ? props.categories : []);
     validationResult.value = validateCategorySelection(
       value, 
       props.articleData, 
@@ -372,6 +384,7 @@ const handleSelectionChange = (value) => {
 };
 
 // 下拉框显示/隐藏处理
+/** @param {boolean} visible */
 const handleDropdownVisibleChange = (visible) => {
   if (!visible) {
     searchKeyword.value = '';
@@ -404,7 +417,7 @@ const showRecommendations = async () => {
     });
     
     // 确保 categories 是数组格式
-    const categoriesArray = Array.isArray(props.categories) ? props.categories : [];
+    const categoriesArray = /** @type {Array<import('@/types').Category>} */ (Array.isArray(props.categories) ? props.categories : []);
     
     if (categoriesArray.length === 0) {
       console.warn('⚠️ 没有可用的分类数据或数据格式不正确');
@@ -420,7 +433,8 @@ const showRecommendations = async () => {
       return;
     }
     
-    if (!props.articleData || (!props.articleData.title && !props.articleData.content && !props.articleData.summary)) {
+    const articleData = /** @type {{ title?: string, content?: string, summary?: string }} */ (props.articleData);
+    if (!articleData || (!articleData.title && !articleData.content && !articleData.summary)) {
       console.warn('⚠️ 文章数据不足，无法进行智能推荐');
       message.info('请先填写文章标题或内容，以便AI进行智能推荐');
       recommendations.value = [];
@@ -455,6 +469,7 @@ const showRecommendations = async () => {
 };
 
 // 选择推荐分类
+/** @param {{ category: import('@/types').Category, score: number, confidence?: number, reason?: string }} recommendation */
 const selectRecommendation = (recommendation) => {
   selectedCategoryId.value = recommendation.category.id;
   handleSelectionChange(recommendation.category.id);
@@ -464,18 +479,25 @@ const selectRecommendation = (recommendation) => {
 };
 
 // 获取置信度类型
+/**
+ * @param {number | undefined} confidence
+ * @returns {'success' | 'primary' | 'warning' | 'info'}
+ */
 const getConfidenceType = (confidence) => {
-  if (confidence >= 0.8) return 'success';
-  if (confidence >= 0.6) return 'primary';
-  if (confidence >= 0.4) return 'warning';
-  return '';
+  const c = confidence ?? 0;
+  if (c >= 0.8) return 'success';
+  if (c >= 0.6) return 'primary';
+  if (c >= 0.4) return 'warning';
+  return 'info';
 };
 
 // 获取置信度文本
+/** @param {number | undefined} confidence */
 const getConfidenceText = (confidence) => {
-  if (confidence >= 0.8) return '高匹配';
-  if (confidence >= 0.6) return '较匹配';
-  if (confidence >= 0.4) return '一般匹配';
+  const c = confidence ?? 0;
+  if (c >= 0.8) return '高匹配';
+  if (c >= 0.6) return '较匹配';
+  if (c >= 0.4) return '一般匹配';
   return '低匹配';
 };
 
@@ -483,17 +505,17 @@ const getConfidenceText = (confidence) => {
 const getSelectedCategoryPath = () => {
   if (!selectedCategoryId.value) return '';
   
-  const categoriesArray = Array.isArray(props.categories) ? props.categories : [];
+  const categoriesArray = /** @type {Array<import('@/types').Category>} */ (Array.isArray(props.categories) ? props.categories : []);
   const category = categoriesArray.find(cat => cat.id === selectedCategoryId.value);
   if (!category) return '';
   
-  const path = [category.name];
+  const path = [category.name || ''];
   let current = category;
   
   while (current.parent_id) {
     const parent = categoriesArray.find(cat => cat.id === current.parent_id);
     if (parent) {
-      path.unshift(parent.name);
+      path.unshift(parent.name || '');
       current = parent;
     } else {
       break;
@@ -504,6 +526,7 @@ const getSelectedCategoryPath = () => {
 };
 
 // 处理分类创建成功
+/** @param {import('@/types').Category} newCategory */
 const handleCategoryCreated = (newCategory) => {
   showQuickCreator.value = false;
   message.success('分类创建成功');
@@ -540,7 +563,7 @@ watch(() => props.modelValue, (newValue) => {
 // 监听选中值变化，更新验证结果
 watch(selectedCategoryId, (newValue) => {
   if (newValue) {
-    const categoriesArray = Array.isArray(props.categories) ? props.categories : [];
+    const categoriesArray = /** @type {Array<import('@/types').Category>} */ (Array.isArray(props.categories) ? props.categories : []);
     validationResult.value = validateCategorySelection(
       newValue, 
       props.articleData, 
@@ -554,7 +577,7 @@ watch(selectedCategoryId, (newValue) => {
 onMounted(() => {
   // 如果有初始值，进行验证
   if (selectedCategoryId.value) {
-    const categoriesArray = Array.isArray(props.categories) ? props.categories : [];
+    const categoriesArray = /** @type {Array<import('@/types').Category>} */ (Array.isArray(props.categories) ? props.categories : []);
     validationResult.value = validateCategorySelection(
       selectedCategoryId.value, 
       props.articleData, 

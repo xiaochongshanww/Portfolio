@@ -144,7 +144,7 @@
                       </span>
                       <span v-if="article.category" class="meta-item category">
                         <el-icon><Folder /></el-icon>
-                        {{ article.category.name }}
+                        {{ categoryName(article.category) }}
                       </span>
                     </div>
                   </div>
@@ -181,17 +181,29 @@ import { View, ChatRound, Folder, ArrowRight, Loading, Calendar, DocumentCopy, C
 import apiClient from '../apiClient';
 import { setMeta } from '../composables/useMeta';
 
+/**
+ * @typedef {{
+ *   [year: string]: {
+ *     totalCount: number,
+ *     months: { [month: string]: { articles: import('@/types').Article[] } }
+ *   }
+ * }} ArchiveData
+ */
+
 const router = useRouter();
+/** @type {import('vue').Ref<import('@/types').Article[]>} */
 const articles = ref([]);
 const loading = ref(false);
+/** @type {import('vue').Ref<number | null>} */
 const selectedYear = ref(null);
 
 // 计算属性
 const archive = computed(() => {
+  /** @type {ArchiveData} */
   const archiveData = {};
   
   articles.value.forEach(article => {
-    const date = new Date(article.published_at || article.created_at);
+    const date = new Date(/** @type {string} */ (article.published_at || article.created_at));
     const year = date.getFullYear();
     const month = date.getMonth() + 1; // JavaScript月份从0开始
     
@@ -213,6 +225,7 @@ const archive = computed(() => {
   });
   
   // 排序：年份倒序，月份倒序，文章按日期倒序
+  /** @type {ArchiveData} */
   const sortedArchive = {};
   Object.keys(archiveData)
     .sort((a, b) => parseInt(b) - parseInt(a))
@@ -226,7 +239,7 @@ const archive = computed(() => {
         .sort((a, b) => parseInt(b) - parseInt(a))
         .forEach(month => {
           const articles = archiveData[year].months[month].articles
-            .sort((a, b) => new Date(b.published_at || b.created_at) - new Date(a.published_at || a.created_at));
+            .sort((a, b) => new Date(/** @type {string} */ (b.published_at || b.created_at)).getTime() - new Date(/** @type {string} */ (a.published_at || a.created_at)).getTime());
           
           sortedArchive[year].months[month] = { articles };
         });
@@ -268,12 +281,12 @@ const latestMonth = computed(() => {
   if (articles.value.length === 0) return '-';
   
   const latest = articles.value.reduce((latest, article) => {
-    const articleDate = new Date(article.published_at || article.created_at);
-    const latestDate = new Date(latest.published_at || latest.created_at);
+    const articleDate = new Date(/** @type {string} */ (article.published_at || article.created_at));
+    const latestDate = new Date(/** @type {string} */ (latest.published_at || latest.created_at));
     return articleDate > latestDate ? article : latest;
   });
   
-  const date = new Date(latest.published_at || latest.created_at);
+  const date = new Date(/** @type {string} */ (latest.published_at || latest.created_at));
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 });
 
@@ -298,19 +311,28 @@ async function loadArchive() {
   }
 }
 
+/** @param {import('@/types').Article['category']} cat @returns {string} */
+function categoryName(cat) {
+  if (!cat) return '';
+  return typeof cat === 'string' ? cat : (cat.name || '');
+}
+
+/** @param {string | number} month */
 function formatMonth(month) {
   const monthNames = [
     '一月', '二月', '三月', '四月', '五月', '六月',
     '七月', '八月', '九月', '十月', '十一月', '十二月'
   ];
-  return monthNames[parseInt(month) - 1];
+  return monthNames[parseInt(String(month)) - 1];
 }
 
+/** @param {string | null | undefined} dateString */
 function formatDate(dateString) {
-  const date = new Date(dateString);
+  const date = new Date(/** @type {string} */ (dateString));
   return `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
+/** @param {string | undefined} slug */
 function goToArticle(slug) {
   router.push(`/article/${slug}`);
 }

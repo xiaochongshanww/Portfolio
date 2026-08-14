@@ -126,7 +126,7 @@
           clearable
           style="width: 100%"
         >
-          <el-option label="根目录" :value="null" />
+          <el-option label="根目录" :value="0" />
           <el-option 
             v-for="folder in availableFolders"
             :key="folder.id"
@@ -208,9 +208,11 @@ export default {
   setup(props, { emit }) {
     const formRef = ref()
     const loading = ref(false)
+    /** @type {import('vue').Ref<Array<{ id: number, name: string }>>} */
     const availableFolders = ref([])
     const availableTags = ref([])
     
+    /** @type {import('vue').Reactive<{ title: string, alt_text: string, description: string, tags: string[], visibility: string, folder_id: number | null, focal_x: number, focal_y: number }>} */
     const form = reactive({
       title: '',
       alt_text: '',
@@ -254,7 +256,7 @@ export default {
       form.description = props.media.description || ''
       form.tags = props.media.tags || []
       form.visibility = props.media.visibility || 'private'
-      form.folder_id = props.media.folder_id
+      form.folder_id = props.media.folder_id ?? 0
       form.focal_x = props.media.focal_x ?? 0.5
       form.focal_y = props.media.focal_y ?? 0.5
     }
@@ -282,7 +284,7 @@ export default {
           description: form.description,
           tags: form.tags,
           visibility: form.visibility,
-          folder_id: form.folder_id,
+          folder_id: form.folder_id || null,
           focal_x: form.focal_x,
           focal_y: form.focal_y
         }
@@ -294,8 +296,9 @@ export default {
         handleClose()
         
       } catch (error) {
-        if (error.response?.data?.message) {
-          ElMessage.error(error.response.data.message)
+        const err = /** @type {{ response?: { data?: { message?: string } }, message?: string }} */ (error)
+        if (err.response?.data?.message) {
+          ElMessage.error(err.response.data.message)
         } else {
           ElMessage.error('更新失败')
         }

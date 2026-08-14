@@ -348,7 +348,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, reactive, onMounted } from 'vue';
 import { 
   Search, Refresh, User, View, ArrowDown, UserFilled, 
@@ -362,7 +362,8 @@ const userStore = useUserStore();
 
 // 响应式数据
 const loading = ref(false);
-const users = ref<any[]>([]);
+/** @type {import('vue').Ref<any[]>} */
+const users = ref([]);
 
 // 统计数据
 const stats = reactive({
@@ -374,7 +375,8 @@ const stats = reactive({
 const filters = reactive({
   role: '',
   search: '',
-  dateRange: null as any
+  /** @type {any} */
+  dateRange: null
 });
 
 // 分页信息
@@ -387,29 +389,36 @@ const meta = reactive({
 // 对话框状态
 const detailDialog = reactive({
   visible: false,
-  user: null as any
+  /** @type {any} */
+  user: null
 });
 
 const roleDialog = reactive({
   visible: false,
   loading: false,
-  user: null as any,
+  /** @type {any} */
+  user: null,
   form: {
     role: ''
   }
 });
 
 // 工具函数
-function getRoleType(role: string): string {
+/**
+ * @param {string | undefined} role
+ * @returns {'info' | 'success' | 'primary' | 'warning' | 'danger'}
+ */
+function getRoleType(role) {
   switch (role) {
     case 'admin': return 'danger';
     case 'editor': return 'warning';
     case 'author': return 'info';
-    default: return '';
+    default: return 'info';
   }
 }
 
-function getRoleText(role: string): string {
+/** @param {string | undefined} role */
+function getRoleText(role) {
   switch (role) {
     case 'admin': return '管理员';
     case 'editor': return '编辑';
@@ -418,11 +427,13 @@ function getRoleText(role: string): string {
   }
 }
 
-function formatDate(dateStr: string): string {
+/** @param {string | number | Date} dateStr */
+function formatDate(dateStr) {
   return new Date(dateStr).toLocaleDateString('zh-CN');
 }
 
-function formatRelativeTime(dateStr: string): string {
+/** @param {string | number | Date} dateStr */
+function formatRelativeTime(dateStr) {
   const now = new Date();
   const date = new Date(dateStr);
   const diff = now.getTime() - date.getTime();
@@ -439,33 +450,38 @@ function formatRelativeTime(dateStr: string): string {
   }
 }
 
-function handleAvatarError(e: Event) {
-  const img = e.target as HTMLImageElement;
+/** @param {Event} e */
+function handleAvatarError(e) {
+  const img = /** @type {HTMLImageElement} */ (e.target);
   img.style.display = 'none';
 }
 
-function getAdminCount(): number {
+function getAdminCount() {
   return users.value.filter(user => user.role === 'admin').length;
 }
 
 // 角色样式类获取
-function getRoleClass(role: string): string {
+/** @param {string | undefined} role */
+function getRoleClass(role) {
+  /** @type {Record<string, string>} */
   const roleClasses = {
     admin: 'role-admin',
     editor: 'role-editor', 
     author: 'role-author'
   };
-  return roleClasses[role] || 'role-author';
+  return roleClasses[role || ''] || 'role-author';
 }
 
 // 角色图标获取
-function getRoleIcon(role: string) {
+/** @param {string | undefined} role */
+function getRoleIcon(role) {
+  /** @type {Record<string, import('vue').Component>} */
   const roleIcons = {
     admin: UserFilled,
     editor: User,
     author: User
   };
-  return roleIcons[role] || User;
+  return roleIcons[role || ''] || User;
 }
 
 // 数据加载
@@ -473,7 +489,8 @@ async function loadUsers() {
   loading.value = true;
   
   try {
-    const params: any = {
+    /** @type {Record<string, any>} */
+    const params = {
       page: meta.page,
       page_size: meta.page_size
     };
@@ -524,24 +541,28 @@ function handleRefresh() {
   loadUsers();
 }
 
-function handlePageChange(page: number) {
+/** @param {number} page */
+function handlePageChange(page) {
   meta.page = page;
   loadUsers();
 }
 
-function handleSizeChange(size: number) {
+/** @param {number} size */
+function handleSizeChange(size) {
   meta.page_size = size;
   meta.page = 1;
   loadUsers();
 }
 
 // 用户操作
-function viewUserDetail(user: any) {
+/** @param {any} user */
+function viewUserDetail(user) {
   detailDialog.user = user;
   detailDialog.visible = true;
 }
 
-async function handleUserAction(user: any, action: string) {
+/** @param {any} user @param {string} action */
+async function handleUserAction(user, action) {
   switch (action) {
     case 'changeRole':
       showRoleDialog(user);
@@ -561,7 +582,8 @@ async function handleUserAction(user: any, action: string) {
   }
 }
 
-function showRoleDialog(user: any) {
+/** @param {any} user */
+function showRoleDialog(user) {
   roleDialog.user = user;
   roleDialog.form.role = user.role;
   roleDialog.visible = true;
@@ -595,7 +617,8 @@ async function confirmRoleChange() {
   }
 }
 
-async function toggleUserStatus(user: any, isActive: boolean) {
+/** @param {any} user @param {boolean} isActive */
+async function toggleUserStatus(user, isActive) {
   const action = isActive ? '启用' : '禁用';
   
   try {
@@ -618,7 +641,8 @@ async function toggleUserStatus(user: any, isActive: boolean) {
   }
 }
 
-async function resetUserPassword(user: any) {
+/** @param {any} user */
+async function resetUserPassword(user) {
   try {
     await ElMessageBox.confirm(
       `确定要重置用户 "${user.nickname || user.email}" 的密码吗？新密码将发送到用户邮箱。`,
@@ -635,7 +659,8 @@ async function resetUserPassword(user: any) {
   }
 }
 
-async function deleteUser(user: any) {
+/** @param {any} user */
+async function deleteUser(user) {
   if (user.role === 'admin') {
     ElMessage.warning('无法删除管理员账户');
     return;

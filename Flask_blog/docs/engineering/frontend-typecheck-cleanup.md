@@ -33,19 +33,34 @@
 | `env.d.ts` 补充 `Window` 接口自定义属性（vueErrorHandler/testBatchMessages/openMediaLibrary/vditorCleanupFunctions 等） | ✅ |
 | `src/stores/user.js`：给 store state 加 JSDoc 类型（`user` → `User \| null`） | ✅ |
 
-### 3.2 已修复文件（错误清零）
+### 3.2 全部文件错误清零（已完成 2026-08-13）
 
-| 文件 | 原错误数 | 修复方式 |
-|------|---------|---------|
-| `src/views/ArticleDetail.vue` | 108 | ref 加泛型、函数参数补类型、`message`→`ElMessage` 真 bug、Element 类型断言、apiClient 参数类型 |
-| `src/views/admin/BackupManagement.vue` | 154 | ref/reactive JSDoc 类型、catch error 断言、函数参数 JSDoc、`Record<string,string>` map、setTimeout 类型、el-tag 联合类型 |
-| `src/views/NewArticle.vue` | 117（部分完成） | 进行中：ref 类型、ArticleForm/NewTag typedef、catch 断言、`markAsChanged`→`triggerAutoSave` 真 bug 修复、setMeta JSDoc；**剩余约 32 错误**（多为 TS7006/TS18046，续接时可先用 5.1 模式处理函数参数与 catch 块） |
+> ✅ **typecheck 已达到 0 错误**，CI 的 `typecheck-frontend` 已移除 `continue-on-error: true` 转为真实门禁。
 
-### 3.3 当前错误总量
+| 类别 | 文件数 | 说明 |
+|------|-------|------|
+| 纯 .js 工具/API 文件 | 17 | JSDoc 类型标注（@typedef/@param/@returns），新增 `src/shims.d.ts` 声明 markdown-it 等无类型库 |
+| 视图 .vue 文件 | ~30 | ref 加类型、函数参数补类型、catch 断言、el-tag 联合类型 |
+| 组件 .vue 文件 | ~20 | 同上 + 修正组件 props/emits 类型 |
+| 基础设施 | 4 | tsconfig/env.d.ts/types.ts/stores/user.js |
 
-- **启动时**：约 1777
-- **当前**：约 **1411**（已修约 366）
-- 剩余错误集中在 60+ 文件，前 12 名见下表
+**修复过程中发现并修复的真实 bug（记录）**：
+- `messageManager` 传对象导致消息嵌套错误 → `message.js` 增加 `normalizeArgs` 归一化
+- `MediaGallery`/`MediaManagement` 从 `mediaApi`(Proxy) 错误解构工具函数 → 改用 `@/utils/mediaUtils`
+- `CategorySelector` 模板 `articleCount` 字段拼写错误 → `article_count`
+- `NewArticle` lint 错误 `uploadInput && uploadInput.click()` 表达式语句 → 改为 if 语句
+- 多处 el-tag `:type` 返回 `''` 非法值 → 统一 `'info'` fallback
+- 多处 `new Date(...) - new Date(...)` Date 算术 → 用 `.getTime()`
+- `media.js`/`backup.js` Proxy rest 参数 JSDoc 修正
+
+### 3.3 验证结果（全部通过）
+
+| 检查 | 结果 |
+|------|------|
+| `npm run typecheck`（vue-tsc --noEmit） | **0 错误** |
+| `npm run lint` | **0 error**（839 warnings 可接受） |
+| `npm run test` | 7 文件 20 用例全绿 |
+| `npm run build` | 成功 |
 
 ---
 

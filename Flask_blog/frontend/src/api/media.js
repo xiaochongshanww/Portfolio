@@ -4,13 +4,20 @@
  */
 import API from './index'
 
+/**
+ * @param {string} name
+ */
 const deprecate = (name) =>
   console.warn(`[deprecated] mediaApi.${name}() — 请改用 API.${name}()`)
 
+/**
+ * @type {Record<string, (...args: any[]) => Promise<any>>}
+ */
 const api = new Proxy({}, {
+  /** @param {any} method */
   get(_, method) {
     deprecate(method)
-    return (...args) => API[method]?.(...args)
+    return (/** @type {any[]} */ ...args) => API[method]?.(...args)
   },
 })
 

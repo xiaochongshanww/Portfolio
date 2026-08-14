@@ -150,8 +150,9 @@ export default {
         handleClose()
         
       } catch (error) {
-        if (error.response?.data?.message) {
-          ElMessage.error(error.response.data.message)
+        const err = /** @type {{ response?: { data?: { message?: string } }, message?: string }} */ (error)
+        if (err.response?.data?.message) {
+          ElMessage.error(err.response.data.message)
         } else {
           ElMessage.error('创建文件夹失败')
         }

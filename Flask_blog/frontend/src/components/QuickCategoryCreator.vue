@@ -77,8 +77,8 @@
             >
               <div class="parent-option">
                 <span class="parent-name">{{ parent.name }}</span>
-                <span v-if="parent.articleCount" class="parent-count">
-                  {{ parent.articleCount }} 篇文章
+                <span v-if="parent.article_count" class="parent-count">
+                  {{ parent.article_count }} 篇文章
                 </span>
               </div>
             </el-option>
@@ -198,7 +198,7 @@ const props = defineProps({
     default: ''
   },
   parentCategories: {
-    type: Array,
+    type: /** @type {import('vue').PropType<import('@/types').Category[]>} */ (Array),
     default: () => []
   },
   suggestedParent: {
@@ -211,11 +211,13 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'category-created', 'category-creation-failed']);
 
 // Refs
+/** @type {import('vue').Ref<import('element-plus').FormInstance | null>} */
 const formRef = ref(null);
 
 // State
 const dialogVisible = ref(props.visible);
 const creating = ref(false);
+/** @type {import('vue').Ref<{ name: string, slug: string, parent_id: number | null, description: string }>} */
 const form = ref({
   name: '',
   slug: '',
@@ -224,30 +226,37 @@ const form = ref({
 });
 
 // 表单验证规则
+/** @type {import('element-plus').FormRules} */
 const rules = {
   name: [
     { required: true, message: '请输入分类名称', trigger: 'blur' },
     { min: 2, max: 50, message: '分类名称长度应在2-50个字符之间', trigger: 'blur' },
     { 
-      validator: async (rule, value, callback) => {
-        if (!value) return callback();
+      validator: (rule, value, callback) => {
+        if (!value) {
+          callback();
+          return;
+        }
         
         // 检查分类名称是否已存在
-        try {
-          const response = await apiClient.get('/taxonomy/categories/');
-          const existingCategories = response.data.data || [];
-          const isDuplicate = existingCategories.some(cat => 
-            cat.name.toLowerCase() === value.toLowerCase()
-          );
-          
-          if (isDuplicate) {
-            return callback(new Error('分类名称已存在'));
-          }
-          callback();
-        } catch (error) {
-          console.warn('检查分类名称失败:', error);
-          callback(); // 忽略检查错误，允许继续
-        }
+        apiClient.get('/taxonomy/categories/')
+          .then((response) => {
+            /** @type {Array<{ name: string }>} */
+            const existingCategories = response.data.data || [];
+            const isDuplicate = existingCategories.some(cat => 
+              cat.name.toLowerCase() === value.toLowerCase()
+            );
+            
+            if (isDuplicate) {
+              callback(new Error('分类名称已存在'));
+              return;
+            }
+            callback();
+          })
+          .catch((error) => {
+            console.warn('检查分类名称失败:', error);
+            callback(); // 忽略检查错误，允许继续
+          });
       }, 
       trigger: 'blur' 
     }
@@ -320,12 +329,14 @@ const suggestions = computed(() => {
 });
 
 // 生成URL别名
+/** @param {string} name */
 const generateSlugFromName = (name) => {
   return name
     .toLowerCase()
     .replace(/[^\w\s\u4e00-\u9fa5]/g, '') // 移除特殊字符
     .replace(/\s+/g, '-') // 空格替换为连字符
     .replace(/[\u4e00-\u9fa5]/g, match => { // 中文转拼音（简化版）
+      /** @type {Record<string, string>} */
       const pinyinMap = {
         '前端': 'frontend',
         '后端': 'backend', 
@@ -354,6 +365,7 @@ const generateSlug = () => {
 };
 
 // 查找建议的父分类
+/** @param {string} name */
 const findSuggestedParent = (name) => {
   const keywords = {
     'Vue': ['前端开发', 'Frontend'],
@@ -377,7 +389,7 @@ const findSuggestedParent = (name) => {
     if (name.includes(keyword)) {
       for (const parentName of parentNames) {
         const parent = props.parentCategories.find(cat => 
-          cat.name.includes(parentName)
+          (cat.name || '').includes(parentName)
         );
         if (parent) return parent;
       }
@@ -388,6 +400,7 @@ const findSuggestedParent = (name) => {
 };
 
 // 生成描述建议
+/** @param {string} name */
 const generateDescriptionSuggestion = (name) => {
   const templates = {
     '前端': '包含前端开发相关的技术文章，如框架使用、界面设计、用户体验等',
@@ -422,6 +435,7 @@ const getPreviewPath = () => {
 };
 
 // 应用建议
+/** @param {{ type: string, title: string, description: string, action: () => void }} suggestion */
 const applySuggestion = (suggestion) => {
   suggestion.action();
   message.success(`已应用建议：${suggestion.title}`);
@@ -458,12 +472,13 @@ const handleCreate = async () => {
   } catch (error) {
     console.error('创建分类失败:', error);
     
+    const err = /** @type {{ response?: { data?: { message?: string } }, message?: string }} */ (error);
     let errorMessage = '创建分类失败';
     
-    if (error.response?.data?.message) {
-      errorMessage = error.response.data.message;
-    } else if (error.message) {
-      errorMessage = error.message;
+    if (err.response?.data?.message) {
+      errorMessage = err.response.data.message;
+    } else if (err.message) {
+      errorMessage = err.message;
     }
     
     message.critical(errorMessage);

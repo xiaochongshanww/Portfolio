@@ -66,7 +66,7 @@ import { Clock, DocumentAdd, ArrowRight } from '@element-plus/icons-vue'
 // Props
 const props = defineProps({
   articles: {
-    type: Array,
+    type: /** @type {import('vue').PropType<import('@/types').Article[]>} */ (Array),
     default: () => []
   },
   loading: {
@@ -85,12 +85,13 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // 工具函数
+/** @param {string | null | undefined} dateString */
 function formatDate(dateString) {
   if (!dateString) return ''
   try {
     const date = new Date(dateString)
     const now = new Date()
-    const diffTime = now - date
+    const diffTime = now.getTime() - date.getTime()
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
     const diffHours = Math.floor(diffTime / (1000 * 60 * 60))
     const diffMinutes = Math.floor(diffTime / (1000 * 60))

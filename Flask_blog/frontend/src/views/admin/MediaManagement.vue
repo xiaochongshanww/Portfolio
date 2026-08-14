@@ -160,7 +160,7 @@
               <div class="media-meta">
                 {{ formatFileSize(media.file_size) }} • {{ formatDate(media.created_at) }}
               </div>
-              <div class="media-tags">
+              <div v-if="media.tags && media.tags.length" class="media-tags">
                 <el-tag 
                   v-for="tag in media.tags.slice(0, 2)" 
                   :key="tag"
@@ -169,7 +169,7 @@
                 >
                   {{ tag }}
                 </el-tag>
-                <span v-if="media.tags.length > 2" class="more-tags">+{{ media.tags.length - 2 }}</span>
+                <span v-if="media.tags && media.tags.length > 2" class="more-tags">+{{ media.tags.length - 2 }}</span>
               </div>
             </div>
             <div class="media-actions">
@@ -268,21 +268,21 @@
     <!-- 上传对话框 -->
     <MediaUploadDialog 
       v-model:visible="showUploadDialog"
-      :current-folder-id="currentFolderId"
+      :current-folder-id="currentFolderId ?? undefined"
       @uploaded="handleFileUploaded"
     />
 
     <!-- 创建文件夹对话框 -->
     <FolderCreateDialog
       v-model:visible="showCreateFolderDialog"
-      :parent-folder-id="currentFolderId"
+      :parent-folder-id="currentFolderId ?? undefined"
       @created="handleFolderCreated"
     />
 
     <!-- 媒体详情对话框 -->
     <MediaDetailDialog
       v-model:visible="showDetailDialog"
-      :media="selectedMediaForDetail"
+      :media="selectedMediaForDetail ?? undefined"
       @updated="handleMediaUpdated"
       @deleted="handleMediaDeleted"
     />
@@ -290,7 +290,7 @@
     <!-- 编辑媒体对话框 -->
     <MediaEditDialog
       v-model:visible="showEditDialog"
-      :media="selectedMediaForEdit"
+      :media="selectedMediaForEdit ?? undefined"
       @updated="handleMediaUpdated"
     />
   </div>
@@ -300,6 +300,7 @@
 import { ref, reactive, onMounted, watch, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import mediaApi from '@/api/media'
+import { formatFileSize, getMediaTypeName, getVisibilityInfo, getMediaIcon } from '@/utils/mediaUtils'
 import MediaUploadDialog from '@/components/media/MediaUploadDialog.vue'
 import FolderCreateDialog from '@/components/media/FolderCreateDialog.vue'
 import MediaDetailDialog from '@/components/media/MediaDetailDialog.vue'
@@ -317,13 +318,20 @@ export default {
     const loading = ref(false)
     const viewMode = ref('grid')
     const searchKeyword = ref('')
+    /** @type {import('vue').Ref<number | null>} */
     const currentFolderId = ref(null)
+    /** @type {import('vue').Ref<import('@/types').MediaFile | null>} */
     const currentFolder = ref(null)
+    /** @type {import('vue').Ref<Array<{ id?: number, name?: string }>>} */
     const breadcrumbs = ref([])
     
+    /** @type {import('vue').Ref<import('@/types').MediaFile[]>} */
     const mediaList = ref([])
+    /** @type {import('vue').Ref<import('@/types').MediaFile[]>} */
     const folders = ref([])
+    /** @type {import('vue').Ref<number[]>} */
     const selectedMedia = ref([])
+    /** @type {import('vue').Ref<{ total_count?: number, total_files?: number, total_size?: number } | null>} */
     const stats = ref(null)
     
     const pagination = reactive({
@@ -342,13 +350,13 @@ export default {
     const showCreateFolderDialog = ref(false)
     const showDetailDialog = ref(false)
     const showEditDialog = ref(false)
+    /** @type {import('vue').Ref<import('@/types').MediaFile | null>} */
     const selectedMediaForDetail = ref(null)
+    /** @type {import('vue').Ref<import('@/types').MediaFile | null>} */
     const selectedMediaForEdit = ref(null)
 
-    // 从 API 客户端获取辅助方法
-    const { formatFileSize, getMediaTypeName, getVisibilityInfo, getMediaIcon } = mediaApi
-
     // 格式化日期
+    /** @param {string | undefined} dateStr */
     const formatDate = (dateStr) => {
       if (!dateStr) return ''
       return new Date(dateStr).toLocaleString('zh-CN')
@@ -427,8 +435,9 @@ export default {
     }
 
     // 导航到文件夹
+    /** @param {number | null | undefined} folderId */
     const navigateToFolder = async (folderId) => {
-      currentFolderId.value = folderId
+      currentFolderId.value = folderId ?? null
       pagination.page = 1
       selectedMedia.value = []
       
@@ -450,6 +459,7 @@ export default {
     }
 
     // 选择媒体
+    /** @param {import('@/types').MediaFile} media */
     const selectMedia = (media) => {
       const index = selectedMedia.value.indexOf(media.id)
       if (index > -1) {
@@ -460,6 +470,7 @@ export default {
     }
 
     // 处理表格选择变化
+    /** @param {Array<import('@/types').MediaFile>} selection */
     const handleSelectionChange = (selection) => {
       selectedMedia.value = selection.map(item => item.id)
     }
@@ -491,6 +502,7 @@ export default {
     }
 
     // 文件夹操作处理
+    /** @param {{ action: string, folder: import('@/types').MediaFile }} arg */
     const handleFolderAction = async ({ action, folder }) => {
       if (action === 'edit') {
         // TODO: 实现文件夹编辑
@@ -516,6 +528,7 @@ export default {
     }
 
     // 媒体操作处理
+    /** @param {{ action: string, media: import('@/types').MediaFile }} arg */
     const handleMediaAction = async ({ action, media }) => {
       if (action === 'view') {
         viewMediaDetail(media)
@@ -529,25 +542,28 @@ export default {
     }
 
     // 查看媒体详情
+    /** @param {import('@/types').MediaFile} media */
     const viewMediaDetail = (media) => {
       selectedMediaForDetail.value = media
       showDetailDialog.value = true
     }
 
     // 编辑媒体
+    /** @param {import('@/types').MediaFile} media */
     const editMedia = (media) => {
       selectedMediaForEdit.value = media
       showEditDialog.value = true
     }
 
     // 下载媒体
+    /** @param {import('@/types').MediaFile} media */
     const downloadMedia = async (media) => {
       try {
         const response = await mediaApi.downloadMedia(media.id)
         const url = window.URL.createObjectURL(new Blob([response.data]))
         const link = document.createElement('a')
         link.href = url
-        link.download = media.original_name
+        link.download = media.original_name || ''
         document.body.appendChild(link)
         link.click()
         window.URL.revokeObjectURL(url)
@@ -560,6 +576,7 @@ export default {
     }
 
     // 删除媒体
+    /** @param {import('@/types').MediaFile} media */
     const deleteMedia = async (media) => {
       try {
         await ElMessageBox.confirm(

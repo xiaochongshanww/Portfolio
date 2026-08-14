@@ -84,6 +84,7 @@ import apiClient from '../../apiClient'
 const todayViews = ref(0)
 const totalVisitors = ref(0)
 const loading = ref(false)
+/** @type {import('vue').Ref<string | null>} */
 const error = ref(null)
 
 // 获取访客统计数据

@@ -94,11 +94,11 @@ import { Compass, Collection, PriceTag, Close } from '@element-plus/icons-vue'
 // Props
 const props = defineProps({
   categories: {
-    type: Array,
+    type: /** @type {import('vue').PropType<import('@/types').Category[]>} */ (Array),
     default: () => []
   },
   tags: {
-    type: Array,
+    type: /** @type {import('vue').PropType<import('@/types').Tag[]>} */ (Array),
     default: () => []
   },
   selectedCategory: {
@@ -144,6 +144,7 @@ function toggleShowAllTags() {
   showAllTags.value = !showAllTags.value
 }
 
+/** @param {number | string} categoryId */
 function handleCategoryClick(categoryId) {
   // 如果点击的是当前已选中的分类，则取消选择
   if (props.selectedCategory === String(categoryId)) {
@@ -153,6 +154,7 @@ function handleCategoryClick(categoryId) {
   }
 }
 
+/** @param {string | undefined} tagSlug */
 function handleTagClick(tagSlug) {
   // 如果点击的是当前已选中的标签，则取消选择
   if (props.selectedTag === tagSlug) {

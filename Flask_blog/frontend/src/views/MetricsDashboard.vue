@@ -18,7 +18,7 @@
           :icon="Refresh" 
           circle
           size="large"
-          @click="fetchStats"
+          @click="() => fetchStats()"
         />
       </div>
     </div>
@@ -66,7 +66,7 @@
         </div>
         
         <div class="error-actions">
-          <el-button type="primary" :icon="Refresh" @click="fetchStats">
+          <el-button type="primary" :icon="Refresh" @click="() => fetchStats()">
             重新加载
           </el-button>
           <el-button type="success" plain @click="() => fetchStats(999)">
@@ -249,6 +249,7 @@ import { useUserStore } from '../stores/user';
 
 const userStore = useUserStore();
 const loading = ref(true);
+/** @type {import('vue').Ref<string | null>} */
 const error = ref(null);
 const stats = ref({
   articles: { total: 0, published: 0, draft: 0, pending: 0 },
@@ -319,27 +320,29 @@ const fetchStats = async (retryCount = 0) => {
   } catch (err) {
     console.error('获取统计数据失败:', err);
     
+    const e = /** @type {{ message?: string, code?: string, response?: { status?: number, data?: { message?: string } } }} */ (err);
+    
     // 根据错误类型提供不同的错误信息
     let errorMsg = '加载数据失败';
     
-    if (err.message === '请求超时') {
+    if (e.message === '请求超时') {
       errorMsg = '服务器响应超时，请检查后端服务是否正常运行';
-    } else if (err.code === 'NETWORK_ERROR' || err.message.includes('Network Error')) {
+    } else if (e.code === 'NETWORK_ERROR' || e.message?.includes('Network Error')) {
       errorMsg = '网络连接失败，请检查后端服务连接';
-    } else if (err.response?.status === 403) {
+    } else if (e.response?.status === 403) {
       errorMsg = '没有权限访问数据，请确保您有editor或admin权限';
-    } else if (err.response?.status === 401) {
+    } else if (e.response?.status === 401) {
       errorMsg = '身份验证失败，请重新登录';
-    } else if (err.response?.data?.message) {
-      errorMsg = err.response.data.message;
-    } else if (err.message) {
-      errorMsg = err.message;
+    } else if (e.response?.data?.message) {
+      errorMsg = e.response.data.message;
+    } else if (e.message) {
+      errorMsg = e.message;
     }
     
     error.value = errorMsg;
     
     // 如果是网络问题且重试次数少于2次，自动重试
-    if ((err.message === '请求超时' || err.code === 'NETWORK_ERROR') && retryCount < 2) {
+    if ((e.message === '请求超时' || e.code === 'NETWORK_ERROR') && retryCount < 2) {
       console.log(`自动重试中... (${retryCount + 1}/2)`);
       ElMessage.warning(`连接失败，正在重试... (${retryCount + 1}/2)`);
       

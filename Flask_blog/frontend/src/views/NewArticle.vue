@@ -612,9 +612,9 @@ const hasUnsavedChanges = ref(false);
 const isRestoringDraft = ref(false); // 标记是否正在恢复草稿
 const AUTOSAVE_DELAY = 3000; // 3秒后自动保存
 // 工具函数
-/** @param {string} code @param {string} fallback */
+/** @param {unknown} code @param {string} fallback */
 function mapErr(code, fallback) { 
-  return ERROR_CODE_MAP.get(code) || fallback; 
+  return ERROR_CODE_MAP.get(Number(code)) || fallback; 
 }
 
 // 表单验证调试函数
@@ -729,8 +729,7 @@ async function loadArticleForEdit(articleId) {
     }
   } catch (error) {
     console.error('加载文章数据失败:', error);
-    /** @type {{ message?: string }} */
-    const err = error;
+    const err = /** @type {{ message?: string }} */ (error);
     message.critical('加载文章失败: ' + (err.message || '网络错误'));
     router.push('/');
   } finally {
@@ -739,6 +738,7 @@ async function loadArticleForEdit(articleId) {
 }
 
 // 封面图片上传处理
+/** @param {import('element-plus').UploadFile} file */
 async function handleCoverSelect(file) {
   if (!file || !file.raw) return;
   
@@ -786,9 +786,9 @@ async function handleCoverSelect(file) {
     }
   } catch (e) {
     console.error('Cover upload error:', e);
-    
-    if (e.response?.data?.message) {
-      error.value = `上传失败: ${e.response.data.message}`;
+    const err = /** @type {{ response?: { data?: { message?: string } } }} */ (e);
+    if (err.response?.data?.message) {
+      error.value = `上传失败: ${err.response.data.message}`;
     } else {
       error.value = '封面图片上传失败，请稍后重试';
     }
@@ -799,6 +799,7 @@ async function handleCoverSelect(file) {
 }
 
 // 处理从媒体库选择图片
+/** @param {{ url?: string }} selectedMedia */
 function handleMediaSelected(selectedMedia) {
   if (selectedMedia && selectedMedia.url) {
     form.value.featured_image = selectedMedia.url;
@@ -874,6 +875,7 @@ function validateForm() {
   return !hasErrors;
 }
 
+/** @param {string} fieldName */
 function clearFieldError(fieldName) {
   if (formErrors.value[fieldName]) {
     delete formErrors.value[fieldName];
@@ -882,6 +884,7 @@ function clearFieldError(fieldName) {
 }
 
 // 实时验证
+/** @param {string} fieldName @param {unknown} value */
 function handleFieldBlur(fieldName, value) {
   if (showValidation.value) {
     const error = validateField(fieldName, value);
@@ -1219,16 +1222,17 @@ async function submit() {
     
   } catch (e) {
     console.error('❌ Submit error:', e);
-    console.error('❌ Error response:', e.response);
-    console.error('❌ Error response data:', e.response?.data);
-    console.error('❌ Error status:', e.response?.status);
-    console.error('❌ Error message:', e.message);
+    const err = /** @type {{ response?: { data?: { message?: string, code?: unknown }, status?: number }, body?: { code?: unknown }, message?: string }} */ (e);
+    console.error('❌ Error response:', err.response);
+    console.error('❌ Error response data:', err.response?.data);
+    console.error('❌ Error status:', err.response?.status);
+    console.error('❌ Error message:', err.message);
     
-    const code = e.body?.code || e.response?.data?.code;
+    const code = err.body?.code || err.response?.data?.code;
     const mappedError = mapErr(code, '文章发布失败');
     
     // 详细的错误处理
-    if (e.response?.status === 500) {
+    if (err.response?.status === 500) {
       error.value = '服务器内部错误，可能是内容格式问题。请检查文章内容是否包含特殊字符或过长的HTML代码。';
       console.error('❌ 500错误详情:', {
         contentLength: form.value.content_md?.length,
@@ -1240,8 +1244,8 @@ async function submit() {
           tags: form.value.tags_raw
         }
       });
-    } else if (e.response?.data?.message) {
-      error.value = e.response.data.message;
+    } else if (err.response?.data?.message) {
+      error.value = err.response.data.message;
     } else {
       error.value = mappedError;
     }
@@ -1303,12 +1307,13 @@ async function loadCategories() {
     }
     
   } catch (error) {
+    const err = /** @type {{ message?: string, response?: { data?: { message?: string }, status?: number }, config?: { url?: string } }} */ (error);
     console.error('❌ 加载分类列表失败:', error);
     console.error('❌ 错误详情:', {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status,
-      url: error.config?.url
+      message: err.message,
+      response: err.response?.data,
+      status: err.response?.status,
+      url: err.config?.url
     });
     
     // 如果公开接口失败，尝试使用认证接口
@@ -1331,7 +1336,7 @@ async function loadCategories() {
       console.error('❌ 认证接口也失败了:', authError);
     }
     
-    message.critical(`加载分类列表失败: ${error.response?.data?.message || error.message || '网络错误'}`);
+    message.critical(`加载分类列表失败: ${err.response?.data?.message || err.message || '网络错误'}`);
     categories.value = [];
     
     // 最后的降级方案
@@ -1356,6 +1361,7 @@ async function loadCategories() {
 }
 
 // 处理分类选择变化
+/** @param {number} categoryId */
 function handleCategoryChange(categoryId) {
   form.value.category_id = categoryId;
   clearFieldError('category_id');
@@ -1406,6 +1412,7 @@ function updateTagsRaw() {
 }
 
 // 移除标签
+/** @param {string} tag */
 function removeTag(tag) {
   const index = selectedTags.value.indexOf(tag);
   if (index > -1) {
@@ -1425,6 +1432,9 @@ function initSelectedTags() {
 }
 
 // 处理AI推荐选择
+/**
+ * @param {{ category: { id: number, name: string }, confidence?: number, reason?: string }} recommendation
+ */
 function handleRecommendationSelected(recommendation) {
   console.log('🤖 AI推荐分类被选择:', recommendation);
   
@@ -1741,10 +1751,11 @@ async function loadLatestDraft() {
           }, 1000);
           
         } catch (error) {
+          const err = /** @type {{ message?: string }} */ (error);
           console.error('草稿恢复过程中出现错误:', error);
           
           // 检查是否是Vue响应式系统的错误（这种情况下数据可能已经恢复成功）
-          const isVueRenderError = error.message && error.message.includes('__vnode');
+          const isVueRenderError = err.message && err.message.includes('__vnode');
           
           if (isVueRenderError) {
             console.warn('检测到Vue渲染错误，但数据可能已成功恢复');
@@ -1799,6 +1810,7 @@ async function loadLatestDraft() {
 }
 
 // 监听页面离开事件
+/** @param {BeforeUnloadEvent} e */
 function handleBeforeUnload(e) {
   // 如果正在恢复草稿，不阻止导航
   if (isRestoringDraft.value) {
@@ -1817,6 +1829,7 @@ function handleBeforeUnload(e) {
 }
 
 // 键盘快捷键支持
+/** @param {KeyboardEvent} e */
 function handleKeyDown(e) {
   // Ctrl/Cmd 组合键
   const isCtrlOrCmd = e.ctrlKey || e.metaKey;
@@ -1850,7 +1863,9 @@ function handleKeyDown(e) {
           // 触发图片上传
           /** @type {HTMLElement | null} */
           const uploadInput = document.querySelector('.cover-uploader input[type="file"]');
-          uploadInput && uploadInput.click();
+          if (uploadInput) {
+            uploadInput.click();
+          }
         }
         break;
         
@@ -1938,6 +1953,7 @@ watch(() => form.value.content_md, (newValue) => {
 // 生命周期钩子
 onMounted(async () => {
   // 添加Promise错误处理，专门处理__vnode相关错误
+  /** @param {PromiseRejectionEvent} event */
   const handleUnhandledRejection = (event) => {
     if (event.reason && event.reason.message && event.reason.message.includes('__vnode')) {
       console.warn('检测到Vue虚拟节点Promise错误，已静默处理:', event.reason.message);

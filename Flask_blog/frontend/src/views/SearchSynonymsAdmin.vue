@@ -28,6 +28,7 @@ import { setMeta } from '../composables/useMeta';
 const { pushSuccess, pushError } = useNotify();
 const term = ref('');
 const synonymsRaw = ref('');
+/** @type {import('vue').Ref<Array<{ term: string; synonyms: string[] }>>} */
 const list = ref([]);
 const loading = ref(false);
 const error = ref('');
@@ -47,6 +48,7 @@ async function add(){
   } catch(e){ pushError('提交失败'); }
   finally { loading.value=false; }
 }
+/** @param {string} t */
 async function del(t){
   if(!confirm('确定删除该同义词组?')) return;
   loading.value=true; error.value='';

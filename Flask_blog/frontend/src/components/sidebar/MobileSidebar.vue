@@ -154,19 +154,19 @@ import {
 // Props
 const props = defineProps({
   categories: {
-    type: Array,
+    type: /** @type {import('vue').PropType<import('@/types').Category[]>} */ (Array),
     default: () => []
   },
   tags: {
-    type: Array,
+    type: /** @type {import('vue').PropType<import('@/types').Tag[]>} */ (Array),
     default: () => []
   },
   hotArticles: {
-    type: Array,
+    type: /** @type {import('vue').PropType<import('@/types').Article[]>} */ (Array),
     default: () => []
   },
   latestArticles: {
-    type: Array,
+    type: /** @type {import('vue').PropType<import('@/types').Article[]>} */ (Array),
     default: () => []
   },
   selectedCategory: {
@@ -212,22 +212,26 @@ function toggleShowAllTags() {
   showAllTags.value = !showAllTags.value
 }
 
+/** @param {number | string} categoryId */
 function handleCategoryClick(categoryId) {
   emit('category-click', categoryId)
   emit('close')
 }
 
+/** @param {string | undefined} tagSlug */
 function handleTagClick(tagSlug) {
   emit('tag-click', tagSlug)
   emit('close')
 }
 
+/** @param {string | undefined} articleSlug */
 function handleArticleClick(articleSlug) {
   emit('article-click', articleSlug)
   emit('close')
 }
 
 // 工具函数
+/** @param {number} num */
 function formatNumber(num) {
   if (num >= 1000) {
     return (num / 1000).toFixed(1) + 'k'
@@ -235,12 +239,13 @@ function formatNumber(num) {
   return String(num)
 }
 
+/** @param {string | null | undefined} dateString */
 function formatDate(dateString) {
   if (!dateString) return ''
   try {
     const date = new Date(dateString)
     const now = new Date()
-    const diffTime = now - date
+    const diffTime = now.getTime() - date.getTime()
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
     
     if (diffDays === 0) return '今天'

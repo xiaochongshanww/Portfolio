@@ -37,8 +37,8 @@ const emit = defineEmits<{
   'update:date': [value: string]
 }>()
 
-function onToggle(val: boolean) {
-  emit('update:enabled', val)
+function onToggle(val: boolean | string | number) {
+  emit('update:enabled', !!val)
   if (!val) {
     emit('update:date', '')
   }

@@ -157,7 +157,8 @@ const emit = defineEmits([
   'content-rendered',
   'content-error',
   'content-type-detected',
-  'content-click'
+  'content-click',
+  'debug-info-toggle'
 ]);
 
 // 响应式数据
@@ -173,6 +174,7 @@ const isDevelopment = computed(() => {
 });
 
 // 新的内容渲染处理逻辑 - 优先处理数学公式
+/** @param {string} content @param {string} type */
 const processContent = async (content, type) => {
   if (!content) return '';
   
@@ -248,15 +250,17 @@ const processContent = async (content, type) => {
       return purifiedResult;
     }
   } catch (error) {
+    const err = /** @type {{ message?: string }} */ (error);
     console.error('Content processing error:', error);
     return `<div class="content-processing-error">
-      <p>⚠️ 内容处理失败: ${error.message}</p>
+      <p>⚠️ 内容处理失败: ${err.message}</p>
       <pre>${content}</pre>
     </div>`;
   }
 };
 
 // 内容分析
+/** @type {import('vue').ComputedRef<{ type: 'markdown' | 'html_source', confidence: number, features: Record<string, unknown> & { htmlTagCount?: number, inlineStyleCount?: number, htmlDensity?: number, estimatedPreservationNeeded?: boolean, markdownPatterns?: number, specialFeatures?: { hasTableStructure?: boolean, hasMediaElements?: boolean } } }>} */
 const contentAnalysis = computed(() => {
   if (!props.content) {
     return { type: 'markdown', confidence: 1.0, features: {} };
@@ -326,9 +330,10 @@ const renderContent = async () => {
     });
     
   } catch (error) {
+    const err = /** @type {{ message?: string }} */ (error);
     console.error('ContentRenderer: 内容渲染失败', error);
     hasError.value = true;
-    errorMessage.value = '内容渲染失败: ' + error.message;
+    errorMessage.value = '内容渲染失败: ' + (err.message || '');
     processedContent.value = '';
     
     emit('content-error', error);
@@ -357,22 +362,24 @@ const getHTMLContentClasses = () => {
 };
 
 // 内容点击处理
+/** @param {Event} event */
 const handleContentClick = (event) => {
+  const target = /** @type {HTMLElement} */ (event.target);
   emit('content-click', {
     event,
     contentType: contentAnalysis.value.type,
-    target: event.target
+    target
   });
   
   // 处理链接点击
-  if (event.target.tagName === 'A') {
-    const href = event.target.getAttribute('href');
+  if (target.tagName === 'A') {
+    const href = target.getAttribute('href');
     if (href && href.startsWith('#')) {
       // 内部锚点链接处理
       event.preventDefault();
-      const target = document.getElementById(href.substring(1));
-      if (target) {
-        target.scrollIntoView({ behavior: 'smooth' });
+      const anchor = document.getElementById(href.substring(1));
+      if (anchor) {
+        anchor.scrollIntoView({ behavior: 'smooth' });
       }
     }
   }
@@ -460,7 +467,7 @@ onMounted(async () => {
         
         codeBlocks.forEach((block, index) => {
           const hasShikiClass = block.classList.contains('shiki');
-          const hasInlineStyles = block.style.length > 0;
+          const hasInlineStyles = (/** @type {HTMLElement} */ (block)).style.length > 0;
           const hasColorSpans = block.querySelectorAll('span[style*="color"]').length;
           const allSpans = block.querySelectorAll('span').length;
           
@@ -520,6 +527,7 @@ defineExpose({
  * 将渲染后的 HTML 中的 $$...$$ 和 $...$ 用 KaTeX 在客户端渲染为 HTML
  * 仅在 markdown-it-katex 未生成 KaTeX HTML 时作为回退策略
  */
+/** @param {string} html */
 function renderMathWithKatex(html) {
   if (!html) return html;
 

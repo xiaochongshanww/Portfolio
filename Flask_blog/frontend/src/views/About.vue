@@ -364,7 +364,9 @@ const contacts = ref([
 ])
 
 // 获取技能等级样式类
+/** @param {string} label */
 function getLevelClass(label) {
+  /** @type {Record<string, string>} */
   const levelMap = {
     '专家': 'expert',
     '精通': 'proficient', 
@@ -375,7 +377,9 @@ function getLevelClass(label) {
 }
 
 // 获取联系方式链接样式类
+/** @param {string} type */
 function getContactLinkClass(type) {
+  /** @type {Record<string, string>} */
   const classMap = {
     'email': 'email-link',
     'github': 'github-link',
@@ -385,7 +389,9 @@ function getContactLinkClass(type) {
 }
 
 // 获取现代化技能等级样式类
+/** @param {string} label */
 function getModernLevelClass(label) {
+  /** @type {Record<string, string>} */
   const levelMap = {
     '专家': 'level-expert',
     '精通': 'level-proficient', 
@@ -396,7 +402,9 @@ function getModernLevelClass(label) {
 }
 
 // 获取技能等级点数
+/** @param {string} label */
 function getLevelDots(label) {
+  /** @type {Record<string, number>} */
   const dotsMap = {
     '专家': 4,
     '精通': 3, 

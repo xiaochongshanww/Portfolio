@@ -8,7 +8,9 @@ import markdownItKatex from 'markdown-it-katex'
 import { createHighlighter } from 'shiki'
 
 // 全局缓存
+/** @type {any} */
 let highlighterCache = null
+/** @type {any} */
 let mdCache = null
 
 /**
@@ -107,10 +109,16 @@ const createMarkdownProcessor = async () => {
   
   if (highlighter) {
     // 自定义fence渲染规则 - 最简单可靠的方法
-    md.renderer.rules.fence = function (tokens, idx, _options, _env, _renderer) {
+    md.renderer.rules.fence = function (
+      /** @type {any[]} */ tokens,
+      /** @type {number} */ idx,
+      /** @type {any} */ _options,
+      /** @type {any} */ _env,
+      /** @type {any} */ _renderer
+    ) {
       const token = tokens[idx]
       const code = token.content
-      const info = token.info ? token.info.trim() : ''
+      const info = /** @type {string} */ (token.info ? token.info.trim() : '')
       const langName = info.split(/\s+/g)[0]
       
       // 详细调试信息
@@ -126,6 +134,7 @@ const createMarkdownProcessor = async () => {
       
       try {
         // 支持的语言映射
+        /** @type {Record<string, string>} */
         const langMap = {
           'js': 'javascript',
           'ts': 'typescript',
@@ -250,7 +259,8 @@ const createMarkdownProcessor = async () => {
         return html
         
       } catch (error) {
-        console.warn(`⚠️ Shiki渲染失败 (${langName}):`, error.message)
+        const err = /** @type {{ message?: string }} */ (error)
+        console.warn(`⚠️ Shiki渲染失败 (${langName}):`, err.message)
         
         // 降级到基础代码块
         const escapedCode = md.utils.escapeHtml(code)
@@ -263,10 +273,16 @@ const createMarkdownProcessor = async () => {
     console.warn('⚠️ 使用基础代码块渲染')
     
     // 基础代码块渲染
-    md.renderer.rules.fence = function (tokens, idx, _options, _env, _renderer) {
+    md.renderer.rules.fence = function (
+      /** @type {any[]} */ tokens,
+      /** @type {number} */ idx,
+      /** @type {any} */ _options,
+      /** @type {any} */ _env,
+      /** @type {any} */ _renderer
+    ) {
       const token = tokens[idx]
       const code = token.content
-      const info = token.info ? token.info.trim() : ''
+      const info = /** @type {string} */ (token.info ? token.info.trim() : '')
       const langName = info.split(/\s+/g)[0]
       
       const escapedCode = md.utils.escapeHtml(code)
@@ -275,11 +291,23 @@ const createMarkdownProcessor = async () => {
   }
   
   // 3. 自定义图片渲染 - 添加响应式支持
-  const defaultImageRenderer = md.renderer.rules.image || function(tokens, idx, options, env, self) {
+  const defaultImageRenderer = md.renderer.rules.image || function(
+    /** @type {any[]} */ tokens,
+    /** @type {number} */ idx,
+    /** @type {any} */ options,
+    /** @type {any} */ env,
+    /** @type {any} */ self
+  ) {
     return self.renderToken(tokens, idx, options)
   }
   
-  md.renderer.rules.image = function(tokens, idx, options, env, self) {
+  md.renderer.rules.image = function(
+    /** @type {any[]} */ tokens,
+    /** @type {number} */ idx,
+    /** @type {any} */ options,
+    /** @type {any} */ env,
+    /** @type {any} */ self
+  ) {
     const token = tokens[idx]
     token.attrPush(['loading', 'lazy'])
     token.attrPush(['class', 'markdown-image'])
@@ -287,15 +315,33 @@ const createMarkdownProcessor = async () => {
   }
   
   // 4. 自定义表格渲染 - 添加响应式包装
-  const defaultTableOpenRenderer = md.renderer.rules.table_open || function(tokens, idx, options, env, self) {
+  const defaultTableOpenRenderer = md.renderer.rules.table_open || function(
+    /** @type {any[]} */ tokens,
+    /** @type {number} */ idx,
+    /** @type {any} */ options,
+    /** @type {any} */ env,
+    /** @type {any} */ self
+  ) {
     return self.renderToken(tokens, idx, options)
   }
   
-  md.renderer.rules.table_open = function(tokens, idx, _options, _env, _self) {
+  md.renderer.rules.table_open = function(
+    /** @type {any[]} */ tokens,
+    /** @type {number} */ idx,
+    /** @type {any} */ _options,
+    /** @type {any} */ _env,
+    /** @type {any} */ _self
+  ) {
     return '<div class="table-wrapper">' + defaultTableOpenRenderer(tokens, idx, _options, _env, _self)
   }
   
-  md.renderer.rules.table_close = function(_tokens, _idx, _options, _env, _self) {
+  md.renderer.rules.table_close = function(
+    /** @type {any[]} */ _tokens,
+    /** @type {number} */ _idx,
+    /** @type {any} */ _options,
+    /** @type {any} */ _env,
+    /** @type {any} */ _self
+  ) {
     return '</table></div>'
   }
   
@@ -306,6 +352,8 @@ const createMarkdownProcessor = async () => {
 
 /**
  * 主要的Markdown渲染函数
+ * @param {string} content
+ * @returns {Promise<string>}
  */
 export const renderMarkdown = async (content) => {
   if (!content || typeof content !== 'string') {
@@ -333,7 +381,7 @@ export const renderMarkdown = async (content) => {
   
   try {
     const md = await createMarkdownProcessor()
-    const result = md.render(content)
+    const result = /** @type {string} */ (md.render(content))
     
     // 更详细的结果分析
     const resultAnalysis = {
@@ -464,6 +512,8 @@ def hello():
 
 /**
  * 快速测试函数 - 在浏览器控制台中使用
+ * @param {string} [testContent]
+ * @returns {Promise<string | null>}
  */
 export const quickTest = async (testContent) => {
   const content = testContent || `# 快速测试

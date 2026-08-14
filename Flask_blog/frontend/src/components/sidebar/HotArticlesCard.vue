@@ -63,7 +63,7 @@ import { TrendCharts, View, Star, DataLine } from '@element-plus/icons-vue'
 // Props
 const props = defineProps({
   articles: {
-    type: Array,
+    type: /** @type {import('vue').PropType<import('@/types').Article[]>} */ (Array),
     default: () => []
   },
   loading: {
@@ -82,6 +82,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // 工具函数
+/** @param {number} num */
 function formatNumber(num) {
   if (num >= 1000) {
     return (num / 1000).toFixed(1) + 'k'
@@ -89,12 +90,13 @@ function formatNumber(num) {
   return String(num)
 }
 
+/** @param {string | undefined} dateString */
 function formatDate(dateString) {
   if (!dateString) return ''
   try {
     const date = new Date(dateString)
     const now = new Date()
-    const diffTime = now - date
+    const diffTime = now.getTime() - date.getTime()
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
     
     if (diffDays === 0) return '今天'

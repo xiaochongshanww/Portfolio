@@ -261,7 +261,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { 
@@ -283,12 +283,16 @@ const stats = ref({
   totalUsers: 0
 });
 
-const todos = ref<any[]>([]);
-const recentArticles = ref<any[]>([]);
-const activities = ref<any[]>([]);
+/** @type {import('vue').Ref<Array<{ id: number, title: string, type: string, created_at: string }>>} */
+const todos = ref([]);
+/** @type {import('vue').Ref<import('@/types').Article[]>} */
+const recentArticles = ref([]);
+/** @type {import('vue').Ref<any[]>} */
+const activities = ref([]);
 
 // 权限检查
-function hasRole(roles: string[]): boolean {
+/** @param {string[]} roles */
+function hasRole(roles) {
   return roles.includes(userStore.user?.role || '');
 }
 
@@ -312,17 +316,22 @@ function navigateToUsers() {
 }
 
 // 状态类型映射
-function getStatusType(status: string): string {
+/**
+ * @param {string | undefined} status
+ * @returns {'info' | 'success' | 'primary' | 'warning' | 'danger'}
+ */
+function getStatusType(status) {
   switch (status) {
     case 'published': return 'success';
     case 'pending': return 'warning';
     case 'draft': return 'info';
     case 'rejected': return 'danger';
-    default: return '';
+    default: return 'info';
   }
 }
 
-function getStatusText(status: string): string {
+/** @param {string | undefined} status */
+function getStatusText(status) {
   switch (status) {
     case 'published': return '已发布';
     case 'pending': return '待审核';
@@ -332,16 +341,21 @@ function getStatusText(status: string): string {
   }
 }
 
-function getTodoType(type: string): string {
+/**
+ * @param {string | undefined} type
+ * @returns {'info' | 'success' | 'primary' | 'warning' | 'danger'}
+ */
+function getTodoType(type) {
   switch (type) {
     case 'review': return 'warning';
     case 'schedule': return 'info';
     case 'urgent': return 'danger';
-    default: return '';
+    default: return 'info';
   }
 }
 
-function getTodoText(type: string): string {
+/** @param {string | undefined} type */
+function getTodoText(type) {
   switch (type) {
     case 'review': return '待审核';
     case 'schedule': return '定时发布';
@@ -350,7 +364,8 @@ function getTodoText(type: string): string {
   }
 }
 
-function getActivityIcon(action: string): string {
+/** @param {string | undefined} action */
+function getActivityIcon(action) {
   switch (action) {
     case 'submit': return 'Upload';
     case 'approve': return 'Check';
@@ -361,7 +376,8 @@ function getActivityIcon(action: string): string {
   }
 }
 
-function getActivityText(activity: any): string {
+/** @param {any} activity */
+function getActivityText(activity) {
   const user = activity.operator?.nickname || activity.operator?.email || '用户';
   const article = activity.article?.title || '文章';
   
@@ -375,11 +391,13 @@ function getActivityText(activity: any): string {
   }
 }
 
-function formatDate(dateStr: string): string {
+/** @param {any} dateStr */
+function formatDate(dateStr) {
   return new Date(dateStr).toLocaleDateString('zh-CN');
 }
 
-function formatRelativeTime(dateStr: string): string {
+/** @param {any} dateStr */
+function formatRelativeTime(dateStr) {
   const now = new Date();
   const date = new Date(dateStr);
   const diff = now.getTime() - date.getTime();
@@ -486,7 +504,8 @@ async function loadAuthorStats() {
 async function loadRecentArticles() {
   try {
     let url = '/articles/';
-    let params: any = { page: 1, page_size: 5, sort: 'created_at', order: 'desc' };
+    /** @type {Record<string, any>} */
+    const params = { page: 1, page_size: 5, sort: 'created_at', order: 'desc' };
     
     // 作者只看自己的文章
     if (userStore.user?.role === 'author') {

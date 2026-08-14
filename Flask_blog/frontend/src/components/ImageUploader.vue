@@ -10,13 +10,16 @@ import { ref } from 'vue';
 import api from '../apiClient';
 
 const emit = defineEmits(['uploaded']);
+/** @type {import('vue').Ref<HTMLInputElement | null>} */
 const input = ref(null);
 const uploading = ref(false);
 const error = ref('');
 
 function select(){ if(input.value){ input.value.click(); } }
+/** @param {Event} e */
 async function onFile(e){
-  const f = e.target.files && e.target.files[0];
+  const target = /** @type {HTMLInputElement} */ (e.target);
+  const f = target.files && target.files[0];
   if(!f) return;
   error.value='';
   const fd = new FormData();

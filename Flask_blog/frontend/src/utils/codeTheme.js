@@ -13,8 +13,15 @@ export const codeThemes = [
 // 全局主题状态
 export const currentTheme = ref('github-dark');
 
+/** @typedef {{ background: string, color: string, border: string, comment: string, keyword: string, string: string, function: string, number: string, variable: string }} ThemeColors */
+
 // 主题颜色配置
+/**
+ * @param {string} theme
+ * @returns {ThemeColors}
+ */
 export const getThemeColors = (theme) => {
+  /** @type {Record<string, ThemeColors>} */
   const themes = {
     'github-dark': {
       background: '#0d1117',
@@ -77,6 +84,10 @@ export const getThemeColors = (theme) => {
 };
 
 // 动态更新主题样式
+/**
+ * @param {string} theme
+ * @param {string} [_targetContainer]
+ */
 export const updateGlobalCodeTheme = (theme, _targetContainer = 'body') => {
   const themeColors = getThemeColors(theme);
   const styleId = 'global-code-theme';
@@ -143,6 +154,9 @@ export const updateGlobalCodeTheme = (theme, _targetContainer = 'body') => {
 };
 
 // 切换主题
+/**
+ * @param {string} theme
+ */
 export const switchTheme = (theme) => {
   currentTheme.value = theme;
   localStorage.setItem('codeTheme', theme);

@@ -3,12 +3,16 @@
  * 智能识别HTML源码内容和Markdown内容，为不同类型采用不同的渲染策略
  */
 
+/** @typedef {{ hasCSSClasses: boolean, hasIDs: boolean, hasDataAttributes: boolean, hasTableStructure: boolean, hasFormElements: boolean, hasMediaElements: boolean, hasSemanticElements: boolean }} HTMLFeatures */
+/** @typedef {{ htmlTagCount: number, inlineStyleCount: number, complexStructureCount: number, markdownPatterns: number, totalLength: number, hasSpecialHTMLFeatures: HTMLFeatures }} AnalysisData */
+/** @typedef {{ type: 'markdown' | 'html_source', confidence: number, features: Record<string, unknown> }} ContentAnalysis */
+
 export class ContentTypeDetector {
   
   /**
    * 分析内容并返回类型检测结果
    * @param {string} htmlContent - 要分析的HTML内容
-   * @returns {Object} 检测结果，包含类型、置信度和特征信息
+   * @returns {ContentAnalysis} 检测结果，包含类型、置信度和特征信息
    */
   static analyzeContent(htmlContent) {
     // 输入验证
@@ -32,17 +36,20 @@ export class ContentTypeDetector {
       
       return this.classifyContent(analysis, htmlContent);
     } catch (error) {
+      const err = /** @type {{ message?: string }} */ (error);
       console.warn('ContentTypeDetector: 分析过程中出现错误', error);
       return { 
         type: 'markdown', 
         confidence: 0.5,
-        features: { reason: 'analysis_error', error: error.message }
+        features: { reason: 'analysis_error', error: err.message }
       };
     }
   }
   
   /**
    * 统计HTML标签数量（更精确的实现）
+   * @param {string} content
+   * @returns {number}
    */
   static countHTMLTags(content) {
     // 匹配所有HTML标签，包括自闭合标签
@@ -53,6 +60,8 @@ export class ContentTypeDetector {
   
   /**
    * 统计内联样式数量
+   * @param {string} content
+   * @returns {number}
    */
   static countInlineStyles(content) {
     // 匹配style属性，支持单引号、双引号和无引号
@@ -63,6 +72,8 @@ export class ContentTypeDetector {
   
   /**
    * 统计复杂HTML结构元素
+   * @param {string} content
+   * @returns {number}
    */
   static countComplexStructures(content) {
     // 检测典型的HTML布局和结构元素
@@ -83,6 +94,8 @@ export class ContentTypeDetector {
   
   /**
    * 统计Markdown模式的特征
+   * @param {string} content
+   * @returns {number}
    */
   static countMarkdownPatterns(content) {
     const patterns = {
@@ -119,6 +132,8 @@ export class ContentTypeDetector {
   
   /**
    * 检测特殊的HTML特征
+   * @param {string} content
+   * @returns {HTMLFeatures}
    */
   static detectSpecialHTMLFeatures(content) {
     const features = {
@@ -149,6 +164,9 @@ export class ContentTypeDetector {
   
   /**
    * 基于分析结果对内容进行分类
+   * @param {AnalysisData} analysis
+   * @param {string} _originalContent
+   * @returns {ContentAnalysis}
    */
   static classifyContent(analysis, _originalContent) {
     const {
@@ -219,6 +237,8 @@ export class ContentTypeDetector {
   
   /**
    * 检测强HTML指示器
+   * @param {AnalysisData} analysis
+   * @returns {boolean}
    */
   static hasStrongHTMLIndicators(analysis) {
     const { 
@@ -250,6 +270,8 @@ export class ContentTypeDetector {
   
   /**
    * 计算HTML特征分数
+   * @param {{ inlineStyleCount: number, complexStructureCount: number, hasSpecialHTMLFeatures: HTMLFeatures, htmlDensity: number }} param
+   * @returns {number}
    */
   static calculateHTMLFeatureScore({ inlineStyleCount, complexStructureCount, hasSpecialHTMLFeatures, htmlDensity }) {
     let score = 0;
@@ -273,6 +295,8 @@ export class ContentTypeDetector {
   
   /**
    * 计算Markdown特征分数
+   * @param {number} markdownPatterns
+   * @returns {number}
    */
   static calculateMarkdownFeatureScore(markdownPatterns) {
     return Math.min(markdownPatterns * 0.2, 3.0);
@@ -280,6 +304,8 @@ export class ContentTypeDetector {
   
   /**
    * 获取内容类型的中文描述
+   * @param {ContentAnalysis} analysisResult
+   * @returns {string}
    */
   static getTypeDescription(analysisResult) {
     const { type, confidence } = analysisResult;
@@ -294,6 +320,7 @@ export class ContentTypeDetector {
   
   /**
    * 批量分析多个内容
+   * @param {string[]} contentList
    */
   static batchAnalyze(contentList) {
     if (!Array.isArray(contentList)) {
@@ -309,5 +336,13 @@ export class ContentTypeDetector {
 }
 
 // 导出默认实例方法，方便直接使用
+/**
+ * @param {string} content
+ * @returns {ContentAnalysis}
+ */
 export const detectContentType = (content) => ContentTypeDetector.analyzeContent(content);
+/**
+ * @param {ContentAnalysis} analysisResult
+ * @returns {string}
+ */
 export const getTypeDescription = (analysisResult) => ContentTypeDetector.getTypeDescription(analysisResult);

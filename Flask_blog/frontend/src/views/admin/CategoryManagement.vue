@@ -211,7 +211,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, reactive, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus, Folder, Edit, Delete, Refresh, DataBoard } from '@element-plus/icons-vue';
@@ -224,7 +224,9 @@ const dialogVisible = ref(false);
 const dialogMode = ref('create');
 const editingId = ref(null);
 
+/** @type {import('vue').Ref<import('@/types').Category[]>} */
 const categories = ref([]);
+/** @type {import('vue').Ref<any>} */
 const formRef = ref();
 
 // 统计数据
@@ -242,6 +244,7 @@ const form = reactive({
 });
 
 // 表单验证规则
+/** @type {import('element-plus').FormRules} */
 const formRules = {
   name: [
     { required: true, message: '请输入分类名称', trigger: 'blur' },
@@ -254,6 +257,11 @@ const formRules = {
 
 // 计算属性：构建树形数据
 const treeData = computed(() => {
+  /**
+   * @param {any[]} items
+   * @param {any} [parentId]
+   * @returns {any[]}
+   */
   const buildTree = (items, parentId = null) => {
     return items
       .filter(item => item.parent_id === parentId)
@@ -267,7 +275,9 @@ const treeData = computed(() => {
 
 // 计算属性：父分类选项（用于下拉选择）
 const parentOptions = computed(() => {
+  /** @param {any[]} items @param {number} [level] */
   const getOptions = (items, level = 0) => {
+    /** @type {any[]} */
     let options = [];
     items.forEach(item => {
       options.push({
@@ -307,6 +317,7 @@ const loadData = async () => {
 };
 
 // 显示创建对话框
+/** @param {any} [parent] */
 const showCreateDialog = (parent = null) => {
   dialogMode.value = 'create';
   editingId.value = null;
@@ -318,6 +329,7 @@ const showCreateDialog = (parent = null) => {
 };
 
 // 显示编辑对话框
+/** @param {any} category */
 const showEditDialog = (category) => {
   dialogMode.value = 'edit';
   editingId.value = category.id;
@@ -390,10 +402,12 @@ const handleSubmit = async () => {
 };
 
 // 删除分类
+/** @param {any} category */
 const handleDelete = async (category) => {
   try {
     let confirmMessage = '';
     let confirmTitle = '';
+    /** @type {any} */
     let confirmOptions = {
       confirmButtonText: '确定删除',
       cancelButtonText: '取消'

@@ -36,19 +36,19 @@ import LatestArticlesCard from './LatestArticlesCard.vue'
 // Props
 const props = defineProps({
   categories: {
-    type: Array,
+    type: /** @type {import('vue').PropType<import('@/types').Category[]>} */ (Array),
     default: () => []
   },
   tags: {
-    type: Array,
+    type: /** @type {import('vue').PropType<import('@/types').Tag[]>} */ (Array),
     default: () => []
   },
   hotArticles: {
-    type: Array,
+    type: /** @type {import('vue').PropType<import('@/types').Article[]>} */ (Array),
     default: () => []
   },
   latestArticles: {
-    type: Array,
+    type: /** @type {import('vue').PropType<import('@/types').Article[]>} */ (Array),
     default: () => []
   },
   hotLoading: {

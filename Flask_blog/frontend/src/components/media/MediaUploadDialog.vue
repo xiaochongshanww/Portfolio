@@ -104,7 +104,7 @@
               clearable
               style="width: 100%"
             >
-              <el-option label="根目录" :value="null" />
+              <el-option label="根目录" :value="0" />
               <el-option 
                 v-for="folder in availableFolders"
                 :key="folder.id"
@@ -179,13 +179,20 @@ export default {
   emits: ['update:visible', 'uploaded'],
   setup(props, { emit }) {
     const uploadRef = ref()
+    /**
+     * @typedef {{ name: string, size: number, type: string, file: File, preview: string, dimensions?: string, status: 'ready' | 'pending' | 'uploading' | 'success' | 'error', progress: number, response?: unknown, error?: string }} UploadFileItem
+     * @type {import('vue').Ref<UploadFileItem[]>}
+     */
     const fileList = ref([])
     const uploading = ref(false)
+    /** @type {import('vue').Ref<Array<{ id: number, name: string }>>} */
     const availableFolders = ref([])
+    /** @type {import('vue').Ref<string[]>} */
     const availableTags = ref([])
     
+    /** @type {import('vue').Ref<{ folderId: number | null, visibility: string, tags: string[] }>} */
     const uploadSettings = ref({
-      folderId: props.currentFolderId,
+      folderId: props.currentFolderId ?? null,
       visibility: 'private',
       tags: []
     })
@@ -222,6 +229,7 @@ export default {
     })
 
     // 格式化文件大小
+    /** @param {number} bytes */
     const formatFileSize = (bytes) => {
       if (bytes === 0) return '0 B'
       const k = 1024
@@ -231,11 +239,12 @@ export default {
     }
 
     // 生成文件预览
+    /** @param {File} file @returns {Promise<string | null>} */
     const generatePreview = (file) => {
       return new Promise((resolve) => {
         if (file.type.startsWith('image/')) {
           const reader = new FileReader()
-          reader.onload = (e) => resolve(e.target.result)
+          reader.onload = (e) => resolve(typeof e.target?.result === 'string' ? e.target.result : null)
           reader.readAsDataURL(file)
         } else {
           resolve(null)
@@ -244,6 +253,7 @@ export default {
     }
 
     // 获取图片尺寸
+    /** @param {File} file @returns {Promise<string | null>} */
     const getImageDimensions = (file) => {
       return new Promise((resolve) => {
         if (file.type.startsWith('image/')) {
@@ -259,6 +269,7 @@ export default {
     }
 
     // 上传前检查
+    /** @param {File} file */
     const beforeUpload = async (file) => {
       // 检查文件类型
       const isImage = file.type.startsWith('image/')
@@ -281,13 +292,14 @@ export default {
       ])
 
       // 添加到文件列表
+      /** @type {UploadFileItem} */
       const fileItem = {
         name: file.name,
         size: file.size,
         type: file.type,
         file: file,
-        preview: preview,
-        dimensions: dimensions,
+        preview: preview || '',
+        dimensions: dimensions || undefined,
         status: 'ready',
         progress: 0
       }
@@ -318,7 +330,7 @@ export default {
 
           const formData = new FormData()
           formData.append('file', fileItem.file)
-          formData.append('folder_id', uploadSettings.value.folderId || '')
+          formData.append('folder_id', String(uploadSettings.value.folderId ?? ''))
           formData.append('visibility', uploadSettings.value.visibility)
           formData.append('tags', JSON.stringify(uploadSettings.value.tags))
 
@@ -340,7 +352,7 @@ export default {
 
         } catch (error) {
           fileItem.status = 'error'
-          fileItem.error = error
+          fileItem.error = typeof error === 'string' ? error : (error instanceof Error ? error.message : '上传失败')
           errorCount++
           console.error(`文件 ${fileItem.name} 上传失败:`, error)
         }
@@ -361,6 +373,7 @@ export default {
     }
 
     // 移除文件
+    /** @param {number} index */
     const removeFile = (index) => {
       fileList.value.splice(index, 1)
     }
@@ -374,6 +387,7 @@ export default {
     const handleUploadSuccess = () => {}
 
     // 处理上传错误
+    /** @param {unknown} error */
     const handleUploadError = (error) => {
       console.error('上传错误:', error)
     }

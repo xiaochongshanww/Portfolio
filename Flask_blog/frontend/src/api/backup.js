@@ -4,6 +4,7 @@
  */
 import API from './index'
 
+/** @param {string} name */
 const deprecate = (name) =>
   console.warn(`[deprecated] backupApi.${name}() — 请改用 API.${name}()`)
 
@@ -11,9 +12,15 @@ const deprecate = (name) =>
  * @type {Record<string, (...args: any[]) => Promise<any>>}
  */
 const api = new Proxy({}, {
-  get(_, method) {
-    deprecate(method)
-    return (...args) => API[method]?.(...args)
+  /**
+   * @param {object} _target
+   * @param {string | symbol} method
+   */
+  get(_target, method) {
+    const name = String(method)
+    deprecate(name)
+    /** @type {(...args: unknown[]) => any} */
+    return (...args) => API[name]?.(...args)
   },
 })
 

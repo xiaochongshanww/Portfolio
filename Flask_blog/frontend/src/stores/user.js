@@ -12,24 +12,31 @@ export const useUserStore = defineStore('user', {
   }),
   
   getters: {
-    hasRole: (state) => (roles) => {
-      if (!Array.isArray(roles)) roles = [roles];
-      return state.user && roles.includes(state.user.role);
-    },
+    hasRole: (state) => (
+      /** @param {string | string[]} roles */ 
+      (roles) => {
+        if (!Array.isArray(roles)) roles = [roles];
+        return state.user && roles.includes(state.user.role || '');
+      }
+    ),
     
     isAdmin: (state) => state.user?.role === 'admin',
     isEditor: (state) => state.user?.role === 'editor',
     isAuthor: (state) => state.user?.role === 'author',
     
     canAccessAdmin: (state) => {
-      return state.user && ['admin', 'editor', 'author'].includes(state.user.role);
+      return state.user && ['admin', 'editor', 'author'].includes(state.user.role || '');
     },
     
     canManageUsers: (state) => state.user?.role === 'admin',
-    canModerateContent: (state) => state.user && ['admin', 'editor'].includes(state.user.role)
+    canModerateContent: (state) => state.user && ['admin', 'editor'].includes(state.user.role || '')
   },
   
   actions: {
+    /**
+     * @param {string} token
+     * @param {string} role
+     */
     setAuth(token, role) {
       this.token = token; 
       this.role = role;
@@ -50,7 +57,7 @@ export const useUserStore = defineStore('user', {
         this.user = response.data.data;
         this.isAuthenticated = true;
         // 同步角色信息
-        if (this.user.role !== this.role) {
+        if (this.user && this.user.role && this.user.role !== this.role) {
           this.role = this.user.role;
           localStorage.setItem('role', this.user.role);
         }
@@ -59,7 +66,8 @@ export const useUserStore = defineStore('user', {
         console.error('获取用户信息失败:', error);
         // 如果token无效，清除认证信息
         // 但要区分是初始化调用还是正常使用中的调用
-        if (error.response?.status === 401) {
+        const err = /** @type {{ response?: { status?: number } }} */ (error);
+        if (err.response?.status === 401) {
           console.log('🔐 API返回401，token可能已失效');
           // 可以在这里添加更智能的处理逻辑
           // 比如尝试刷新token，或者只在用户主动操作时才logout
@@ -69,6 +77,10 @@ export const useUserStore = defineStore('user', {
       }
     },
     
+    /**
+     * @param {string} token
+     * @param {string} role
+     */
     async login(token, role) {
       this.setAuth(token, role);
       await this.fetchUserInfo();
@@ -105,7 +117,8 @@ export const useUserStore = defineStore('user', {
           console.log('🔐 用户信息获取完成，认证状态:', this.isAuthenticated);
           console.log('🔐 用户信息:', this.user);
         } catch (error) {
-          console.log('🔐 初始化时获取用户信息失败，保持当前认证状态:', error.message);
+          const err = /** @type {{ message?: string }} */ (error);
+          console.log('🔐 初始化时获取用户信息失败，保持当前认证状态:', err.message);
           // 不在初始化时自动logout，让用户有机会正常使用
           // 实际的API调用失败时会处理认证问题
         }

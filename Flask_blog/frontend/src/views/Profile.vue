@@ -406,6 +406,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { UsersService, UploadsService } from '../generated';
+import apiClient from '../apiClient';
 import { useNotify } from '../composables/useNotify';
 import { setMeta } from '../composables/useMeta';
 import { getUserDisplayName } from '../utils/userDisplay';
@@ -442,12 +443,14 @@ const form = ref({
 });
 
 // 原始数据备份（用于重置）
-const originalForm = ref({});
+/** @type {import('vue').Ref<{ nickname: string; bio: string; avatar: string; social_links_raw: string }>} */
+const originalForm = ref({ nickname: '', bio: '', avatar: '', social_links_raw: '' });
 
 // 密码修改相关状态
 const changingPassword = ref(false);
 const passwordChanged = ref(false);
 const passwordError = ref('');
+/** @type {import('vue').Ref<{ validate: () => Promise<boolean>; clearValidate: () => void } | null>} */
 const passwordFormRef = ref(null);
 
 // 密码表单数据
@@ -499,7 +502,8 @@ const socialLinksError = computed(() => {
     }
     return null;
   } catch (e) {
-    return `JSON 格式错误: ${e.message}`;
+    const err = /** @type {{ message?: string }} */ (e);
+    return `JSON 格式错误: ${err.message}`;
   }
 });
 
@@ -551,13 +555,13 @@ const passwordStrengthText = computed(() => {
 async function load() {
   try {
     const r = await UsersService.getApiV1UsersMe();
-    const d = r.data?.data || r.data || r;
+    const d = r.data;
     
-    form.value.nickname = d.nickname || '';
-    form.value.bio = d.bio || '';
-    form.value.avatar = d.avatar || '';
+    form.value.nickname = d?.nickname || '';
+    form.value.bio = d?.bio || '';
+    form.value.avatar = d?.avatar || '';
     
-    if (d.social_links) {
+    if (d?.social_links) {
       form.value.social_links_raw = JSON.stringify(d.social_links, null, 2);
     }
     
@@ -610,8 +614,9 @@ async function save() {
     console.error('Profile save error:', e);
     
     // 提取详细错误信息
-    if (e.response?.data) {
-      const errorData = e.response.data;
+    const err = /** @type {{ response?: { data?: { message?: string, data?: unknown } }, message?: string }} */ (e);
+    if (err.response?.data) {
+      const errorData = err.response.data;
       if (errorData.message) {
         error.value = errorData.message;
         // 如果有具体的验证错误信息，也显示出来
@@ -621,8 +626,8 @@ async function save() {
       } else {
         error.value = '保存失败，请检查输入信息';
       }
-    } else if (e.message) {
-      error.value = `保存失败: ${e.message}`;
+    } else if (err.message) {
+      error.value = `保存失败: ${err.message}`;
     } else {
       error.value = '保存失败，请稍后重试';
     }
@@ -651,6 +656,7 @@ function handleAvatarLoad() {
 }
 
 // 文件上传处理函数
+/** @param {{ raw?: File }} file */
 async function handleFileSelect(file) {
   if (!file || !file.raw) return;
   
@@ -718,8 +724,9 @@ async function handleFileSelect(file) {
   } catch (e) {
     console.error('Avatar upload error:', e);
     
-    if (e.response?.data?.message) {
-      error.value = `上传失败: ${e.response.data.message}`;
+    const err = /** @type {{ response?: { data?: { message?: string } } }} */ (e);
+    if (err.response?.data?.message) {
+      error.value = `上传失败: ${err.response.data.message}`;
     } else {
       error.value = '头像上传失败，请稍后重试';
     }
@@ -730,6 +737,11 @@ async function handleFileSelect(file) {
 }
 
 // 密码验证函数
+/**
+ * @param {unknown} rule
+ * @param {string | undefined} value
+ * @param {(err?: Error) => void} callback
+ */
 function validateNewPassword(rule, value, callback) {
   if (!value) {
     callback(new Error('请输入新密码'));
@@ -759,6 +771,11 @@ function validateNewPassword(rule, value, callback) {
   callback();
 }
 
+/**
+ * @param {unknown} rule
+ * @param {string | undefined} value
+ * @param {(err?: Error) => void} callback
+ */
 function validateConfirmPassword(rule, value, callback) {
   if (!value) {
     callback(new Error('请确认新密码'));
@@ -792,7 +809,7 @@ async function changePassword() {
   try {
     // 获取用户邮箱
     const userInfo = await UsersService.getApiV1UsersMe();
-    const userEmail = userInfo.data?.data?.email || userInfo.data?.email;
+    const userEmail = userInfo.data?.email;
     
     if (!userEmail) {
       passwordError.value = '无法获取用户邮箱信息';
@@ -847,8 +864,9 @@ async function changePassword() {
   } catch (error) {
     console.error('Password change error:', error);
     
-    if (error.response?.data) {
-      const errorData = error.response.data;
+    const err = /** @type {{ response?: { data?: { message?: string } } }} */ (error);
+    if (err.response?.data) {
+      const errorData = err.response.data;
       passwordError.value = errorData.message || '密码修改失败';
     } else {
       passwordError.value = '网络错误，请稍后重试';

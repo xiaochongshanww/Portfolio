@@ -3,6 +3,10 @@
  * 基于文章标题、内容和标签智能推荐相关分类
  */
 
+/** @typedef {import('../types').Category} Category */
+/** @typedef {{ category: Category, score: number, reason: string }} CategoryRecommendation */
+/** @typedef {{ category: Category, score: number, reasons: string[] }} MergedRecommendation */
+
 /**
  * 分类关键词映射表
  * 根据内容特征推荐对应分类
@@ -92,6 +96,7 @@ const CATEGORY_KEYWORDS = {
 /**
  * 热门分类权重配置
  */
+/** @type {Record<string, number>} */
 const POPULAR_CATEGORIES_BOOST = {
   '前端开发': 1.3,
   '后端开发': 1.2,
@@ -154,12 +159,13 @@ function calculateSimilarityScore(text, keywords) {
 /**
  * 基于标签推荐分类
  * @param {string[]} tags - 文章标签
- * @param {Object[]} categories - 可用分类列表
- * @returns {Object[]} 推荐分类及得分
+ * @param {Category[]} categories - 可用分类列表
+ * @returns {CategoryRecommendation[]} 推荐分类及得分
  */
 function recommendByTags(tags, categories) {
   if (!tags || !Array.isArray(tags) || tags.length === 0) return [];
   
+  /** @type {CategoryRecommendation[]} */
   const recommendations = [];
   const tagText = tags.join(' ');
   
@@ -168,7 +174,7 @@ function recommendByTags(tags, categories) {
     if (score > 0) {
       const category = categories.find(cat => 
         cat.name === categoryName || 
-        cat.name.toLowerCase().includes(categoryName.toLowerCase())
+        (cat.name || '').toLowerCase().includes(categoryName.toLowerCase())
       );
       if (category) {
         recommendations.push({
@@ -188,10 +194,11 @@ function recommendByTags(tags, categories) {
  * @param {string} title - 文章标题
  * @param {string} content - 文章内容
  * @param {string} summary - 文章摘要
- * @param {Object[]} categories - 可用分类列表
- * @returns {Object[]} 推荐分类及得分
+ * @param {Category[]} categories - 可用分类列表
+ * @returns {CategoryRecommendation[]} 推荐分类及得分
  */
 function recommendByContent(title, content, summary, categories) {
+  /** @type {CategoryRecommendation[]} */
   const recommendations = [];
   
   console.log('📊 内容推荐分析 - 输入数据:', { 
@@ -233,20 +240,22 @@ function recommendByContent(title, content, summary, categories) {
     if (score > 0) {
       // 更灵活的分类匹配策略
       const category = categories.find(cat => {
+        const catName = cat.name || '';
         const exact = cat.name === categoryName;
-        const contains = cat.name.toLowerCase().includes(categoryName.toLowerCase());
-        const reverseContains = categoryName.toLowerCase().includes(cat.name.toLowerCase());
+        const contains = catName.toLowerCase().includes(categoryName.toLowerCase());
+        const reverseContains = categoryName.toLowerCase().includes(catName.toLowerCase());
         
         // 特殊匹配规则 - 技术到分类的映射
+        /** @type {Record<string, boolean>} */
         const specialMatches = {
           '前端开发': ['Vue.js', 'React', 'JavaScript', 'vue', 'react', 'javascript'].some(tech => 
-            cat.name.toLowerCase().includes(tech.toLowerCase()) || tech.toLowerCase().includes(cat.name.toLowerCase())
+            catName.toLowerCase().includes(tech.toLowerCase()) || tech.toLowerCase().includes(catName.toLowerCase())
           ),
           '后端开发': ['Python', 'Flask', 'Django', 'python', 'flask', 'django'].some(tech => 
-            cat.name.toLowerCase().includes(tech.toLowerCase()) || tech.toLowerCase().includes(cat.name.toLowerCase())
+            catName.toLowerCase().includes(tech.toLowerCase()) || tech.toLowerCase().includes(catName.toLowerCase())
           ),
           '人工智能': ['机器学习', '深度学习', 'machine learning', 'deep learning'].some(tech => 
-            cat.name.toLowerCase().includes(tech.toLowerCase()) || tech.toLowerCase().includes(cat.name.toLowerCase())
+            catName.toLowerCase().includes(tech.toLowerCase()) || tech.toLowerCase().includes(catName.toLowerCase())
           )
         };
         
@@ -278,14 +287,10 @@ function recommendByContent(title, content, summary, categories) {
 
 /**
  * 智能推荐分类
- * @param {Object} articleData - 文章数据
- * @param {string} articleData.title - 文章标题
- * @param {string} articleData.content - 文章内容
- * @param {string} articleData.summary - 文章摘要
- * @param {string[]} articleData.tags - 文章标签
- * @param {Object[]} categories - 可用分类列表
- * @param {Object} options - 推荐选项
- * @returns {Object[]} 推荐结果
+ * @param {{ title?: string, content?: string, summary?: string, tags?: string[] }} articleData - 文章数据
+ * @param {Category[]} categories - 可用分类列表
+ * @param {{ maxRecommendations?: number, minScore?: number, includeReason?: boolean }} [options] - 推荐选项
+ * @returns {{ category: Category, score: number, confidence?: number, reason?: string }[]} 推荐结果
  */
 export function recommendCategories(articleData, categories, options = {}) {
   const {
@@ -303,11 +308,11 @@ export function recommendCategories(articleData, categories, options = {}) {
   // 如果所有输入都为空，返回热门分类
   if (!title && !content && !summary && tags.length === 0) {
     return categories
-      .filter(cat => POPULAR_CATEGORIES_BOOST[cat.name])
+      .filter(cat => cat.name && POPULAR_CATEGORIES_BOOST[cat.name])
       .slice(0, maxRecommendations)
       .map(category => ({
         category,
-        score: POPULAR_CATEGORIES_BOOST[category.name] || 1,
+        score: POPULAR_CATEGORIES_BOOST[category.name ?? ''] || 1,
         reason: '热门分类推荐'
       }));
   }
@@ -357,8 +362,8 @@ export function recommendCategories(articleData, categories, options = {}) {
 /**
  * 获取相关分类建议
  * @param {number} selectedCategoryId - 已选分类ID
- * @param {Object[]} categories - 所有分类
- * @returns {Object[]} 相关分类列表
+ * @param {Category[]} categories - 所有分类
+ * @returns {(Category & { relation: string })[]} 相关分类列表
  */
 export function getRelatedCategories(selectedCategoryId, categories) {
   if (!selectedCategoryId || !categories) return [];
@@ -366,6 +371,7 @@ export function getRelatedCategories(selectedCategoryId, categories) {
   const selectedCategory = categories.find(cat => cat.id === selectedCategoryId);
   if (!selectedCategory) return [];
   
+  /** @type {(Category & { relation: string })[]} */
   const related = [];
   
   // 同级分类（相同parent_id）
@@ -393,9 +399,9 @@ export function getRelatedCategories(selectedCategoryId, categories) {
 /**
  * 验证分类选择的合理性
  * @param {number} categoryId - 分类ID
- * @param {Object} articleData - 文章数据
- * @param {Object[]} categories - 分类列表
- * @returns {Object} 验证结果
+ * @param {{ title?: string, content?: string }} articleData - 文章数据
+ * @param {Category[]} categories - 分类列表
+ * @returns {{ valid: boolean, warning?: string | null, error?: string }} 验证结果
  */
 export function validateCategorySelection(categoryId, articleData, categories) {
   if (!categoryId) {

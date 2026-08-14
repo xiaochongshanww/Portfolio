@@ -49,6 +49,7 @@ import { ref, reactive, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import apiClient from '../apiClient';
 
+/** @type {import('vue').Ref<import('@/types').User[]>} */
 const users = ref([]);
 const loading = ref(false);
 const pagination = reactive({
@@ -65,8 +66,10 @@ const roles = ref([
 
 // --- API 调用封装 ---
 const api = {
+  /** @param {number} page @param {number} pageSize */
   getUsers: (page, pageSize) => 
     apiClient.get(`/users/?page=${page}&page_size=${pageSize}`),
+  /** @param {number} id @param {string} role */
   updateUserRole: (id, role) => 
     apiClient.patch(`/users/${id}/role`, { role }),
 };
@@ -92,12 +95,14 @@ onMounted(() => {
 });
 
 // --- 分页操作 ---
+/** @param {number} newPage */
 const handlePageChange = (newPage) => {
   pagination.page = newPage;
   fetchUsers();
 };
 
 // --- 角色修改 ---
+/** @param {number} id @param {string} newRole */
 const handleRoleChange = async (id, newRole) => {
   try {
     await api.updateUserRole(id, newRole);
@@ -105,7 +110,8 @@ const handleRoleChange = async (id, newRole) => {
     // 重新获取当前页数据以保证数据一致性
     fetchUsers();
   } catch (error) {
-    const errMsg = error.response?.data?.message || '角色更新失败';
+    const err = /** @type {{ response?: { data?: { message?: string } } }} */ (error);
+    const errMsg = err.response?.data?.message || '角色更新失败';
     ElMessage.error(errMsg);
     // 失败时回滚前端显示的角色
     const user = users.value.find(u => u.id === id);

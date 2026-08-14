@@ -6,6 +6,7 @@ const md = new MarkdownIt({ html: true, linkify: true, breaks: false });
 // 短代码与视频支持
 const VIDEO_HOSTS = ['youtu.be','www.youtube.com','youtube.com','vimeo.com','www.vimeo.com','player.vimeo.com','player.bilibili.com','www.bilibili.com','bilibili.com'];
 
+/** @param {string} url @returns {string} */
 function buildVideoIframe(url){
   try { const u = new URL(url); if(!VIDEO_HOSTS.includes(u.hostname)) return ''; }
   catch { return ''; }
@@ -20,6 +21,7 @@ function buildVideoIframe(url){
 }
 
 const SHORTCODE_RE = /^:::(video|gist)\s+(\S+)\s*:::$/;
+/** @param {string} raw @returns {string} */
 function preprocessShortcodes(raw){
   return raw.split(/\r?\n/).map(line=>{
     const m = line.trim().match(SHORTCODE_RE);
@@ -36,17 +38,24 @@ const turndown = new Turndown({ headingStyle: 'atx', codeBlockStyle: 'fenced' })
 ['div','iframe'].forEach(tag=>turndown.keep([tag]));
 
 turndown.addRule('preserveVideoEmbed', {
+  /** @param {any} node */
   filter: node => node.nodeName==='DIV' && node.classList?.contains('video-embed'),
+  /** @param {any} content @param {any} node */
   replacement: (content, node) => `\n${node.outerHTML}\n`
 });
 
 turndown.addRule('preserveGistEmbed', {
+  /** @param {any} node */
   filter: node => node.nodeName==='DIV' && node.classList?.contains('embed-gist'),
+  /** @param {any} content @param {any} node */
   replacement: (content, node) => `\n${node.outerHTML}\n`
 });
 
+/** @param {string} markdown @returns {string} */
 export function mdToHtml(markdown){ if(!markdown) return ''; return md.render(preprocessShortcodes(markdown)); }
+/** @param {string} html @returns {string} */
 export function htmlToMd(html){ if(!html) return ''; return turndown.turndown(html); }
+/** @param {string} markdown @returns {string} */
 export function roundTrip(markdown){ return htmlToMd(mdToHtml(markdown)); }
 
 export default { mdToHtml, htmlToMd, roundTrip };

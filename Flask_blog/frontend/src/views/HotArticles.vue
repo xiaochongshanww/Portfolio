@@ -39,6 +39,7 @@
 import { ref, onMounted } from 'vue';
 import apiClient from '../apiClient';
 
+/** @type {import('vue').Ref<import('@/types').Article[]>} */
 const articles = ref([]);
 const loading = ref(false);
 

@@ -19,12 +19,18 @@ export interface Category {
   name?: string;
   slug?: string;
   parent_id?: number | null;
+  description?: string;
+  article_count?: number;
+  media_count?: number;
+  visibility?: string;
 }
 
 export interface Tag {
   id: number;
   name: string;
   slug?: string;
+  description?: string;
+  article_count?: number;
 }
 
 export interface ArticleAuthor {
@@ -59,6 +65,9 @@ export interface Article {
   likes_count?: number;
   bookmarks_count?: number;
   comments_count?: number;
+  score?: number;
+  excerpt?: string;
+  highlight?: { content?: string };
 }
 
 export interface Comment {
@@ -111,6 +120,13 @@ export interface RestoreRecord {
   completed_at?: string;
   restored_files_count?: number;
   restored_databases_count?: number;
+  backup_info?: {
+    backup_id?: string;
+    backup_type?: string;
+    file_size?: number;
+    created_at?: string;
+  };
+  _cancelling?: boolean;
   [key: string]: unknown;
 }
 
@@ -125,10 +141,17 @@ export interface MediaFile {
   url?: string;
   title?: string;
   alt_text?: string;
+  description?: string;
+  tags?: string[];
+  owner_id?: number;
+  owner_name?: string;
   width?: number;
   height?: number;
   folder_id?: number | null;
   created_at?: string;
+  variants?: {
+    variants?: Array<{ label: string; url?: string; width?: number; height?: number }>;
+  };
   [key: string]: unknown;
 }
 

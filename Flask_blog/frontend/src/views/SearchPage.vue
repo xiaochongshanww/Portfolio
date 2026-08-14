@@ -71,17 +71,24 @@
 </template>
 <script setup lang="ts">
 import { ref } from 'vue';
+import type { Article, Category, User } from '@/types';
 import { setMeta, injectJsonLd } from '../composables/useMeta';
 import { API } from '../api';
 import { useNotify } from '../composables/useNotify';
 import DOMPurify from 'dompurify';
+
+interface SearchFacets {
+  tags?: Record<string, number>;
+  category_id?: Record<string, number>;
+  author_id?: Record<string, number>;
+}
 
 const { pushError } = useNotify();
 const q = ref('');
 const sort = ref('relevance');
 const tagsRaw = ref('');
 const matchMode = ref('and');
-const results = ref([]);
+const results = ref<Article[]>([]);
 const total = ref(0);
 const page = ref(1);
 const pageSize = 10;
@@ -89,18 +96,18 @@ const loading = ref(false);
 const searched = ref(false);
 const dateFrom = ref('');
 const dateTo = ref('');
-const facets = ref({});
-const categoryMap = ref({});
-const authorMap = ref({});
-const selectedFacetTags = ref([]);
+const facets = ref<SearchFacets>({});
+const categoryMap = ref<Record<string, string | undefined>>({});
+const authorMap = ref<Record<string, string>>({});
+const selectedFacetTags = ref<string[]>([]);
 
-function sanitize(html: string): string {
+function sanitize(html: string | null | undefined): string {
   return DOMPurify.sanitize(html || '', { ALLOWED_TAGS: ['mark', 'strong', 'em'], ALLOWED_ATTR: [] });
 }
-const categoryId = ref();
-const authorId = ref();
+const categoryId = ref<string | undefined>(undefined);
+const authorId = ref<string | undefined>(undefined);
 
-function limitedFacet(obj) {
+function limitedFacet(obj: Record<string, number>) {
   // 排序后截取前 20
   return Object.fromEntries(Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,20));
 }
@@ -108,16 +115,22 @@ function applyFacetTags(){
   tagsRaw.value = selectedFacetTags.value.join(',');
   page.value = 1; doSearch();
 }
-function toggleCategory(cid){
+function toggleCategory(cid: string){
   categoryId.value = categoryId.value===cid? undefined : cid; page.value=1; doSearch();
 }
-function toggleAuthor(aid){
+function toggleAuthor(aid: string){
   authorId.value = authorId.value===aid? undefined : aid; page.value=1; doSearch();
 }
 
 async function loadMaps(){
-  try { const cats = (await API.TaxonomyService.listCategories()).data; categoryMap.value = Object.fromEntries(cats.map(c=>[String(c.id), c.name])); } catch(e){}
-  try { const users = (await API.UsersService.getApiV1Users(1,100)).data?.list || []; authorMap.value = Object.fromEntries(users.map(u=>[String(u.id), u.nickname || ('用户'+u.id)])); } catch(e){}
+  try {
+    const cats = ((await API.TaxonomyService.listCategories()).data || []) as Category[];
+    categoryMap.value = Object.fromEntries(cats.map(c=>[String(c.id), c.name]));
+  } catch(e){}
+  try {
+    const users = (((await API.UsersService.getApiV1Users(1,100)).data?.list) || []) as User[];
+    authorMap.value = Object.fromEntries(users.map(u=>[String(u.id), u.nickname || ('用户'+u.id)]));
+  } catch(e){}
 }
 loadMaps();
 
@@ -145,8 +158,8 @@ async function doSearch() {
   }
 }
 
-function formatDate(dt) { if(!dt) return ''; return new Date(dt).toLocaleDateString(); }
-function buildPageUrl(p){ const u=new URL(window.location.href); u.searchParams.set('q', q.value); u.searchParams.set('page', p); return u.toString(); }
+function formatDate(dt: string | null | undefined) { if(!dt) return ''; return new Date(dt).toLocaleDateString(); }
+function buildPageUrl(p: number){ const u=new URL(window.location.href); u.searchParams.set('q', q.value); u.searchParams.set('page', String(p)); return u.toString(); }
 function clearFilters(){ selectedFacetTags.value=[]; tagsRaw.value=''; categoryId.value=undefined; authorId.value=undefined; dateFrom.value=''; dateTo.value=''; page.value=1; doSearch(); }
 </script>
 <style scoped>

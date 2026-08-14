@@ -183,6 +183,7 @@ import apiClient from '../apiClient';
 import { setMeta } from '../composables/useMeta';
 
 const router = useRouter();
+/** @type {import('vue').Ref<import('@/types').Tag[]>} */
 const tags = ref([]);
 const loading = ref(false);
 const currentView = ref('cloud');
@@ -231,10 +232,12 @@ async function loadTags() {
   }
 }
 
+/** @param {string | undefined} tagSlug */
 function handleTagClick(tagSlug) {
   router.push(`/tag/${tagSlug}`);
 }
 
+/** @param {number} count */
 function getTagCloudClass(count) {
   if (count >= 10) return 'tag-cloud-xl';
   if (count >= 7) return 'tag-cloud-lg';

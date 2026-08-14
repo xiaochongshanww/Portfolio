@@ -213,7 +213,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRouter } from 'vue-router';
@@ -227,8 +227,11 @@ const router = useRouter();
 
 // 响应式数据
 const loading = ref(false);
+/** @type {import('vue').Ref<import('@/types').Comment[]>} */
 const comments = ref([]);
+/** @type {import('vue').Ref<import('@/types').Comment[]>} */
 const selectedComments = ref([]);
+/** @type {import('vue').Ref<Set<any>>} */
 const moderatingIds = ref(new Set());
 
 // 统计数据
@@ -260,6 +263,7 @@ const loadComments = async () => {
     loading.value = true;
     
     // 构建请求参数
+    /** @type {Record<string, any>} */
     const params = {
       page: pagination.page,
       page_size: pagination.page_size
@@ -303,11 +307,13 @@ const loadStats = async () => {
 };
 
 // 处理选择变化
+/** @param {any[]} selection */
 const handleSelectionChange = (selection) => {
   selectedComments.value = selection;
 };
 
 // 单个审核操作
+/** @param {any} comment @param {string} action */
 const handleModerate = async (comment, action) => {
   if (moderatingIds.value.has(comment.id)) return;
   
@@ -340,6 +346,7 @@ const handleModerate = async (comment, action) => {
 };
 
 // 批量操作
+/** @param {string} action */
 const handleBatchAction = async (action) => {
   if (selectedComments.value.length === 0) return;
   
@@ -391,12 +398,14 @@ const handleBatchAction = async (action) => {
 };
 
 // 查看文章
+/** @param {any} articleId */
 const viewArticle = (articleId) => {
   const url = router.resolve({ name: 'ArticleDetail', params: { id: articleId } }).href;
   window.open(url, '_blank');
 };
 
 // 格式化日期
+/** @param {string | number | Date} dateStr */
 const formatDate = (dateStr) => {
   const date = new Date(dateStr);
   return date.toLocaleString('zh-CN', {
@@ -409,6 +418,7 @@ const formatDate = (dateStr) => {
 };
 
 // 获取状态样式
+/** @param {string | undefined} status */
 const getStatusType = (status) => {
   switch (status) {
     case 'pending': return 'warning';
@@ -419,6 +429,7 @@ const getStatusType = (status) => {
 };
 
 // 获取状态文本
+/** @param {string | undefined} status */
 const getStatusText = (status) => {
   switch (status) {
     case 'pending': return '待审核';

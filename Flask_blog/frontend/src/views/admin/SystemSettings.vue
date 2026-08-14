@@ -362,7 +362,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { 
@@ -385,8 +385,11 @@ const sitemapGenerating = ref(false);
 const backupCreating = ref(false);
 const backupHistoryVisible = ref(false);
 
+/** @type {import('vue').Ref<import('element-plus').FormInstance | null>} */
 const generalFormRef = ref(null);
+/** @type {import('vue').Ref<import('element-plus').FormInstance | null>} */
 const contentFormRef = ref(null);
+/** @type {import('vue').Ref<import('element-plus').FormInstance | null>} */
 const securityFormRef = ref(null);
 
 // 基本设置
@@ -434,6 +437,7 @@ const systemInfo = reactive({
 });
 
 // 备份历史
+/** @type {import('vue').Ref<Array<{ filename: string, size: string, createTime: string }>>} */
 const backupHistory = ref([
   {
     filename: 'backup_2024_01_15_103000.zip',
@@ -448,6 +452,7 @@ const backupHistory = ref([
 ]);
 
 // 表单验证规则
+/** @type {import('element-plus').FormRules} */
 const generalRules = {
   siteName: [
     { required: true, message: '请输入网站名称', trigger: 'blur' },
@@ -459,12 +464,14 @@ const generalRules = {
   ]
 };
 
+/** @type {import('element-plus').FormRules} */
 const contentRules = {
   articlesPerPage: [
     { required: true, message: '请设置每页文章数量', trigger: 'blur' }
   ]
 };
 
+/** @type {import('element-plus').FormRules} */
 const securityRules = {
   maxLoginAttempts: [
     { required: true, message: '请设置登录失败限制次数', trigger: 'blur' }
@@ -677,7 +684,8 @@ const createBackup = async () => {
   }
 };
 
-const handleBackupFile = (file: any) => {
+/** @param {any} file */
+const handleBackupFile = (file) => {
   ElMessage.info('备份文件上传功能开发中');
 };
 
@@ -685,11 +693,13 @@ const showBackupHistory = () => {
   backupHistoryVisible.value = true;
 };
 
-const downloadBackup = (backup: any) => {
+/** @param {{ filename: string, size: string, createTime: string }} backup */
+const downloadBackup = (backup) => {
   ElMessage.success(`开始下载备份文件: ${backup.filename}`);
 };
 
-const deleteBackup = async (backup: any) => {
+/** @param {{ filename: string, size: string, createTime: string }} backup */
+const deleteBackup = async (backup) => {
   try {
     await ElMessageBox.confirm(`确定要删除备份文件 "${backup.filename}" 吗？`, '确认删除', {
       confirmButtonText: '确定',

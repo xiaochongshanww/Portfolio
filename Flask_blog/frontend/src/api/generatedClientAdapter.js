@@ -1,4 +1,8 @@
 // 兼容 index.js 的 bindGeneratedClient 导出（如需扩展可在此实现）
+/**
+ * @param {any} OpenAPI
+ * @returns {any}
+ */
 export function bindGeneratedClient(OpenAPI) {
   // 目前无需特殊处理，保留接口以兼容调用
   return OpenAPI;
@@ -25,7 +29,10 @@ function getSession(){
   try { return useUserStore(); } catch { return null; }
 }
 
-async function refreshTokenOnce(){
+/**
+ * @type {(() => Promise<any>) & { _p?: Promise<any> | null }}
+ */
+const refreshTokenOnce = async () => {
   if(refreshTokenOnce._p) return refreshTokenOnce._p; // 单飞
   const refreshUrl = '/api/v1/auth/refresh';
   const prevToken = localStorage.getItem('access_token') || '';
@@ -38,9 +45,13 @@ async function refreshTokenOnce(){
     return token;
   }).catch(e=>{ throw e; }).finally(()=>{ setTimeout(()=>{ refreshTokenOnce._p=null; }, 0); });
   return refreshTokenOnce._p;
-}
+};
 refreshTokenOnce._p = null;
 
+/**
+ * @param {{ method?: string, url: string, query?: unknown }} req
+ * @returns {string}
+ */
 function makeCacheKey(req){
   const { method='GET', url, query } = req;
   const q = query ? JSON.stringify(query) : '';
@@ -59,9 +70,14 @@ export function clearETagCache(){ etagCache.clear(); }
 export function etagCacheStats(){ return { size: etagCache.size }; }
 
 if(typeof window !== 'undefined'){
-  window.__API_CACHE__ = { clear: clearETagCache, stats: etagCacheStats, _raw: etagCache };
+  /** @type {Window & { __API_CACHE__?: unknown }} */
+  (window).__API_CACHE__ = { clear: clearETagCache, stats: etagCacheStats, _raw: etagCache };
 }
 
+/**
+ * @param {any} options
+ * @returns {Promise<any>}
+ */
 export async function request(options){
   const isGet = (options.method||'get').toLowerCase()==='get';
   const key = isGet ? makeCacheKey(options) : null;
@@ -81,11 +97,12 @@ export async function request(options){
     }
     return resp;
   } catch(err){
-    if(isGet && key && err?.status===304 && etagCache.has(key)){
+    const e = /** @type {{ status?: number, body?: { code?: number }, headers?: object }} */ (err);
+    if(isGet && key && e.status===304 && etagCache.has(key)){
       return etagCache.get(key).data;
     }
-    const bodyCode = err?.body?.code;
-    if(err?.status===401 || bodyCode===2001){
+    const bodyCode = e.body?.code;
+    if(e.status===401 || bodyCode===2001){
       try {
         await refreshTokenOnce();
         return await genRequest(OpenAPI, options, api);
@@ -98,11 +115,16 @@ export async function request(options){
   }
 }
 
+/**
+ * @param {any} Services
+ * @returns {any}
+ */
 export function createServices(Services){
   const API = { ...Services };
 
   // Alias: SearchService.search -> generated getApiV1Search
   if(API.SearchService && !API.SearchService.search){
+    /** @param {any} opts */
     API.SearchService.search = (opts={})=>{
       const {
         q, page, page_size, status, tag, tags, match_mode,
@@ -117,6 +139,7 @@ export function createServices(Services){
 
   // Alias: ArticlesService.listArticles -> public list endpoint
   if(API.ArticlesService && !API.ArticlesService.listArticles){
+    /** @param {any} opts */
     API.ArticlesService.listArticles = async (opts={})=>{
       const { page, page_size, tag, category_id, author_id, sort } = (opts||{});
       try {
@@ -146,9 +169,11 @@ export function createServices(Services){
   // Alias: AuthService methods to simple names
   if(API.AuthService){
     if(!API.AuthService.register){
+      /** @param {{ requestBody?: any }} args */
       API.AuthService.register = ({ requestBody }) => Services.AuthService.postApiV1AuthRegister(requestBody);
     }
     if(!API.AuthService.login){
+      /** @param {{ requestBody?: any }} args */
       API.AuthService.login = ({ requestBody }) => Services.AuthService.postApiV1AuthLogin(requestBody);
     }
   }

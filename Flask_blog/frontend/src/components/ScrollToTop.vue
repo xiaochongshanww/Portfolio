@@ -83,6 +83,7 @@ const progressOffset = computed(() => {
 });
 
 // 缓动函数
+/** @type {Record<string, (t: number) => number>} */
 const easingFunctions = {
   linear: (t) => t,
   easeOutCubic: (t) => 1 - Math.pow(1 - t, 3),
@@ -112,6 +113,7 @@ const scrollToTop = () => {
   const startTime = performance.now();
   const easeFunction = easingFunctions[props.easing] || easingFunctions.easeOutCubic;
   
+  /** @param {number} currentTime */
   const animateScroll = (currentTime) => {
     const elapsed = currentTime - startTime;
     const progress = Math.min(elapsed / props.duration, 1);
@@ -131,6 +133,7 @@ const scrollToTop = () => {
 };
 
 // 节流处理滚动事件
+/** @type {ReturnType<typeof setTimeout> | null} */
 let scrollTimer = null;
 const throttledHandleScroll = () => {
   if (scrollTimer) return;

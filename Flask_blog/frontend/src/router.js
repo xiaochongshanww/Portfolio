@@ -117,7 +117,7 @@ router.beforeEach(async (to, from, next) => {
   
   // 检查角色权限
   if (to.meta.requiresRole && userStore.isAuthenticated) {
-    const requiredRoles = to.meta.requiresRole;
+    const requiredRoles = /** @type {string | string[]} */ (to.meta.requiresRole);
     if (!userStore.hasRole(requiredRoles)) {
       next('/'); // 重定向到首页或显示无权限页面
       return;

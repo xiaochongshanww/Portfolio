@@ -68,7 +68,7 @@ const userStore = useUserStore();
 const vditorRef = ref<HTMLElement>();
 const currentMode = ref<'wysiwyg' | 'ir' | 'sv'>('wysiwyg'); // 默认即时渲染模式
 const isEditorReady = ref(false); // 编辑器是否准备完成
-let vditor: Vditor | null = null;
+let vditor: InstanceType<typeof Vditor> | null = null;
 
 // 防抖函数
 function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T {
@@ -94,9 +94,9 @@ function setupPasteHandler() {
   }
 
   // 寻找编辑器的实际文本输入区域
-  const editorElement = vditorRef.value.querySelector('.vditor-reset') || 
+  const editorElement = (vditorRef.value.querySelector('.vditor-reset') || 
                        vditorRef.value.querySelector('.vditor-content') ||
-                       vditorRef.value;
+                       vditorRef.value) as HTMLElement;
   
   if (!editorElement) {
     console.warn('setupPasteHandler: 无法找到编辑器输入区域');
@@ -261,7 +261,7 @@ async function initVditor() {
               }
             } catch (error) {
               console.error('❌ 调用媒体库函数失败:', error);
-              console.error('错误堆栈:', error.stack);
+              console.error('错误堆栈:', (error as Error).stack);
             }
           }
         },
@@ -359,10 +359,11 @@ async function initVditor() {
     });
     
   } catch (error) {
+    const err = error as Error;
     console.error('❌ 初始化Vditor失败:', error);
-    console.error('错误详情:', error.message);
-    console.error('错误堆栈:', error.stack);
-    message.critical('编辑器初始化失败: ' + error.message);
+    console.error('错误详情:', err.message);
+    console.error('错误堆栈:', err.stack);
+    message.critical('编辑器初始化失败: ' + err.message);
     
     // 将编辑器标记为未准备状态
     isEditorReady.value = false;
@@ -679,7 +680,7 @@ function setupModalEventHandlers(modal: HTMLElement) {
       itemElement.addEventListener('click', () => {
         // 取消之前选中的项目
         if (selectedMedia) {
-          const prevSelected = modal.querySelector(`[data-media-id="${selectedMedia.id}"]`);
+          const prevSelected = modal.querySelector(`[data-media-id="${selectedMedia.id}"]`) as HTMLElement;
           if (prevSelected) {
             prevSelected.style.borderColor = '#e4e7ed';
             prevSelected.style.background = '#f8f9fa';
@@ -943,7 +944,7 @@ onMounted(() => {
   console.log('🔀 VditorEditor: 组件onMounted触发');
   
   // 添加Vditor相关的错误处理
-  const handleVditorError = (event) => {
+  const handleVditorError = (event: PromiseRejectionEvent) => {
     if (event.reason && event.reason.message && 
         (event.reason.message.includes('insertBefore') || 
          event.reason.message.includes('removeChild') ||

@@ -72,6 +72,7 @@ import { ElMessage } from 'element-plus';
 // Simplified API for demonstration
 const API = {
   AuthService: {
+    /** @param {{ requestBody: { email: string; password: string } }} body */
     login: (body) => apiClient.post('/auth/login', body.requestBody)
   }
 }
@@ -152,7 +153,8 @@ async function submit() {
       router.push({ path: '/', query: { _refresh: Date.now() } });
     }, 2000);
   } catch (e) {
-    error.value = e.response?.data?.message || '登录失败，请检查您的凭据';
+    const err = /** @type {{ response?: { data?: { message?: string } } }} */ (e);
+    error.value = err.response?.data?.message || '登录失败，请检查您的凭据';
     loading.value = false; // 只有出错时立即停止loading
   }
 }

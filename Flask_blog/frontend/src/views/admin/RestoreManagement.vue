@@ -291,7 +291,7 @@
             v-if="canCancel(detailDialog.data?.status)"
             type="danger" 
             :loading="detailDialog.data?._cancelling"
-            @click="cancelRestoreFromDialog(detailDialog.data.restore_id)"
+            @click="cancelRestoreFromDialog(detailDialog.data?.restore_id)"
           >
             取消任务
           </el-button>
@@ -310,6 +310,7 @@ import { Refresh, Delete } from '@element-plus/icons-vue'
 import { backupApi } from '@/api/backup'
 
 // 数据
+/** @type {import('vue').Ref<import('@/types').RestoreRecord[]>} */
 const restoreRecords = ref([])
 const loading = ref(false)
 const cleaningUp = ref(false)
@@ -330,13 +331,16 @@ const pagination = reactive({
 // 详情对话框
 const detailDialog = reactive({
   visible: false,
+  /** @type {import('@/types').RestoreRecord | null} */
   data: null
 })
 
 // 进度监控定时器
+/** @type {ReturnType<typeof setTimeout> | null} */
 let progressTimer = null
 
 // 高亮显示的恢复任务ID
+/** @type {import('vue').Ref<string | null>} */
 const highlightRestoreId = ref(null)
 
 // 加载恢复记录
@@ -365,6 +369,7 @@ const loadRestoreRecords = async () => {
 }
 
 // 显示恢复详情
+/** @param {import('@/types').RestoreRecord} record */
 const showRestoreDetail = async (record) => {
   try {
     detailDialog.data = { ...record }
@@ -381,6 +386,7 @@ const showRestoreDetail = async (record) => {
 }
 
 // 开始进度监控
+/** @param {string | undefined} restoreId */
 const startProgressMonitoring = (restoreId) => {
   if (progressTimer) {
     clearInterval(progressTimer)
@@ -415,6 +421,7 @@ const stopProgressMonitoring = () => {
 }
 
 // 取消恢复任务（从表格发起）
+/** @param {string} restoreId */
 const cancelRestore = async (restoreId) => {
   try {
     await ElMessageBox.confirm(
@@ -432,7 +439,7 @@ const cancelRestore = async (restoreId) => {
     if (record) {
       record._cancelling = true
     }
-    if (detailDialog.data?.restore_id === restoreId) {
+    if (detailDialog.data?.restore_id === restoreId && detailDialog.data) {
       detailDialog.data._cancelling = true
     }
     
@@ -459,13 +466,14 @@ const cancelRestore = async (restoreId) => {
     if (record) {
       record._cancelling = false
     }
-    if (detailDialog.data?.restore_id === restoreId) {
+    if (detailDialog.data?.restore_id === restoreId && detailDialog.data) {
       detailDialog.data._cancelling = false
     }
   }
 }
 
 // 从详情对话框取消恢复任务
+/** @param {string | undefined} restoreId */
 const cancelRestoreFromDialog = async (restoreId) => {
   // 临时保存对话框状态
   const wasDetailDialogVisible = detailDialog.visible
@@ -492,7 +500,7 @@ const cancelRestoreFromDialog = async (restoreId) => {
     if (record) {
       record._cancelling = true
     }
-    if (originalDialogData?.restore_id === restoreId) {
+    if (originalDialogData?.restore_id === restoreId && originalDialogData) {
       originalDialogData._cancelling = true
     }
     
@@ -548,8 +556,7 @@ const cleanupStuckTasks = async () => {
       {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
-        type: 'warning',
-        zIndex: 4000  // 确保在所有对话框之上
+        type: 'warning'
       }
     )
 
@@ -578,7 +585,9 @@ const cleanupStuckTasks = async () => {
 }
 
 // 工具函数
+/** @param {string | undefined} status */
 const getStatusText = (status) => {
+  /** @type {Record<string, string>} */
   const statusMap = {
     'pending': '等待中',
     'running': '执行中',
@@ -586,40 +595,52 @@ const getStatusText = (status) => {
     'failed': '失败',
     'cancelled': '已取消'
   }
-  return statusMap[status] || status
+  return statusMap[status || ''] || status
 }
 
+/**
+ * @param {string | undefined} status
+ * @returns {'info' | 'success' | 'primary' | 'warning' | 'danger'}
+ */
 const getStatusTagType = (status) => {
+  /** @type {Record<string, 'info' | 'success' | 'primary' | 'warning' | 'danger'>} */
   const typeMap = {
     'pending': 'info',
     'running': 'warning',
     'completed': 'success',
-    'failed': 'danger',
-    'cancelled': ''
+    'failed': 'danger'
   }
-  return typeMap[status] || ''
+  return typeMap[status || ''] || 'info'
 }
 
+/** @param {string | undefined} type */
 const getRestoreTypeText = (type) => {
+  /** @type {Record<string, string>} */
   const typeMap = {
     'full': '完整恢复',
     'database_only': '仅数据库',
     'files_only': '仅文件',
     'partial': '部分恢复'
   }
-  return typeMap[type] || type
+  return typeMap[type || ''] || type
 }
 
+/**
+ * @param {string | undefined} type
+ * @returns {'info' | 'success' | 'primary' | 'warning' | 'danger'}
+ */
 const getRestoreTypeTagType = (type) => {
+  /** @type {Record<string, 'info' | 'success' | 'primary' | 'warning' | 'danger'>} */
   const typeMap = {
     'full': 'primary',
     'database_only': 'success',
     'files_only': 'warning',
     'partial': 'info'
   }
-  return typeMap[type] || ''
+  return typeMap[type || ''] || 'info'
 }
 
+/** @param {string | undefined} status */
 const getProgressStatus = (status) => {
   if (status === 'completed') return 'success'
   if (status === 'failed') return 'exception'
@@ -627,15 +648,18 @@ const getProgressStatus = (status) => {
   return undefined
 }
 
+/** @param {string | undefined} status */
 const canCancel = (status) => {
-  return ['pending', 'running'].includes(status)
+  return ['pending', 'running'].includes(status || '')
 }
 
+/** @param {string | undefined} dateString */
 const formatDateTime = (dateString) => {
   if (!dateString) return '-'
   return new Date(dateString).toLocaleString('zh-CN')
 }
 
+/** @param {number | undefined} bytes */
 const formatFileSize = (bytes) => {
   if (!bytes) return '-'
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
@@ -650,6 +674,7 @@ const formatFileSize = (bytes) => {
   return `${size.toFixed(1)} ${units[unitIndex]}`
 }
 
+/** @param {unknown} jsonString */
 const formatJSON = (jsonString) => {
   try {
     if (typeof jsonString === 'string') {
@@ -662,6 +687,7 @@ const formatJSON = (jsonString) => {
 }
 
 // 表格行样式
+/** @param {{ row: import('@/types').RestoreRecord }} arg */
 const getRowClassName = ({ row }) => {
   if (highlightRestoreId.value && row.restore_id === highlightRestoreId.value) {
     return 'highlight-row'
@@ -681,14 +707,14 @@ onMounted(async () => {
   const highlightId = route.query.highlight
   if (highlightId) {
     // 设置高亮显示的恢复任务ID
-    highlightRestoreId.value = highlightId
+    highlightRestoreId.value = String(highlightId)
     
     // 查找对应的恢复任务
     const targetRecord = restoreRecords.value.find(record => record.restore_id === highlightId)
     if (targetRecord) {
       // 如果是正在执行的任务，开始监控进度
       if (targetRecord.status === 'running' || targetRecord.status === 'pending') {
-        startProgressMonitoring()
+        startProgressMonitoring(targetRecord.restore_id)
       }
       
       // 延迟一下以确保表格已渲染，然后滚动到对应行
@@ -707,7 +733,7 @@ onMounted(async () => {
     record.status === 'running' || record.status === 'pending'
   )
   if (runningTasks.length > 0) {
-    startProgressMonitoring()
+    startProgressMonitoring(runningTasks[0]?.restore_id)
   }
 })
 

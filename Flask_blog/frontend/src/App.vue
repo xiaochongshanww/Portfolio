@@ -75,15 +75,19 @@ onMounted(async () => {
 function setupMessageClickHandlers() {
   // 使用事件委托监听消息点击
   document.addEventListener('click', (event) => {
-    const messageElement = event.target.closest('.enhanced-message');
+    const target = /** @type {HTMLElement | null} */ (event.target);
+    /** @type {HTMLElement | null} */
+    const messageElement = target && target.closest('.enhanced-message');
     if (messageElement) {
       // 检查是否点击的是关闭按钮，如果是则让默认行为处理
-      const closeBtn = event.target.closest('.el-message__closeBtn');
+      /** @type {HTMLElement | null} */
+      const closeBtn = target && target.closest('.el-message__closeBtn');
       if (closeBtn) {
         return; // 让默认关闭按钮处理
       }
       
       // 点击消息卡片其他区域时关闭消息
+      /** @type {HTMLElement | null} */
       const closeButton = messageElement.querySelector('.el-message__closeBtn');
       if (closeButton) {
         closeButton.click();

@@ -1,6 +1,12 @@
 // 运行时动态 Meta/OG 注入工具
 // setMeta 在数据加载后调用即可
+/**
+ * @param {string} selector
+ * @param {() => HTMLElement} create
+ * @returns {HTMLElement}
+ */
 const ensureTag = (selector, create) => {
+  /** @type {HTMLElement | null} */
   let el = document.head.querySelector(selector);
   if(!el){
     el = create();
@@ -54,11 +60,17 @@ export function setMeta({
     ensureTag('meta[property="og:url"]', ()=>{ const m=document.createElement('meta'); m.setAttribute('property','og:url'); return m; }).setAttribute('content', url);
     ensureTag('meta[property="og:site_name"]', ()=>{ const m=document.createElement('meta'); m.setAttribute('property','og:site_name'); return m; }).setAttribute('content', siteName);
     // canonical
+    /** @type {HTMLLinkElement | null} */
     let link = document.head.querySelector('link[rel="canonical"]');
     if(!link){ link = document.createElement('link'); link.rel='canonical'; document.head.appendChild(link); }
     link.href = url.split('#')[0];
     // rel prev/next
+    /**
+     * @param {string} rel
+     * @param {string | undefined} href
+     */
     const setRel = (rel, href)=>{
+      /** @type {HTMLLinkElement | null} */
       let l = document.head.querySelector(`link[rel="${rel}"]`);
       if(!href){ if(l) l.remove(); return; }
       if(!l){ l=document.createElement('link'); l.rel=rel; document.head.appendChild(l); }
@@ -69,8 +81,12 @@ export function setMeta({
   } catch(_e){ /* ignore */ }
 }
 
+/**
+ * @param {unknown} obj
+ */
 export function injectJsonLd(obj){
   try {
+    /** @type {HTMLScriptElement | null} */
     let script = document.head.querySelector('script[data-jsonld="dynamic"]');
     if(!script){ script = document.createElement('script'); script.type='application/ld+json'; script.dataset.jsonld='dynamic'; document.head.appendChild(script); }
     script.textContent = JSON.stringify(obj);

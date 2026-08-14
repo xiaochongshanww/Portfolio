@@ -232,6 +232,7 @@
 import { ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import mediaApi from '@/api/media'
+import { formatFileSize, getMediaTypeName, getVisibilityInfo, getMediaIcon } from '@/utils/mediaUtils'
 
 export default {
   name: 'MediaDetailDialog',
@@ -245,34 +246,29 @@ export default {
       default: null
     }
   },
-  emits: ['update:visible', 'updated', 'deleted'],
+  emits: ['update:visible', 'updated', 'deleted', 'edit'],
   setup(props, { emit }) {
     const dialogVisible = computed({
       get: () => props.visible,
       set: (value) => emit('update:visible', value)
     })
 
-    // 从 API 客户端获取辅助方法
-    const { 
-      formatFileSize, 
-      getMediaTypeName, 
-      getVisibilityInfo, 
-      getMediaIcon 
-    } = mediaApi
-
     // 格式化日期
+    /** @param {string | undefined} dateStr */
     const formatDate = (dateStr) => {
       if (!dateStr) return ''
       return new Date(dateStr).toLocaleString('zh-CN')
     }
 
     // 获取变体数量
+    /** @param {import('@/types').MediaFile['variants']} variants */
     const getVariantsCount = (variants) => {
       if (!variants || !variants.variants) return 0
       return variants.variants.length
     }
 
     // 复制URL到剪贴板
+    /** @param {string | undefined} url */
     const copyUrl = async (url) => {
       if (!url) return
       
@@ -338,11 +334,13 @@ export default {
     }
 
     // 图片加载完成
+    /** @param {Event} event */
     const handleImageLoad = (event) => {
       console.log('图片加载成功')
     }
 
     // 图片加载错误
+    /** @param {Event} event */
     const handleImageError = (event) => {
       console.error('图片加载失败')
     }

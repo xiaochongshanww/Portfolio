@@ -53,6 +53,7 @@ import { useRouter } from 'vue-router';
 import apiClient from '../apiClient';
 import { setMeta } from '../composables/useMeta';
 
+/** @type {import('vue').Ref<import('@/types').Category[]>} */
 const categories = ref([]);
 const loading = ref(false);
 

@@ -321,10 +321,10 @@
           <el-descriptions-item label="用户ID">
             {{ selectedEvent.user_id || '未知' }}
           </el-descriptions-item>
-          <el-descriptions-item label="用户代理" span="2">
+          <el-descriptions-item label="用户代理" :span="2">
             {{ selectedEvent.user_agent || '未知' }}
           </el-descriptions-item>
-          <el-descriptions-item label="事件描述" span="2">
+          <el-descriptions-item label="事件描述" :span="2">
             {{ selectedEvent.description }}
           </el-descriptions-item>
         </el-descriptions>
@@ -356,7 +356,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, reactive, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { 
@@ -369,6 +369,7 @@ import api from '../../apiClient';
 const loading = ref(false);
 const threatTimeRange = ref('24h');
 const eventDetailVisible = ref(false);
+/** @type {import('vue').Ref<any>} */
 const selectedEvent = ref(null);
 
 // 安全统计数据
@@ -411,10 +412,12 @@ const accessStats = reactive({
 });
 
 // 最近安全事件
+/** @type {import('vue').Ref<any[]>} */
 const recentEvents = ref([]);
 
 // 数据刷新定时器
-let refreshTimer: number | null = null;
+/** @type {ReturnType<typeof setInterval> | null} */
+let refreshTimer = null;
 
 // 独立的系统健康数据获取函数
 const loadSystemHealth = async () => {
@@ -534,7 +537,8 @@ const loadData = async () => {
 };
 
 // 计算威胁等级
-const calculateThreatLevel = (stats: any) => {
+/** @param {any} stats */
+const calculateThreatLevel = (stats) => {
   const score = stats.todayEvents * 0.3 + 
                 stats.anomalousUsers * 0.5 + 
                 (stats.eventsTrend > 0 ? stats.eventsTrend * 0.2 : 0);
@@ -557,23 +561,27 @@ const refreshData = () => {
 };
 
 // 格式化辅助函数
-const formatDateTime = (timestamp: string) => {
+/** @param {string | number | Date} timestamp */
+const formatDateTime = (timestamp) => {
   return new Date(timestamp).toLocaleString('zh-CN');
 };
 
-const formatTrend = (trend: number) => {
+/** @param {number} trend */
+const formatTrend = (trend) => {
   if (trend > 0) return `+${trend}`;
   if (trend < 0) return `${trend}`;
   return '持平';
 };
 
-const getTrendClass = (trend: number) => {
+/** @param {number} trend */
+const getTrendClass = (trend) => {
   if (trend > 0) return 'positive';
   if (trend < 0) return 'negative';
   return 'neutral';
 };
 
-const formatBytes = (bytes: number) => {
+/** @param {number} bytes */
+const formatBytes = (bytes) => {
   if (bytes === 0) return '0 B';
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB'];
@@ -581,7 +589,8 @@ const formatBytes = (bytes: number) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
-const formatUptime = (hours: number) => {
+/** @param {number} hours */
+const formatUptime = (hours) => {
   console.log('[DEBUG] formatUptime输入:', hours);
   
   const totalMinutes = Math.floor(hours * 60);
@@ -605,13 +614,19 @@ const formatUptime = (hours: number) => {
   return result;
 };
 
-const getHealthColor = (percentage: number) => {
+/** @param {number} percentage */
+const getHealthColor = (percentage) => {
   if (percentage > 90) return '#f56c6c';
   if (percentage > 75) return '#e6a23c';
   return '#67c23a';
 };
 
-const getEventTypeTag = (type: string) => {
+/**
+ * @param {string | undefined} type
+ * @returns {'info' | 'success' | 'primary' | 'warning' | 'danger'}
+ */
+const getEventTypeTag = (type) => {
+  /** @type {Record<string, 'info' | 'success' | 'primary' | 'warning' | 'danger'>} */
   const typeMap = {
     'brute_force_attack': 'danger',
     'sql_injection': 'danger',
@@ -620,10 +635,12 @@ const getEventTypeTag = (type: string) => {
     'login_failure': 'info',
     'suspicious_access': 'warning'
   };
-  return typeMap[type] || 'info';
+  return typeMap[type || ''] || 'info';
 };
 
-const getEventTypeName = (type: string) => {
+/** @param {string | undefined} type */
+const getEventTypeName = (type) => {
+  /** @type {Record<string, string>} */
   const nameMap = {
     'brute_force_attack': '暴力破解',
     'sql_injection': 'SQL注入',
@@ -632,36 +649,45 @@ const getEventTypeName = (type: string) => {
     'login_failure': '登录失败',
     'suspicious_access': '可疑访问'
   };
-  return nameMap[type] || type;
+  return nameMap[type || ''] || type;
 };
 
-const getSeverityTag = (severity: string) => {
+/**
+ * @param {string | undefined} severity
+ * @returns {'info' | 'success' | 'primary' | 'warning' | 'danger'}
+ */
+const getSeverityTag = (severity) => {
+  /** @type {Record<string, 'info' | 'success' | 'primary' | 'warning' | 'danger'>} */
   const severityMap = {
     'critical': 'danger',
     'high': 'danger',
     'medium': 'warning',
     'low': 'info'
   };
-  return severityMap[severity] || 'info';
+  return severityMap[severity || ''] || 'info';
 };
 
-const getSeverityName = (severity: string) => {
+/** @param {string | undefined} severity */
+const getSeverityName = (severity) => {
+  /** @type {Record<string, string>} */
   const nameMap = {
     'critical': '严重',
     'high': '高危',
     'medium': '中等',
     'low': '低危'
   };
-  return nameMap[severity] || severity;
+  return nameMap[severity || ''] || severity;
 };
 
 // 事件处理
-const viewEventDetail = (event: any) => {
+/** @param {any} event */
+const viewEventDetail = (event) => {
   selectedEvent.value = event;
   eventDetailVisible.value = true;
 };
 
-const handleEvent = async (event: any) => {
+/** @param {any} event */
+const handleEvent = async (event) => {
   try {
     await ElMessageBox.confirm(
       `确定要处理事件「${getEventTypeName(event.type)}」吗？`,

@@ -327,7 +327,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { 
@@ -344,10 +344,14 @@ const userStore = useUserStore();
 
 // 响应式数据
 const loading = ref(false);
-const articles = ref<any[]>([]);
-const categories = ref<any[]>([]);
-const authors = ref<any[]>([]);
-const selectedArticles = ref<any[]>([]);
+/** @type {import('vue').Ref<any[]>} */
+const articles = ref([]);
+/** @type {import('vue').Ref<any[]>} */
+const categories = ref([]);
+/** @type {import('vue').Ref<any[]>} */
+const authors = ref([]);
+/** @type {import('vue').Ref<any[]>} */
+const selectedArticles = ref([]);
 
 // 筛选条件
 const filters = reactive({
@@ -368,7 +372,8 @@ const meta = reactive({
 const rejectDialog = reactive({
   visible: false,
   loading: false,
-  article: null as any,
+  /** @type {any} */
+  article: null,
   form: {
     reason: ''
   }
@@ -384,30 +389,38 @@ const canBulkReject = computed(() => {
 });
 
 // 权限检查函数
-function canEdit(article: any): boolean {
+/** @param {any} article */
+function canEdit(article) {
   return userStore.canModerateContent || article.author_id === userStore.user?.id;
 }
 
-function canSubmit(article: any): boolean {
+/** @param {any} article */
+function canSubmit(article) {
   return article.author_id === userStore.user?.id || userStore.canModerateContent;
 }
 
-function canDelete(article: any): boolean {
+/** @param {any} article */
+function canDelete(article) {
   return userStore.canModerateContent || article.author_id === userStore.user?.id;
 }
 
 // 状态相关函数
-function getStatusType(status: string): string {
+/**
+ * @param {string | undefined} status
+ * @returns {'info' | 'success' | 'primary' | 'warning' | 'danger'}
+ */
+function getStatusType(status) {
   switch (status) {
     case 'published': return 'success';
     case 'pending': return 'warning';
     case 'draft': return 'info';
     case 'rejected': return 'danger';
-    default: return '';
+    default: return 'info';
   }
 }
 
-function getStatusText(status: string): string {
+/** @param {string | undefined} status */
+function getStatusText(status) {
   switch (status) {
     case 'published': return '已发布';
     case 'pending': return '待审核';
@@ -417,7 +430,8 @@ function getStatusText(status: string): string {
   }
 }
 
-function formatDate(dateStr: string): string {
+/** @param {string | number | Date} dateStr */
+function formatDate(dateStr) {
   return new Date(dateStr).toLocaleDateString('zh-CN');
 }
 
@@ -426,7 +440,8 @@ async function loadArticles() {
   loading.value = true;
   
   try {
-    const params: any = {
+    /** @type {Record<string, any>} */
+    const params = {
       page: meta.page,
       page_size: meta.page_size
     };
@@ -458,7 +473,7 @@ async function loadArticles() {
       status: response.status,
       responseData: data,
       articlesCount: data?.list?.length,
-      articleStatuses: data?.list?.map(a => ({ id: a.id, title: a.title, status: a.status }))
+      articleStatuses: data?.list?.map(/** @param {any} a */ a => ({ id: a.id, title: a.title, status: a.status }))
     });
     
     articles.value = data?.list || [];
@@ -466,12 +481,13 @@ async function loadArticles() {
     meta.page = data?.page || 1;
     meta.page_size = data?.page_size || 20;
   } catch (error) {
+    const err = /** @type {{ response?: { status?: number, data?: any, headers?: any } }} */ (error);
     console.error('❌ 加载文章列表失败:', error);
-    if (error.response) {
+    if (err.response) {
       console.error('错误详情:', {
-        status: error.response.status,
-        data: error.response.data,
-        headers: error.response.headers
+        status: err.response.status,
+        data: err.response.data,
+        headers: err.response.headers
       });
     }
     ElMessage.error('加载文章列表失败');
@@ -591,32 +607,38 @@ async function testPendingArticles() {
     ElMessage.info(`找到 ${pendingCount} 篇待审核文章，总共 ${allCount} 篇文章`);
     
   } catch (error) {
+    const err = /** @type {{ response?: { data?: { message?: string } }, message?: string }} */ (error);
     console.error('❌ 测试失败:', error);
-    ElMessage.error('测试失败：' + (error.response?.data?.message || error.message));
+    ElMessage.error('测试失败：' + (err.response?.data?.message || err.message));
   }
 }
 
-function handleSelectionChange(selection: any[]) {
+/** @param {any[]} selection */
+function handleSelectionChange(selection) {
   selectedArticles.value = selection;
 }
 
-function handlePageChange(page: number) {
+/** @param {number} page */
+function handlePageChange(page) {
   meta.page = page;
   loadArticles();
 }
 
-function handleSizeChange(size: number) {
+/** @param {number} size */
+function handleSizeChange(size) {
   meta.page_size = size;
   meta.page = 1;
   loadArticles();
 }
 
-function handleEdit(article: any) {
+/** @param {any} article */
+function handleEdit(article) {
   router.push(`/articles/edit/${article.id}`);
 }
 
 // 状态操作
-async function handleStatusAction(article: any, action: string) {
+/** @param {any} article @param {string} action */
+async function handleStatusAction(article, action) {
   switch (action) {
     case 'submit':
       await submitArticle(article);
@@ -636,7 +658,8 @@ async function handleStatusAction(article: any, action: string) {
   }
 }
 
-async function submitArticle(article: any) {
+/** @param {any} article */
+async function submitArticle(article) {
   try {
     await apiClient.post(`/articles/${article.id}/submit`);
     ElMessage.success('文章已提交审核');
@@ -646,7 +669,8 @@ async function submitArticle(article: any) {
   }
 }
 
-async function approveArticle(article: any) {
+/** @param {any} article */
+async function approveArticle(article) {
   try {
     await apiClient.post(`/articles/${article.id}/approve`);
     ElMessage.success('文章审核通过');
@@ -656,7 +680,8 @@ async function approveArticle(article: any) {
   }
 }
 
-function showRejectDialog(article: any) {
+/** @param {any} article */
+function showRejectDialog(article) {
   rejectDialog.article = article;
   rejectDialog.form.reason = '';
   rejectDialog.visible = true;
@@ -684,7 +709,8 @@ async function confirmReject() {
   }
 }
 
-async function unpublishArticle(article: any) {
+/** @param {any} article */
+async function unpublishArticle(article) {
   try {
     await ElMessageBox.confirm(
       '确定要取消发布这篇文章吗？',
@@ -702,7 +728,8 @@ async function unpublishArticle(article: any) {
   }
 }
 
-async function deleteArticle(article: any) {
+/** @param {any} article */
+async function deleteArticle(article) {
   try {
     await ElMessageBox.confirm(
       '确定要删除这篇文章吗？此操作不可恢复。',

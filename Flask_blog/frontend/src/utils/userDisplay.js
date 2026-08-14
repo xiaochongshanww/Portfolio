@@ -3,16 +3,13 @@
  * 统一处理用户在界面上的显示名称，提供智能回退和长度控制
  */
 
+/** @typedef {import('../types').User} User */
+/** @typedef {{ maxLength?: number, showEmail?: boolean, fallback?: string }} DisplayOptions */
+
 /**
  * 获取用户显示名称
- * @param {Object} user - 用户对象
- * @param {string} user.nickname - 用户昵称
- * @param {string} user.email - 用户邮箱
- * @param {number} user.id - 用户ID
- * @param {Object} options - 配置选项
- * @param {number} options.maxLength - 最大显示长度，默认12
- * @param {boolean} options.showEmail - 无昵称时是否显示邮箱前缀，默认true
- * @param {string} options.fallback - 最终回退文本，默认"用户"
+ * @param {User | null | undefined} user - 用户对象
+ * @param {DisplayOptions} [options] - 配置选项
  * @returns {string} 处理后的显示名称
  */
 export function getUserDisplayName(user, options = {}) {
@@ -50,8 +47,8 @@ export function getUserDisplayName(user, options = {}) {
 
 /**
  * 获取用户简短显示名称（用于小空间）
- * @param {Object} user - 用户对象
- * @param {number} maxLength - 最大长度，默认8
+ * @param {User | null | undefined} user - 用户对象
+ * @param {number} [maxLength] - 最大长度，默认8
  * @returns {string} 简短显示名称
  */
 export function getUserShortName(user, maxLength = 8) {
@@ -64,7 +61,7 @@ export function getUserShortName(user, maxLength = 8) {
 
 /**
  * 获取用户完整显示名称（用于详情页）
- * @param {Object} user - 用户对象
+ * @param {User | null | undefined} user - 用户对象
  * @returns {string} 完整显示名称
  */
 export function getUserFullName(user) {
@@ -77,16 +74,16 @@ export function getUserFullName(user) {
 
 /**
  * 检查用户是否需要完善昵称
- * @param {Object} user - 用户对象
+ * @param {User | null | undefined} user - 用户对象
  * @returns {boolean} 是否需要完善昵称
  */
 export function shouldPromptNickname(user) {
-  return user && (!user.nickname || !user.nickname.trim())
+  return !!user && (!user.nickname || !user.nickname.trim())
 }
 
 /**
  * 从邮箱提取用户名前缀
- * @param {string} email - 邮箱地址
+ * @param {string | undefined} email - 邮箱地址
  * @returns {string} 邮箱前缀
  */
 function getEmailPrefix(email) {
@@ -136,7 +133,7 @@ function truncateText(text, maxLength) {
 
 /**
  * 获取用户显示名称的提示信息
- * @param {Object} user - 用户对象
+ * @param {User | null | undefined} user - 用户对象
  * @returns {string} 提示信息
  */
 export function getUserDisplayHint(user) {
@@ -157,8 +154,8 @@ export function getUserDisplayHint(user) {
 
 /**
  * 生成用户设置昵称的建议
- * @param {Object} user - 用户对象
- * @returns {Object} 建议信息
+ * @param {User | null | undefined} user - 用户对象
+ * @returns {{ shouldPrompt: boolean, message: string, suggestion: string, action: string } | null} 建议信息
  */
 export function getNicknameSuggestion(user) {
   if (!user || !shouldPromptNickname(user)) {

@@ -14,16 +14,17 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
+import type { Article } from '@/types';
 const props = withDefaults(defineProps<{ slug?: string }>(), { slug: "" })
 import { setMeta, injectJsonLd } from '../composables/useMeta';
 const route = useRoute();
 const tagSlug = ref(props.slug || route.params.slug);
 const loaded = ref(false);
-const articles = ref([]);
+const articles = ref<Article[]>([]);
 async function load(){
   loaded.value=false;
   try{
-    const resp = await fetch(`/api/v1/articles/public?tag=${encodeURIComponent(tagSlug.value)}`);
+    const resp = await fetch(`/api/v1/articles/public?tag=${encodeURIComponent(String(tagSlug.value))}`);
     const j = await resp.json();
     articles.value = j.data?.list || [];
   }catch(e){ articles.value=[]; }
@@ -32,7 +33,7 @@ async function load(){
   injectJsonLd({ '@context':'https://schema.org', '@type':'CollectionPage', name:`标签: ${tagSlug.value}` , url, mainEntity:{ '@type':'ItemList', itemListElement: articles.value.map((a,i)=>({ '@type':'ListItem', position:i+1, url: window.location.origin + '/article/' + a.slug, name:a.title })) }});
   loaded.value=true;
 }
-function formatDate(dt){ if(!dt) return ''; return new Date(dt).toLocaleDateString(); }
+function formatDate(dt: string | null | undefined){ if(!dt) return ''; return new Date(dt).toLocaleDateString(); }
 onMounted(load);
 watch(() => props.slug || route.params.slug, v=>{ if(v){ tagSlug.value=v; load(); }});
 </script>

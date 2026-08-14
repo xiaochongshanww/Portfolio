@@ -266,7 +266,7 @@
     <!-- 上传对话框 -->
     <MediaUploadDialog 
       v-model:visible="showUploadDialog"
-      :current-folder-id="currentFolderId"
+      :current-folder-id="currentFolderId ?? undefined"
       @uploaded="handleUploaded"
     />
   </el-dialog>
@@ -304,10 +304,15 @@ export default {
   emits: ['update:visible', 'selected'],
   setup(props, { emit }) {
     const loading = ref(false)
+    /** @type {import('vue').Ref<import('@/types').MediaFile[]>} */
     const mediaList = ref([])
+    /** @type {import('vue').Ref<import('@/types').MediaFile[]>} */
     const folderList = ref([])
+    /** @type {import('vue').Ref<import('@/types').MediaFile[]>} */
     const selectedMedia = ref([])
+    /** @type {import('vue').Ref<number | null>} */
     const currentFolderId = ref(null)
+    /** @type {import('vue').Ref<Array<{ id?: number, name?: string }>>} */
     const folderPath = ref([])
     const showUploadDialog = ref(false)
     
@@ -334,25 +339,30 @@ export default {
     } = mediaApi
 
     // 格式化日期
+    /** @param {string | undefined} dateStr */
     const formatDate = (dateStr) => {
       if (!dateStr) return ''
       return new Date(dateStr).toLocaleDateString('zh-CN')
     }
 
     // 获取预览URL
+    /** @param {import('@/types').MediaFile} media @returns {string | undefined} */
     const getPreviewUrl = (media) => {
-      if (media.variants?.variants?.find(v => v.label === 'thumb')) {
-        return media.variants.variants.find(v => v.label === 'thumb').url
+      const thumb = media.variants?.variants?.find(v => v.label === 'thumb')
+      if (thumb && thumb.url) {
+        return thumb.url
       }
       return media.url
     }
 
     // 检查是否已选择
+    /** @param {import('@/types').MediaFile} media */
     const isSelected = (media) => {
       return selectedMedia.value.some(selected => selected.id === media.id)
     }
 
     // 切换选择状态
+    /** @param {import('@/types').MediaFile} media */
     const toggleSelection = (media) => {
       if (!props.multiple) {
         selectedMedia.value = [media]
@@ -383,8 +393,9 @@ export default {
     }
 
     // 导航到文件夹
+    /** @param {number | null | undefined} folderId */
     const navigateToFolder = (folderId) => {
-      currentFolderId.value = folderId
+      currentFolderId.value = folderId ?? null
       currentPage.value = 1
       loadMediaData()
       loadFolderPath()
@@ -457,11 +468,13 @@ export default {
     }
 
     // 分页处理
+    /** @param {number} page */
     const handlePageChange = (page) => {
       currentPage.value = page
       loadMediaData()
     }
 
+    /** @param {number} size */
     const handleSizeChange = (size) => {
       pageSize.value = size
       currentPage.value = 1
@@ -469,6 +482,7 @@ export default {
     }
 
     // 表格行样式
+    /** @param {{ row: import('@/types').MediaFile }} arg */
     const getRowStyle = ({ row }) => {
       return {
         cursor: 'pointer',
@@ -477,8 +491,10 @@ export default {
     }
 
     // 处理图片加载错误
+    /** @param {Event} event */
     const handleImageError = (event) => {
-      event.target.style.display = 'none'
+      const target = /** @type {HTMLElement} */ (event.target)
+      target.style.display = 'none'
     }
 
     // 处理上传成功
