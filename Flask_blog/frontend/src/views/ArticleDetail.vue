@@ -20,117 +20,13 @@
       <main class="article-main">
         <article class="article-container">
           <!-- 文章头部 -->
-          <header class="article-header">
-            <!-- 管理状态（仅管理员可见） -->
-            <div v-if="userStore.hasRole(['editor', 'admin'])" class="admin-status-bar">
-              <el-tag :type="getStatusType(article.status)" size="small">
-                {{ getStatusText(article.status) }}
-              </el-tag>
-            </div>
-            
-            <!-- 面包屑导航 -->
-            <nav class="breadcrumb-nav" aria-label="面包屑导航">
-              <router-link to="/" class="breadcrumb-link">首页</router-link>
-              <span class="breadcrumb-separator">/</span>
-              <span v-if="article.category" class="breadcrumb-item">{{ article.category }}</span>
-              <span v-if="article.category" class="breadcrumb-separator">/</span>
-              <span class="breadcrumb-current">{{ article.title }}</span>
-            </nav>
-            
-            <!-- 文章标题 -->
-            <h1 class="article-title">{{ article.title }}</h1>
-            
-            <!-- 作者编辑操作区 -->
-            <div v-if="canEdit" class="author-edit-actions">
-              <el-button 
-                type="primary" 
-                size="small" 
-                :icon="Edit" 
-                class="edit-btn"
-                @click="editArticle"
-              >
-                编辑文章
-              </el-button>
-              <span v-if="isAuthor" class="edit-hint">作为文章作者，您可以随时编辑</span>
-              <span v-else-if="userStore.hasRole(['editor', 'admin'])" class="edit-hint">管理员权限</span>
-            </div>
-            
-            <!-- 文章元信息 -->
-            <div class="article-meta">
-              <div class="meta-primary">
-                <!-- 作者信息 -->
-                <div class="author-info">
-                  <div class="author-avatar">
-                    <img 
-                      v-if="article.author?.avatar" 
-                      :src="article.author.avatar" 
-                      :alt="article.author.name"
-                      class="avatar-img"
-                      @error="handleAuthorAvatarError"
-                    >
-                    <div v-else class="avatar-fallback">
-                      <i class="fa fa-user" aria-hidden="true" />
-                    </div>
-                  </div>
-                  <div class="author-details">
-                    <span class="author-name">{{ article.author?.name || '匿名作者' }}</span>
-                    <time class="publish-date" :datetime="article.published_at || article.created_at || undefined">
-                      {{ formatPublishDate(article.published_at || article.created_at || '') }}
-                    </time>
-                  </div>
-                </div>
-                
-                <!-- 文章统计 -->
-                <div class="article-stats">
-                  <span class="stat-item">
-                    <i class="fa fa-clock-o" aria-hidden="true" />
-                    {{ calculateReadTime(article.content_md || article.content_html || '') }} 分钟阅读
-                  </span>
-                  <span class="stat-item">
-                    <i class="fa fa-eye" aria-hidden="true" />
-                    {{ formatNumber(article.views_count || 0) }} 次浏览
-                  </span>
-                  <span class="stat-item">
-                    <i class="fa fa-heart-o" aria-hidden="true" />
-                    {{ formatNumber(article.likes_count || 0) }} 点赞
-                  </span>
-                </div>
-              </div>
-              
-              <!-- 分类和标签 -->
-              <div class="article-taxonomy">
-                <!-- 文章分类 -->
-                <div v-if="article.category" class="article-category">
-                  <router-link :to="`/category/${article.category_id || article.category}`" class="category-link">
-                    <el-tag 
-                      size="small" 
-                      type="primary" 
-                      effect="plain"
-                      class="category-tag"
-                    >
-                      <i class="fa fa-folder-o" aria-hidden="true" />
-                      {{ article.category }}
-                    </el-tag>
-                  </router-link>
-                </div>
-                
-                <!-- 标签 -->
-                <div v-if="article.tags && article.tags.length" class="article-tags">
-                  <el-tag 
-                    v-for="tag in article.tags" 
-                    :key="tag" 
-                    size="small" 
-                    type="info"
-                    effect="plain"
-                    class="tag-item"
-                  >
-                    <i class="fa fa-tag" aria-hidden="true" />
-                    {{ tag }}
-                  </el-tag>
-                </div>
-              </div>
-            </div>
-          </header>
+          <ArticleHeader
+            :article="article"
+            :can-edit="!!canEdit"
+            :is-author="!!isAuthor"
+            :is-moderator="!!userStore.hasRole(['editor', 'admin'])"
+            @edit="editArticle"
+          />
 
           <!-- 封面图片 -->
           <div v-if="article.featured_image" class="featured-image-container">
@@ -143,17 +39,19 @@
           </div>
 
           <!-- 管理操作区（仅管理员可见） -->
-          <div v-if="userStore.hasRole(['editor', 'admin']) && (nextList.length || canSchedule || canUnschedule || canUnpublish)" class="admin-actions">
-            <div class="admin-actions-content">
-              <span class="admin-actions-label">管理操作:</span>
-              <div class="admin-actions-buttons">
-                <el-button v-for="n in nextList" :key="n" :disabled="acting || !canOperate(n)" size="small" @click="doTransition(n)">{{ n }}</el-button>
-                <el-button v-if="canSchedule" :disabled="acting" size="small" @click="schedule">定时发布</el-button>
-                <el-button v-if="canUnschedule" :disabled="acting" size="small" @click="unschedule">取消定时</el-button>
-                <el-button v-if="canUnpublish" :disabled="acting" size="small" type="warning" @click="unpublish">下线</el-button>
-              </div>
-            </div>
-          </div>
+          <ArticleActions
+            :is-moderator="!!userStore.hasRole(['editor', 'admin'])"
+            :next-list="nextList"
+            :can-schedule="!!canSchedule"
+            :can-unschedule="!!canUnschedule"
+            :can-unpublish="!!canUnpublish"
+            :acting="acting"
+            :can-operate="canOperate"
+            @transition="doTransition"
+            @schedule="schedule"
+            @unschedule="unschedule"
+            @unpublish="unpublish"
+          />
 
           <!-- 文章正文 -->
           <div class="article-content">
@@ -168,69 +66,18 @@
           </div>
 
           <!-- 文章底部交互区 -->
-          <footer class="article-footer">
-            <!-- 点赞收藏区 -->
-            <div class="interaction-section">
-              <div class="interaction-buttons">
-                <button 
-                  :disabled="liking" 
-                  :class="['interaction-btn', 'like-btn', { 
-                    'liked': liked, 
-                    'liking': liking 
-                  }]"
-                  @click="toggleLike"
-                >
-                  <div class="like-btn-content">
-                    <div class="like-icon-wrapper">
-                      <i v-if="!liking" :class="liked ? 'fa fa-heart' : 'fa fa-heart-o'" aria-hidden="true" />
-                      <div v-else class="like-loading-spinner">
-                        <i class="fa fa-heart beating-heart" aria-hidden="true" />
-                      </div>
-                    </div>
-                    <span class="like-text">{{ liking ? '处理中...' : (liked ? '已点赞' : '点赞') }}</span>
-                    <span class="count">({{ formatNumber(likeCount) }})</span>
-                  </div>
-                </button>
-                
-                <button 
-                  :disabled="bookmarking" 
-                  :class="['interaction-btn', 'bookmark-btn', { 'bookmarked': bookmarked }]"
-                  @click="toggleBookmark"
-                >
-                  <i :class="bookmarked ? 'fa fa-bookmark' : 'fa fa-bookmark-o'" aria-hidden="true" />
-                  <span>{{ bookmarked ? '已收藏' : '收藏' }}</span>
-                  <span class="count">{{ formatNumber(bookmarkCount) }}</span>
-                </button>
-                
-                <button class="interaction-btn share-btn" @click="shareArticle">
-                  <i class="fa fa-share-alt" aria-hidden="true" />
-                  <span>分享</span>
-                </button>
-              </div>
-            </div>
-            
-            <!-- 分隔线 -->
-            <div class="section-divider" />
-            
-            <!-- 作者信息卡片 -->
-            <div class="author-card">
-              <div class="author-card-avatar">
-                <img 
-                  v-if="article.author?.avatar" 
-                  :src="article.author.avatar" 
-                  :alt="article.author.name || ''"
-                  class="author-card-img"
-                >
-                <div v-else class="author-card-fallback">
-                  <i class="fa fa-user" aria-hidden="true" />
-                </div>
-              </div>
-              <div class="author-card-info">
-                <h3 class="author-card-name">{{ article.author?.name || '匿名作者' }}</h3>
-                <p class="author-card-bio">{{ article.author?.bio || '这位作者很神秘，还没有添加个人简介。' }}</p>
-              </div>
-            </div>
-          </footer>
+          <ArticleInteractions
+            :article="article"
+            :liked="liked"
+            :liking="liking"
+            :like-count="likeCount"
+            :bookmarked="bookmarked"
+            :bookmarking="bookmarking"
+            :bookmark-count="bookmarkCount"
+            @like="toggleLike"
+            @bookmark="toggleBookmark"
+            @share="shareArticle"
+          />
         </article>
       </main>
       
@@ -265,11 +112,13 @@ const props = withDefaults(defineProps<{
 }>(), { slug: '' })
 
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Edit } from '@element-plus/icons-vue';
 import CommentsThread from '../components/CommentsThread.vue';
 import CoverImage from '../components/CoverImage.vue';
 import ArticleContentRenderer from '../components/ArticleContentRenderer.vue';
 import ArticleSidebar from '../components/ArticleSidebar.vue';
+import ArticleHeader from '../components/ArticleHeader.vue';
+import ArticleActions from '../components/ArticleActions.vue';
+import ArticleInteractions from '../components/ArticleInteractions.vue';
 import { common, createLowlight } from 'lowlight';
 import hljs from 'highlight.js';
 import { 
@@ -782,82 +631,6 @@ function copyCodeToClipboard(text: string, button: HTMLElement) {
 
 // 代码主题切换功能已移除
 
-// ========== 工具函数 ==========
-function formatNumber(num: number) {
-  if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'k';
-  }
-  return String(num);
-}
-
-function formatPublishDate(dateString: string) {
-  if (!dateString) return '';
-  
-  try {
-    // 修复时区问题：强制将后端时间作为UTC时间处理
-    let processedDateString = dateString;
-    // 如果时间字符串没有时区标识，添加Z表示UTC
-    if (!processedDateString.endsWith('Z') && !processedDateString.includes('+') && !processedDateString.includes('-', 10)) {
-      processedDateString += 'Z';
-    }
-    
-    const date = new Date(processedDateString);
-    const now = new Date();
-    
-    const diffMs = now.getTime() - date.getTime();
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
-    // 相对时间显示 - 更精确
-    if (diffMinutes < 1) return '刚刚';
-    if (diffMinutes < 60) return `${diffMinutes}分钟前`;
-    if (diffHours < 24) return `${diffHours}小时前`;
-    if (diffDays === 1) return '昨天';
-    if (diffDays < 7) return `${diffDays}天前`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)}周前`;
-    if (diffDays < 365) return `${Math.floor(diffDays / 30)}个月前`;
-    
-    return date.toLocaleDateString('zh-CN');
-  } catch (error) {
-    console.warn('formatPublishDate error:', error, 'input:', dateString);
-    return '';
-  }
-}
-
-function calculateReadTime(content: string) {
-  if (!content) return 0;
-  const plainText = content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
-  const chineseChars = (plainText.match(/[\u4e00-\u9fa5]/g) || []).length;
-  const englishWords = (plainText.replace(/[\u4e00-\u9fa5]/g, '').match(/\b\w+\b/g) || []).length;
-  const totalWords = chineseChars + englishWords;
-  return Math.max(1, Math.ceil(totalWords / 275));
-}
-
-function getStatusType(status?: string) {
-  const statusMap: Record<string, 'info' | 'success' | 'primary' | 'warning' | 'danger'> = {
-    'draft': 'info',
-    'pending': 'warning', 
-    'published': 'success',
-    'scheduled': 'primary'
-  };
-  return statusMap[status || ''] || 'info';
-}
-
-function getStatusText(status?: string) {
-  const statusMap: Record<string, string> = {
-    'draft': '草稿',
-    'pending': '待审核',
-    'published': '已发布',
-    'scheduled': '定时发布'
-  };
-  return statusMap[status || ''] || status;
-}
-
-function handleAuthorAvatarError(e: Event) {
-  (e.target as HTMLElement).style.display = 'none';
-}
-
 function shareArticle() {
   if (!article.value) return;
   
@@ -1331,34 +1104,6 @@ const handleContentClick = (clickInfo: { event: Event; contentType: string; targ
   transform: scale(1.05);
 }
 
-/* ===== 管理操作区样式 ===== */
-
-.admin-actions {
-  margin: 0 3rem 2rem;
-  padding: 1rem 1.5rem;
-  background: linear-gradient(135deg, #fef3c7, #fde68a);
-  border: 1px solid #f59e0b;
-  border-radius: 12px;
-}
-
-.admin-actions-content {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.admin-actions-label {
-  font-weight: 600;
-  color: #92400e;
-}
-
-.admin-actions-buttons {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
 /* ===== 文章正文样式 ===== */
 
 .article-content {
@@ -1655,133 +1400,6 @@ const handleContentClick = (clickInfo: { event: Event; contentType: string; targ
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
-/* ===== 文章底部交互区样式 ===== */
-
-.article-footer {
-  padding: 2rem 3rem 3rem;
-  background: #f9fafb;
-}
-
-.interaction-section {
-  margin-bottom: 2rem;
-}
-
-.interaction-buttons {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.interaction-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 50px;
-  background: white;
-  color: #6b7280;
-  font-weight: 500;
-  font-size: 0.875rem;
-  transition: all 0.3s ease;
-  cursor: pointer;
-  min-width: 100px;
-  justify-content: center;
-}
-
-.interaction-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.interaction-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.like-btn.liked {
-  background: linear-gradient(135deg, #fef2f2, #fecaca);
-  border-color: #f87171;
-  color: #dc2626;
-}
-
-.bookmark-btn.bookmarked {
-  background: linear-gradient(135deg, #eff6ff, #bfdbfe);
-  border-color: #60a5fa;
-  color: #2563eb;
-}
-
-.share-btn:hover {
-  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
-  border-color: #0ea5e9;
-  color: #0284c7;
-}
-
-.count {
-  font-size: 0.75rem;
-  opacity: 0.8;
-}
-
-.section-divider {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, #e5e7eb, transparent);
-  margin: 2rem 0;
-}
-
-/* ===== 作者信息卡片样式 ===== */
-
-.author-card {
-  display: flex;
-  gap: 1rem;
-  padding: 1.5rem;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  border: 1px solid #f3f4f6;
-}
-
-.author-card-avatar {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  overflow: hidden;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.author-card-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.author-card-fallback {
-  color: white;
-  font-size: 1.5rem;
-}
-
-.author-card-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.author-card-name {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #111827;
-  margin: 0 0 0.5rem;
-}
-
-.author-card-bio {
-  color: #6b7280;
-  line-height: 1.5;
-  margin: 0;
-}
 
 
 /* ===== 评论区样式 ===== */

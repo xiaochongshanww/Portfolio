@@ -159,195 +159,28 @@
         </div>
       </template>
 
-      <el-table 
-        :data="backups" 
-        :loading="loading" 
-        stripe
-        class="backup-table"
-      >
-        <el-table-column prop="backup_id" label="备份ID" width="200">
-          <template #default="{ row }">
-            <el-tooltip :content="row.backup_id" placement="top">
-              <span class="backup-id">{{ row.backup_id }}</span>
-            </el-tooltip>
-          </template>
-        </el-table-column>
-
-        <el-table-column prop="backup_type" label="类型" width="100">
-          <template #default="{ row }">
-            <el-tag 
-              :type="getBackupTypeTagType(row.backup_type)" 
-              size="small"
-            >
-              {{ getBackupTypeLabel(row.backup_type) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag 
-              :type="getStatusTagType(row.status)" 
-              size="small"
-            >
-              {{ getStatusLabel(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-
-        <el-table-column prop="file_size" label="大小" width="120">
-          <template #default="{ row }">
-            <span v-if="row.file_size">{{ formatFileSize(row.file_size) }}</span>
-            <span v-else class="text-muted">-</span>
-          </template>
-        </el-table-column>
-
-        <el-table-column prop="created_at" label="创建时间" width="160">
-          <template #default="{ row }">
-            <span class="time-text">{{ formatDateTime(row.created_at) }}</span>
-          </template>
-        </el-table-column>
-
-        <el-table-column prop="duration" label="耗时" width="100">
-          <template #default="{ row }">
-            <span v-if="row.duration !== null">{{ row.duration }}s</span>
-            <span v-else class="text-muted">-</span>
-          </template>
-        </el-table-column>
-
-        <el-table-column prop="extra_data" label="描述" min-width="150">
-          <template #default="{ row }">
-            <span class="description">
-              {{ row.extra_data?.description || '无描述' }}
-            </span>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="操作" width="200" fixed="right">
-          <template #default="{ row }">
-            <div class="action-buttons">
-              <el-button 
-                size="small" 
-                title="查看详情"
-                @click="showBackupDetail(row)"
-              >
-                <el-icon><View /></el-icon>
-              </el-button>
-              
-              <el-button 
-                v-if="canDownloadBackup(row)"
-                size="small" 
-                type="success"
-                title="下载备份"
-                @click="downloadBackup(row)"
-              >
-                <el-icon><Download /></el-icon>
-              </el-button>
-
-              <el-button 
-                v-if="canRestoreBackup(row)"
-                size="small" 
-                type="warning"
-                title="恢复备份"
-                @click="showRestoreDialog(row)"
-              >
-                <el-icon><RefreshLeft /></el-icon>
-              </el-button>
-
-              <el-button 
-                size="small" 
-                type="danger"
-                title="删除备份"
-                @click="deleteBackup(row)"
-              >
-                <el-icon><Delete /></el-icon>
-              </el-button>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <!-- 分页 -->
-      <div class="pagination-wrapper">
-        <el-pagination
-          v-model:current-page="pagination.page"
-          v-model:page-size="pagination.per_page"
-          :total="pagination.total"
-          :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
-      </div>
+      <BackupRecordList
+        :backups="backups"
+        :loading="loading"
+        :pagination="pagination"
+        :can-download-backup="canDownloadBackup"
+        :can-restore-backup="canRestoreBackup"
+        @detail="showBackupDetail"
+        @download="downloadBackup"
+        @restore="showRestoreDialog"
+        @delete="deleteBackup"
+        @size-change="handleSizeChange"
+        @current-change="handleCurrentChange"
+      />
     </el-card>
 
     <!-- 创建备份对话框 -->
-    <el-dialog 
-      v-model="createDialog.visible" 
-      title="创建新备份"
-      width="600px"
-      :z-index="9999"
-      append-to-body
-      @close="resetCreateForm"
-    >
-      <el-form 
-        :model="createForm" 
-        :rules="createRules" 
-        label-width="120px"
-      >
-        <el-form-item label="备份类型" prop="backup_type">
-          <el-select v-model="createForm.backup_type" placeholder="请选择备份类型">
-            <el-option label="全量备份" value="full">
-              <div class="option-detail">
-                <div>全量备份</div>
-                <div class="option-desc">完整备份所有数据和文件</div>
-              </div>
-            </el-option>
-            <el-option label="增量备份" value="incremental">
-              <div class="option-detail">
-                <div>增量备份</div>
-                <div class="option-desc">仅备份自上次备份后的更改</div>
-              </div>
-            </el-option>
-          </el-select>
-        </el-form-item>
-
-        <el-form-item label="备份内容">
-          <div class="backup-options">
-            <el-checkbox v-model="createForm.include_database">
-              <div class="option-detail">
-                <div>数据库</div>
-                <div class="option-desc">包含所有数据库表和数据</div>
-              </div>
-            </el-checkbox>
-            <el-checkbox v-model="createForm.include_files">
-              <div class="option-detail">
-                <div>文件系统</div>
-                <div class="option-desc">包含上传的文件和静态资源</div>
-              </div>
-            </el-checkbox>
-          </div>
-        </el-form-item>
-
-        <el-form-item label="备份描述">
-          <el-input 
-            v-model="createForm.description" 
-            type="textarea" 
-            :rows="3"
-            placeholder="请输入备份描述信息（可选）"
-            maxlength="200"
-            show-word-limit
-          />
-        </el-form-item>
-      </el-form>
-
-      <template #footer>
-        <el-button @click="createDialog.visible = false">取消</el-button>
-        <el-button type="primary" :loading="creating" @click="createBackup">
-          {{ creating ? '创建中...' : '创建备份' }}
-        </el-button>
-      </template>
-    </el-dialog>
+    <CreateBackupDialog
+      :visible="createDialog.visible"
+      :creating="creating"
+      @update:visible="createDialog.visible = $event"
+      @submit="createBackup"
+    />
 
     <!-- 备份详情对话框 -->
     <BackupDetailDialog
@@ -576,6 +409,8 @@ import {
 } from '@element-plus/icons-vue'
 import { API } from '@/api'
 import BackupDetailDialog from '@/components/backup/BackupDetailDialog.vue'
+import BackupRecordList from '@/components/backup/BackupRecordList.vue'
+import CreateBackupDialog from '@/components/backup/CreateBackupDialog.vue'
 /** @typedef {import('../../types').BackupRecord} BackupRecord */
 /** @typedef {import('../../types').RestoreRecord} RestoreRecord */
 /** @typedef {{ message?: string, config?: unknown, response?: { status?: number, statusText?: string, data?: { message?: string } } }} ApiError */
@@ -640,19 +475,6 @@ const filters = reactive({
 const createDialog = reactive({
   visible: false
 })
-
-const createForm = reactive({
-  backup_type: 'full',
-  include_database: true,
-  include_files: true,
-  description: ''
-})
-
-const createRules = {
-  backup_type: [
-    { required: true, message: '请选择备份类型', trigger: 'change' }
-  ]
-}
 
 // 备份详情对话框
 const detailDialog = reactive({
@@ -811,18 +633,9 @@ const showCreateDialog = () => {
   createDialog.visible = true
 }
 
-// 重置创建表单
-const resetCreateForm = () => {
-  Object.assign(createForm, {
-    backup_type: 'full',
-    include_database: true,
-    include_files: true,
-    description: ''
-  })
-}
-
 // 创建备份
-const createBackup = async () => {
+/** @param {Record<string, unknown>} createForm */
+const createBackup = async (createForm) => {
   try {
     creating.value = true
     console.log('创建备份数据:', createForm)
@@ -832,7 +645,6 @@ const createBackup = async () => {
     
     ElMessage.success('备份创建成功！正在后台执行备份任务...')
     createDialog.visible = false
-    resetCreateForm()
     
     // 立即刷新以显示新创建的备份
     await refreshBackups()

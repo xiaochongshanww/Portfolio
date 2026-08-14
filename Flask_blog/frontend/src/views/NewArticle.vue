@@ -63,116 +63,11 @@
       </el-card>
 
       <!-- 封面图片卡片 -->
-      <el-card class="cover-card" shadow="hover">
-        <template #header>
-          <h3 class="card-title">
-            <el-icon class="title-icon"><Picture /></el-icon>
-            封面图片
-          </h3>
-        </template>
-
-        <div class="cover-section">
-          <!-- 上传区域 -->
-          <div class="upload-section">
-            <el-form-item label="选择封面图">
-              <div class="upload-area">
-                <!-- 主要上传选项 -->
-                <div class="primary-upload">
-                  <el-upload
-                    class="cover-uploader"
-                    action="#"
-                    :auto-upload="false"
-                    :on-change="handleCoverSelect"
-                    :show-file-list="false"
-                    accept="image/*"
-                    :disabled="uploading"
-                  >
-                    <el-button 
-                      type="primary" 
-                      size="large"
-                      :loading="uploading"
-                      :icon="uploading ? Loading : UploadFilled"
-                    >
-                      {{ uploading ? '上传中...' : '上传新图片' }}
-                    </el-button>
-                  </el-upload>
-                  
-                  <div v-if="uploading" class="upload-progress">
-                    <el-progress :percentage="uploadProgress" />
-                  </div>
-                </div>
-
-                <!-- 分隔线 -->
-                <div class="option-divider">
-                  <span class="divider-text">或</span>
-                </div>
-
-                <!-- 媒体库选择 -->
-                <div class="media-library-option">
-                  <el-button 
-                    type="success"
-                    size="large"
-                    :icon="Picture"
-                    :disabled="uploading"
-                    plain
-                    @click="showMediaSelector = true"
-                  >
-                    从媒体库选择
-                  </el-button>
-                  <div class="option-hint">
-                    选择已上传的图片作为封面
-                  </div>
-                </div>
-              </div>
-              <div class="input-hint">
-                <el-icon class="hint-icon"><InfoFilled /></el-icon>
-                支持 JPG、PNG、WebP 格式，建议尺寸 1200x630 像素，文件大小不超过 5MB
-              </div>
-            </el-form-item>
-          </div>
-
-          <!-- URL输入作为高级选项 -->
-          <div class="url-section">
-            <el-collapse>
-              <el-collapse-item title="高级选项：使用图片链接" name="url">
-                <el-form-item label="封面图片URL">
-                  <el-input 
-                    v-model="form.featured_image" 
-                    placeholder="https://example.com/cover.jpg 或使用上传功能"
-                    size="large"
-                    clearable
-                  >
-                    <template #prefix>
-                      <el-icon><Link /></el-icon>
-                    </template>
-                  </el-input>
-                  <div class="input-hint">
-                    直接输入图片网络地址，适合已有图片链接的用户
-                  </div>
-                </el-form-item>
-              </el-collapse-item>
-            </el-collapse>
-          </div>
-
-          <!-- 封面预览 -->
-          <div v-if="form.featured_image" class="cover-preview">
-            <label class="preview-label">封面预览</label>
-            <div class="preview-container">
-              <CoverImage 
-                :src="form.featured_image" 
-                alt="封面预览"
-                container-class="preview-image-container"
-                image-class="preview-image"
-              />
-            </div>
-          </div>
-
-          <!-- 焦点裁剪 -->
-          <div v-if="form.featured_image" class="focal-section">
-            <ImageFocalCropper v-model="form.featured_image" @focal-change="onFocal" />
-          </div>
-        </div>
-      </el-card>
+      <CoverImageEditor
+        :image="form.featured_image"
+        @update:image="form.featured_image = $event"
+        @focal-change="onFocal"
+      />
 
       <!-- 内容编辑卡片 -->
       <el-card class="content-card" shadow="hover">
@@ -371,37 +266,27 @@
       />
     </div>
 
-    <!-- 媒体选择器 -->
-    <MediaSelector 
-      v-model:visible="showMediaSelector"
-      :multiple="false"
-      accept="image/*"
-      @selected="handleMediaSelected"
-    />
   </div>
 </template>
 <script setup>
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { API } from '../api';
-import { UploadsService } from '../generated';
 import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router';
 import { useUserStore } from '../stores/user';
 import axios from 'axios';
 import { setMeta } from '../composables/useMeta';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import message, { MESSAGE_PRIORITY } from '../utils/message';
-import MediaSelector from '../components/media/MediaSelector.vue';
 import VditorEditor from '../components/VditorEditor.vue';
 import ImageUploader from '../components/ImageUploader.vue';
-import ImageFocalCropper from '../components/ImageFocalCropper.vue';
-import CoverImage from '../components/CoverImage.vue';
+import CoverImageEditor from '../components/cover/CoverImageEditor.vue';
 import CategorySelector from '../components/CategorySelector.vue';
 import TagManager from '../components/TagManager.vue';
 import SEOFields from '../components/SEOFields.vue';
 import SchedulePicker from '../components/SchedulePicker.vue';
 import { ERROR_CODE_MAP } from '../governance/errorCodes.generated';
 import { 
-  Document, EditPen, InfoFilled, Picture, Link, UploadFilled, Loading,
+  Document, EditPen, InfoFilled,
   Edit, Search, Clock, Check, DocumentCopy, Setting
 } from '@element-plus/icons-vue';
 /** @typedef {import('../types').Article} Article */
@@ -451,7 +336,6 @@ const categoryLoading = ref(false);
 // 标签相关状态
 /** @type {import('vue').Ref<NewTag[]>} */
 const availableTags = ref([]);
-const showMediaSelector = ref(false);
 /** @type {import('vue').Ref<string[]>} */
 const selectedTags = ref([]);
 const tagsLoading = ref(false);
@@ -504,10 +388,6 @@ const validationRules = {
     { type: 'number', message: '请选择有效的分类', trigger: 'change' }
   ]
 };
-
-// 上传状态
-const uploading = ref(false);
-const uploadProgress = ref(0);
 
 // 自动保存状态
 const autoSaving = ref(false);
@@ -644,79 +524,6 @@ async function loadArticleForEdit(articleId) {
   }
 }
 
-// 封面图片上传处理
-/** @param {import('element-plus').UploadFile} file */
-async function handleCoverSelect(file) {
-  if (!file || !file.raw) return;
-  
-  // 验证文件类型
-  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-  if (!allowedTypes.includes(file.raw.type)) {
-    message.warning('不支持的文件格式，请选择 JPG、PNG 或 WebP 格式的图片');
-    return;
-  }
-  
-  // 验证文件大小 (5MB)
-  const maxSize = 5 * 1024 * 1024;
-  if (file.raw.size > maxSize) {
-    message.warning('文件过大，请选择小于 5MB 的图片');
-    return;
-  }
-  
-  uploading.value = true;
-  uploadProgress.value = 0;
-  error.value = '';
-  
-  try {
-    // 模拟上传进度
-    const progressInterval = setInterval(() => {
-      if (uploadProgress.value < 90) {
-        uploadProgress.value += 10;
-      }
-    }, 100);
-    
-    const response = await UploadsService.postApiV1UploadsImage({
-      file: file.raw
-    });
-    
-    clearInterval(progressInterval);
-    uploadProgress.value = 100;
-    
-    if (response.data?.url) {
-      form.value.featured_image = response.data.url;
-      message.success({
-        message: '🖼️ 封面图片上传成功！',
-        duration: 3000
-      });
-    } else {
-      error.value = '上传成功但未获取到图片地址';
-    }
-  } catch (e) {
-    console.error('Cover upload error:', e);
-    const err = /** @type {{ response?: { data?: { message?: string } } }} */ (e);
-    if (err.response?.data?.message) {
-      error.value = `上传失败: ${err.response.data.message}`;
-    } else {
-      error.value = '封面图片上传失败，请稍后重试';
-    }
-  } finally {
-    uploading.value = false;
-    uploadProgress.value = 0;
-  }
-}
-
-// 处理从媒体库选择图片
-/** @param {{ url?: string }} selectedMedia */
-function handleMediaSelected(selectedMedia) {
-  if (selectedMedia && selectedMedia.url) {
-    form.value.featured_image = selectedMedia.url;
-    message.success({
-      message: '🖼️ 已从媒体库选择封面图片！',
-      duration: 3000
-    });
-  }
-  showMediaSelector.value = false;
-}
 // 表单验证功能
 /** @param {string} fieldName @param {unknown} value */
 function validateField(fieldName, value) {
