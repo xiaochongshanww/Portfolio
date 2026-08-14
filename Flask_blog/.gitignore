@@ -170,9 +170,6 @@ dump.rdb
 .env.test.local
 .env.production.local
 
-# Docker
-.dockerignore
-
 # IDE
 *.sublime-project
 *.sublime-workspace

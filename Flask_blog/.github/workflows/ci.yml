@@ -82,6 +82,37 @@ jobs:
       - working-directory: frontend
         run: npm run typecheck
 
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: test
+          MYSQL_DATABASE: blog_test
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping -h 127.0.0.1" --health-interval=10s --health-timeout=5s --health-retries=5
+    env:
+      DATABASE_URL: mysql+pymysql://root:test@127.0.0.1:3306/blog_test?charset=utf8mb4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r backend/requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - working-directory: frontend
+        run: npm ci
+      - name: Install Playwright browsers
+        run: cd frontend && npx playwright install --with-deps chromium
+      - name: Run E2E tests
+        run: ./frontend/node_modules/.bin/playwright test --config e2e/playwright.config.ts
+        env:
+          DATABASE_URL: mysql+pymysql://root:test@127.0.0.1:3306/blog_test?charset=utf8mb4
+
   lhci:
     needs: [test-backend, test-frontend]
     if: github.event_name == 'pull_request'
