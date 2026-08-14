@@ -12,7 +12,7 @@
 | `design/` | 各模块设计文档 | [备份系统](design/backup-system.md) · [日志管理](design/log-management.md) · [安全监控](design/security-monitoring.md) · [首页设计](design/homepage.md) · [封面图优化](design/cover-image.md) |
 | `product/` | 产品需求文档 | [PRD](product/prd.md) · [需求描述](product/requirements.md) |
 | `operations/` | 部署与运维 | [生产部署](operations/deployment.md) · [性能基线](operations/performance.md) · [GHCR 配置](operations/ghcr-setup.md) |
-| `engineering/` | 工程规范与质量 | [开发规范](engineering/standards.md) · [测试体系](engineering/testing.md) · [代码审查](engineering/code-review-report.md) · [重构计划](engineering/refactoring-plan.md) · [规范化评估](engineering/standardization-review.md) |
+| `engineering/` | 工程规范与质量 | [开发规范](engineering/standards.md) · [测试体系](engineering/testing.md) · [代码审查](engineering/code-review-report.md) · [重构计划](engineering/refactoring-plan.md) · [改造进度](engineering/refactoring-progress.md) · [规范化评估](engineering/standardization-review.md) |
 | `reference/` | 参考资料 | [Token 过期提醒](reference/token-expiry-reminder.md) |
 
 ## 文档索引
@@ -50,6 +50,7 @@
 - [代码审查报告](engineering/code-review-report.md) — 审查结果与整改
 - [重构计划](engineering/refactoring-plan.md) — 阶段性重构方案
 - [深度重构方案](engineering/refactoring-deep-plan.md) — 架构级重构详细方案
+- [改造进度追踪](engineering/refactoring-progress.md) — 重构计划执行进度、完成状态与剩余待办
 - [项目规范化评估报告](engineering/standardization-review.md) — 工程规范化的客观评估与改进路线
 
 ### reference — 参考资料
