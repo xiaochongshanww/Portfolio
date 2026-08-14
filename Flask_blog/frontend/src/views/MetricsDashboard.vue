@@ -243,7 +243,7 @@ import {
   Warning, TrendCharts, Refresh, Document, Collection, Select, Edit, Clock,
   ChatDotRound, ChatRound, CircleCheck, User, UserFilled, Files, Folder, PriceTag
 } from '@element-plus/icons-vue';
-import apiClient from '../apiClient';
+import { API } from '../api';
 import { setMeta } from '../composables/useMeta';
 import { useUserStore } from '../stores/user';
 
@@ -259,14 +259,14 @@ const stats = ref({
 });
 
 const api = {
-  getSummary: () => apiClient.get('/metrics/summary'),
-  getTest: () => apiClient.get('/metrics/test'),
+  getSummary: () => API.getMetricsSummary(),
+  getTest: () => API.getMetricsTest(),
   getFallbackStats: async () => {
     // 备用方案：从多个简单API获取基础数据
     try {
       const [articles, categories] = await Promise.all([
-        apiClient.get('/public/v1/articles?per_page=1').catch(() => ({ data: { data: [] } })),
-        apiClient.get('/public/v1/categories').catch(() => ({ data: { data: [] } }))
+        API.getPublicV1('/articles?per_page=1').catch(() => ({ data: { data: [] } })),
+        API.getPublicV1('/categories').catch(() => ({ data: { data: [] } }))
       ]);
       
       return {

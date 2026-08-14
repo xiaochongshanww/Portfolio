@@ -7,7 +7,7 @@
 </template>
 <script setup>
 import { ref } from 'vue';
-import api from '../apiClient';
+import { API } from '../api';
 
 const emit = defineEmits(['uploaded']);
 /** @type {import('vue').Ref<HTMLInputElement | null>} */
@@ -26,7 +26,7 @@ async function onFile(e){
   fd.append('file', f);
   uploading.value = true;
   try {
-    const resp = await api.post('/uploads/image', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+    const resp = await API.uploadImage(fd);
     const data = resp.data?.data;
     if(data){
       emit('uploaded', data);

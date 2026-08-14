@@ -307,7 +307,7 @@ import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Delete } from '@element-plus/icons-vue'
-import { backupApi } from '@/api/backup'
+import { API } from '@/api'
 
 // 数据
 /** @type {import('vue').Ref<import('@/types').RestoreRecord[]>} */
@@ -353,7 +353,7 @@ const loadRestoreRecords = async () => {
       ...filters
     }
     
-    const response = await backupApi.getRestoreRecords(params)
+    const response = await API.getRestoreRecords(params)
     if (response.data.code === 0) {
       restoreRecords.value = response.data.data.items
       pagination.total = response.data.data.total
@@ -394,7 +394,7 @@ const startProgressMonitoring = (restoreId) => {
   
   progressTimer = setInterval(async () => {
     try {
-      const response = await backupApi.getRestoreProgress(restoreId)
+      const response = await API.getRestoreProgress(restoreId)
       if (response.data.code === 0) {
         detailDialog.data = response.data.data
         
@@ -443,7 +443,7 @@ const cancelRestore = async (restoreId) => {
       detailDialog.data._cancelling = true
     }
     
-    const response = await backupApi.cancelRestore(restoreId)
+    const response = await API.cancelRestore(restoreId)
     if (response.data.code === 0) {
       ElMessage.success('恢复任务已取消')
       await loadRestoreRecords()
@@ -504,7 +504,7 @@ const cancelRestoreFromDialog = async (restoreId) => {
       originalDialogData._cancelling = true
     }
     
-    const response = await backupApi.cancelRestore(restoreId)
+    const response = await API.cancelRestore(restoreId)
     if (response.data.code === 0) {
       ElMessage.success('恢复任务已取消')
       await loadRestoreRecords()
@@ -561,7 +561,7 @@ const cleanupStuckTasks = async () => {
     )
 
     cleaningUp.value = true
-    const response = await backupApi.cleanupStuckRestores()
+    const response = await API.cleanupStuckRestores()
     
     if (response.data.code === 0) {
       const cleanedCount = response.data.data.cleaned_count

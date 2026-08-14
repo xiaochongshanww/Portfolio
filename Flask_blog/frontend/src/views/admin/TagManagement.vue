@@ -299,7 +299,7 @@
 import { ref, reactive, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus, Search, Edit, Delete, Refresh, Document, DataBoard, Close, Check, QuestionFilled } from '@element-plus/icons-vue';
-import api from '../../apiClient';
+import { API } from '../../api';
 
 // 响应式数据
 const loading = ref(false);
@@ -383,7 +383,7 @@ const loadData = async () => {
   
   try {
     loading.value = true;
-    const response = await api.get('/taxonomy/stats');
+    const response = await API.getTaxonomyStats();
     
     if (response.data.code === 0) {
       const data = response.data.data;
@@ -494,9 +494,9 @@ const handleSubmit = async () => {
     
     let response;
     if (dialogMode.value === 'create') {
-      response = await api.post('/taxonomy/tags/', data);
+      response = await API.createTag(data);
     } else {
-      response = await api.patch(`/taxonomy/tags/${editingId.value}`, data);
+      response = await API.updateTag(editingId.value, data);
     }
     
     if (response.data.code === 0) {
@@ -557,7 +557,7 @@ const handleDelete = async (tag) => {
       }
     );
     
-    const response = await api.delete(`/taxonomy/tags/${tag.id}`);
+    const response = await API.deleteTag(tag.id);
     
     if (response.data.code === 0) {
       ElMessage.success('标签删除成功');
@@ -594,7 +594,7 @@ const cleanUnusedTags = async () => {
     );
     
     for (const tag of unusedTags) {
-      await api.delete(`/taxonomy/tags/${tag.id}`);
+      await API.deleteTag(tag.id);
     }
     
     ElMessage.success(`成功清理 ${unusedTags.length} 个未使用的标签`);

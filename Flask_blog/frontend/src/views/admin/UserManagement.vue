@@ -356,7 +356,7 @@ import {
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useUserStore } from '../../stores/user';
-import apiClient from '../../apiClient';
+import { API } from '../../api';
 
 const userStore = useUserStore();
 
@@ -503,7 +503,7 @@ async function loadUsers() {
       params.end_date = filters.dateRange[1].toISOString().split('T')[0];
     }
 
-    const response = await apiClient.get('/users/', { params });
+    const response = await API.getUsers(params);
     const data = response.data.data;
     
     users.value = data?.list || [];
@@ -603,7 +603,7 @@ async function confirmRoleChange() {
   roleDialog.loading = true;
   
   try {
-    await apiClient.patch(`/users/${roleDialog.user.id}`, {
+    await API.updateUser(roleDialog.user.id, {
       role: roleDialog.form.role
     });
     
@@ -628,7 +628,7 @@ async function toggleUserStatus(user, isActive) {
       { type: 'warning' }
     );
 
-    await apiClient.patch(`/users/${user.id}`, {
+    await API.updateUser(user.id, {
       is_active: isActive
     });
 
@@ -650,7 +650,7 @@ async function resetUserPassword(user) {
       { type: 'warning' }
     );
 
-    await apiClient.post(`/users/${user.id}/reset-password`);
+    await API.resetUserPassword(user.id);
     ElMessage.success('密码重置成功，新密码已发送到用户邮箱');
   } catch (error) {
     if (error !== 'cancel') {
@@ -677,7 +677,7 @@ async function deleteUser(user) {
       }
     );
 
-    await apiClient.delete(`/users/${user.id}`);
+    await API.deleteUser(user.id);
     ElMessage.success('用户已删除');
     loadUsers();
   } catch (error) {

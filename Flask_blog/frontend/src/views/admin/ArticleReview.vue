@@ -301,7 +301,7 @@ import {
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useUserStore } from '../../stores/user';
-import apiClient from '../../apiClient';
+import { API } from '../../api';
 
 const userStore = useUserStore();
 
@@ -421,7 +421,7 @@ async function loadArticles() {
         break;
     }
 
-    const response = await apiClient.get('/articles/', { params });
+    const response = await API.getArticles(params);
     const data = response.data.data;
     
     articles.value = data?.list || [];
@@ -439,21 +439,17 @@ async function loadArticles() {
 async function loadStats() {
   try {
     // 加载待审核文章数量
-    const pendingResponse = await apiClient.get('/articles/', { 
-      params: { status: 'pending', page: 1, page_size: 1 }
-    });
+    const pendingResponse = await API.getArticles({ status: 'pending', page: 1, page_size: 1 });
     stats.pending = pendingResponse.data.data?.total || 0;
 
     // 加载今日审核数量
     const today = new Date().toISOString().split('T')[0];
-    const reviewedResponse = await apiClient.get('/articles/audit_logs', {
-      params: { 
-        action: 'approve,reject', 
-        date: today,
-        operator_id: userStore.user?.id,
-        page: 1, 
-        page_size: 1 
-      }
+    const reviewedResponse = await API.getAuditLogs({ 
+      action: 'approve,reject', 
+      date: today,
+      operator_id: userStore.user?.id,
+      page: 1, 
+      page_size: 1 
     });
     stats.todayReviewed = reviewedResponse.data.data?.total || 0;
   } catch (error) {
@@ -486,7 +482,7 @@ async function viewHistory(article: any) {
   historyDialog.loading = true;
   
   try {
-    const response = await apiClient.get(`/articles/${article.id}/versions`);
+    const response = await API.getArticleVersions(article.id);
     historyDialog.versions = response.data.data || [];
   } catch (error) {
     ElMessage.error('加载历史版本失败');
@@ -504,7 +500,7 @@ async function previewVersion(version: any) {
 // 审核操作
 async function approveArticle(article: any) {
   try {
-    await apiClient.post(`/articles/${article.id}/approve`);
+    await API.approveArticle(article.id);
     ElMessage.success('文章审核通过');
     loadArticles();
     loadStats();
@@ -533,7 +529,7 @@ async function confirmReject() {
     const suggestions = rejectDialog.form.suggestions.trim();
     const fullReason = suggestions ? `${reason}\n\n改进建议：${suggestions}` : reason;
 
-    await apiClient.post(`/articles/${rejectDialog.article.id}/reject`, {
+    await API.rejectArticle(rejectDialog.article.id, {
       reason: fullReason
     });
     

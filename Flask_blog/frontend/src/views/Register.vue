@@ -65,14 +65,14 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import apiClient from '../apiClient'; // Simplified API client
+import { API as UnifiedAPI } from '../api';
 import { ElMessage } from 'element-plus';
 
 // Simplified API for demonstration
 const API = {
   AuthService: {
     /** @param {{ requestBody: { email: string; password: string } }} body */
-    register: (body) => apiClient.post('/auth/register', body.requestBody)
+    register: (body) => UnifiedAPI.register(body.requestBody)
   }
 }
 

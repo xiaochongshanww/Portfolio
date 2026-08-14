@@ -335,7 +335,7 @@ import {
 } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 import VChart from 'vue-echarts';
-import apiClient from '../../apiClient';
+import { API } from '../../api';
 
 // 注册 ECharts 组件
 use([
@@ -727,7 +727,7 @@ const formatUptime = (hours: number) => {
 // 数据获取
 const fetchPerformanceData = async () => {
   try {
-    const response = await apiClient.get('/security/system-health');
+    const response = await API.getSystemHealth();
     
     if (response.data.code === 0) {
       const newData = response.data.data;

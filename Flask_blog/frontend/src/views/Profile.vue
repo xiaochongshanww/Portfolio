@@ -406,7 +406,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { UsersService, UploadsService } from '../generated';
-import apiClient from '../apiClient';
+import { API } from '../api';
 import { useNotify } from '../composables/useNotify';
 import { setMeta } from '../composables/useMeta';
 import { getUserDisplayName } from '../utils/userDisplay';
@@ -817,17 +817,10 @@ async function changePassword() {
     }
     
     // 调用密码修改API
-    const response = await apiClient.post('/auth/change_password', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${userStore.token}`
-      },
-      body: JSON.stringify({
-        email: userEmail,
-        old_password: passwordForm.value.currentPassword,
-        new_password: passwordForm.value.newPassword
-      })
+    const response = await API.changePassword({
+      email: userEmail,
+      old_password: passwordForm.value.currentPassword,
+      new_password: passwordForm.value.newPassword
     });
     
     const respData = response.data || {}

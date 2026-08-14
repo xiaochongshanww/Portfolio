@@ -179,7 +179,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { Document, ArrowRight, Loading, Grid, List, Compass, Reading, Star, TrendCharts } from '@element-plus/icons-vue';
-import apiClient from '../apiClient';
+import { API } from '../api';
 import { setMeta } from '../composables/useMeta';
 
 const router = useRouter();
@@ -215,7 +215,7 @@ const sortedTags = computed(() => {
 async function loadTags() {
   loading.value = true;
   try {
-    const response = await apiClient.get('/taxonomy', { baseURL: '/public/v1' });
+    const response = await API.getPublicTaxonomy();
     tags.value = response.data.data?.tags || [];
     console.log('✅ 标签加载成功，数量:', tags.value.length);
     

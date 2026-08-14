@@ -43,7 +43,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
-import apiClient from '../apiClient';
+import { API } from '../api';
 
 /** @type {import('vue').Ref<import('@/types').Comment[]>} */
 const comments = ref([]);
@@ -58,10 +58,10 @@ const pagination = reactive({
 const api = {
   /** @param {number} page @param {number} pageSize */
   getPendingComments: (page, pageSize) => 
-    apiClient.get(`/comments/pending?page=${page}&page_size=${pageSize}`),
+    API.getPendingComments({ page, page_size: pageSize }),
   /** @param {number} id @param {'approve' | 'reject'} action */
   moderateComment: (id, action) => 
-    apiClient.post(`/comments/moderate/${id}`, { action }),
+    API.moderateComment(id, { action }),
 };
 
 // --- 数据获取 ---

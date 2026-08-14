@@ -47,7 +47,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
-import apiClient from '../apiClient';
+import { API } from '../api';
 
 /** @type {import('vue').Ref<import('@/types').User[]>} */
 const users = ref([]);
@@ -68,10 +68,10 @@ const roles = ref([
 const api = {
   /** @param {number} page @param {number} pageSize */
   getUsers: (page, pageSize) => 
-    apiClient.get(`/users/?page=${page}&page_size=${pageSize}`),
+    API.getUsers({ page, page_size: pageSize }),
   /** @param {number} id @param {string} role */
   updateUserRole: (id, role) => 
-    apiClient.patch(`/users/${id}/role`, { role }),
+    API.updateUserRole(id, { role }),
 };
 
 // --- 数据获取 ---

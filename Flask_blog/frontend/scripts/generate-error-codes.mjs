@@ -14,7 +14,11 @@ function gen(){
     lines.push(`  [${item.code}, '${msg || item.message}'],`);
   }
   lines.push(']);');
-  lines.push('\nexport function translateError(code, fallback){');
+  lines.push('\n/**');
+  lines.push(' * @param {number} code');
+  lines.push(' * @param {string} [fallback]');
+  lines.push(' */');
+  lines.push('export function translateError(code, fallback){');
   lines.push("  return ERROR_CODE_MAP.get(code) || fallback || '操作失败';");
   lines.push('}');
   fs.writeFileSync(OUT_PATH, lines.join('\n'));

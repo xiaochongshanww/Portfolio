@@ -190,7 +190,8 @@
 <script>
 import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import mediaApi from '@/api/media'
+import { API } from '@/api'
+import { formatFileSize, getMediaTypeName, getMediaIcon } from '@/utils/mediaUtils'
 
 export default {
   name: 'MediaEditDialog',
@@ -244,8 +245,7 @@ export default {
       set: (value) => emit('update:visible', value)
     })
 
-    // 从 API 客户端获取辅助方法
-    const { formatFileSize, getMediaTypeName, getMediaIcon } = mediaApi
+    // 工具函数直接导入自 mediaUtils
 
     // 初始化表单数据
     const initForm = () => {
@@ -264,7 +264,7 @@ export default {
     // 加载可用文件夹
     const loadAvailableFolders = async () => {
       try {
-        const response = await mediaApi.getFolders()
+        const response = await API.getFolders()
         availableFolders.value = response.data
       } catch (error) {
         console.error('加载文件夹失败:', error)
@@ -289,7 +289,7 @@ export default {
           focal_y: form.focal_y
         }
 
-        await mediaApi.updateMedia(props.media.id, updateData)
+        await API.updateMedia(props.media.id, updateData)
         
         ElMessage.success('媒体信息更新成功')
         emit('updated')

@@ -50,7 +50,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import apiClient from '../apiClient';
+import { API } from '../api';
 import { setMeta } from '../composables/useMeta';
 
 /** @type {import('vue').Ref<import('@/types').Category[]>} */
@@ -60,7 +60,7 @@ const loading = ref(false);
 async function loadCategories() {
   loading.value = true;
   try {
-    const response = await apiClient.get('/taxonomy', { baseURL: '/public/v1' });
+    const response = await API.getPublicTaxonomy();
     categories.value = response.data.data?.categories || [];
     console.log('✅ 分类加载成功，数量:', categories.value.length);
     

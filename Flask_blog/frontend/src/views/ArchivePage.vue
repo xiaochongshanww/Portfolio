@@ -178,7 +178,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { View, ChatRound, Folder, ArrowRight, Loading, Calendar, DocumentCopy, Clock, Refresh, Filter } from '@element-plus/icons-vue';
-import apiClient from '../apiClient';
+import { API } from '../api';
 import { setMeta } from '../composables/useMeta';
 
 /**
@@ -295,7 +295,7 @@ async function loadArchive() {
   loading.value = true;
   try {
     // 加载所有文章，按发布时间排序
-    const response = await apiClient.get('/articles/public?sort=-published_at&limit=1000');
+    const response = await API.getPublicArticlesRaw('/articles/public', { sort: '-published_at', limit: 1000 });
     articles.value = response.data.data?.list || [];
     
     // 设置SEO元数据

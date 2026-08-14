@@ -337,7 +337,7 @@ import {
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useUserStore } from '../../stores/user';
-import apiClient from '../../apiClient';
+import { API } from '../../api';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -465,7 +465,7 @@ async function loadArticles() {
       requestUrl: '/articles/'
     });
 
-    const response = await apiClient.get('/articles/', { params });
+    const response = await API.getArticles(params);
     const data = response.data.data;
     
     // 更多调试信息
@@ -498,7 +498,7 @@ async function loadArticles() {
 
 async function loadCategories() {
   try {
-    const response = await apiClient.get('/taxonomy/categories/');
+    const response = await API.getCategories();
     categories.value = response.data.data || [];
   } catch (error) {
     console.error('加载分类失败:', error);
@@ -509,7 +509,7 @@ async function loadAuthors() {
   if (!userStore.isAdmin) return;
   
   try {
-    const response = await apiClient.get('/users/');
+    const response = await API.getUsers();
     authors.value = response.data.data?.list || [];
   } catch (error) {
     console.error('加载作者列表失败:', error);
@@ -581,21 +581,17 @@ async function testPendingArticles() {
     }
     
     // 3. 测试用户信息API
-    const userResponse = await apiClient.get('/users/me');
+    const userResponse = await API.getCurrentUser();
     console.log('👤 用户信息API响应:', userResponse.data);
     
     // 4. 直接请求pending状态的文章
-    const pendingResponse = await apiClient.get('/articles/', {
-      params: { status: 'pending', page: 1, page_size: 50 }
-    });
+    const pendingResponse = await API.getArticles({ status: 'pending', page: 1, page_size: 50 });
     
     console.log('📋 待审核文章API响应:', pendingResponse.data);
     console.log('📋 待审核文章详细数据:', pendingResponse.data.data);
     
     // 5. 请求所有文章（不指定状态）
-    const allResponse = await apiClient.get('/articles/', {
-      params: { page: 1, page_size: 50 }
-    });
+    const allResponse = await API.getArticles({ page: 1, page_size: 50 });
     
     console.log('📋 所有文章API响应:', allResponse.data);
     console.log('📋 所有文章详细数据:', allResponse.data.data);
@@ -661,7 +657,7 @@ async function handleStatusAction(article, action) {
 /** @param {any} article */
 async function submitArticle(article) {
   try {
-    await apiClient.post(`/articles/${article.id}/submit`);
+    await API.submitArticle(article.id);
     ElMessage.success('文章已提交审核');
     loadArticles();
   } catch (error) {
@@ -672,7 +668,7 @@ async function submitArticle(article) {
 /** @param {any} article */
 async function approveArticle(article) {
   try {
-    await apiClient.post(`/articles/${article.id}/approve`);
+    await API.approveArticle(article.id);
     ElMessage.success('文章审核通过');
     loadArticles();
   } catch (error) {
@@ -696,7 +692,7 @@ async function confirmReject() {
   rejectDialog.loading = true;
   
   try {
-    await apiClient.post(`/articles/${rejectDialog.article.id}/reject`, {
+    await API.rejectArticle(rejectDialog.article.id, {
       reason: rejectDialog.form.reason
     });
     ElMessage.success('文章已拒绝');
@@ -718,7 +714,7 @@ async function unpublishArticle(article) {
       { type: 'warning' }
     );
     
-    await apiClient.post(`/articles/${article.id}/unpublish`);
+    await API.unpublishArticle(article.id);
     ElMessage.success('已取消发布');
     loadArticles();
   } catch (error) {
@@ -737,7 +733,7 @@ async function deleteArticle(article) {
       { type: 'warning' }
     );
     
-    await apiClient.delete(`/articles/${article.id}`);
+    await API.deleteArticle(article.id);
     ElMessage.success('文章已删除');
     loadArticles();
   } catch (error) {
@@ -763,7 +759,7 @@ async function handleBulkApprove() {
     );
 
     for (const article of pendingArticles) {
-      await apiClient.post(`/articles/${article.id}/approve`);
+    await API.approveArticle(article.id);
     }
 
     ElMessage.success(`已批量审核通过 ${pendingArticles.length} 篇文章`);
@@ -796,7 +792,7 @@ async function handleBulkReject() {
     );
 
     for (const article of pendingArticles) {
-      await apiClient.post(`/articles/${article.id}/reject`, { reason });
+      await API.approveArticle(article.id);
     }
 
     ElMessage.success(`已批量拒绝 ${pendingArticles.length} 篇文章`);

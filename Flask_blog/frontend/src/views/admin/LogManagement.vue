@@ -397,7 +397,7 @@ import {
   Document, Calendar, Warning, InfoFilled, Search,
   Refresh, Download, Delete, View, RefreshLeft
 } from '@element-plus/icons-vue'
-import api from '@/apiClient'
+import { API } from '@/api'
 
 // 响应式数据
 const loading = ref(false)
@@ -495,7 +495,7 @@ const loadLogs = async (retry=false) => {
     }
     console.log("请求参数:", params)
   // 改为 POST 以使用新的 /admin/logs/query 端点，规避首个 GET 401 问题
-  const response = await api.post('/admin/logs/query', params)
+  const response = await API.queryLogs(params)
     
     if (response.data.code === 0) {
       logs.value = response.data.data.logs
@@ -520,7 +520,7 @@ const loadLogs = async (retry=false) => {
 // 加载统计信息
 const loadStats = async () => {
   try {
-    const response = await api.get('/admin/logs/stats')
+    const response = await API.getLogStats()
     
     if (response.data.code === 0) {
       Object.assign(stats, response.data.data)
@@ -534,14 +534,14 @@ const loadStats = async () => {
 const loadOptions = async () => {
   try {
     // 加载日志来源
-    const sourcesResponse = await api.get('/admin/logs/sources')
+    const sourcesResponse = await API.getLogSources()
     if (sourcesResponse.data.code === 0) {
       // 过滤掉null和空值
       availableSources.value = (sourcesResponse.data.data || []).filter(/** @param {unknown} source */ (source) => source)
     }
     
     // 加载用户列表
-    const usersResponse = await api.get('/admin/logs/users')
+    const usersResponse = await API.getLogUsers()
     if (usersResponse.data.code === 0) {
       // 过滤掉null和空值
       availableUsers.value = (usersResponse.data.data || []).filter(/** @param {{ id?: number }} user */ (user) => user && user.id)
@@ -653,7 +653,7 @@ const handleExport = async () => {
       params.end_time = filters.timeRange[1]
     }
     
-    const response = await api.get('/admin/logs/export', { params })
+    const response = await API.exportLogs(params)
     
     if (response.data.code === 0) {
       // 创建下载链接
@@ -701,7 +701,7 @@ const handleCleanup = async () => {
     
     cleaning.value = true
     
-    const response = await api.post('/admin/logs/cleanup', {
+    const response = await API.cleanupLogs({
       days: cleanupForm.days
     })
     

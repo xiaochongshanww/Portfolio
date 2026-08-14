@@ -350,89 +350,11 @@
     </el-dialog>
 
     <!-- 备份详情对话框 -->
-    <el-dialog 
-      v-model="detailDialog.visible" 
-      title="备份详情"
-      width="800px"
-      :z-index="9999"
-      append-to-body
-    >
-      <div v-if="detailDialog.backup" class="backup-detail">
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="备份ID">
-            {{ detailDialog.backup.backup_id }}
-          </el-descriptions-item>
-          <el-descriptions-item label="备份类型">
-            <el-tag :type="getBackupTypeTagType(detailDialog.backup.backup_type)">
-              {{ getBackupTypeLabel(detailDialog.backup.backup_type) }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="状态">
-            <el-tag :type="getStatusTagType(detailDialog.backup.status)">
-              {{ getStatusLabel(detailDialog.backup.status) }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="文件大小">
-            {{ detailDialog.backup.file_size ? formatFileSize(detailDialog.backup.file_size) : '-' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="压缩大小">
-            {{ detailDialog.backup.compressed_size ? formatFileSize(detailDialog.backup.compressed_size) : '-' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="压缩比">
-            {{ detailDialog.backup.compression_ratio ? (detailDialog.backup.compression_ratio * 100).toFixed(1) + '%' : '-' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="文件数量">
-            {{ detailDialog.backup.files_count || 0 }}
-          </el-descriptions-item>
-          <el-descriptions-item label="数据库数量">
-            {{ detailDialog.backup.databases_count || 0 }}
-          </el-descriptions-item>
-          <el-descriptions-item label="是否加密">
-            <el-tag :type="detailDialog.backup.encryption_enabled ? 'success' : 'info'">
-              {{ detailDialog.backup.encryption_enabled ? '是' : '否' }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="校验和">
-            <code v-if="detailDialog.backup.checksum" class="checksum">
-              {{ detailDialog.backup.checksum }}
-            </code>
-            <span v-else>-</span>
-          </el-descriptions-item>
-          <el-descriptions-item label="创建时间">
-            {{ formatDateTime(detailDialog.backup.created_at) }}
-          </el-descriptions-item>
-          <el-descriptions-item label="开始时间">
-            {{ detailDialog.backup.started_at ? formatDateTime(detailDialog.backup.started_at) : '-' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="完成时间">
-            {{ detailDialog.backup.completed_at ? formatDateTime(detailDialog.backup.completed_at) : '-' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="耗时">
-            {{ detailDialog.backup.duration !== null ? detailDialog.backup.duration + 's' : '-' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="存储位置" :span="2">
-            <div v-if="detailDialog.backup.storage_providers" class="storage-providers">
-              <el-tag 
-                v-for="(info, provider) in detailDialog.backup.storage_providers" 
-                :key="provider"
-                :type="info.status === 'success' ? 'success' : 'danger'"
-                size="small"
-                class="provider-tag"
-              >
-                {{ provider.toUpperCase() }}: {{ info.status }}
-              </el-tag>
-            </div>
-            <span v-else>-</span>
-          </el-descriptions-item>
-          <el-descriptions-item v-if="detailDialog.backup.extra_data?.description" label="描述" :span="2">
-            {{ detailDialog.backup.extra_data.description }}
-          </el-descriptions-item>
-          <el-descriptions-item v-if="detailDialog.backup.error_message" label="错误信息" :span="2">
-            <el-alert type="error" :title="detailDialog.backup.error_message" :closable="false" />
-          </el-descriptions-item>
-        </el-descriptions>
-      </div>
-    </el-dialog>
+    <BackupDetailDialog
+      :visible="detailDialog.visible"
+      :backup="detailDialog.backup || undefined"
+      @update:visible="detailDialog.visible = $event"
+    />
 
     <!-- 恢复备份对话框 -->
     <el-dialog
@@ -652,7 +574,8 @@ import {
   Plus, Refresh, FolderOpened, SuccessFilled, Coin, TrendCharts,
   View, Download, RefreshLeft, Delete, Loading, Close
 } from '@element-plus/icons-vue'
-import backupApi from '@/api/backup'
+import { API } from '@/api'
+import BackupDetailDialog from '@/components/backup/BackupDetailDialog.vue'
 /** @typedef {import('../../types').BackupRecord} BackupRecord */
 /** @typedef {import('../../types').RestoreRecord} RestoreRecord */
 /** @typedef {{ message?: string, config?: unknown, response?: { status?: number, statusText?: string, data?: { message?: string } } }} ApiError */
@@ -742,7 +665,7 @@ const detailDialog = reactive({
 const getBackupStats = async () => {
   try {
     console.log('🔄 开始获取备份统计...')
-    const response = await backupApi.getStatistics()
+    const response = await API.getBackupStatistics()
     console.log('✅ 统计数据响应:', response)
     stats.value = response.data?.data || response.data || {}
     console.log('📊 设置统计数据:', stats.value)
@@ -785,7 +708,7 @@ const getBackupList = async () => {
     }
     console.log('🔄 请求参数:', params)
     
-    const response = await backupApi.getBackupRecords(params)
+      const response = await API.getBackupRecords(params)
     console.log('✅ 备份列表响应:', response)
     
     // 处理不同的响应结构
@@ -904,7 +827,7 @@ const createBackup = async () => {
     creating.value = true
     console.log('创建备份数据:', createForm)
     
-    const response = await backupApi.createBackup(createForm)
+    const response = await API.createBackup(createForm)
     console.log('创建备份响应:', response)
     
     ElMessage.success('备份创建成功！正在后台执行备份任务...')
@@ -957,7 +880,7 @@ const startPolling = () => {
         ...filters
       }
       
-      const response = await backupApi.getBackupRecords(params)
+    const response = await API.getBackupRecords(params)
       const data = response.data?.data || response.data || {}
       /** @type {BackupRecord[]} */
       const newBackups = data.records || []
@@ -972,7 +895,7 @@ const startPolling = () => {
       pagination.total = data.total || 0
       
       // 同时更新统计信息
-      const statsResponse = await backupApi.getStatistics()
+      const statsResponse = await API.getBackupStatistics()
       stats.value = statsResponse.data?.data || statsResponse.data || {}
       
       // 如果没有运行中的备份，等待一段时间后停止轮询
@@ -1030,7 +953,7 @@ const cancelBackup = async (backup) => {
     
     console.log('🚫 用户确认取消备份:', backup.backup_id)
     
-    const response = await backupApi.cancelBackup(backup.backup_id)
+    const response = await API.cancelBackup(backup.backup_id)
     
     if (response.data?.code === 0) {
       ElMessage.success(`备份任务 "${backup.backup_id}" 已取消`)
@@ -1186,7 +1109,7 @@ const showBackupDetail = (backup) => {
 const downloadBackup = async (backup) => {
   try {
     ElMessage.info('开始下载备份文件...')
-    await backupApi.downloadBackup(backup.backup_id)
+    await API.downloadBackup(backup.backup_id)
   } catch (error) {
     const err = /** @type {ApiError} */ (error)
     ElMessage.error('下载备份失败: ' + (err.message || '网络错误'))
@@ -1261,7 +1184,7 @@ const performRestore = async () => {
       options.target_path = restoreOptions.value.target_path
     }
     
-    const response = await backupApi.restoreBackup(currentRestoreBackup.value.backup_id, options)
+    const response = await API.restoreBackup(currentRestoreBackup.value.backup_id, options)
     
     console.log('恢复任务响应:', response.data) // 添加调试日志
     
@@ -1322,7 +1245,7 @@ const startRestoreProgressMonitoring = (restoreId) => {
   
   restoreProgressTimer = setInterval(async () => {
     try {
-      const response = await backupApi.getRestoreProgress(restoreId)
+      const response = await API.getRestoreProgress(restoreId)
       if (response.data.code === 0) {
         currentRestoreTask.value = response.data.data
         
@@ -1374,7 +1297,7 @@ const cancelCurrentRestore = async () => {
     
     cancelling.value = true
     
-    await backupApi.cancelRestore(currentRestoreTask.value.restore_id)
+    await API.cancelRestore(currentRestoreTask.value.restore_id)
     ElMessage.success('恢复任务已取消')
     
     // 停止进度监控
@@ -1455,7 +1378,7 @@ const deleteBackup = async (backup) => {
       }
     )
     
-    await backupApi.deleteBackup(backup.backup_id)
+    await API.deleteBackup(backup.backup_id)
     ElMessage.success('备份删除成功')
     await refreshBackups()
   } catch (error) {

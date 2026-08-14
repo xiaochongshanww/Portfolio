@@ -16,7 +16,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, nextTick, onUnmounted } from 'vue';
 import { Loading } from '@element-plus/icons-vue';
-import api from '../apiClient';
+import { API } from '../api';
 
 interface Props {
   timeRange?: string;
@@ -57,7 +57,7 @@ const colors = {
 const fetchThreatData = async () => {
   try {
     loading.value = true;
-    const response = await api.get(`/security/threat-trends?timerange=${props.timeRange}`);
+    const response = await API.getThreatTrends({ timerange: props.timeRange });
     
     if (response.data.code === 0) {
       chartData.value = response.data.data.trends || [];

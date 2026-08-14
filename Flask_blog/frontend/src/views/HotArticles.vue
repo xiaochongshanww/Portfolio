@@ -37,7 +37,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import apiClient from '../apiClient';
+ import { API } from '../api';
 
 /** @type {import('vue').Ref<import('@/types').Article[]>} */
 const articles = ref([]);
@@ -46,9 +46,7 @@ const loading = ref(false);
 async function loadHotArticles() {
   loading.value = true;
   try {
-    const response = await apiClient.get('/articles/public/hot', {
-      params: { page: 1, page_size: 20, window_hours: 72 }
-    });
+    const response = await API.getHotArticles({ page: 1, page_size: 20, window_hours: 72 });
     articles.value = response.data.data?.list || [];
   } catch (error) {
     console.error('加载热门文章失败:', error);

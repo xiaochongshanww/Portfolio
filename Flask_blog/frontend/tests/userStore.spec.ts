@@ -5,10 +5,10 @@ import { useUserStore } from '../src/stores/user'
 const mockGet = vi.fn()
 const mockPost = vi.fn()
 
-vi.mock('../src/apiClient', () => ({
-  default: {
-    get: (...args: any[]) => mockGet(...args),
-    post: (...args: any[]) => mockPost(...args),
+vi.mock('../src/api', () => ({
+  API: {
+    getCurrentUser: (...args: any[]) => mockGet(...args),
+    logout: (...args: any[]) => mockPost(...args),
   },
 }))
 

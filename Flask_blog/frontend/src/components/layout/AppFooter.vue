@@ -78,7 +78,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { EditPen, Link, ChatDotRound, Message, Connection, View, User } from '@element-plus/icons-vue'
-import apiClient from '../../apiClient'
+import { API } from '../../api'
 
 // 统计数据
 const todayViews = ref(0)
@@ -93,7 +93,7 @@ const fetchStats = async () => {
     loading.value = true
     error.value = null
     
-    const response = await apiClient.get('/metrics/visitors')
+    const response = await API.getVisitorStats()
     
     if (response.data.code === 0) {
       const data = response.data.data
@@ -117,7 +117,7 @@ const fetchStats = async () => {
 // 发送访问追踪
 const trackVisit = async () => {
   try {
-    await apiClient.post('/metrics/track')
+    await API.trackVisit()
   } catch (err) {
     console.error('访问追踪失败:', err)
   }

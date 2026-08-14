@@ -185,7 +185,7 @@ import {
   Collection, Link, View, MagicStick, Check 
 } from '@element-plus/icons-vue';
 import message from '../utils/message';
-import apiClient from '../apiClient';
+import { API } from '../api';
 
 // Props
 const props = defineProps({
@@ -239,8 +239,8 @@ const rules = {
         }
         
         // 检查分类名称是否已存在
-        apiClient.get('/taxonomy/categories/')
-          .then((response) => {
+        API.getCategories()
+          .then(/** @param {any} response */ (response) => {
             /** @type {Array<{ name: string }>} */
             const existingCategories = response.data.data || [];
             const isDuplicate = existingCategories.some(cat => 
@@ -253,7 +253,7 @@ const rules = {
             }
             callback();
           })
-          .catch((error) => {
+          .catch(/** @param {any} error */ (error) => {
             console.warn('检查分类名称失败:', error);
             callback(); // 忽略检查错误，允许继续
           });
@@ -458,7 +458,7 @@ const handleCreate = async () => {
       description: form.value.description?.trim() || null
     };
     
-    const response = await apiClient.post('/taxonomy/categories/', categoryData);
+    const response = await API.createCategory(categoryData);
     
     if (response.data && response.data.code === 0) {
       const newCategory = response.data.data;

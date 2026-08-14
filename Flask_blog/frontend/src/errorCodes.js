@@ -15,7 +15,6 @@ export const ERROR_CODE_MAP = new Map([
 /**
  * @param {number} code
  * @param {string} [fallback]
- * @returns {string}
  */
 export function translateError(code, fallback){
   return ERROR_CODE_MAP.get(code) || fallback || '操作失败';

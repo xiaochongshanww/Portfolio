@@ -235,41 +235,12 @@
       </main>
       
       <!-- 侧边栏 -->
-      <aside class="article-sidebar">
-        <!-- 文章目录 -->
-        <div class="sidebar-section toc-section">
-          <h3 class="sidebar-title">目录</h3>
-          <nav v-if="tocItems.length" class="table-of-contents">
-            <ol class="toc-list">
-              <li 
-                v-for="item in tocItems" 
-                :key="item.id"
-                :class="['toc-item', `toc-level-${item.level}`, { 'active': activeHeading === item.id }]"
-              >
-                <a 
-                  :href="`#${item.id}`" 
-                  class="toc-link"
-                  @click.prevent="scrollToHeading(item.id || '')"
-                >
-                  {{ item.text }}
-                </a>
-              </li>
-            </ol>
-          </nav>
-          <p v-else class="toc-empty">暂无目录</p>
-        </div>
-        
-        <!-- 阅读进度 -->
-        <div class="sidebar-section progress-section">
-          <h3 class="sidebar-title">阅读进度</h3>
-          <div class="reading-progress">
-            <div class="progress-bar">
-              <div class="progress-fill" :style="{ width: readingProgress + '%' }" />
-            </div>
-            <span class="progress-text">{{ Math.round(readingProgress) }}%</span>
-          </div>
-        </div>
-      </aside>
+      <ArticleSidebar
+        :toc-items="tocItems"
+        :active-heading="activeHeading"
+        :reading-progress="readingProgress"
+        @scroll-to="scrollToHeading"
+      />
     </div>
     
     <!-- 评论区 -->
@@ -298,34 +269,35 @@ import { Edit } from '@element-plus/icons-vue';
 import CommentsThread from '../components/CommentsThread.vue';
 import CoverImage from '../components/CoverImage.vue';
 import ArticleContentRenderer from '../components/ArticleContentRenderer.vue';
+import ArticleSidebar from '../components/ArticleSidebar.vue';
 import { common, createLowlight } from 'lowlight';
 import hljs from 'highlight.js';
 import { 
   initTheme,
   updateGlobalCodeTheme
 } from '../utils/codeTheme';
-import apiClient from '../apiClient'; // Simplified
+import { API as UnifiedAPI } from '../api';
 import type { Article } from '../types';
 
 // 创建 lowlight 实例，与编辑器保持一致
 const lowlight = createLowlight(common);
 
-// API服务定义
+// API服务定义（统一走 @/api 出口）
 const API = {
     ArticlesService: {
-        getArticleBySlug: (slug: string) => apiClient.get(`/articles/public/slug/${slug}`),
-        likeArticle: (id: number) => apiClient.post(`/articles/${id}/like`),
-        bookmarkArticle: (id: number) => apiClient.post(`/articles/${id}/bookmark`),
-        getVersions: (id: number) => apiClient.get(`/articles/${id}/versions`),
-        createVersion: (id: number) => apiClient.post(`/articles/${id}/versions`),
-        rollbackVersion: (id: number, vNo: number) => apiClient.post(`/articles/${id}/versions/${vNo}/rollback`),
-        diffVersions: (id: number, vNo: number, targetNo: number) => apiClient.get(`/articles/${id}/versions/${vNo}/diff?target=${targetNo}`),
-        submitArticle: (id: number) => apiClient.post(`/articles/${id}/submit`),
-        approveArticle: (id: number) => apiClient.post(`/articles/${id}/approve`),
-        rejectArticle: (id: number, reason: string) => apiClient.post(`/articles/${id}/reject`, { reason }),
-        scheduleArticle: (id: number, date: string) => apiClient.post(`/articles/${id}/schedule`, { scheduled_at: date }),
-        unpublishArticle: (id: number) => apiClient.post(`/articles/${id}/unpublish`),
-        unscheduleArticle: (id: number) => apiClient.post(`/articles/${id}/unschedule`),
+        getArticleBySlug: (slug: string) => UnifiedAPI.getArticleBySlug(slug),
+        likeArticle: (id: number) => UnifiedAPI.likeArticle(id),
+        bookmarkArticle: (id: number) => UnifiedAPI.bookmarkArticle(id),
+        getVersions: (id: number) => UnifiedAPI.getArticleVersions(id),
+        createVersion: (id: number) => UnifiedAPI.createArticleVersion(id),
+        rollbackVersion: (id: number, vNo: number) => UnifiedAPI.rollbackVersion(id, vNo),
+        diffVersions: (id: number, vNo: number, targetNo: number) => UnifiedAPI.diffVersions(id, vNo, targetNo),
+        submitArticle: (id: number) => UnifiedAPI.submitArticle(id),
+        approveArticle: (id: number) => UnifiedAPI.approveArticle(id),
+        rejectArticle: (id: number, reason: string) => UnifiedAPI.rejectArticle(id, { reason }),
+        scheduleArticle: (id: number, date: string) => UnifiedAPI.scheduleArticle(id, { scheduled_at: date }),
+        unpublishArticle: (id: number) => UnifiedAPI.unpublishArticle(id),
+        unscheduleArticle: (id: number) => UnifiedAPI.unscheduleArticle(id),
     }
 }
 
@@ -1811,146 +1783,6 @@ const handleContentClick = (clickInfo: { event: Event; contentType: string; targ
   margin: 0;
 }
 
-/* ===== 侧边栏样式 ===== */
-
-.article-sidebar {
-  position: sticky;
-  top: 2rem;
-  max-height: calc(100vh - 4rem);
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-@media (max-width: 1024px) {
-  .article-sidebar {
-    position: static;
-    max-height: none;
-    order: 2;
-  }
-}
-
-.sidebar-section {
-  background: white;
-  border-radius: 16px;
-  padding: 1.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  border: 1px solid #f3f4f6;
-}
-
-/* 主题选择器相关样式已移除 */
-
-:deep(.el-select .el-input__inner:focus) {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
-}
-
-:deep(.el-select-dropdown) {
-  border-radius: 8px;
-  border-color: #e5e7eb;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-:deep(.el-select-dropdown__item) {
-  padding: 8px 12px;
-  font-size: 0.875rem;
-}
-
-:deep(.el-select-dropdown__item:hover) {
-  background: #f3f4f6;
-}
-
-:deep(.el-select-dropdown__item.selected) {
-  background: #eff6ff;
-  color: #2563eb;
-  font-weight: 500;
-}
-
-.sidebar-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #111827;
-  margin: 0 0 1rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 2px solid #f3f4f6;
-}
-
-/* 目录样式 */
-.toc-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.toc-item {
-  margin: 0.25rem 0;
-}
-
-.toc-link {
-  display: block;
-  padding: 0.5rem 0.75rem;
-  color: #6b7280;
-  text-decoration: none;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  line-height: 1.4;
-  transition: all 0.2s ease;
-  border-left: 3px solid transparent;
-}
-
-.toc-link:hover {
-  background: #f3f4f6;
-  color: #374151;
-}
-
-.toc-item.active .toc-link {
-  background: #eff6ff;
-  color: #2563eb;
-  border-left-color: #3b82f6;
-  font-weight: 500;
-}
-
-.toc-level-2 .toc-link { padding-left: 1.5rem; }
-.toc-level-3 .toc-link { padding-left: 2.25rem; }
-.toc-level-4 .toc-link { padding-left: 3rem; }
-
-.toc-empty {
-  color: #9ca3af;
-  font-size: 0.875rem;
-  text-align: center;
-  margin: 0;
-  padding: 1rem;
-}
-
-/* 阅读进度样式 */
-.reading-progress {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.progress-bar {
-  flex: 1;
-  height: 8px;
-  background: #f3f4f6;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
-  transition: width 0.3s ease;
-  border-radius: 4px;
-}
-
-.progress-text {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #6b7280;
-  min-width: 40px;
-}
 
 /* ===== 评论区样式 ===== */
 

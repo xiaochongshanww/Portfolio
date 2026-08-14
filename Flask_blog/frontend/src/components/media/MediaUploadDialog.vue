@@ -162,7 +162,7 @@
 <script>
 import { ref, computed, watch, inject } from 'vue'
 import { ElMessage } from 'element-plus'
-import mediaApi from '@/api/media'
+import { API } from '@/api'
 
 export default {
   name: 'MediaUploadDialog',
@@ -342,7 +342,7 @@ export default {
             }
           }, 200)
 
-          const response = await mediaApi.uploadMedia(formData)
+          const response = await API.uploadMedia(formData)
           
           clearInterval(progressInterval)
           fileItem.progress = 100
@@ -411,7 +411,7 @@ export default {
     // 加载可用文件夹
     const loadAvailableFolders = async () => {
       try {
-        const response = await mediaApi.getFolders()
+        const response = await API.getFolders()
         availableFolders.value = response.data
       } catch (error) {
         console.error('加载文件夹失败:', error)

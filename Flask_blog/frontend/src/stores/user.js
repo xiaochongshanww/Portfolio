@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import apiClient from '../apiClient';
+import { API } from '../api';
 /** @typedef {import('../types').User} User */
 
 export const useUserStore = defineStore('user', {
@@ -53,7 +53,7 @@ export const useUserStore = defineStore('user', {
       }
       
       try {
-        const response = await apiClient.get('/users/me');
+        const response = await API.getCurrentUser();
         this.user = response.data.data;
         this.isAuthenticated = true;
         // 同步角色信息
@@ -89,7 +89,7 @@ export const useUserStore = defineStore('user', {
     async logout() {
       try {
         // 调用后端退出登录接口
-        await apiClient.post('/auth/logout');
+        await API.logout();
       } catch (error) {
         console.error('后端退出登录失败:', error);
         // 即使后端调用失败，也继续清除前端状态

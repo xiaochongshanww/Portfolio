@@ -81,7 +81,7 @@
 <script>
 import { ref, computed, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
-import mediaApi from '@/api/media'
+import { API } from '@/api'
 
 export default {
   name: 'FolderCreateDialog',
@@ -143,7 +143,7 @@ export default {
           parent_id: props.parentFolderId
         }
 
-        await mediaApi.createFolder(data)
+        await API.createMediaFolder(data)
         
         ElMessage.success('文件夹创建成功')
         emit('created')

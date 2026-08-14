@@ -7,12 +7,19 @@ const mockPush = vi.fn()
 vi.mock('vue-router', () => ({
   useRoute: () => ({ query: {} }),
   useRouter: () => ({ push: mockPush }),
+  createRouter: () => ({
+    push: mockPush,
+    beforeEach: () => {},
+    afterEach: () => {},
+    currentRoute: { value: { path: '/' } },
+  }),
+  createWebHistory: () => ({}),
 }))
 
 const mockPost = vi.fn()
-vi.mock('../src/apiClient', () => ({
-  default: {
-    post: (...args: any[]) => mockPost(...args),
+vi.mock('../src/api', () => ({
+  API: {
+    login: (...args: any[]) => mockPost(...args),
   },
 }))
 

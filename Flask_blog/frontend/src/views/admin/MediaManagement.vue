@@ -299,7 +299,7 @@
 <script>
 import { ref, reactive, onMounted, watch, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import mediaApi from '@/api/media'
+import { API } from '@/api'
 import { formatFileSize, getMediaTypeName, getVisibilityInfo, getMediaIcon } from '@/utils/mediaUtils'
 import MediaUploadDialog from '@/components/media/MediaUploadDialog.vue'
 import FolderCreateDialog from '@/components/media/FolderCreateDialog.vue'
@@ -374,7 +374,7 @@ export default {
           ...filters
         }
         
-        const response = await mediaApi.getMediaList(params)
+        const response = await API.getMediaList(params)
         
         // 处理嵌套响应格式
         let actualData = response.data
@@ -403,7 +403,7 @@ export default {
     // 加载文件夹列表
     const loadFolders = async () => {
       try {
-        const response = await mediaApi.getFolders(currentFolderId.value || 0)
+        const response = await API.getFolders(currentFolderId.value || 0)
         
         // 处理嵌套响应格式
         let actualData = response.data
@@ -420,7 +420,7 @@ export default {
     // 加载统计信息
     const loadStats = async () => {
       try {
-        const response = await mediaApi.getStats()
+        const response = await API.getMediaStats()
         
         // 处理嵌套响应格式
         let actualData = response.data
@@ -445,7 +445,7 @@ export default {
       if (folderId) {
         try {
           // TODO: 实现获取文件夹路径的 API
-          // const path = await mediaApi.getFolderPath(folderId)
+          // const path = await API.getFolderPath(folderId)
           // breadcrumbs.value = path
         } catch (error) {
           console.error('获取文件夹路径失败:', error)
@@ -515,7 +515,7 @@ export default {
             { type: 'warning' }
           )
           
-          await mediaApi.deleteFolder(folder.id)
+          await API.deleteMediaFolder(folder.id)
           await loadFolders()
           ElMessage.success('文件夹删除成功')
         } catch (error) {
@@ -559,7 +559,7 @@ export default {
     /** @param {import('@/types').MediaFile} media */
     const downloadMedia = async (media) => {
       try {
-        const response = await mediaApi.downloadMedia(media.id)
+        const response = await API.downloadMedia(media.id)
         const url = window.URL.createObjectURL(new Blob([response.data]))
         const link = document.createElement('a')
         link.href = url
@@ -585,7 +585,7 @@ export default {
           { type: 'warning' }
         )
         
-        await mediaApi.deleteMedia(media.id)
+        await API.deleteMedia(media.id)
         await loadMediaList()
         await loadStats()
         ElMessage.success('删除成功')

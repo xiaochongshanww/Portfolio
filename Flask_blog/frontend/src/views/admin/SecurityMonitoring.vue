@@ -363,7 +363,7 @@ import {
   WarningFilled, Lock, User, Refresh, Setting,
   UserFilled, Download, TrendCharts, CircleCloseFilled
 } from '@element-plus/icons-vue';
-import api from '../../apiClient';
+import { API } from '../../api';
 
 // 响应式数据
 const loading = ref(false);
@@ -423,7 +423,7 @@ let refreshTimer = null;
 const loadSystemHealth = async () => {
   console.log('[DEBUG] 开始获取系统健康数据...');
   try {
-    const healthRes = await api.get('/security/system-health');
+    const healthRes = await API.getSystemHealth();
     console.log('[DEBUG] API响应:', {
       status: healthRes.status,
       code: healthRes.data.code,
@@ -454,7 +454,7 @@ const loadData = async () => {
     loading.value = true;
     
     // 先尝试简单的统计接口
-    const statsRes = await api.get('/security/stats');
+    const statsRes = await API.getSecurityStats();
     
     // 更新统计数据
     if (statsRes.data.code === 0) {
@@ -480,7 +480,7 @@ const loadData = async () => {
     await loadSystemHealth();
     
     try {
-      const eventsRes = await api.get('/security/events/recent?limit=10');
+      const eventsRes = await API.getSecurityEvents({ limit: 10 });
       if (eventsRes.data.code === 0) {
         recentEvents.value = eventsRes.data.data;
       }
@@ -490,7 +490,7 @@ const loadData = async () => {
     }
     
     try {
-      const accessRes = await api.get('/security/access-stats/today');
+      const accessRes = await API.getAccessStatsToday();
       if (accessRes.data.code === 0) {
         Object.assign(accessStats, accessRes.data.data);
       }
@@ -699,7 +699,7 @@ const handleEvent = async (event) => {
       }
     );
     
-    const response = await api.post(`/security/events/${event.id}/handle`);
+    const response = await API.handleSecurityEvent(event.id);
     
     if (response.data.code === 0) {
       ElMessage.success('事件已标记为已处理');

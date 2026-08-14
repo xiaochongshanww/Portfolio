@@ -217,7 +217,7 @@
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRouter } from 'vue-router';
-import api from '../../apiClient';
+import { API } from '../../api';
 import { 
   ChatLineRound, Clock, Calendar, DataBoard, Document, Search, 
   Refresh, Delete, Check, Close, Hide, View, User 
@@ -274,7 +274,7 @@ const loadComments = async () => {
     if (filters.article_id) params.article_id = filters.article_id;
     if (filters.content) params.content = filters.content;
     
-    const response = await api.get('/comments/admin/list', { params });
+    const response = await API.getAdminComments(params);
     
     if (response.data.code === 0) {
       const data = response.data.data;
@@ -297,7 +297,7 @@ const loadComments = async () => {
 // 加载统计数据
 const loadStats = async () => {
   try {
-    const response = await api.get('/comments/admin/stats');
+    const response = await API.getCommentStats();
     if (response.data.code === 0) {
       Object.assign(stats, response.data.data);
     }
@@ -320,7 +320,7 @@ const handleModerate = async (comment, action) => {
   try {
     moderatingIds.value.add(comment.id);
     
-    const response = await api.post(`/comments/moderate/${comment.id}`, {
+    const response = await API.moderateComment(comment.id, {
       action
     });
     
@@ -366,7 +366,7 @@ const handleBatchAction = async (action) => {
     const ids = selectedComments.value.map(c => c.id);
     
     // 使用批量API
-    const response = await api.post('/comments/moderate/batch', {
+    const response = await API.moderateCommentBatch({
       ids,
       action
     });

@@ -352,7 +352,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import mediaApi from '@/api/media'
+import { API } from '@/api'
 import { formatFileSize, getMediaTypeName, getMediaIcon } from '@/utils/mediaUtils'
 import MediaUploadDialog from '@/components/media/MediaUploadDialog.vue'
 
@@ -451,7 +451,7 @@ export default {
           params.type = selectedCategory.value
         }
 
-        const response = await mediaApi.getMediaList(params)
+        const response = await API.getMediaList(params)
         
         // 处理不同的响应格式
         let actualData = response.data
@@ -550,7 +550,7 @@ export default {
       if (!media) return
       
       try {
-        const response = await mediaApi.downloadMedia(media.id)
+        const response = await API.downloadMedia(media.id)
         const url = window.URL.createObjectURL(new Blob([response.data]))
         const link = document.createElement('a')
         link.href = url

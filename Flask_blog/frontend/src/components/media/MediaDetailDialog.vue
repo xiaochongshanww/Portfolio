@@ -231,7 +231,7 @@
 <script>
 import { ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import mediaApi from '@/api/media'
+import { API } from '@/api'
 import { formatFileSize, getMediaTypeName, getVisibilityInfo, getMediaIcon } from '@/utils/mediaUtils'
 
 export default {
@@ -287,7 +287,7 @@ export default {
       if (!props.media) return
       
       try {
-        const response = await mediaApi.downloadMedia(props.media.id)
+        const response = await API.downloadMedia(props.media.id)
         const url = window.URL.createObjectURL(new Blob([response.data]))
         const link = document.createElement('a')
         link.href = url
@@ -320,7 +320,7 @@ export default {
           { type: 'warning' }
         )
         
-        await mediaApi.deleteMedia(props.media.id)
+        await API.deleteMedia(props.media.id)
         ElMessage.success('删除成功')
         emit('deleted')
         handleClose()

@@ -336,28 +336,28 @@ import {
 } from '@element-plus/icons-vue';
 import { usePagedQuery } from '../composables/usePagedQuery';
 import { useResponsiveLayout } from '../composables/useResponsiveLayout';
-import apiClient from '../apiClient';
 import { ElMessage, ElTooltip } from 'element-plus';
 import DesktopSidebar from '../components/sidebar/DesktopSidebar.vue';
 import CoverImage from '../components/CoverImage.vue';
+import { API as UnifiedAPI } from '../api';
 
-// API 接口定义
+// API 接口定义（统一走 @/api 出口）
 const API = {
     SearchService: {
-        search: (params: Record<string, any>) => apiClient.get('/search/', { params })
+        search: (params: Record<string, any>) => UnifiedAPI.search(params)
     },
     ArticlesService: {
-        listArticles: (params: Record<string, any>) => apiClient.get('/articles/public/', { params }),
+        listArticles: (params: Record<string, any>) => UnifiedAPI.getPublicArticles(params),
         getApiV1ArticlesPublicHot: (page: number, page_size: number, window_hours: number) => 
-          apiClient.get('/articles/public/hot', { params: { page, page_size, window_hours }}),
-        toggleLike: (articleId: number) => apiClient.post(`/articles/${articleId}/like`),
-        toggleBookmark: (articleId: number) => apiClient.post(`/articles/${articleId}/bookmark`),
-        approveArticle: (articleId: number) => apiClient.post(`/articles/${articleId}/approve`)
+          UnifiedAPI.getHotArticles({ page, page_size, window_hours }),
+        toggleLike: (articleId: number) => UnifiedAPI.likeArticle(articleId),
+        toggleBookmark: (articleId: number) => UnifiedAPI.bookmarkArticle(articleId),
+        approveArticle: (articleId: number) => UnifiedAPI.approveArticle(articleId)
     },
     TaxonomyService: {
-        getTaxonomy: () => apiClient.get('/taxonomy', { baseURL: '/public/v1' }),
-        listCategories: () => apiClient.get('/categories/'),
-        listTags: () => apiClient.get('/tags/')
+        getTaxonomy: () => UnifiedAPI.getPublicTaxonomy(),
+        listCategories: () => UnifiedAPI.getRootCategories(),
+        listTags: () => UnifiedAPI.getRootTags()
     }
 }
 

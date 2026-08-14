@@ -275,7 +275,8 @@
 <script>
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import mediaApi from '@/api/media'
+import { API } from '@/api'
+import { formatFileSize, getMediaTypeName, getMediaIcon } from '@/utils/mediaUtils'
 import MediaUploadDialog from './MediaUploadDialog.vue'
 
 export default {
@@ -330,13 +331,6 @@ export default {
       get: () => props.visible,
       set: (value) => emit('update:visible', value)
     })
-
-    // 从 API 获取辅助方法
-    const { 
-      formatFileSize, 
-      getMediaTypeName, 
-      getMediaIcon 
-    } = mediaApi
 
     // 格式化日期
     /** @param {string | undefined} dateStr */
@@ -415,8 +409,8 @@ export default {
         }
 
         const [mediaResponse, foldersResponse] = await Promise.all([
-          mediaApi.getMediaList(params),
-          mediaApi.getFolders(currentFolderId.value)
+          API.getMediaList(params),
+          API.getFolders(currentFolderId.value)
         ])
 
         // 处理嵌套响应格式

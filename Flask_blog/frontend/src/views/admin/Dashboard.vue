@@ -269,7 +269,7 @@ import {
   View, ChatLineRound, UserFilled, ArrowRight, TrendCharts 
 } from '@element-plus/icons-vue';
 import { useUserStore } from '../../stores/user';
-import apiClient from '../../apiClient';
+import { API } from '../../api';
 
 const userStore = useUserStore();
 const router = useRouter();
@@ -456,32 +456,28 @@ async function loadDashboardData() {
 async function loadAdminStats() {
   // 管理员看到所有统计
   const [articlesRes, usersRes] = await Promise.all([
-    apiClient.get('/articles/', { params: { page: 1, page_size: 1 } }),
-    apiClient.get('/users/', { params: { page: 1, page_size: 1 } })
+    API.getArticles({ page: 1, page_size: 1 }),
+    API.getUsers({ page: 1, page_size: 1 })
   ]);
   
   stats.value.totalArticles = articlesRes.data.data?.total || 0;
   stats.value.totalUsers = usersRes.data.data?.total || 0;
   
   // 获取待审核文章数
-  const pendingRes = await apiClient.get('/articles/', { 
-    params: { page: 1, page_size: 1, status: 'pending' } 
-  });
+  const pendingRes = await API.getArticles({ page: 1, page_size: 1, status: 'pending' });
   stats.value.pendingArticles = pendingRes.data.data?.total || 0;
   
   // 获取已发布文章数
-  const publishedRes = await apiClient.get('/articles/public/', { 
-    params: { page: 1, page_size: 1 } 
-  });
+  const publishedRes = await API.getPublicArticles({ page: 1, page_size: 1 });
   stats.value.publishedArticles = publishedRes.data.data?.total || 0;
 }
 
 async function loadEditorStats() {
   // 编辑看到文章相关统计
   const [articlesRes, pendingRes, publishedRes] = await Promise.all([
-    apiClient.get('/articles/', { params: { page: 1, page_size: 1 } }),
-    apiClient.get('/articles/', { params: { page: 1, page_size: 1, status: 'pending' } }),
-    apiClient.get('/articles/public/', { params: { page: 1, page_size: 1 } })
+    API.getArticles({ page: 1, page_size: 1 }),
+    API.getArticles({ page: 1, page_size: 1, status: 'pending' }),
+    API.getPublicArticles({ page: 1, page_size: 1 })
   ]);
   
   stats.value.totalArticles = articlesRes.data.data?.total || 0;
@@ -493,8 +489,8 @@ async function loadAuthorStats() {
   // 作者只看到自己的文章统计
   const userId = userStore.user?.id;
   const [myArticlesRes, myPublishedRes] = await Promise.all([
-    apiClient.get('/articles/', { params: { page: 1, page_size: 1, author_id: userId } }),
-    apiClient.get('/articles/public/', { params: { page: 1, page_size: 1, author_id: userId } })
+    API.getArticles({ page: 1, page_size: 1, author_id: userId }),
+    API.getPublicArticles({ page: 1, page_size: 1, author_id: userId })
   ]);
   
   stats.value.totalArticles = myArticlesRes.data.data?.total || 0;
@@ -503,7 +499,6 @@ async function loadAuthorStats() {
 
 async function loadRecentArticles() {
   try {
-    let url = '/articles/';
     /** @type {Record<string, any>} */
     const params = { page: 1, page_size: 5, sort: 'created_at', order: 'desc' };
     
@@ -512,7 +507,7 @@ async function loadRecentArticles() {
       params.author_id = userStore.user.id;
     }
     
-    const res = await apiClient.get(url, { params });
+    const res = await API.getArticles(params);
     recentArticles.value = res.data.data?.list || [];
   } catch (error) {
     console.error('加载最新文章失败:', error);

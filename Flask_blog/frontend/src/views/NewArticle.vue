@@ -216,44 +216,12 @@
         </template>
 
         <el-form label-position="top" class="article-form">
-          <el-row :gutter="24">
-            <el-col :span="12">
-              <el-form-item label="SEO 标题" :error="formErrors.seo_title">
-                <el-input 
-                  v-model="form.seo_title" 
-                  placeholder="搜索引擎显示的标题"
-                  maxlength="60"
-                  show-word-limit
-                  clearable
-                  data-field="seo_title"
-                  :class="{ 'error-input': formErrors.seo_title }"
-                  @blur="handleFieldBlur('seo_title', form.seo_title)"
-                  @input="clearFieldError('seo_title')"
-                />
-                <div v-if="!formErrors.seo_title" class="input-hint">
-                  如不填写，将使用文章标题作为SEO标题
-                </div>
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="Meta 描述" :error="formErrors.seo_desc">
-                <el-input 
-                  v-model="form.seo_desc" 
-                  placeholder="搜索引擎显示的描述"
-                  maxlength="160"
-                  show-word-limit
-                  clearable
-                  data-field="seo_desc"
-                  :class="{ 'error-input': formErrors.seo_desc }"
-                  @blur="handleFieldBlur('seo_desc', form.seo_desc)"
-                  @input="clearFieldError('seo_desc')"
-                />
-                <div v-if="!formErrors.seo_desc" class="input-hint">
-                  如不填写，将使用文章摘要作为描述
-                </div>
-              </el-form-item>
-            </el-col>
-          </el-row>
+          <SEOFields
+            :seo-title="form.seo_title"
+            :seo-desc="form.seo_desc"
+            @update:seo-title="form.seo_title = $event"
+            @update:seo-desc="form.seo_desc = $event"
+          />
 
           <el-row :gutter="24">
             <el-col :span="12">
@@ -273,52 +241,11 @@
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="文章标签">
-                <div class="tags-selector">
-                  <!-- 现有标签选择 -->
-                  <el-select
-                    v-model="selectedTags"
-                    multiple
-                    filterable
-                    allow-create
-                    default-first-option
-                    reserve-keyword
-                    placeholder="选择或创建标签"
-                    class="tags-select"
-                    :loading="tagsLoading"
-                    @change="updateTagsRaw"
-                  >
-                    <el-option
-                      v-for="tag in availableTags"
-                      :key="tag.id"
-                      :label="tag.name"
-                      :value="tag.name || ''"
-                    >
-                      <span class="tag-option">
-                        <span class="tag-name">#{{ tag.name }}</span>
-                        <span class="tag-count">({{ tag.article_count || 0 }})</span>
-                      </span>
-                    </el-option>
-                  </el-select>
-                  
-                  <!-- 已选标签预览 -->
-                  <div v-if="selectedTags.length > 0" class="selected-tags">
-                    <el-tag
-                      v-for="tag in selectedTags"
-                      :key="tag"
-                      closable
-                      class="selected-tag"
-                      @close="removeTag(tag)"
-                    >
-                      #{{ tag }}
-                    </el-tag>
-                  </div>
-                </div>
-                <div class="input-hint">
-                  <el-icon class="hint-icon"><InfoFilled /></el-icon>
-                  从现有标签中选择或创建新标签，建议3-5个标签
-                </div>
-              </el-form-item>
+              <TagManager
+                :model-value="selectedTags"
+                :available-tags="availableTags.map(t => ({ id: t.id ?? 0, name: t.name ?? '', article_count: t.article_count }))"
+                @update:model-value="updateTagsRaw"
+              />
             </el-col>
           </el-row>
 
@@ -362,34 +289,12 @@
         </template>
 
         <div class="publish-section">
-          <div class="schedule-option">
-            <el-switch 
-              v-model="form.enable_schedule" 
-              active-text="定时发布"
-              inactive-text="立即发布"
-              size="large"
-            />
-          </div>
-          
-          <div v-if="form.enable_schedule" class="schedule-picker">
-            <el-form-item label="发布时间" :error="formErrors.scheduled_at">
-              <el-date-picker 
-                v-model="form.scheduled_at" 
-                type="datetime" 
-                placeholder="选择发布时间"
-                size="large"
-                style="width: 100%"
-                data-field="scheduled_at"
-                :class="{ 'error-input': formErrors.scheduled_at }"
-                @blur="handleFieldBlur('scheduled_at', form.scheduled_at)"
-                @change="clearFieldError('scheduled_at')"
-              />
-              <div v-if="!formErrors.scheduled_at" class="input-hint">
-                <el-icon class="hint-icon"><InfoFilled /></el-icon>
-                文章将在指定时间自动发布
-              </div>
-            </el-form-item>
-          </div>
+          <SchedulePicker
+            :enabled="form.enable_schedule"
+            :date="form.scheduled_at"
+            @update:enabled="form.enable_schedule = $event"
+            @update:date="form.scheduled_at = $event"
+          />
         </div>
       </el-card>
 
@@ -481,7 +386,6 @@ import { API } from '../api';
 import { UploadsService } from '../generated';
 import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router';
 import { useUserStore } from '../stores/user';
-import apiClient from '../apiClient';
 import axios from 'axios';
 import { setMeta } from '../composables/useMeta';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -492,6 +396,9 @@ import ImageUploader from '../components/ImageUploader.vue';
 import ImageFocalCropper from '../components/ImageFocalCropper.vue';
 import CoverImage from '../components/CoverImage.vue';
 import CategorySelector from '../components/CategorySelector.vue';
+import TagManager from '../components/TagManager.vue';
+import SEOFields from '../components/SEOFields.vue';
+import SchedulePicker from '../components/SchedulePicker.vue';
 import { ERROR_CODE_MAP } from '../governance/errorCodes.generated';
 import { 
   Document, EditPen, InfoFilled, Picture, Link, UploadFilled, Loading,
@@ -684,7 +591,7 @@ async function loadArticleForEdit(articleId) {
     console.log('正在加载文章数据用于编辑:', articleId);
     loading.value = true;
     
-    const response = await apiClient.get(`/articles/${articleId}`);
+    const response = await API.getArticle(articleId);
     
     if (response.data.code === 0 && response.data.data) {
       const article = response.data.data;
@@ -1038,7 +945,7 @@ async function submit() {
     if (isEditMode.value && editingArticleId.value) {
       // 编辑模式：更新现有文章
       console.log('编辑模式：更新文章', editingArticleId.value);
-      resp = await apiClient.put(`/articles/${editingArticleId.value}`, payload);
+      resp = await API.updateArticle(editingArticleId.value, payload);
       data = resp.data?.data || resp.data;
       articleId = editingArticleId.value;
       slug = data.slug || originalArticle.value?.slug || articleId;
@@ -1059,7 +966,7 @@ async function submit() {
     if (!isEditMode.value) {
       // 新文章需要提交审核
       try {
-        await apiClient.post(`/articles/${articleId}/submit`);
+        await API.submitArticle(articleId);
         console.log('文章已提交审核');
         publishMessage = '恭喜！您的文章已成功发布并提交审核。';
         publishType = 'success';
@@ -1319,7 +1226,7 @@ async function loadCategories() {
     // 如果公开接口失败，尝试使用认证接口
     console.log('🔄 公开接口失败，尝试使用认证接口...');
     try {
-      const authResponse = await apiClient.get('/categories/');
+      const authResponse = await API.getRootCategories();
       console.log('📡 认证接口响应:', authResponse.data);
       
       if (authResponse.data.code === 0 && authResponse.data.data) {
@@ -1383,7 +1290,7 @@ function handleCategoryChange(categoryId) {
 async function loadAvailableTags() {
   try {
     tagsLoading.value = true;
-    const response = await apiClient.get('/taxonomy/stats');
+    const response = await API.getTaxonomyStats();
     
     if (response.data.code === 0) {
       availableTags.value = response.data.data.tags || [];
@@ -1401,23 +1308,15 @@ async function loadAvailableTags() {
 }
 
 // 更新tags_raw字段
-function updateTagsRaw() {
-  form.value.tags_raw = selectedTags.value.join(', ');
-  console.log('🏷️ 标签已更新:', selectedTags.value);
+/** @param {string[]} tags */
+function updateTagsRaw(tags) {
+  selectedTags.value = tags;
+  form.value.tags_raw = tags.join(', ');
+  console.log('🏷️ 标签已更新:', tags);
   
   // 触发自动保存
   if (form.value.title || form.value.content_md) {
     triggerAutoSave();
-  }
-}
-
-// 移除标签
-/** @param {string} tag */
-function removeTag(tag) {
-  const index = selectedTags.value.indexOf(tag);
-  if (index > -1) {
-    selectedTags.value.splice(index, 1);
-    updateTagsRaw();
   }
 }
 

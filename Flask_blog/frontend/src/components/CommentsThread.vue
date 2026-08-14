@@ -107,7 +107,7 @@
 </template>
 <script setup>
 import { ref, computed, onMounted, defineAsyncComponent, watch } from 'vue';
-import apiClient from '../apiClient';
+import { API } from '../api';
 import { useUserStore } from '../stores/user';
 import { ElMessage, ElButton } from 'element-plus';
 import { 
@@ -145,7 +145,7 @@ async function load(){
   if(!props.articleId){ tree.value=[]; return; } 
   loading.value=true; 
   try { 
-    const r = await apiClient.get(`/comments/article/${props.articleId}`); 
+    const r = await API.getArticleComments(props.articleId); 
     tree.value = r.data?.data || []; 
   } catch(e){ 
     ElMessage.error('评论加载失败'); 
@@ -160,7 +160,7 @@ async function submit(){
   if(!trimmed.value || !props.articleId) return; 
   submitting.value=true; 
   try { 
-    await apiClient.post('/comments/', { 
+    await API.createComment({ 
       article_id: props.articleId, 
       content: trimmed.value, 
       parent_id: replyTo.value?.id 

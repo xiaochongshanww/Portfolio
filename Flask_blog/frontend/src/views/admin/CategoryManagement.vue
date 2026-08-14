@@ -215,7 +215,7 @@
 import { ref, reactive, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus, Folder, Edit, Delete, Refresh, DataBoard } from '@element-plus/icons-vue';
-import api from '../../apiClient';
+import { API } from '../../api';
 
 // 响应式数据
 const loading = ref(false);
@@ -299,7 +299,7 @@ const loadData = async () => {
   
   try {
     loading.value = true;
-    const response = await api.get('/taxonomy/stats');
+    const response = await API.getTaxonomyStats();
     
     if (response.data.code === 0) {
       const data = response.data.data;
@@ -377,9 +377,9 @@ const handleSubmit = async () => {
     
     let response;
     if (dialogMode.value === 'create') {
-      response = await api.post('/taxonomy/categories/', data);
+      response = await API.createCategory(data);
     } else {
-      response = await api.patch(`/taxonomy/categories/${editingId.value}`, data);
+      response = await API.updateCategory(editingId.value, data);
     }
     
     if (response.data.code === 0) {
@@ -441,7 +441,7 @@ const handleDelete = async (category) => {
     
     await ElMessageBox.confirm(confirmMessage, confirmTitle, confirmOptions);
     
-    const response = await api.delete(`/taxonomy/categories/${category.id}`);
+    const response = await API.deleteCategory(category.id);
     
     if (response.data.code === 0) {
       // 根据是否有文章提供不同的成功信息
