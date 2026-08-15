@@ -188,6 +188,9 @@ settings.local.py
 # Runtime external-metadata DB (created by backup_records_external.py)
 backend/metadata/
 
+# Runtime system settings (written by settings/service save_settings)
+backend/config/
+
 # Uploads directory (exclude code directories)
 uploads/
 !backend/app/uploads/

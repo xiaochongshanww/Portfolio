@@ -122,3 +122,41 @@ class TestDirectorySize:
         size = engine._calculate_actual_backup_storage_size()
         # 只统计 physical_ 目录(10) + 根目录归档文件(6),排除 pre_restore_backup
         assert size == 16
+
+
+class TestCreateBackup:
+    def test_create_backup_success(self, tmp_path, monkeypatch):
+        engine = PhysicalBackupEngine(
+            {
+                "mysql_container": "x",
+                "mysql_volume": "mysqldata",
+                "backup_root": str(tmp_path),
+                "compress_backup": True,
+            }
+        )
+        monkeypatch.setattr(engine, "_check_docker_environment", lambda: True)
+        monkeypatch.setattr(engine, "_get_database_info", lambda: {"mysql": "ok"})
+
+        def fake_backup(d):
+            (d / "data.sql").write_bytes(b"x" * 100)
+            return {"success": True}
+
+        monkeypatch.setattr(engine, "_perform_physical_backup", fake_backup)
+        result = engine.create_backup("bk-test")
+        assert result["success"] is True
+        assert (tmp_path / "bk-test").exists()
+        assert result["backup_id"] == "bk-test"
+        assert result["summary"]["backup_size"] > 0
+        assert result["metadata"]["backup_size"] == 100
+
+    def test_create_backup_docker_fail(self, tmp_path, monkeypatch):
+        engine = PhysicalBackupEngine(
+            {
+                "mysql_container": "x",
+                "mysql_volume": "mysqldata",
+                "backup_root": str(tmp_path),
+            }
+        )
+        monkeypatch.setattr(engine, "_check_docker_environment", lambda: False)
+        result = engine.create_backup("bk-fail")
+        assert result["success"] is False

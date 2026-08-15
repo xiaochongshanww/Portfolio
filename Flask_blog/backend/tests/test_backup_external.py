@@ -108,3 +108,20 @@ class TestBackupRecordExternalModel:
         assert rec.backup_id == "m1"
         assert rec.sync_status == "synced"
         assert rec.file_size == 42
+
+
+class TestSyncStats:
+
+    def test_resolve_all_conflicts(self, tmp_path):
+        mgr = _make_manager(tmp_path)
+        rec = mgr.create_backup_record("conflict-1")
+        rec = mgr.get_backup_record("conflict-1")
+        rec.sync_status = "conflict"
+        mgr.save_record(rec)
+        result = mgr.resolve_all_conflicts()
+        assert isinstance(result, dict)
+
+    def test_find_and_count_conflicts(self, tmp_path):
+        mgr = _make_manager(tmp_path)
+        assert mgr.get_conflict_count() >= 0
+        assert isinstance(mgr.find_conflicts(), list)

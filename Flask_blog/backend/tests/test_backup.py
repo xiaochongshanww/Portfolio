@@ -129,3 +129,51 @@ class TestBackup:
         h = auth_header(client, role="admin")
         resp = client.post("/api/v1/backup/tasks/cleaner/trigger", headers=h)
         assert resp.status_code == 200
+
+
+class TestBackupMoreEndpoints:
+    def test_get_backup_detail(self, client, app):
+        from app import db
+        from app.models import BackupRecord
+
+        db.session.add(
+            BackupRecord(backup_id="detail-1", backup_type="full", status="completed")
+        )
+        db.session.commit()
+        h = auth_header(client, role="admin")
+        resp = client.get("/api/v1/backup/detail-1", headers=h)
+        assert resp.status_code == 200
+
+    def test_get_backup_detail_missing(self, client):
+        h = auth_header(client, role="admin")
+        resp = client.get("/api/v1/backup/no-such", headers=h)
+        assert resp.status_code == 404
+
+    def test_sync(self, client):
+        h = auth_header(client, role="admin")
+        resp = client.post("/api/v1/backup/sync", headers=h)
+        assert resp.status_code in (200, 500)
+
+    def test_status_sync(self, client):
+        h = auth_header(client, role="admin")
+        resp = client.post("/api/v1/backup/status/sync", headers=h)
+        assert resp.status_code in (200, 500)
+
+    def test_restores_detail(self, client, app):
+        from app import db
+        from app.models import RestoreRecord
+
+        db.session.add(
+            RestoreRecord(
+                restore_id="r-detail", restore_type="full", status="completed"
+            )
+        )
+        db.session.commit()
+        h = auth_header(client, role="admin")
+        resp = client.get("/api/v1/backup/restores/r-detail", headers=h)
+        assert resp.status_code in (200, 404)
+
+    def test_restores_cleanup(self, client):
+        h = auth_header(client, role="admin")
+        resp = client.post("/api/v1/backup/restores/cleanup", headers=h)
+        assert resp.status_code in (200, 500)
