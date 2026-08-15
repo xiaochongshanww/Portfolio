@@ -6,14 +6,14 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from flask import current_app
 
 from .. import db
-from ..models import SHANGHAI_TZ, BackupRecord, RestoreRecord
+from ..models import BackupRecord, RestoreRecord
 from .smart_table_validator import SmartTableValidator
 
 
@@ -50,7 +50,7 @@ class RestoreManager:
 
             # 更新恢复记录状态
             restore_record.status = "running"
-            restore_record.started_at = datetime.now(SHANGHAI_TZ)
+            restore_record.started_at = datetime.now(timezone.utc)
             restore_record.progress = 0
             db.session.commit()
 
@@ -1119,7 +1119,7 @@ class RestoreManager:
                 if independent_record:
                     independent_record.status = "completed"
                     independent_record.progress = 100
-                    independent_record.completed_at = datetime.now(SHANGHAI_TZ)
+                    independent_record.completed_at = datetime.now(timezone.utc)
                     independent_record.status_message = "恢复完成"
                     independent_session.commit()
                     current_app.logger.info(
@@ -1162,7 +1162,7 @@ class RestoreManager:
                         independent_record.status_message = (
                             f"恢复失败: {error_message[:200]}"
                         )
-                        independent_record.completed_at = datetime.now(SHANGHAI_TZ)
+                        independent_record.completed_at = datetime.now(timezone.utc)
                         independent_session.commit()
                         current_app.logger.info(
                             f"恢复记录已标记为失败: {restore_record.restore_id}"
@@ -1288,7 +1288,7 @@ class RestoreManager:
 
             # 更新恢复记录
             restore_record.status = "completed"
-            restore_record.completed_at = datetime.now(SHANGHAI_TZ)
+            restore_record.completed_at = datetime.now(timezone.utc)
             restore_record.status_message = "测试模式验证完成 - 未执行实际恢复"
             restore_record.error_message = "\n".join(verification_results)
             db.session.commit()

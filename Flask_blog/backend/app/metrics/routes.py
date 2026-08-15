@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
 
@@ -152,7 +152,7 @@ def track_visit():
         user_agent = request.headers.get("User-Agent", "")
         user_agent_hash = hashlib.sha256(user_agent.encode("utf-8")).hexdigest()
         today = datetime.now(SHANGHAI_TZ).date()
-        now = datetime.now(SHANGHAI_TZ)
+        now = datetime.now(timezone.utc)
 
         logger.info(
             f"Direct DB test: IP={ip_address}, UA={user_agent[:20]}..., Date={today}"

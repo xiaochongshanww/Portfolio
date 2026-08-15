@@ -7,14 +7,14 @@
 import logging
 import threading
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict
 
 from flask import Flask
 from sqlalchemy.exc import DisconnectionError, OperationalError
 
 from .. import db
-from ..models import SHANGHAI_TZ, BackupRecord, RestoreRecord
+from ..models import BackupRecord, RestoreRecord
 
 
 class TaskCleaner:
@@ -198,7 +198,7 @@ class TaskCleaner:
             result = {"cleaned_count": 0, "errors": []}
 
             # 计算超时阈值
-            timeout_threshold = datetime.now(SHANGHAI_TZ) - timedelta(
+            timeout_threshold = datetime.now(timezone.utc) - timedelta(
                 minutes=self.config["backup_timeout_minutes"]
             )
 
@@ -219,7 +219,7 @@ class TaskCleaner:
                         if os.path.exists(full_path):
                             # 文件存在，可能是状态同步问题
                             backup.status = "completed"
-                            backup.completed_at = datetime.now(SHANGHAI_TZ)
+                            backup.completed_at = datetime.now(timezone.utc)
                             file_size = os.path.getsize(full_path)
                             backup.file_size = file_size
                             self.logger.info(
@@ -231,13 +231,13 @@ class TaskCleaner:
                             backup.error_message = (
                                 "任务超时且备份文件未找到，已自动清理"
                             )
-                            backup.completed_at = datetime.now(SHANGHAI_TZ)
+                            backup.completed_at = datetime.now(timezone.utc)
                             self.logger.info(f"清理失败的备份任务: {backup.backup_id}")
                     else:
                         # 没有文件路径，直接标记为失败
                         backup.status = "failed"
                         backup.error_message = f'任务执行超过{self.config["backup_timeout_minutes"]}分钟，已自动清理'  # noqa: E501
-                        backup.completed_at = datetime.now(SHANGHAI_TZ)
+                        backup.completed_at = datetime.now(timezone.utc)
                         self.logger.info(f"清理超时的备份任务: {backup.backup_id}")
 
                     result["cleaned_count"] += 1
@@ -268,7 +268,7 @@ class TaskCleaner:
             result = {"cleaned_count": 0, "errors": []}
 
             # 计算超时阈值
-            timeout_threshold = datetime.now(SHANGHAI_TZ) - timedelta(
+            timeout_threshold = datetime.now(timezone.utc) - timedelta(
                 minutes=self.config["restore_timeout_minutes"]
             )
 
@@ -286,7 +286,7 @@ class TaskCleaner:
                         f"已自动清理。可能原因：数据库连接异常或备份文件损坏"
                     )
                     restore.status_message = "自动清理: 任务执行超时"
-                    restore.completed_at = datetime.now(SHANGHAI_TZ)
+                    restore.completed_at = datetime.now(timezone.utc)
 
                     self.logger.info(f"清理超时的恢复任务: {restore.restore_id}")
                     result["cleaned_count"] += 1

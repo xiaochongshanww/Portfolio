@@ -12,14 +12,14 @@ import sqlite3
 import tarfile
 import threading
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from flask import current_app
 
 from .. import db
-from ..models import SHANGHAI_TZ, BackupConfig, BackupRecord
+from ..models import BackupConfig, BackupRecord
 from .storage_manager import StorageManager
 
 
@@ -239,10 +239,9 @@ class BackupManager:
         self.cleanup_temp_files()
 
         # 生成备份ID - 使用上海时区
-        from ..models import SHANGHAI_TZ
 
         backup_id = (
-            f"{backup_type}_{datetime.now(SHANGHAI_TZ).strftime('%Y%m%d_%H%M%S')}"
+            f"{backup_type}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
         )
         current_app.logger.info(
             f"创建备份 - ID: {backup_id}, 类型: {backup_type}, 选项: {options}"
@@ -286,7 +285,7 @@ class BackupManager:
         except Exception as e:
             backup_record.status = "failed"
             backup_record.error_message = str(e)
-            backup_record.completed_at = datetime.now(SHANGHAI_TZ)
+            backup_record.completed_at = datetime.now(timezone.utc)
             db.session.commit()
             current_app.logger.error(f"Backup {backup_id} creation failed: {e}")
             self._cleanup_cancellation_flag(backup_id)
@@ -341,8 +340,8 @@ class BackupManager:
     def _setup_backup_heartbeat(self, backup_record: BackupRecord):
         """设置备份心跳机制，防止状态卡死"""
         backup_record.status = "running"
-        backup_record.started_at = datetime.now(SHANGHAI_TZ)
-        backup_record.last_heartbeat = datetime.now(SHANGHAI_TZ)
+        backup_record.started_at = datetime.now(timezone.utc)
+        backup_record.last_heartbeat = datetime.now(timezone.utc)
         db.session.commit()
         current_app.logger.info(f"🔄 备份 {backup_record.backup_id} 心跳已启动")
 
@@ -352,8 +351,8 @@ class BackupManager:
             # 双重检查：确保备份文件确实存在
             if backup_record.file_path and os.path.exists(backup_record.file_path):
                 backup_record.status = "completed"
-                backup_record.completed_at = datetime.now(SHANGHAI_TZ)
-                backup_record.last_heartbeat = datetime.now(SHANGHAI_TZ)
+                backup_record.completed_at = datetime.now(timezone.utc)
+                backup_record.last_heartbeat = datetime.now(timezone.utc)
                 db.session.commit()
                 current_app.logger.info(
                     f"✅ 备份 {backup_record.backup_id} 状态已确认为completed"
@@ -376,8 +375,8 @@ class BackupManager:
                 if backup_record_local:
                     backup_record_local.status = "failed"
                     backup_record_local.error_message = error_message
-                    backup_record_local.completed_at = datetime.now(SHANGHAI_TZ)
-                    backup_record_local.last_heartbeat = datetime.now(SHANGHAI_TZ)
+                    backup_record_local.completed_at = datetime.now(timezone.utc)
+                    backup_record_local.last_heartbeat = datetime.now(timezone.utc)
                     db.session.commit()
                     app.logger.error(f"❌ 备份 {backup_id} 标记为失败: {error_message}")
         except Exception as inner_e:
@@ -386,7 +385,7 @@ class BackupManager:
     def _execute_backup(self, backup_record: BackupRecord, options: Dict[str, Any]):
         """执行备份操作"""
         backup_record.status = "running"
-        backup_record.started_at = datetime.now(SHANGHAI_TZ)
+        backup_record.started_at = datetime.now(timezone.utc)
         db.session.commit()
 
         try:
@@ -449,7 +448,7 @@ class BackupManager:
 
             # 更新备份记录
             backup_record.status = "completed"
-            backup_record.completed_at = datetime.now(SHANGHAI_TZ)
+            backup_record.completed_at = datetime.now(timezone.utc)
             backup_record.file_path = str(archive_path)
             backup_record.file_size = file_size
             backup_record.compressed_size = compressed_size
@@ -493,7 +492,7 @@ class BackupManager:
             # 备份失败 - 清理所有文件
             backup_record.status = "failed"
             backup_record.error_message = str(e)
-            backup_record.completed_at = datetime.now(SHANGHAI_TZ)
+            backup_record.completed_at = datetime.now(timezone.utc)
             db.session.commit()
 
             # 清理失败的备份文件
@@ -573,7 +572,7 @@ class BackupManager:
         """备份数据库"""
         try:
             db_uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
-            timestamp = datetime.now(SHANGHAI_TZ).strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
 
             if db_uri.startswith("sqlite:"):
                 return self._backup_sqlite(db_uri, backup_dir, timestamp)
@@ -728,7 +727,7 @@ class BackupManager:
 
                 with open(backup_file, "w", encoding="utf-8") as f:
                     f.write("-- MySQL Database Backup\\n")
-                    f.write(f"-- Generated at: {datetime.now(SHANGHAI_TZ)}\\n\\n")
+                    f.write(f"-- Generated at: {datetime.now(timezone.utc)}\\n\\n")
 
                     # 备份每个表
                     for table_name in inspector.get_table_names():
@@ -1123,7 +1122,7 @@ class BackupManager:
             )
 
             # 计算过期时间
-            expiry_date = datetime.now(SHANGHAI_TZ) - timedelta(days=retention_days)
+            expiry_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
 
             # 查询过期的备份
             expired_records = BackupRecord.query.filter(
@@ -1163,14 +1162,13 @@ class BackupManager:
         """获取备份统计信息"""
         try:
             # 导入上海时区
-            from ..models import SHANGHAI_TZ
 
             total_backups = BackupRecord.query.count()
             completed_backups = BackupRecord.query.filter_by(status="completed").count()
             failed_backups = BackupRecord.query.filter_by(status="failed").count()
 
             # 最近30天的备份
-            recent_date = datetime.now(SHANGHAI_TZ) - timedelta(days=30)
+            recent_date = datetime.now(timezone.utc) - timedelta(days=30)
             recent_backups = BackupRecord.query.filter(
                 BackupRecord.created_at >= recent_date
             ).count()

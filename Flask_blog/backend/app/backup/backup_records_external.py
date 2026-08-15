@@ -19,15 +19,6 @@ from flask_sqlalchemy import SQLAlchemy
 # 使用独立的SQLAlchemy实例，配置为SQLite
 external_db = SQLAlchemy()
 
-# 时区设置 - 上海时区
-try:
-    from zoneinfo import ZoneInfo
-
-    SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
-except ImportError:
-    # Python 3.8及以下版本的兼容性处理
-    SHANGHAI_TZ = timezone(timedelta(hours=8))
-
 
 class BackupRecordExternal(external_db.Model):
     """外部备份记录模型 - 存储在独立SQLite数据库中"""
@@ -64,7 +55,7 @@ class BackupRecordExternal(external_db.Model):
 
     # 时间字段
     created_at = external_db.Column(
-        external_db.DateTime, nullable=False, default=lambda: datetime.now(SHANGHAI_TZ)
+        external_db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
     )
     started_at = external_db.Column(external_db.DateTime, nullable=True)
     completed_at = external_db.Column(external_db.DateTime, nullable=True)
@@ -87,8 +78,8 @@ class BackupRecordExternal(external_db.Model):
     updated_at = external_db.Column(
         external_db.DateTime,
         nullable=False,
-        default=lambda: datetime.now(SHANGHAI_TZ),
-        onupdate=lambda: datetime.now(SHANGHAI_TZ),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
 
     @property
@@ -137,7 +128,7 @@ class BackupRecordExternal(external_db.Model):
         exists = file_path.exists()
         if exists:
             # 更新验证时间
-            self.file_verified_at = datetime.now(SHANGHAI_TZ)
+            self.file_verified_at = datetime.now(timezone.utc)
 
         return exists
 
@@ -164,7 +155,7 @@ class BackupRecordExternal(external_db.Model):
             for location in backup_locations:
                 if location.exists():
                     # 找到备份文件，更新验证时间
-                    self.file_verified_at = datetime.now(SHANGHAI_TZ)
+                    self.file_verified_at = datetime.now(timezone.utc)
                     return True
 
             # 如果都没找到，可能是Docker Volume备份，尝试通过Docker检查
@@ -202,7 +193,7 @@ class BackupRecordExternal(external_db.Model):
         """更新同步状态"""
         old_status = self.sync_status
         self.sync_status = new_status
-        self.last_sync_at = datetime.now(SHANGHAI_TZ)
+        self.last_sync_at = datetime.now(timezone.utc)
 
         if new_status == "conflict" and reason:
             self.conflict_reason = reason
@@ -211,7 +202,7 @@ class BackupRecordExternal(external_db.Model):
 
         # 记录状态变更
         if old_status != new_status:
-            self.updated_at = datetime.now(SHANGHAI_TZ)
+            self.updated_at = datetime.now(timezone.utc)
 
     def resolve_conflict_by_file_check(self) -> str:
         """通过文件检查解决冲突 - 增强版本，避免误判"""
@@ -231,7 +222,7 @@ class BackupRecordExternal(external_db.Model):
                 old_status = self.status
                 self.status = "completed"
                 if not self.completed_at:
-                    self.completed_at = datetime.now(SHANGHAI_TZ)
+                    self.completed_at = datetime.now(timezone.utc)
 
                 self.update_sync_status(
                     "verified", f"状态从{old_status}修复为completed（文件存在）"
@@ -407,7 +398,7 @@ class BackupRecordExternal(external_db.Model):
             completed_at=mysql_record.get("completed_at"),
             mysql_record_id=mysql_record.get("id"),
             sync_status="synced",
-            last_sync_at=datetime.now(SHANGHAI_TZ),
+            last_sync_at=datetime.now(timezone.utc),
             extra_data=extra_data,
         )
 
@@ -450,7 +441,7 @@ class RestoreRecordExternal(external_db.Model):
 
     # 时间字段
     created_at = external_db.Column(
-        external_db.DateTime, nullable=False, default=lambda: datetime.now(SHANGHAI_TZ)
+        external_db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
     )
     started_at = external_db.Column(external_db.DateTime, nullable=True)
     completed_at = external_db.Column(external_db.DateTime, nullable=True)
@@ -466,8 +457,8 @@ class RestoreRecordExternal(external_db.Model):
     updated_at = external_db.Column(
         external_db.DateTime,
         nullable=False,
-        default=lambda: datetime.now(SHANGHAI_TZ),
-        onupdate=lambda: datetime.now(SHANGHAI_TZ),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
 
     @property
@@ -551,7 +542,7 @@ class SyncLogExternal(external_db.Model):
 
     details_json = external_db.Column(external_db.Text, nullable=True)  # 详细信息JSON
     created_at = external_db.Column(
-        external_db.DateTime, nullable=False, default=lambda: datetime.now(SHANGHAI_TZ)
+        external_db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
     )
 
     @property
@@ -931,7 +922,7 @@ class ExternalMetadataManager:
                 conflict_resolved=conflict_resolved,
                 file_exists=file_exists,
                 details=details,
-                created_at=datetime.now(SHANGHAI_TZ),
+                created_at=datetime.now(timezone.utc),
             )
             external_db.session.add(log_entry)
         except Exception:
@@ -984,7 +975,7 @@ class ExternalMetadataManager:
                 )
                 .filter(
                     SyncLogExternal.created_at
-                    >= datetime.now(SHANGHAI_TZ) - timedelta(hours=24)
+                    >= datetime.now(timezone.utc) - timedelta(hours=24)
                 )
                 .group_by(SyncLogExternal.operation)
                 .all()
@@ -1026,7 +1017,7 @@ class ExternalMetadataManager:
     def cleanup_old_logs(self, days_to_keep: int = 30) -> int:
         """清理旧的同步日志"""
         try:
-            cutoff_date = datetime.now(SHANGHAI_TZ) - timedelta(days=days_to_keep)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_to_keep)
             old_logs = SyncLogExternal.query.filter(
                 SyncLogExternal.created_at < cutoff_date
             ).all()
@@ -1134,7 +1125,7 @@ class ExternalMetadataManager:
                 backup_id=backup_id,
                 backup_type=backup_type,
                 status=status,
-                created_at=datetime.now(SHANGHAI_TZ),
+                created_at=datetime.now(timezone.utc),
             )
 
             # 设置extra_data
@@ -1196,7 +1187,7 @@ class ExternalMetadataManager:
                 if key in allowed_fields and hasattr(record, key):
                     setattr(record, key, value)
 
-            record.last_sync_at = datetime.now(SHANGHAI_TZ)
+            record.last_sync_at = datetime.now(timezone.utc)
             session.commit()
 
             try:
@@ -1308,7 +1299,7 @@ class ExternalMetadataManager:
                     else 0
                 ),
                 "database_path": self.db_path,
-                "query_time": datetime.now(SHANGHAI_TZ).isoformat(),
+                "query_time": datetime.now(timezone.utc).isoformat(),
             }
         except Exception as e:
             return {"error": f"获取统计信息失败: {e}"}
@@ -1388,7 +1379,7 @@ class ExternalMetadataManager:
                             if fresh_record:
                                 fresh_record.sync_status = "conflict"
                                 fresh_record.conflict_reason = f"状态冲突: MySQL={mysql_status}, 外部={external_status}"  # noqa: E501
-                                fresh_record.last_sync_at = datetime.now(SHANGHAI_TZ)
+                                fresh_record.last_sync_at = datetime.now(timezone.utc)
                                 conflict_session.commit()
                         except Exception as conflict_error:
                             current_app.logger.warning(

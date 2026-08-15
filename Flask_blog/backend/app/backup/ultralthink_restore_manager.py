@@ -7,14 +7,14 @@ ULTRALTHINK 恢复管理器 - 完全重构版本
 import json
 import subprocess
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict
 
 from flask import current_app
 
 from .. import db
-from ..models import SHANGHAI_TZ, BackupRecord, RestoreRecord
+from ..models import BackupRecord, RestoreRecord
 from .smart_table_validator import SmartTableValidator
 
 
@@ -297,7 +297,7 @@ class UltralthinkRestoreManager:
                         fresh_record.status = status
                         fresh_record.status_message = message[:500]  # 限制长度
                         if status in ["completed", "failed"]:
-                            fresh_record.completed_at = datetime.now(SHANGHAI_TZ)
+                            fresh_record.completed_at = datetime.now(timezone.utc)
                         if status == "completed":
                             fresh_record.progress = 100
 
@@ -352,7 +352,7 @@ class UltralthinkRestoreManager:
                         fresh_record.status = status
                         fresh_record.status_message = message[:500]  # 限制长度
                         if status in ["completed", "failed"]:
-                            fresh_record.completed_at = datetime.now(SHANGHAI_TZ)
+                            fresh_record.completed_at = datetime.now(timezone.utc)
                         if status == "completed":
                             fresh_record.progress = 100
 

@@ -1,11 +1,11 @@
 """备份系统 API 路由 — HTTP 编排，业务逻辑委托给 service.py"""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from flask import current_app, jsonify, request
 
 from .. import db, require_roles
-from ..models import SHANGHAI_TZ, BackupRecord, BackupTask, RestoreRecord
+from ..models import BackupRecord, BackupTask, RestoreRecord
 from . import backup_bp
 from .backup_records_external import get_external_metadata_manager
 from .service import (
@@ -179,8 +179,8 @@ def restore_backup(backup_id):
             restore_record = RestoreRecord(
                 backup_id=backup_id,
                 status="completed",
-                started_at=datetime.now(SHANGHAI_TZ),
-                completed_at=datetime.now(SHANGHAI_TZ),
+                started_at=datetime.now(timezone.utc),
+                completed_at=datetime.now(timezone.utc),
             )
             db.session.add(restore_record)
             db.session.commit()
@@ -219,7 +219,7 @@ def update_backup_config():
 @backup_bp.route("/statistics", methods=["GET"])
 @require_roles("admin")
 def get_backup_statistics():
-    datetime.now(SHANGHAI_TZ)
+    datetime.now(timezone.utc)
     total = BackupRecord.query.count()
     successful = BackupRecord.query.filter_by(status="completed").count()
     failed = BackupRecord.query.filter_by(status="failed").count()
@@ -380,7 +380,7 @@ def cancel_restore(restore_id):
 @backup_bp.route("/restores/cleanup", methods=["POST"])
 @require_roles("admin")
 def cleanup_restores():
-    cutoff = datetime.now(SHANGHAI_TZ) - timedelta(days=7)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=7)
     old = RestoreRecord.query.filter(RestoreRecord.started_at < cutoff).all()
     count = len(old)
     for r in old:

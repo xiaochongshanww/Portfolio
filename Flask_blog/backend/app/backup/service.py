@@ -1,12 +1,12 @@
 """备份系统业务逻辑 — 供 routes.py 编排调用"""
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from flask import current_app
 
 from .. import db
-from ..models import SHANGHAI_TZ, BackupConfig, BackupRecord
+from ..models import BackupConfig, BackupRecord
 from .physical_backup_engine import PhysicalBackupEngine
 from .physical_restore_engine import PhysicalRestoreEngine
 
@@ -74,7 +74,7 @@ def sync_physical_backups_to_database():
             backup_id=bid,
             backup_type="physical",
             status="completed",
-            created_at=datetime.now(SHANGHAI_TZ),
+            created_at=datetime.now(timezone.utc),
         )
         db.session.add(record)
         synced += 1
@@ -183,7 +183,7 @@ def cleanup_expired(force: bool = False):
     """清理过期备份。"""
     config = BackupConfig.query.first()
     retention = config.retention_days if config else 30
-    cutoff = datetime.now(SHANGHAI_TZ) - timedelta(days=retention)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=retention)
     expired = BackupRecord.query.filter(
         BackupRecord.created_at < cutoff,
         BackupRecord.status.in_(["completed", "failed"]),

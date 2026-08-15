@@ -1,12 +1,12 @@
 """备份业务逻辑层测试 — 覆盖 service.py / task_cleaner.py 的纯 DB 逻辑。"""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 from app import db
 from app.backup import service as backup_service
 from app.backup.task_cleaner import TaskCleaner
-from app.models import SHANGHAI_TZ, BackupRecord, RestoreRecord
+from app.models import BackupRecord, RestoreRecord
 
 
 def _make_record(**overrides):
@@ -41,7 +41,9 @@ class TestShouldResolveConflict:
 
     def test_completed_at_with_pending_status(self):
         c = SimpleNamespace(
-            conflict_reason="", completed_at=datetime.now(SHANGHAI_TZ), status="running"
+            conflict_reason="",
+            completed_at=datetime.now(timezone.utc),
+            status="running",
         )
         assert backup_service.should_resolve_conflict(c) is True
 
@@ -120,7 +122,7 @@ class TestListBackupRecords:
 
 class TestCleanupExpired:
     def test_force_removes_expired(self, app):
-        old = datetime.now(SHANGHAI_TZ) - timedelta(days=200)
+        old = datetime.now(timezone.utc) - timedelta(days=200)
         _make_record(
             backup_id="old1", status="completed", backup_type="full", created_at=old
         )
@@ -131,7 +133,7 @@ class TestCleanupExpired:
         assert BackupRecord.query.filter_by(backup_id="fresh").first() is not None
 
     def test_non_force_keeps_physical(self, app):
-        old = datetime.now(SHANGHAI_TZ) - timedelta(days=200)
+        old = datetime.now(timezone.utc) - timedelta(days=200)
         _make_record(
             backup_id="phys", status="completed", backup_type="physical", created_at=old
         )
@@ -170,7 +172,7 @@ class TestSyncPhysicalBackups:
 
 class TestTaskCleaner:
     def test_cleanup_stuck_backup_no_file_path(self, app):
-        old = datetime.now(SHANGHAI_TZ) - timedelta(minutes=120)
+        old = datetime.now(timezone.utc) - timedelta(minutes=120)
         _make_record(
             backup_id="stuck", status="running", file_path=None, created_at=old
         )
@@ -183,7 +185,7 @@ class TestTaskCleaner:
     def test_cleanup_stuck_backup_file_exists(self, app, tmp_path, monkeypatch):
         import os
 
-        old = datetime.now(SHANGHAI_TZ) - timedelta(minutes=120)
+        old = datetime.now(timezone.utc) - timedelta(minutes=120)
         monkeypatch.setattr(os.path, "exists", lambda p: True)
         monkeypatch.setattr(os.path, "getsize", lambda p: 5)
         _make_record(
@@ -200,7 +202,7 @@ class TestTaskCleaner:
         assert rec.file_size == 5
 
     def test_cleanup_stuck_restore(self, app):
-        old = datetime.now(SHANGHAI_TZ) - timedelta(minutes=120)
+        old = datetime.now(timezone.utc) - timedelta(minutes=120)
         db.session.add(
             RestoreRecord(
                 restore_id="r-stuck",

@@ -2,7 +2,7 @@
 
 import hashlib
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import request
 from sqlalchemy import func
@@ -44,7 +44,7 @@ class VisitorTracker:
             ip_address = VisitorTracker.get_client_ip()
             user_agent_hash = VisitorTracker.get_user_agent_hash()
             today = datetime.now(SHANGHAI_TZ).date()
-            now = datetime.now(SHANGHAI_TZ)
+            now = datetime.now(timezone.utc)
 
             logger.info(
                 f"Visitor tracking: IP={ip_address}, UA_Hash={user_agent_hash[:8]}..., Date={today}"  # noqa: E501
@@ -112,7 +112,7 @@ class VisitorTracker:
             ip_address = VisitorTracker.get_client_ip()
             user_agent_hash = VisitorTracker.get_user_agent_hash()
             today = datetime.now(SHANGHAI_TZ).date()
-            now = datetime.now(SHANGHAI_TZ)
+            now = datetime.now(timezone.utc)
 
             # 再次查找，此时应该已存在
             visitor = VisitorStats.query.filter_by(
@@ -143,15 +143,15 @@ class VisitorTracker:
                 if is_new_visitor:
                     daily_stat.unique_visitors += 1
                 daily_stat.total_page_views += 1
-                daily_stat.updated_at = datetime.now(SHANGHAI_TZ)
+                daily_stat.updated_at = datetime.now(timezone.utc)
             else:
                 # 创建新记录
                 daily_stat = DailyStats(
                     stat_date=target_date,
                     unique_visitors=1 if is_new_visitor else 0,
                     total_page_views=1,
-                    created_at=datetime.now(SHANGHAI_TZ),
-                    updated_at=datetime.now(SHANGHAI_TZ),
+                    created_at=datetime.now(timezone.utc),
+                    updated_at=datetime.now(timezone.utc),
                 )
                 db.session.add(daily_stat)
 

@@ -117,14 +117,14 @@ class ArticleLike(db.Model):
     __tablename__ = "article_likes"
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), primary_key=True)
     article_id = db.Column(db.Integer, db.ForeignKey("articles.id"), primary_key=True)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(SHANGHAI_TZ))
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class ArticleBookmark(db.Model):
     __tablename__ = "article_bookmarks"
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), primary_key=True)
     article_id = db.Column(db.Integer, db.ForeignKey("articles.id"), primary_key=True)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(SHANGHAI_TZ))
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class AuditLog(db.Model):
@@ -157,13 +157,13 @@ class VisitorStats(db.Model):
     )  # User-Agent的哈希值
     visited_date = db.Column(db.Date, nullable=False, index=True)  # 访问日期
     first_visit_time = db.Column(
-        db.DateTime, nullable=False, default=lambda: datetime.now(SHANGHAI_TZ)
+        db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
     )
     last_visit_time = db.Column(
         db.DateTime,
         nullable=False,
-        default=lambda: datetime.now(SHANGHAI_TZ),
-        onupdate=lambda: datetime.now(SHANGHAI_TZ),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
     page_views = db.Column(db.Integer, default=1)  # 当天的页面浏览量
 
@@ -188,11 +188,11 @@ class DailyStats(db.Model):
     stat_date = db.Column(db.Date, nullable=False, unique=True, index=True)
     unique_visitors = db.Column(db.Integer, default=0)  # 独立访客数
     total_page_views = db.Column(db.Integer, default=0)  # 总页面浏览量
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(SHANGHAI_TZ))
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(
         db.DateTime,
-        default=lambda: datetime.now(SHANGHAI_TZ),
-        onupdate=lambda: datetime.now(SHANGHAI_TZ),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
 
 
@@ -206,7 +206,7 @@ class LogEntry(db.Model):
         db.DateTime,
         index=True,
         nullable=False,
-        default=lambda: datetime.now(SHANGHAI_TZ),
+        default=lambda: datetime.now(timezone.utc),
     )
     level = db.Column(
         db.String(10), index=True, nullable=False
@@ -226,7 +226,7 @@ class LogEntry(db.Model):
     status_code = db.Column(db.Integer, nullable=True)  # HTTP状态码
     duration_ms = db.Column(db.Integer, nullable=True)  # 请求耗时(毫秒)
     extra_data = db.Column(db.JSON, nullable=True)  # 额外元数据
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(SHANGHAI_TZ))
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     # 关联用户对象
     user = db.relationship("User", backref="logs", lazy="select")
@@ -271,11 +271,11 @@ class LogConfig(db.Model):
     config_key = db.Column(db.String(50), unique=True, nullable=False, index=True)
     config_value = db.Column(db.String(200), nullable=False)
     description = db.Column(db.String(200), nullable=True)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(SHANGHAI_TZ))
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(
         db.DateTime,
-        default=lambda: datetime.now(SHANGHAI_TZ),
-        onupdate=lambda: datetime.now(SHANGHAI_TZ),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
 
 
@@ -299,7 +299,7 @@ class BackupRecord(db.Model):
     # 时间信息 - 统一使用上海时区
     created_at = db.Column(
         db.DateTime,
-        default=lambda: datetime.now(SHANGHAI_TZ),
+        default=lambda: datetime.now(timezone.utc),
         nullable=False,
         index=True,
     )
@@ -382,13 +382,10 @@ class BackupRecord(db.Model):
         def format_datetime(dt):
             if dt is None:
                 return None
-            # 确保datetime有timezone信息，如果没有则假设是上海时区
-            # 因为数据库中存储的时间默认是上海时间（由SHANGHAI_TZ生成）
+            # 存储统一为 UTC；naive 值假定为 UTC，再转为上海时间展示
             if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=shanghai_tz)
-            # 如果已经是上海时间，直接返回；否则转换为上海时间
-            shanghai_dt = dt.astimezone(shanghai_tz) if dt.tzinfo != shanghai_tz else dt
-            return shanghai_dt.isoformat()
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(shanghai_tz).isoformat()
 
         return {
             "id": self.id,
@@ -631,7 +628,7 @@ class RestoreRecord(db.Model):
 
     # 时间信息 - 统一使用上海时区
     created_at = db.Column(
-        db.DateTime, default=lambda: datetime.now(SHANGHAI_TZ), nullable=False
+        db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
     )
     started_at = db.Column(db.DateTime)
     completed_at = db.Column(db.DateTime)
