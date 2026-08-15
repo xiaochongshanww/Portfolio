@@ -667,8 +667,6 @@ class PhysicalBackupEngine:
                 created_at = backup.get("created_at", "")
                 if created_at:
                     try:
-                        from datetime import datetime
-
                         dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
                         monthly_key = dt.strftime("%Y-%m")
                         daily_key = dt.strftime("%Y-%m-%d")
