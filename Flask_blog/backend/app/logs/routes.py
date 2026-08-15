@@ -3,12 +3,12 @@
 提供日志查看、搜索、统计等功能
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from flask import Blueprint, jsonify, request
 
 from .. import db, require_auth, require_roles
-from ..models import LogConfig, LogEntry
+from ..models import LogEntry
 from ..utils.logging_utils import cleanup_old_logs, get_log_config, log_user_action
 from .service import (
     build_log_query,
@@ -314,7 +314,9 @@ def update_log_config():
                 400,
             )
 
-        config = upsert_log_config(config_key, config_value, data.get("description", ""))
+        config = upsert_log_config(
+            config_key, config_value, data.get("description", "")
+        )
         return jsonify(
             {
                 "code": 0,

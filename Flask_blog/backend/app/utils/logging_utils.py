@@ -362,7 +362,7 @@ def is_logging_enabled(log_type: str) -> bool:
     return get_log_config(f"enable_{log_type}", True)
 
 
-def cleanup_old_logs(days: int = None) -> int:
+def cleanup_old_logs(days: Optional[int] = None) -> int:
     """
     清理旧日志
 

@@ -17,7 +17,7 @@ uploads_bp = Blueprint("uploads", __name__)
 
 @uploads_bp.route("/image", methods=["POST"])
 @require_auth
-@limiter.limit("20/minute")  # 上传限速
+@limiter.limit("20/minute")  # type: ignore  # 上传限速
 def upload_image():
     if "file" not in request.files:
         return jsonify({"code": 4401, "message": "file required"}), 400

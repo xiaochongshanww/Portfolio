@@ -163,6 +163,7 @@ dump.rdb
 # Temporary files
 *.tmp
 *.temp
+nul
 
 # Local development files
 .env.local
@@ -180,6 +181,12 @@ dump.rdb
 # Local configuration
 config.local.py
 settings.local.py
+
+# Claude Code machine-local settings (permission grants / output style)
+.claude/settings.local.json
+
+# Runtime external-metadata DB (created by backup_records_external.py)
+backend/metadata/
 
 # Uploads directory (exclude code directories)
 uploads/

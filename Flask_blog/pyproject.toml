@@ -49,7 +49,7 @@ testpaths = [
     "backend/tests",
 ]
 python_files = ["test_*.py"]
-addopts = "-q --tb=short --cov=app --cov-report=term-missing --cov-report=xml --cov-fail-under=33"
+addopts = "-q --tb=short --cov=app --cov-report=term-missing --cov-report=xml --cov-fail-under=50"
 
 [tool.mypy]
 python_version = "3.11"
@@ -58,3 +58,16 @@ warn_unused_ignores = true
 exclude = [
     "migrations/",
 ]
+
+# 遗留/待重构文件暂不纳入 mypy 检查(见 docs/engineering/refactoring-progress.md backlog)
+[[tool.mypy.overrides]]
+module = "app.backup.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "app.models"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "app"
+ignore_errors = true

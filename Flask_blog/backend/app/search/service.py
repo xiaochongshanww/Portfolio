@@ -231,7 +231,9 @@ def perform_search(
         date_to,
         sort,
     )
-    search_params = build_search_params(page, size, filter_clauses, facets_wanted, sort_expr)
+    search_params = build_search_params(
+        page, size, filter_clauses, facets_wanted, sort_expr
+    )
 
     total = 0
     hits = []

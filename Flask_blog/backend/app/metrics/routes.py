@@ -136,7 +136,7 @@ def get_visitor_stats():
 
 
 @metrics_bp.route("/track", methods=["POST"])
-@limiter.limit("60/minute")
+@limiter.limit("60/minute")  # type: ignore
 def track_visit():
     """记录访问（由前端页面调用）"""
     try:

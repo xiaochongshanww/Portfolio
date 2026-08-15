@@ -34,7 +34,7 @@ test-all: test-backend-cov test-frontend-cov
 # ─── Lint ──────────────────────────────────────────────────
 
 lint:
-	cd backend && flake8 app/ tests/ --exit-zero
+	cd backend && flake8 app/ tests/
 	cd backend && black --check app/ tests/
 	cd frontend && npx eslint src
 

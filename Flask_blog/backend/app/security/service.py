@@ -7,7 +7,7 @@ import json
 import logging
 import random
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 # 安全日志配置
 security_logger = logging.getLogger("security")
@@ -195,10 +195,10 @@ class SecurityDataGenerator:
 def log_security_event(
     event_type: str,
     description: str,
-    source_ip: str = None,
-    user_id: int = None,
+    source_ip: Optional[str] = None,
+    user_id: Optional[int] = None,
     severity: str = "low",
-    additional_data: Dict = None,
+    additional_data: Optional[Dict] = None,
 ):
     """记录安全事件"""
     try:

@@ -2045,7 +2045,7 @@ SCHEMAS.update(
         },
     }
 )
-SCHEMAS.get("ErrorCodeCatalogResponse", {}).setdefault(
+SCHEMAS.get("ErrorCodeCatalogResponse", {}).setdefault(  # type: ignore[attr-defined]
     "example",
     {
         "code": 0,

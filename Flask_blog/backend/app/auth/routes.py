@@ -24,16 +24,16 @@ try:
 except Exception:
     HAS_PYDANTIC = False
 
-    class BaseModel:
+    class BaseModel:  # type: ignore[no-redef]
         pass
 
-    class EmailStr(str):
+    class EmailStr(str):  # type: ignore[no-redef]
         pass
 
-    def ValidationError(*a, **k):
+    def ValidationError(*a, **k):  # type: ignore[no-redef]
         return Exception("validation error")
 
-    def field_validator(*a, **k):
+    def field_validator(*a, **k):  # type: ignore[no-redef]
         def deco(fn):
             return fn
 
@@ -80,13 +80,13 @@ if HAS_PYDANTIC:
 
 else:
 
-    class RegisterModel:
+    class RegisterModel:  # type: ignore[no-redef]
         pass
 
-    class LoginModel:
+    class LoginModel:  # type: ignore[no-redef]
         pass
 
-    class ChangePasswordModel:
+    class ChangePasswordModel:  # type: ignore[no-redef]
         pass
 
 
@@ -133,7 +133,7 @@ def _validation_errors(ve):
 
 
 @auth_bp.route("/register", methods=["POST"])
-@limiter.limit("5/minute")
+@limiter.limit("5/minute")  # type: ignore
 def register():
     data = request.get_json() or {}
     try:
@@ -168,7 +168,7 @@ def register():
 
 
 @auth_bp.route("/login", methods=["POST"])
-@limiter.limit("10/minute")
+@limiter.limit("10/minute")  # type: ignore
 def login():
     data = request.get_json() or {}
     try:
@@ -268,7 +268,7 @@ def logout():
 
 @auth_bp.route("/change_password", methods=["POST"])
 @require_auth
-@limiter.limit("5/minute")
+@limiter.limit("5/minute")  # type: ignore
 def change_password_route():
     data = request.get_json() or {}
     try:

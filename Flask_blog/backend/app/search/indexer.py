@@ -7,7 +7,7 @@ def article_to_doc(article: Article):
         "id": article.id,
         "title": article.title,
         "content": (article.content_md or "")[:5000],
-        "tags": [t.slug for t in article.tags],
+        "tags": [t.slug for t in article.tags],  # type: ignore[attr-defined]
         "status": article.status,
         "category_id": article.category_id,
         "author_id": article.author_id,

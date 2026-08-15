@@ -40,10 +40,10 @@ jobs:
           python-version: '3.11'
       - name: Install backend deps
         working-directory: backend
-        run: pip install -r requirements.txt pytest-cov
+        run: pip install -r requirements.txt -r requirements-dev.txt
       - name: Run tests (SQLite in-memory + FakeRedis)
         working-directory: backend
-        run: pytest --cov=app --cov-report=term-missing --cov-fail-under=33
+        run: pytest --cov=app --cov-report=term-missing --cov-fail-under=50
 
   test-frontend:
     runs-on: ubuntu-latest
@@ -61,13 +61,12 @@ jobs:
 
   typecheck-backend:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install mypy
+      - run: pip install -r backend/requirements.txt -r backend/requirements-dev.txt
       - run: mypy backend/app --ignore-missing-imports --no-error-summary
 
   typecheck-frontend:

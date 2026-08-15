@@ -15,7 +15,7 @@ class BaseConfig:
     RATE_LIMIT_DEFAULT_MINUTE = os.getenv("RATE_LIMIT_DEFAULT_MINUTE", "200")
     RATE_LIMIT_DEFAULT_DAY = os.getenv("RATE_LIMIT_DEFAULT_DAY", "2000")
     MEILISEARCH_URL = os.getenv("MEILISEARCH_URL", "http://localhost:7700")
-    VERSION = os.getenv("APP_VERSION", "0.6.9")
+    VERSION = os.getenv("APP_VERSION", "1.0.0")
     ENABLE_SCHEDULER = os.getenv("ENABLE_SCHEDULER", "true").lower() == "true"
     SCHEDULE_CHECK_INTERVAL = int(os.getenv("SCHEDULE_CHECK_INTERVAL", "60"))
     UPLOAD_DIR = os.getenv("UPLOAD_DIR", "uploads")

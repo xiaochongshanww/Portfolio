@@ -1,4 +1,3 @@
-import json
 import logging
 import random
 from datetime import datetime, timedelta
@@ -7,7 +6,7 @@ from flask import Blueprint, jsonify, make_response, request
 
 from .. import require_roles
 from ..models import User
-from .service import SecurityDataGenerator, log_security_event
+from .service import SecurityDataGenerator
 
 security_bp = Blueprint("security", __name__)
 

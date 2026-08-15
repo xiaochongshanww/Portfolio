@@ -6,7 +6,7 @@ try:
     from pydantic import ValidationError
 except Exception:
 
-    class ValidationError(Exception):
+    class ValidationError(Exception):  # type: ignore[no-redef]
         pass
 
 
@@ -74,5 +74,5 @@ class ArticleCreateModel(BaseModel):
 
 
 class ArticleUpdateModel(ArticleCreateModel):
-    title: str | None = None
+    title: str | None = None  # type: ignore[assignment]
     status: str | None = None

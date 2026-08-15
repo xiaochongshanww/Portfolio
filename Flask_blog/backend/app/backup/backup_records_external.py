@@ -182,7 +182,6 @@ class BackupRecordExternal(external_db.Model):
             # 尝试检查是否有相关的Docker资源
             # 这里使用保守策略：如果无法验证，就认为备份可能存在
             # 避免误删除正确的备份状态
-
             # 检查Docker是否可用
             result = subprocess.run(
                 ["docker", "version"], capture_output=True, text=True, timeout=5
@@ -580,7 +579,6 @@ class SyncLogExternal(external_db.Model):
         return f"<SyncLogExternal {self.operation} {self.record_type}:{self.record_id}>"
 
 
-# TODO(human): 实现外部元数据管理器类
 class ExternalMetadataManager:
     """外部元数据管理器"""
 

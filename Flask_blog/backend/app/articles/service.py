@@ -29,7 +29,7 @@ from ..services.image_variants import generate_focal_crops
 try:
     from .. import ARTICLE_PUBLISHED_TOTAL, CACHE_HIT_TOTAL, CACHE_MISS_TOTAL
 except Exception:
-    ARTICLE_PUBLISHED_TOTAL = CACHE_HIT_TOTAL = CACHE_MISS_TOTAL = None
+    ARTICLE_PUBLISHED_TOTAL = CACHE_HIT_TOTAL = CACHE_MISS_TOTAL = None  # type: ignore[assignment]  # noqa: E501
 
 
 # ─── 序列化 ───────────────────────────────────────────────
@@ -83,7 +83,7 @@ def serialize_article(
         "created_at": a.created_at.isoformat() + "Z" if a.created_at else None,
         "published_at": a.published_at.isoformat() + "Z" if a.published_at else None,
         "updated_at": a.updated_at.isoformat() + "Z" if a.updated_at else None,
-        "tags": [t.slug for t in a.tags],
+        "tags": [t.slug for t in a.tags],  # type: ignore[attr-defined]
         "likes_count": likes_count,
         "bookmarks_count": bookmarks_count,
         "views_count": getattr(a, "views_count", None),
@@ -358,7 +358,7 @@ def create_article(parsed, user_id) -> Article:
         featured_focal_y=getattr(parsed, "featured_focal_y", None),
         category_id=getattr(parsed, "category_id", None),
         scheduled_at=(
-            parse_dt(getattr(parsed, "scheduled_at", None))
+            parse_dt(getattr(parsed, "scheduled_at", None))  # type: ignore[arg-type]
             if getattr(parsed, "scheduled_at", None)
             else None
         ),

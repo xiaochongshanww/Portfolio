@@ -9,10 +9,7 @@ from ..models import Article, ArticleVersion, AuditLog
 from ..security.enforcer import BusinessError, permission_required, workflow_transition
 from ..utils import compute_etag
 from .schemas import ArticleCreateModel, ArticleUpdateModel
-from .service import (
-    _make_focal_crops,
-    _view_fingerprint,
-)
+from .service import _make_focal_crops, _view_fingerprint
 from .service import approve_article as svc_approve
 from .service import (
     cache_track_set,
@@ -21,34 +18,21 @@ from .service import (
     create_version_snapshot,
 )
 from .service import delete_article as svc_delete
-from .service import (
-    diff_versions,
-    parse_dt,
-)
+from .service import diff_versions, parse_dt
 from .service import reject_article as svc_reject
-from .service import (
-    rollback_to_version,
-)
+from .service import rollback_to_version
 from .service import schedule_article as svc_schedule
-from .service import (
-    serialize_article,
-    serialize_articles_batch,
-)
+from .service import serialize_article, serialize_articles_batch
 from .service import submit_article as svc_submit
-from .service import (
-    toggle_bookmark,
-    toggle_like,
-)
+from .service import toggle_bookmark, toggle_like
 from .service import unpublish_article as svc_unpublish
 from .service import unschedule_article as svc_unschedule
-from .service import (
-    update_article,
-)
+from .service import update_article
 
 try:
     from .. import ARTICLE_PUBLISHED_TOTAL, CACHE_HIT_TOTAL, CACHE_MISS_TOTAL
 except Exception:
-    ARTICLE_PUBLISHED_TOTAL = CACHE_HIT_TOTAL = CACHE_MISS_TOTAL = None
+    ARTICLE_PUBLISHED_TOTAL = CACHE_HIT_TOTAL = CACHE_MISS_TOTAL = None  # type: ignore[assignment]  # noqa: E501
 
 articles_bp = Blueprint("articles", __name__)
 
@@ -356,7 +340,7 @@ def get_article_by_slug(slug):
 
 @articles_bp.route("/<int:article_id>/like", methods=["POST"])
 @require_auth
-@limiter.limit("30/minute")
+@limiter.limit("30/minute")  # type: ignore
 def like_toggle_route(article_id):
     try:
         action, count = toggle_like(article_id, request.user_id)
@@ -373,7 +357,7 @@ def like_toggle_route(article_id):
 
 @articles_bp.route("/<int:article_id>/bookmark", methods=["POST"])
 @require_auth
-@limiter.limit("30/minute")
+@limiter.limit("30/minute")  # type: ignore
 def bookmark_toggle_route(article_id):
     try:
         action, count = toggle_bookmark(article_id, request.user_id)
@@ -953,57 +937,3 @@ def public_hot_articles():
                 },
             }
         )
-
-
-# 保留测试/调试端点
-@articles_bp.route("/public/hot-test", methods=["GET"])
-def public_hot_articles_test():
-    try:
-        count = Article.query.filter_by(deleted=False, status="published").count()
-        return jsonify(
-            {"code": 0, "message": f"Found {count} articles", "data": {"count": count}}
-        )
-    except Exception as e:
-        return jsonify({"code": 500, "message": str(e), "data": None}), 500
-
-
-@articles_bp.route("/public/hot-simple", methods=["GET"])
-def public_hot_articles_simple():
-    try:
-        page = int(request.args.get("page", 1))
-        size = min(int(request.args.get("page_size", 10)), 50)
-        from sqlalchemy import case
-
-        articles = (
-            Article.query.filter_by(deleted=False, status="published")
-            .order_by(
-                case(
-                    (Article.views_count.is_(None), 0), else_=Article.views_count
-                ).desc()
-            )
-            .limit(size)
-            .all()
-        )
-        data_list = []
-        for a in articles:
-            data_list.append(
-                {
-                    "id": a.id,
-                    "title": a.title,
-                    "slug": a.slug,
-                    "summary": a.summary or "",
-                    "views_count": getattr(a, "views_count", 0) or 0,
-                    "likes_count": 0,
-                    "score": getattr(a, "views_count", 0) or 0,
-                }
-            )
-        payload = {
-            "total": len(data_list),
-            "page": page,
-            "page_size": size,
-            "has_next": False,
-            "list": data_list,
-        }
-        return jsonify({"code": 0, "message": "ok", "data": payload})
-    except Exception as e:
-        return jsonify({"code": 500, "message": str(e), "data": None}), 500

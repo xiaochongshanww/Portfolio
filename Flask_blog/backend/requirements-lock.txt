@@ -52,7 +52,6 @@ pydantic_core==2.20.1
 Pygments==2.20.0
 PyJWT==2.8.0
 PyMySQL==1.1.1
-pytest==8.3.2
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
 python-slugify==8.0.4

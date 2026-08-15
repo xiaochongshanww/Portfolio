@@ -23,14 +23,14 @@ def _serialize_article_brief(a: Article, user_id=None):
         "published_at": a.published_at.isoformat() if a.published_at else None,
         "featured_image": a.featured_image,
         "category_id": a.category_id,
-        "tags": [t.slug for t in a.tags],
+        "tags": [t.slug for t in a.tags],  # type: ignore[attr-defined]
         "views_count": a.views_count,
         "likes_count": likes_count,
         # 添加作者信息
         "author": (
             {
                 "id": a.author.id,
-                "name": a.author.nickname or a.author.username,
+                "name": a.author.nickname or a.author.email,
                 "bio": a.author.bio,
                 "avatar": a.author.avatar,
             }

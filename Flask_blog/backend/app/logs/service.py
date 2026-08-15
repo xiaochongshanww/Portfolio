@@ -6,7 +6,7 @@ from sqlalchemy import and_, desc, func
 
 from .. import db
 from ..models import LogConfig, LogEntry, User
-from ..utils.logging_utils import LogLevel, cleanup_old_logs, get_log_config
+from ..utils.logging_utils import LogLevel
 
 
 def query_logs_common(
@@ -186,14 +186,20 @@ def get_log_config_list_data() -> list:
                 "config_key": config.config_key,
                 "config_value": config.config_value,
                 "description": config.description,
-                "created_at": config.created_at.isoformat() if config.created_at else None,
-                "updated_at": config.updated_at.isoformat() if config.updated_at else None,
+                "created_at": (
+                    config.created_at.isoformat() if config.created_at else None
+                ),
+                "updated_at": (
+                    config.updated_at.isoformat() if config.updated_at else None
+                ),
             }
         )
     return config_data
 
 
-def upsert_log_config(config_key: str, config_value, description: str = "") -> LogConfig:
+def upsert_log_config(
+    config_key: str, config_value, description: str = ""
+) -> LogConfig:
     """创建或更新日志配置，返回配置记录。"""
     config = LogConfig.query.filter_by(config_key=config_key).first()
     if config:

@@ -7,16 +7,8 @@ from sqlalchemy import func
 
 from .. import db, limiter, require_auth
 from ..models import Media, MediaFolder
-from .permissions import (
-    can_delete_media,
-    can_modify_media,
-)
-from .service import (
-    create_folder,
-    get_folders_tree,
-    query_media,
-    upload_media_file,
-)
+from .permissions import can_delete_media, can_modify_media
+from .service import create_folder, get_folders_tree, query_media, upload_media_file
 
 media_bp = Blueprint("media", __name__)
 
@@ -56,7 +48,7 @@ def _serialize_media(m: Media):
 
 @media_bp.route("/upload", methods=["POST"])
 @require_auth
-@limiter.limit("30/minute")
+@limiter.limit("30/minute")  # type: ignore
 def upload_media():
     if "file" not in request.files:
         return _err(4001, "No file provided")
@@ -109,7 +101,7 @@ def get_media_detail(media_id: int):
 @require_auth
 def update_media(media_id: int):
     m = Media.query.get_or_404(media_id)
-    if not can_modify_media(m, request.user_id, request.user_role):
+    if not can_modify_media(m, request.user_id, request.user_role):  # type: ignore[attr-defined]  # noqa: E501
         return _err(4030, "Forbidden", 403)
     data = request.get_json() or {}
     for field in ("alt_text", "description", "title", "folder_id"):
@@ -123,7 +115,7 @@ def update_media(media_id: int):
 @require_auth
 def delete_media(media_id: int):
     m = Media.query.get_or_404(media_id)
-    if not can_delete_media(m, request.user_id, request.user_role):
+    if not can_delete_media(m, request.user_id, request.user_role):  # type: ignore[attr-defined]  # noqa: E501
         return _err(4030, "Forbidden", 403)
     file_path = os.path.join(current_app.config["UPLOAD_DIR"], m.file_path)
     if os.path.exists(file_path):

@@ -56,7 +56,7 @@ db = SQLAlchemy()
 migrate = Migrate()
 bcrypt = Bcrypt()
 redis_client = None
-limiter = None
+limiter: "Limiter | None" = None
 babel = None
 
 

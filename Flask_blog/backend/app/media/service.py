@@ -4,6 +4,7 @@ import hashlib
 import os
 import uuid
 from datetime import datetime, timezone
+from typing import Optional
 
 from flask import current_app
 from PIL import Image
@@ -46,7 +47,9 @@ def calculate_file_hash(file_stream) -> str:
     return sha256.hexdigest()
 
 
-def upload_media_file(file_storage, user_id: int, folder_id: int = None) -> Media:
+def upload_media_file(
+    file_storage, user_id: int, folder_id: Optional[int] = None
+) -> Media:
     """上传媒体文件，返回 Media 记录。"""
     original_filename = secure_filename(file_storage.filename or "untitled")
     mime_type = file_storage.content_type or "application/octet-stream"
@@ -103,9 +106,9 @@ def upload_media_file(file_storage, user_id: int, folder_id: int = None) -> Medi
 def query_media(
     page: int,
     size: int,
-    media_type: str = None,
-    folder_id: int = None,
-    search: str = None,
+    media_type: Optional[str] = None,
+    folder_id: Optional[int] = None,
+    search: Optional[str] = None,
     sort: str = "created_at:desc",
 ):
     """分页查询媒体库。"""
@@ -124,7 +127,7 @@ def query_media(
     return total, items
 
 
-def get_folders_tree(parent_id: int = None):
+def get_folders_tree(parent_id: Optional[int] = None):
     """获取文件夹树。"""
     q = MediaFolder.query
     if parent_id is not None:
@@ -142,7 +145,9 @@ def get_folders_tree(parent_id: int = None):
     return result
 
 
-def create_folder(name: str, parent_id: int = None, user_id: int = None) -> MediaFolder:
+def create_folder(
+    name: str, parent_id: Optional[int] = None, user_id: Optional[int] = None
+) -> MediaFolder:
     """创建文件夹。"""
     folder = MediaFolder(name=name, parent_id=parent_id, owner_id=user_id)
     db.session.add(folder)

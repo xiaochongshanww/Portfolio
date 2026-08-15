@@ -5,8 +5,8 @@ from flask import Blueprint, jsonify, request
 from .. import require_roles
 from .service import (
     DEFAULT_SETTINGS,
-    clear_cache_operation,
     cleanup_logs_operation,
+    clear_cache_operation,
     create_backup_operation,
     generate_sitemap_operation,
     get_backup_history_data,

@@ -17,17 +17,17 @@ try:
         SEARCH_ZERO_RESULT_TOTAL,
     )
 except Exception:
-    SEARCH_QUERIES_TOTAL = None
-    SEARCH_ZERO_RESULT_TOTAL = None
-    CACHE_HIT_TOTAL = None
-    CACHE_MISS_TOTAL = None
+    SEARCH_QUERIES_TOTAL = None  # type: ignore[assignment]
+    SEARCH_ZERO_RESULT_TOTAL = None  # type: ignore[assignment]
+    CACHE_HIT_TOTAL = None  # type: ignore[assignment]
+    CACHE_MISS_TOTAL = None  # type: ignore[assignment]
 
 search_bp = Blueprint("search", __name__)
 
 
 @search_bp.route("/", methods=["GET"])
-@limiter.limit("120/minute", key_func=get_remote_address)
-@limiter.limit("30/minute")
+@limiter.limit("120/minute", key_func=get_remote_address)  # type: ignore
+@limiter.limit("30/minute")  # type: ignore
 def search():
     raw_q = request.args.get("q", "")
     q = (raw_q or "")[:200]

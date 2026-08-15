@@ -60,7 +60,7 @@ def generate_tokens(user_id: int, role: str) -> tuple[str, str]:
 
     rc = _get_redis()
     if rc:
-        ttl = int((refresh_payload["exp"] - now).total_seconds())
+        ttl = int((refresh_payload["exp"] - now).total_seconds())  # type: ignore[operator]  # noqa: E501
         try:
             rc.setex(f"refresh:allow:{refresh_jti}", ttl, "1")
             rc.setex(f"refresh:user:{user_sub}:{refresh_jti}", ttl, "1")

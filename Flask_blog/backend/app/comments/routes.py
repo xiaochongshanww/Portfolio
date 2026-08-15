@@ -22,13 +22,13 @@ try:
 except Exception:
     HAS_PY = False
 
-    class BaseModel:
+    class BaseModel:  # type: ignore[no-redef]
         pass
 
-    def ValidationError(*a, **k):
+    def ValidationError(*a, **k):  # type: ignore[no-redef]
         return Exception("validation error")
 
-    def field_validator(*a, **k):
+    def field_validator(*a, **k):  # type: ignore[no-redef]
         def deco(fn):
             return fn
 
@@ -63,10 +63,10 @@ if HAS_PY:
 
 else:
 
-    class CommentCreate:
+    class CommentCreate:  # type: ignore[no-redef]
         pass
 
-    class CommentModerate:
+    class CommentModerate:  # type: ignore[no-redef]
         pass
 
 
@@ -76,7 +76,7 @@ def _ok(data, status=200):
 
 @comments_bp.route("/", methods=["POST"])
 @require_auth
-@limiter.limit("20/minute")  # 评论发表限速
+@limiter.limit("20/minute")  # type: ignore  # 评论发表限速
 def add_comment():
     data = request.get_json() or {}
     if HAS_PY:
@@ -198,7 +198,7 @@ def admin_stats():
 
 @comments_bp.route("/moderate/<int:comment_id>", methods=["POST"])
 @require_roles("editor", "admin")
-@limiter.limit("60/minute")  # 审核操作限速
+@limiter.limit("60/minute")  # type: ignore  # 审核操作限速
 def moderate(comment_id):
     data = request.get_json() or {}
     if HAS_PY:
@@ -224,7 +224,7 @@ def moderate(comment_id):
 
 @comments_bp.route("/moderate/batch", methods=["POST"])
 @require_roles("editor", "admin")
-@limiter.limit("30/minute")  # 批量操作限速
+@limiter.limit("30/minute")  # type: ignore  # 批量操作限速
 def moderate_batch_route():
     """批量审核评论"""
     data = request.get_json() or {}

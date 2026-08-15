@@ -17,7 +17,7 @@
 | 前端 typecheck | ✅ 0 错误 |
 | 前端 lint | ✅ 0 errors |
 | 后端 lint（black/flake8/isort） | ✅ 通过 |
-| 覆盖率门槛 | ✅ 后端 33%、前端 60%（实际 82.55%） |
+| 覆盖率门槛 | ✅ 后端 50%（实测 51%）、前端 25%（全应用实测口径，此前 82.55% 仅统计 4 个文件） |
 | CI job | ✅ 9 个（lint×2 / test×2 / typecheck×2 / e2e / lhci） |
 | 与远程同步 | ✅ 工作区干净，main 与 origin/main 一致 |
 
@@ -125,6 +125,42 @@
 | Home.vue | 1584 | 725 | HomeHero / ArticleCard / HomePagination |
 
 > 拆分过程中修复真 bug：ArticleManagement `handleBulkReject` 误调用 `API.approveArticle` → 改为 `API.rejectArticle(id, {reason})`。
+
+---
+
+## 五·五、标准化差距修复（2026-08-15）
+
+基于 2026-08-15 的标准化复查，修复"门禁注水"与遗留漂移。要点：
+
+**门禁真实性**
+- **前端覆盖率**：此前 `coverage.include` 只统计 4 个文件（"82.55%" 是注水数字）。已扩到全应用 `src/**`（排除 generated/governance/*.d.ts），实测 **25.05%**，门槛按实测设为 **25**，并修正本文档此前的误导表述。
+- **后端覆盖率**：33% → **50%**（实测 51%，300 测试通过）。新增约 12 个测试文件覆盖 tasks/image_variants/visitor_tracker/simple_logs/settings/search/public_api/users/logs/metrics/media 权限/content_sanitizer，并补了备份引擎测试。
+- **后端 mypy**：CI 的 `typecheck-backend` 此前 `continue-on-error: true` 永不阻断；本轮在 `pyproject.toml` 加入 mypy overrides（`app.backup.*`/`app.models`/`app` 为遗留文件暂 `ignore_errors`），并为核心模块补类型修复与定向 `# type: ignore`。✅ **已归零（0 错误），`continue-on-error` 已移除**，成为真实门禁。
+
+**快速修复**
+- 移除调试端点 `/public/hot-test`、`/public/hot-simple`（backend/app/articles/routes.py）
+- 移除测试页路由 `/icon-test`、`/tags-test` 及 IconTest.vue / TagsPageTest.vue
+- `pytest` 从 requirements.txt / requirements-lock.txt 移入 requirements-dev.txt（遵守自定规范），CI test-backend 改装 `requirements.txt + requirements-dev.txt`
+- 版本号统一 **1.0.0**（config.py 默认值，openapi.json 实际值）；`.env.example` 注明覆盖关系
+- 删除 backup_records_external.py 过时 TODO；Makefile lint 去掉 `--exit-zero`
+- `.gitignore` 补 `.claude/settings.local.json`、`nul`、`backend/metadata/`
+
+**发现的真实 bug（已修复）**
+- `backend/app/public_api.py` 序列化作者时原访问 `a.author.username`（`User` 无此字段，仅 nickname），无昵称作者会让公开文章列表 500 —— 已改为 `a.author.nickname or a.author.email`。
+
+---
+
+## 五·六、剩余 Backlog（未解决项）
+
+| 项 | 说明 | 优先级 |
+|----|------|--------|
+| 时区双轨（原 M3） | models.py 部分表存 UTC、部分存上海时区，序列化各自手写转换；统一需评估存量数据 | 高 |
+| 部署脚本收敛（原 M7） | root / deploy/ / scripts/ 约 15 个脚本，Windows+bash 双份维护 | 中 |
+| 备份引擎抽象（原 L4） | backup/ 下 12 个文件，`physical_restore_engine` / `simple_restore_engine` / `restore_manager` / `ultralthink_restore_manager` 职责重叠 | 中 |
+| 认证测试合并（原 L5） | test_auth.py / test_auth_comprehensive.py / test_auth_refresh_logout.py / test_change_password_revokes_refresh.py 重叠 | 低 |
+| README 顶层拼接收敛 | 根 README 仍是三段历史文档拼接，"Phase 1 待实现"与实现漂移 | 中 |
+| openapi.json 单一来源 | 4 份副本已漂移（frontend/scripts 不一致）；`governance:check` 未进 CI | 中 |
+| pre-commit 钩子 | `.pre-commit-config.yaml` 未落地，lint 前移到提交前 | 低 |
 
 ---
 

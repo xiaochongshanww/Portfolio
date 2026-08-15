@@ -51,8 +51,6 @@ const routes = [
   { path: '/search', component: SearchPage },
   { path: '/categories', component: () => import('./views/CategoriesPage.vue') },
   { path: '/tags', component: () => import('./views/TagsPage.vue') },
-  { path: '/icon-test', component: () => import('./views/IconTest.vue') },
-  { path: '/tags-test', component: () => import('./views/TagsPageTest.vue') },
   { path: '/archive', component: () => import('./views/ArchivePage.vue') },
   { path: '/hot', component: () => import('./views/HotArticles.vue') },
   { path: '/about', component: () => import('./views/About.vue') },

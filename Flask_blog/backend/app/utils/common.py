@@ -1,8 +1,9 @@
 import hashlib
 import json
+from typing import Optional
 
-import bleach
-import markdown as md
+import bleach  # type: ignore
+import markdown as md  # type: ignore
 
 ALLOWED_TAGS = bleach.sanitizer.ALLOWED_TAGS.union(
     {
@@ -56,7 +57,12 @@ def render_markdown(raw: str) -> str:  # noqa: E305
     return cleaned
 
 
-def audit_log(action: str, operator_id: int, note: str = None, article_id: int = None):
+def audit_log(
+    action: str,
+    operator_id: int,
+    note: Optional[str] = None,
+    article_id: Optional[int] = None,
+):
     """通用审计日志。"""
     try:
         from .. import db
