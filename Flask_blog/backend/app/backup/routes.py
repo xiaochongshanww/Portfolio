@@ -134,7 +134,7 @@ def get_backup_record(backup_id):
             "backup_id": record.backup_id,
             "backup_type": record.backup_type,
             "status": record.status,
-            "size_bytes": record.size_bytes,
+            "file_size": record.file_size,
             "file_path": record.file_path,
             "created_at": record.created_at.isoformat() if record.created_at else None,
             "completed_at": (
