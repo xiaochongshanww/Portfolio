@@ -6,73 +6,32 @@
 from datetime import datetime, timedelta
 
 from flask import Blueprint, jsonify, request
-from sqlalchemy import and_, desc, func
 
 from .. import db, require_auth, require_roles
-from ..models import LogConfig, LogEntry, User
-from ..utils.logging_utils import (
-    LogLevel,
-    cleanup_old_logs,
-    get_log_config,
-    log_user_action,
+from ..models import LogConfig, LogEntry
+from ..utils.logging_utils import cleanup_old_logs, get_log_config, log_user_action
+from .service import (
+    build_log_query,
+    get_log_config_list_data,
+    get_log_detail_data,
+    get_log_sources_data,
+    get_log_stats_data,
+    get_log_users_data,
+    query_logs_common,
+    upsert_log_config,
 )
 
 logs_bp = Blueprint("logs", __name__)
 
 
-def _query_logs_common(
-    page: int,
-    size: int,
-    level: str,
-    source: str,
-    keyword: str,
-    user_id,
-    request_id,
-    start_time,
-    end_time,
-):
-    query = LogEntry.query
-    if level and level in [
-        LogLevel.ERROR,
-        LogLevel.WARNING,
-        LogLevel.INFO,
-        LogLevel.DEBUG,
-    ]:
-        query = query.filter(LogEntry.level == level)
-    if source:
-        query = query.filter(LogEntry.source.ilike(f"%{source}%"))
-    if keyword:
-        query = query.filter(LogEntry.message.ilike(f"%{keyword}%"))
-    if user_id:
-        query = query.filter(LogEntry.user_id == user_id)
-    if request_id:
-        query = query.filter(LogEntry.request_id == request_id)
-    if start_time:
-        try:
-            start_dt = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
-            query = query.filter(LogEntry.timestamp >= start_dt)
-        except ValueError:
-            pass
-    if end_time:
-        try:
-            end_dt = datetime.fromisoformat(end_time.replace("Z", "+00:00"))
-            query = query.filter(LogEntry.timestamp <= end_dt)
-        except ValueError:
-            pass
-    total = query.count()
-    logs = (
-        query.order_by(desc(LogEntry.timestamp))
-        .offset((page - 1) * size)
-        .limit(size)
-        .all()
-    )
-    logs_data = []
-    for log in logs:
-        d = log.to_dict()
-        if log.user:
-            d["user_name"] = log.user.nickname or log.user.email
-        logs_data.append(d)
-    return total, logs_data
+def _build_logs_payload(total, logs_data, page, size):
+    return {
+        "total": total,
+        "page": page,
+        "size": size,
+        "has_next": page * size < total,
+        "logs": logs_data,
+    }
 
 
 @logs_bp.route("", methods=["GET"])  # 兼容保留 GET
@@ -90,7 +49,7 @@ def get_logs():
         start_time = request.args.get("start_time", "")
         end_time = request.args.get("end_time", "")
         request_id = request.args.get("request_id", "")
-        total, logs_data = _query_logs_common(
+        total, logs_data = query_logs_common(
             page,
             size,
             level,
@@ -105,13 +64,7 @@ def get_logs():
             {
                 "code": 0,
                 "message": "success",
-                "data": {
-                    "total": total,
-                    "page": page,
-                    "size": size,
-                    "has_next": page * size < total,
-                    "logs": logs_data,
-                },
+                "data": _build_logs_payload(total, logs_data, page, size),
             }
         )
     except Exception as e:
@@ -138,7 +91,7 @@ def post_query_logs():
         start_time = body.get("start_time") or ""
         end_time = body.get("end_time") or ""
         request_id = body.get("request_id") or ""
-        total, logs_data = _query_logs_common(
+        total, logs_data = query_logs_common(
             page,
             size,
             level,
@@ -153,13 +106,7 @@ def post_query_logs():
             {
                 "code": 0,
                 "message": "success",
-                "data": {
-                    "total": total,
-                    "page": page,
-                    "size": size,
-                    "has_next": page * size < total,
-                    "logs": logs_data,
-                },
+                "data": _build_logs_payload(total, logs_data, page, size),
             }
         )
     except Exception as e:
@@ -203,61 +150,7 @@ def handle_stats_options():
 def get_log_stats():
     """获取日志统计信息"""
     try:
-        now = datetime.utcnow()
-        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        week_ago = today - timedelta(days=7)
-
-        # 基础统计
-        stats = {
-            "total": LogEntry.query.count(),
-            "today": LogEntry.query.filter(LogEntry.timestamp >= today).count(),
-            "this_week": LogEntry.query.filter(LogEntry.timestamp >= week_ago).count(),
-        }
-
-        # 按级别统计
-        level_stats = (
-            db.session.query(LogEntry.level, func.count(LogEntry.id).label("count"))
-            .group_by(LogEntry.level)
-            .all()
-        )
-
-        stats["level_distribution"] = {level: count for level, count in level_stats}
-
-        # 按来源统计
-        source_stats = (
-            db.session.query(LogEntry.source, func.count(LogEntry.id).label("count"))
-            .group_by(LogEntry.source)
-            .limit(10)
-            .all()
-        )
-
-        stats["source_distribution"] = {source: count for source, count in source_stats}
-
-        # 今日错误和警告数
-        stats["errors"] = LogEntry.query.filter(
-            and_(LogEntry.level == LogLevel.ERROR, LogEntry.timestamp >= today)
-        ).count()
-
-        stats["warnings"] = LogEntry.query.filter(
-            and_(LogEntry.level == LogLevel.WARNING, LogEntry.timestamp >= today)
-        ).count()
-
-        # 最近7天的趋势
-        trend_data = []
-        for i in range(7):
-            day = today - timedelta(days=i)
-            next_day = day + timedelta(days=1)
-
-            day_count = LogEntry.query.filter(
-                and_(LogEntry.timestamp >= day, LogEntry.timestamp < next_day)
-            ).count()
-
-            trend_data.append({"date": day.strftime("%Y-%m-%d"), "count": day_count})
-
-        stats["weekly_trend"] = list(reversed(trend_data))
-
-        return jsonify({"code": 0, "message": "success", "data": stats})
-
+        return jsonify({"code": 0, "message": "success", "data": get_log_stats_data()})
     except Exception as e:
         return (
             jsonify(
@@ -274,33 +167,8 @@ def get_log_stats():
 def get_log_detail(log_id: int):
     """获取日志详情"""
     try:
-        log_entry = LogEntry.query.get_or_404(log_id)
-
-        # 获取相关日志（同一request_id）
-        related_logs = []
-        if log_entry.request_id:
-            related_logs = (
-                LogEntry.query.filter(
-                    and_(
-                        LogEntry.request_id == log_entry.request_id,
-                        LogEntry.id != log_id,
-                    )
-                )
-                .order_by(LogEntry.timestamp)
-                .all()
-            )
-
-        return jsonify(
-            {
-                "code": 0,
-                "message": "success",
-                "data": {
-                    "log": log_entry.to_dict(),
-                    "related_logs": [log.to_dict() for log in related_logs],
-                },
-            }
-        )
-
+        data = get_log_detail_data(log_id)
+        return jsonify({"code": 0, "message": "success", "data": data})
     except Exception as e:
         return (
             jsonify(
@@ -317,7 +185,6 @@ def get_log_detail(log_id: int):
 def export_logs():
     """导出日志"""
     try:
-        # 获取查询参数（复用get_logs的过滤逻辑）
         level = request.args.get("level", "").upper()
         source = request.args.get("source", "")
         keyword = request.args.get("keyword", "")
@@ -326,39 +193,8 @@ def export_logs():
         request.args.get("format", "json").lower()
         limit = min(int(request.args.get("limit", 1000)), 5000)  # 限制导出数量
 
-        # 构建查询（与get_logs相同的逻辑）
-        query = LogEntry.query
-
-        if level and level in [
-            LogLevel.ERROR,
-            LogLevel.WARNING,
-            LogLevel.INFO,
-            LogLevel.DEBUG,
-        ]:
-            query = query.filter(LogEntry.level == level)
-
-        if source:
-            query = query.filter(LogEntry.source.ilike(f"%{source}%"))
-
-        if keyword:
-            query = query.filter(LogEntry.message.ilike(f"%{keyword}%"))
-
-        if start_time:
-            try:
-                start_dt = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
-                query = query.filter(LogEntry.timestamp >= start_dt)
-            except ValueError:
-                pass
-
-        if end_time:
-            try:
-                end_dt = datetime.fromisoformat(end_time.replace("Z", "+00:00"))
-                query = query.filter(LogEntry.timestamp <= end_dt)
-            except ValueError:
-                pass
-
-        # 获取数据
-        logs = query.order_by(desc(LogEntry.timestamp)).limit(limit).all()
+        query = build_log_query(level, source, keyword, start_time, end_time)
+        logs = query.order_by(LogEntry.timestamp.desc()).limit(limit).all()
         logs_data = [log.to_dict() for log in logs]
 
         return jsonify(
@@ -379,7 +215,6 @@ def export_logs():
                 },
             }
         )
-
     except Exception as e:
         return (
             jsonify({"code": 5000, "message": f"导出日志失败: {str(e)}", "data": None}),
@@ -446,27 +281,9 @@ def handle_config_options():
 def get_log_config_list():
     """获取日志配置"""
     try:
-        configs = LogConfig.query.all()
-        config_data = []
-
-        for config in configs:
-            config_data.append(
-                {
-                    "id": config.id,
-                    "config_key": config.config_key,
-                    "config_value": config.config_value,
-                    "description": config.description,
-                    "created_at": (
-                        config.created_at.isoformat() if config.created_at else None
-                    ),
-                    "updated_at": (
-                        config.updated_at.isoformat() if config.updated_at else None
-                    ),
-                }
-            )
-
-        return jsonify({"code": 0, "message": "success", "data": config_data})
-
+        return jsonify(
+            {"code": 0, "message": "success", "data": get_log_config_list_data()}
+        )
     except Exception as e:
         return (
             jsonify({"code": 5000, "message": f"获取配置失败: {str(e)}", "data": None}),
@@ -497,21 +314,7 @@ def update_log_config():
                 400,
             )
 
-        # 查找或创建配置
-        config = LogConfig.query.filter_by(config_key=config_key).first()
-        if config:
-            config.config_value = str(config_value)
-            config.updated_at = datetime.utcnow()
-        else:
-            config = LogConfig(
-                config_key=config_key,
-                config_value=str(config_value),
-                description=data.get("description", ""),
-            )
-            db.session.add(config)
-
-        db.session.commit()
-
+        config = upsert_log_config(config_key, config_value, data.get("description", ""))
         return jsonify(
             {
                 "code": 0,
@@ -522,7 +325,6 @@ def update_log_config():
                 },
             }
         )
-
     except Exception as e:
         db.session.rollback()
         return (
@@ -550,14 +352,9 @@ def handle_sources_options():
 def get_log_sources():
     """获取日志来源列表"""
     try:
-        sources = (
-            db.session.query(LogEntry.source).distinct().order_by(LogEntry.source).all()
+        return jsonify(
+            {"code": 0, "message": "success", "data": get_log_sources_data()}
         )
-
-        source_list = [source[0] for source in sources if source[0]]
-
-        return jsonify({"code": 0, "message": "success", "data": source_list})
-
     except Exception as e:
         return (
             jsonify(
@@ -573,26 +370,7 @@ def get_log_sources():
 def get_log_users():
     """获取有日志记录的用户列表"""
     try:
-        users = (
-            db.session.query(User.id, User.nickname, User.email)
-            .join(LogEntry, User.id == LogEntry.user_id)
-            .distinct()
-            .order_by(User.nickname)
-            .all()
-        )
-
-        user_list = []
-        for user in users:
-            user_list.append(
-                {
-                    "id": user.id,
-                    "name": user.nickname or user.email,
-                    "email": user.email,
-                }
-            )
-
-        return jsonify({"code": 0, "message": "success", "data": user_list})
-
+        return jsonify({"code": 0, "message": "success", "data": get_log_users_data()})
     except Exception as e:
         return (
             jsonify(

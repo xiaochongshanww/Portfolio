@@ -3,5 +3,8 @@
     "@element-plus/icons-vue": "^2.3.2",
     "element-plus": "^2.10.6",
     "postcss-nesting": "^13.0.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
   }
 }

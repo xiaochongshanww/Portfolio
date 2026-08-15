@@ -255,96 +255,20 @@
     </div>
 
     <!-- 用户详情对话框 -->
-    <el-dialog 
-      v-model="detailDialog.visible" 
-      :title="`用户详情 - ${detailDialog.user?.nickname || detailDialog.user?.email}`" 
-      width="600px"
-    >
-      <div v-if="detailDialog.user" class="user-detail">
-        <div class="detail-section">
-          <h4>基本信息</h4>
-          <div class="detail-grid">
-            <div class="detail-item">
-              <span class="label">邮箱:</span>
-              <span class="value">{{ detailDialog.user.email }}</span>
-            </div>
-            <div class="detail-item">
-              <span class="label">昵称:</span>
-              <span class="value">{{ detailDialog.user.nickname || '未设置' }}</span>
-            </div>
-            <div class="detail-item">
-              <span class="label">角色:</span>
-              <el-tag :type="getRoleType(detailDialog.user.role)">
-                {{ getRoleText(detailDialog.user.role) }}
-              </el-tag>
-            </div>
-            <div class="detail-item">
-              <span class="label">注册时间:</span>
-              <span class="value">{{ formatDate(detailDialog.user.created_at) }}</span>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="detailDialog.user.bio" class="detail-section">
-          <h4>个人简介</h4>
-          <p class="bio-content">{{ detailDialog.user.bio }}</p>
-        </div>
-
-        <div v-if="detailDialog.user.social_links" class="detail-section">
-          <h4>社交链接</h4>
-          <div class="social-links">
-            <!-- 这里可以解析并显示社交链接 -->
-            <pre class="social-json">{{ detailDialog.user.social_links }}</pre>
-          </div>
-        </div>
-
-        <div class="detail-section">
-          <h4>统计信息</h4>
-          <div class="stats-grid">
-            <div class="stat-box">
-              <div class="stat-number">{{ detailDialog.user.article_count || 0 }}</div>
-              <div class="stat-text">发布文章</div>
-            </div>
-            <!-- 可以添加更多统计信息 -->
-          </div>
-        </div>
-      </div>
-    </el-dialog>
+    <UserDetailDialog
+      :visible="detailDialog.visible"
+      :user="detailDialog.user"
+      @update:visible="detailDialog.visible = $event"
+    />
 
     <!-- 修改角色对话框 -->
-    <el-dialog 
-      v-model="roleDialog.visible" 
-      title="修改用户角色" 
-      width="400px"
-    >
-      <el-form :model="roleDialog.form" label-width="80px">
-        <el-form-item label="用户">
-          <span>{{ roleDialog.user?.nickname || roleDialog.user?.email }}</span>
-        </el-form-item>
-        <el-form-item label="当前角色">
-          <el-tag :type="getRoleType(roleDialog.user?.role)">
-            {{ getRoleText(roleDialog.user?.role) }}
-          </el-tag>
-        </el-form-item>
-        <el-form-item label="新角色" required>
-          <el-select v-model="roleDialog.form.role" placeholder="选择新角色">
-            <el-option label="作者" value="author" />
-            <el-option label="编辑" value="editor" />
-            <el-option label="管理员" value="admin" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="roleDialog.visible = false">取消</el-button>
-        <el-button 
-          type="primary" 
-          :loading="roleDialog.loading"
-          @click="confirmRoleChange"
-        >
-          确认修改
-        </el-button>
-      </template>
-    </el-dialog>
+    <ChangeRoleDialog
+      :visible="roleDialog.visible"
+      :loading="roleDialog.loading"
+      :user="roleDialog.user"
+      @update:visible="roleDialog.visible = $event"
+      @confirm="handleRoleConfirm"
+    />
   </div>
 </template>
 
@@ -357,6 +281,8 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useUserStore } from '../../stores/user';
 import { API } from '../../api';
+import UserDetailDialog from '../../components/admin/UserDetailDialog.vue';
+import ChangeRoleDialog from '../../components/admin/ChangeRoleDialog.vue';
 
 const userStore = useUserStore();
 
@@ -397,10 +323,7 @@ const roleDialog = reactive({
   visible: false,
   loading: false,
   /** @type {any} */
-  user: null,
-  form: {
-    role: ''
-  }
+  user: null
 });
 
 // 工具函数
@@ -585,17 +508,18 @@ async function handleUserAction(user, action) {
 /** @param {any} user */
 function showRoleDialog(user) {
   roleDialog.user = user;
-  roleDialog.form.role = user.role;
   roleDialog.visible = true;
 }
 
-async function confirmRoleChange() {
-  if (!roleDialog.form.role) {
+/** @param {string} newRole */
+async function handleRoleConfirm(newRole) {
+  const user = roleDialog.user;
+  if (!newRole) {
     ElMessage.warning('请选择新角色');
     return;
   }
 
-  if (roleDialog.form.role === roleDialog.user.role) {
+  if (newRole === user.role) {
     ElMessage.warning('新角色与当前角色相同');
     return;
   }
@@ -603,8 +527,8 @@ async function confirmRoleChange() {
   roleDialog.loading = true;
   
   try {
-    await API.updateUser(roleDialog.user.id, {
-      role: roleDialog.form.role
+    await API.updateUser(user.id, {
+      role: newRole
     });
     
     ElMessage.success('角色修改成功');

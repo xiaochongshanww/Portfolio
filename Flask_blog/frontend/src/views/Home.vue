@@ -1,73 +1,14 @@
 <template>
   <div class="home-view space-y-6">
     <!-- Hero Section -->
-    <section class="hero-section bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-12 px-6 rounded-xl relative overflow-hidden mb-6">
-      <!-- 背景装饰 -->
-      <div class="absolute inset-0 opacity-10">
-        <div class="absolute top-10 left-10 w-20 h-20 bg-blue-400 rounded-full blur-xl" />
-        <div class="absolute top-20 right-20 w-16 h-16 bg-purple-400 rounded-full blur-lg" />
-        <div class="absolute bottom-10 left-1/3 w-12 h-12 bg-indigo-400 rounded-full blur-lg" />
-      </div>
-      
-      <div class="relative z-10 text-center max-w-3xl mx-auto">
-        <h1 class="text-3xl md:text-5xl font-bold text-gray-800 mb-4 leading-tight">
-          发现与创作
-        </h1>
-        <p class="text-base md:text-lg text-gray-600 mb-6 leading-relaxed">
-          探索优质内容，分享独特见解，与志同道合的人一起成长
-        </p>
-        
-        <!-- 搜索框 -->
-        <div class="max-w-md mx-auto mb-6">
-          <div class="relative">
-            <el-input 
-              v-model="searchInput" 
-              placeholder="搜索文章、标签或作者..." 
-              clearable 
-              size="large"
-              class="search-input"
-              @keyup.enter="applySearch"
-            >
-              <template #prefix>
-                <el-icon class="text-gray-400"><Search /></el-icon>
-              </template>
-              <template #append>
-                <el-button :loading="loading" type="primary" size="large" @click="applySearch">
-                  搜索
-                </el-button>
-              </template>
-            </el-input>
-          </div>
-        </div>
-
-        <!-- 快速筛选标签 -->
-        <div class="flex flex-wrap justify-center gap-3 mb-6 quick-filter-container">
-          <button
-            v-for="c in categories.slice(0, 6)" 
-            :key="c.id" 
-            :class="[
-              'modern-category-btn',
-              selectedCategory === String(c.id) ? 'modern-category-btn-active' : 'modern-category-btn-default'
-            ]"
-            @click="clickCategory(c.id)"
-          >
-            <span class="category-name">{{ c.name }}</span>
-            <el-icon v-if="selectedCategory === String(c.id)" size="14" class="close-icon">
-              <Close />
-            </el-icon>
-          </button>
-          
-          <!-- 查看全部分类按钮 -->
-          <router-link 
-            to="/categories" 
-            class="modern-view-all-btn"
-          >
-            <el-icon size="16" class="view-all-icon"><More /></el-icon>
-            <span>浏览全部</span>
-          </router-link>
-        </div>
-      </div>
-    </section>
+    <HomeHero
+      v-model:search-input="searchInput"
+      :loading="loading"
+      :categories="categories"
+      :selected-category="selectedCategory"
+      @search="applySearch"
+      @category-click="clickCategory"
+    />
 
     <!-- 主要内容区域 -->
     <div ref="contentWrapper" class="main-content-wrapper">
@@ -128,183 +69,25 @@
 
           <!-- 文章列表 -->
           <div v-else class="article-grid space-y-8 md:space-y-0 article-list-container">
-            <article
+            <ArticleCard
               v-for="a in articles"
               :key="a.id"
-              class="article-card article-card-body bg-slate-50 rounded-3xl shadow-sm hover:shadow-xl transition-all duration-300 group"
-            >
-              <!-- 封面图片（顶部） - 优化的嵌入样式 -->
-              <div class="cover-image-container">
-                <RouterLink :to="'/article/' + a.slug">
-                  <div class="aspect-[16/9] bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative cover-image-wrapper">
-                    <CoverImage 
-                      :src="a.featured_image || getDefaultCoverImage(a)" 
-                      :alt="a.title" 
-                      container-class="absolute inset-0 overflow-hidden"
-                      image-class="w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
-                      style="border-radius: 24px;"
-                    />
-                    <!-- 渐变遮罩 -->
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" style="border-radius: 24px;" />
-                  </div>
-                </RouterLink>
-              </div>
-
-              <!-- 主要内容区域 -->
-              <div>
-                <!-- 文章标题 -->
-                <RouterLink 
-                  :to="'/article/' + a.slug"
-                  class="block group-hover:text-blue-600 transition-colors duration-200 text-center"
-                >
-                  <h3 class="text-xl font-bold text-gray-900 leading-tight mb-4 line-clamp-2 hover:text-blue-600 transition-colors">
-                    {{ a.title }}
-                  </h3>
-                </RouterLink>
-
-                <!-- 文章元信息 -->
-                <div class="post-meta text-sm text-gray-500 mb-4 text-center">
-                  <!-- 第一行：基础信息 -->
-                  <div class="flex items-center flex-wrap mb-1 justify-center">
-                    <!-- 发布时间 -->
-                    <div class="post-meta-item">
-                      <i class="fa fa-clock-o" aria-hidden="true" />
-                      {{ formatDate(a.published_at) }}
-                    </div>
-                      
-                    <div class="post-meta-divider">|</div>
-                      
-                    <!-- 浏览次数 -->
-                    <div v-if="a.views_count != null" class="post-meta-item">
-                      <i class="fa fa-eye" aria-hidden="true" />
-                      {{ formatNumber(a.views_count) }}
-                    </div>
-                      
-                    <div v-if="a.views_count != null" class="post-meta-divider">|</div>
-                      
-                    <!-- 评论数 -->
-                    <div class="post-meta-item">
-                      <i class="fa fa-comments-o" aria-hidden="true" />
-                      {{ a.comments_count || 0 }}
-                    </div>
-                      
-                    <div class="post-meta-divider">|</div>
-                      
-                    <!-- 文章分类 -->
-                    <div v-if="a.category" class="post-meta-item">
-                      <i class="fa fa-bookmark-o" aria-hidden="true" />
-                      <span class="text-blue-600 hover:text-blue-800 transition-colors cursor-pointer" @click="clickCategory(a.category_id)">
-                        {{ a.category }}
-                      </span>
-                    </div>
-                      
-                    <div v-if="a.category" class="post-meta-divider">|</div>
-                      
-                    <!-- 最后编辑时间 -->
-                    <div v-if="a.updated_at && a.updated_at !== a.published_at" class="post-meta-item">
-                      <i class="fa fa-clock-o" aria-hidden="true" />
-                      {{ formatDate(a.updated_at) }}
-                    </div>
-                      
-                    <div v-if="a.updated_at && a.updated_at !== a.published_at" class="post-meta-divider">|</div>
-                      
-                    <!-- 文章作者 -->
-                    <div class="post-meta-item">
-                      <i class="fa fa-user-circle-o" aria-hidden="true" />
-                      {{ a.author?.name || '匿名作者' }}
-                    </div>
-                  </div>
-                    
-                  <!-- 第二行：字数和阅读时间 -->
-                  <div class="flex items-center justify-center">
-                    <!-- 字数统计 -->
-                    <div class="post-meta-item">
-                      <i class="fa fa-file-word-o" aria-hidden="true" />
-                      {{ calculateWordCount(a.content_md || a.summary || '') }} 字
-                    </div>
-                      
-                    <div class="post-meta-divider">|</div>
-                      
-                    <!-- 预计阅读时间 -->
-                    <div class="post-meta-item">
-                      <i class="fa fa-hourglass-end" aria-hidden="true" />
-                      {{ calculateReadTime(a.content_md || a.summary || '') }} 分钟
-                    </div>
-                  </div>
-                </div>
-
-                <!-- 文章摘要 -->
-                <p class="text-gray-600 leading-relaxed mb-4 line-clamp-3">
-                  {{ getArticleSummary(a) }}
-                </p>
-
-                <!-- 底部操作区域 -->
-                <div class="flex flex-col gap-4">
-                  <!-- 标签区域 -->
-                  <div v-if="Array.isArray(a.tags) && a.tags.length" class="flex items-center gap-2 flex-wrap justify-center">
-                    <el-tag 
-                      v-for="t in a.tags.slice(0, 3)" 
-                      :key="t" 
-                      size="small" 
-                      type="info"
-                      class="cursor-pointer hover:bg-gray-200 transition-colors"
-                      @click="clickTag(t)"
-                    >
-                      #{{ t }}
-                    </el-tag>
-                    <span v-if="a.tags.length > 3" class="text-xs text-gray-400">+{{ a.tags.length - 3 }}</span>
-                  </div>
-                    
-                  <!-- 互动按钮 - 移除分割线和边距 -->
-                  <div class="interaction-buttons-container">
-                    <!-- 点赞按钮 -->
-                    <button 
-                      :class="[
-                        'interaction-btn',
-                        a.is_liked ? 'liked' : ''
-                      ]"
-                      :disabled="likingIds.includes(a.id)"
-                      :title="a.is_liked ? '取消点赞' : '点赞'"
-                      @click="toggleLike(a)"
-                    >
-                      <i :class="a.is_liked ? 'fa fa-heart' : 'fa fa-heart-o'" aria-hidden="true" />
-                      <span>{{ formatNumber(a.likes_count || 0) }}</span>
-                    </button>
-                      
-                    <!-- 收藏按钮 -->
-                    <button 
-                      :class="[
-                        'interaction-btn',
-                        a.is_bookmarked ? 'bookmarked' : ''
-                      ]"
-                      :disabled="bookmarkingIds.includes(a.id)"
-                      :title="a.is_bookmarked ? '取消收藏' : '收藏文章'"
-                      @click="toggleBookmark(a)"
-                    >
-                      <i :class="a.is_bookmarked ? 'fa fa-bookmark' : 'fa fa-bookmark-o'" aria-hidden="true" />
-                      <span>收藏</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </article>
+              :article="a"
+              @category-click="clickCategory"
+              @tag-click="clickTag"
+            />
           </div>
         </div>
 
         <!-- 翻页组件独立容器 - 确保始终在底部且与内容分离 -->
-        <div v-if="meta.total > 0" class="pagination-container">
-          <el-pagination
-            background
-            layout="prev, pager, next, sizes, total"
-            :page-sizes="[10,20,50]"
-            :default-page-size="10"
-            :total="meta.total || 0"
-            :current-page="meta.page"
-            :page-size="meta.page_size"
-            @current-change="onPageChange"
-            @size-change="onSizeChange"
-          />
-        </div>
+        <HomePagination
+          v-if="meta.total > 0"
+          :total="meta.total"
+          :page="meta.page"
+          :page-size="meta.page_size"
+          @page-change="onPageChange"
+          @size-change="onSizeChange"
+        />
       </main>
       
       <!-- 桌面端侧边栏 -->
@@ -330,15 +113,14 @@
 import { ref, reactive, computed, watch, onMounted, onActivated, inject, Ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useUserStore } from '../stores/user';
-import { 
-  Star, StarFilled, FolderAdd, FolderChecked, Search, Picture, User, View,
-  Clock, ChatLineRound, Edit, Document, Timer, TrendCharts, More, Close
-} from '@element-plus/icons-vue';
+import { TrendCharts } from '@element-plus/icons-vue';
 import { usePagedQuery } from '../composables/usePagedQuery';
 import { useResponsiveLayout } from '../composables/useResponsiveLayout';
 import { ElMessage, ElTooltip } from 'element-plus';
 import DesktopSidebar from '../components/sidebar/DesktopSidebar.vue';
-import CoverImage from '../components/CoverImage.vue';
+import HomeHero from '../components/home/HomeHero.vue';
+import ArticleCard from '../components/home/ArticleCard.vue';
+import HomePagination from '../components/home/HomePagination.vue';
 import { API as UnifiedAPI } from '../api';
 
 // API 接口定义（统一走 @/api 出口）
@@ -350,8 +132,6 @@ const API = {
         listArticles: (params: Record<string, any>) => UnifiedAPI.getPublicArticles(params),
         getApiV1ArticlesPublicHot: (page: number, page_size: number, window_hours: number) => 
           UnifiedAPI.getHotArticles({ page, page_size, window_hours }),
-        toggleLike: (articleId: number) => UnifiedAPI.likeArticle(articleId),
-        toggleBookmark: (articleId: number) => UnifiedAPI.bookmarkArticle(articleId),
         approveArticle: (articleId: number) => UnifiedAPI.approveArticle(articleId)
     },
     TaxonomyService: {
@@ -383,8 +163,6 @@ const latest = ref<any[]>([]);
 const sideLoading = ref(false);
 const hot = ref<any[]>([]);
 const hotLoading = ref(false);
-const likingIds = ref<number[]>([]);
-const bookmarkingIds = ref<number[]>([]);
 
 // 分页查询
 const { loading, error, data, pageSize, goPage, setPageSize } = usePagedQuery<any>({
@@ -480,158 +258,6 @@ function buildQuery(newQuery: Record<string, any>) {
   return q;
 }
 
-function formatDate(s?: string) { 
-  if (!s) return ''; 
-  try {
-    // 修复时区问题：强制将后端时间作为UTC时间处理
-    let dateString = s;
-    // 如果时间字符串没有时区标识，添加Z表示UTC
-    if (!dateString.endsWith('Z') && !dateString.includes('+') && !dateString.includes('-', 10)) {
-      dateString += 'Z';
-    }
-    
-    const date = new Date(dateString);
-    const now = new Date();
-    
-    const diffMs = now.getTime() - date.getTime();
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
-    // 相对时间显示
-    if (diffMinutes < 1) return '刚刚';
-    if (diffMinutes < 60) return `${diffMinutes}分钟前`;
-    if (diffHours < 24) return `${diffHours}小时前`;
-    if (diffDays === 1) return '昨天';
-    if (diffDays < 7) return `${diffDays}天前`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)}周前`;
-    if (diffDays < 365) return `${Math.floor(diffDays / 30)}个月前`;
-    
-    // 超过一年显示具体日期
-    return date.toLocaleDateString('zh-CN');
-  } catch (error) { 
-    console.warn('formatDate error:', error, 'input:', s);
-    return ''; 
-  } 
-}
-
-function formatNumber(num: number): string {
-  if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'k';
-  }
-  return String(num);
-}
-
-function getCategoryColor(category: string): string {
-  const colors = ['', 'success', 'warning', 'danger', 'info'];
-  const hash = category.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
-  return colors[hash % colors.length];
-}
-
-function handleImageError(e: Event) {
-  const img = e.target as HTMLImageElement;
-  img.src = '/assets/default-avatar.png';
-}
-
-function handleAuthorAvatarError(e: Event, author: any) {
-  const img = e.target as HTMLImageElement;
-  // 隐藏图片，让父容器的默认样式显示
-  img.style.display = 'none';
-  // 清空头像URL，让模板显示默认图标
-  author.avatar = null;
-}
-
-// 计算文章字数
-function calculateWordCount(content: string): number {
-  if (!content) return 0;
-  // 移除 Markdown 标记和 HTML 标签，然后计算字数
-  const plainText = content
-    .replace(/[#*_`~\[\]()]/g, '') // 移除常见 Markdown 标记
-    .replace(/<[^>]*>/g, '') // 移除 HTML 标签
-    .replace(/\s+/g, ' ') // 合并多个空白字符
-    .trim();
-  
-  // 中文字符按1个字计算，英文按单词计算
-  const chineseChars = (plainText.match(/[\u4e00-\u9fa5]/g) || []).length;
-  const englishWords = (plainText.replace(/[\u4e00-\u9fa5]/g, '').match(/\b\w+\b/g) || []).length;
-  
-  return chineseChars + englishWords;
-}
-
-// 计算预计阅读时间（分钟）
-function calculateReadTime(content: string): number {
-  const wordCount = calculateWordCount(content);
-  // 假设平均阅读速度：中文 300 字/分钟，英文 250 词/分钟
-  const readTime = Math.max(1, Math.ceil(wordCount / 275));
-  return readTime;
-}
-
-// 获取默认封面图片
-function getDefaultCoverImage(article: any): string {
-  // 根据文章分类生成不同的默认封面 (16:9 比例)
-  const categoryImages: Record<string, string> = {
-    'Python': 'https://images.unsplash.com/photo-1526379095098-d400fd0bf935?w=640&h=360&fit=crop&crop=center',
-    '前端': 'https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=640&h=360&fit=crop&crop=center',
-    '计算机网络': 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=640&h=360&fit=crop&crop=center',
-    '其他': 'https://images.unsplash.com/photo-1432821596592-e2c18b78144f?w=640&h=360&fit=crop&crop=center'
-  };
-  
-  // 如果有分类且在映射中，返回对应图片
-  if (article.category && categoryImages[article.category]) {
-    return categoryImages[article.category];
-  }
-  
-  // 根据文章ID生成不同主题的高质量封面图片
-  const themeImages = [
-    'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=640&h=360&fit=crop&crop=center', // 现代办公
-    'https://images.unsplash.com/photo-1504639725590-34d0984388bd?w=640&h=360&fit=crop&crop=center', // 创意设计
-    'https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?w=640&h=360&fit=crop&crop=center', // 技术创新
-    'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=640&h=360&fit=crop&crop=center', // 团队协作
-    'https://images.unsplash.com/photo-1551434678-e076c223a692?w=640&h=360&fit=crop&crop=center'  // 数据分析
-  ];
-  
-  const index = (article.id || 0) % themeImages.length;
-  return themeImages[index];
-}
-
-// 获取文章摘要
-function getArticleSummary(article: any): string {
-  // 优先使用填写的摘要
-  if (article.summary && article.summary.trim()) {
-    return article.summary;
-  }
-  
-  // 其次使用后端提供的内容摘录
-  if (article.content_excerpt && article.content_excerpt.trim()) {
-    const plainText = article.content_excerpt
-      .replace(/[#*_`~\[\]()]/g, '') // 移除 Markdown 标记
-      .replace(/<[^>]*>/g, '') // 移除 HTML 标签
-      .replace(/\s+/g, ' ') // 合并空白
-      .trim();
-    
-    if (plainText.length > 150) {
-      return plainText.substring(0, 150) + '...';
-    }
-    return plainText || '暂无摘要...';
-  }
-  
-  // 最后使用完整content_md（如果有的话）
-  if (article.content_md) {
-    const plainText = article.content_md
-      .replace(/[#*_`~\[\]()]/g, '') // 移除 Markdown 标记
-      .replace(/<[^>]*>/g, '') // 移除 HTML 标签
-      .replace(/\s+/g, ' ') // 合并空白
-      .trim();
-    
-    if (plainText.length > 150) {
-      return plainText.substring(0, 150) + '...';
-    }
-    return plainText;
-  }
-  
-  return '暂无摘要...';
-}
-
 // 事件处理
 function applySearch() { 
   router.push({ query: buildQuery({ q: searchInput.value, page: 1 }) }); 
@@ -694,53 +320,6 @@ function onSizeChange(size: number) {
 function onListTypeChange(newType: 'latest' | 'hot') {
   listType.value = newType;
   goPage(1); // 重新加载数据
-}
-
-// 点赞功能
-async function toggleLike(article: any) {
-  if (likingIds.value.includes(article.id)) return;
-  
-  likingIds.value.push(article.id);
-  const wasLiked = article.is_liked;
-  const originalCount = article.likes_count || 0;
-  
-  // 乐观更新
-  article.is_liked = !wasLiked;
-  article.likes_count = wasLiked ? originalCount - 1 : originalCount + 1;
-  
-  try {
-    await API.ArticlesService.toggleLike(article.id);
-    ElMessage.success(article.is_liked ? '点赞成功' : '取消点赞');
-  } catch (error) {
-    // 回滚
-    article.is_liked = wasLiked;
-    article.likes_count = originalCount;
-    ElMessage.error('操作失败，请稍后重试');
-  } finally {
-    likingIds.value = likingIds.value.filter(id => id !== article.id);
-  }
-}
-
-// 收藏功能
-async function toggleBookmark(article: any) {
-  if (bookmarkingIds.value.includes(article.id)) return;
-  
-  bookmarkingIds.value.push(article.id);
-  const wasBookmarked = article.is_bookmarked;
-  
-  // 乐观更新
-  article.is_bookmarked = !wasBookmarked;
-  
-  try {
-    await API.ArticlesService.toggleBookmark(article.id);
-    ElMessage.success(article.is_bookmarked ? '收藏成功' : '取消收藏');
-  } catch (error) {
-    // 回滚
-    article.is_bookmarked = wasBookmarked;
-    ElMessage.error('操作失败，请稍后重试');
-  } finally {
-    bookmarkingIds.value = bookmarkingIds.value.filter(id => id !== article.id);
-  }
 }
 
 // 数据加载
@@ -1112,110 +691,6 @@ watch(() => userStore.isAuthenticated, (newAuth, oldAuth) => {
 
 <style scoped>
 .article-list-container { margin-top: 2.5rem; }
-.article-card-body { background-color: rgb(248 250 252); padding: 24px; }
-
-/* ===== 现代化分类按钮样式 ===== */
-.quick-filter-container {
-  align-items: center;
-  row-gap: 12px;
-}
-
-.modern-category-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 18px;
-  border-radius: 25px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  border: none;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.modern-category-btn-default {
-  background: rgba(255, 255, 255, 0.8);
-  color: #6b7280;
-  border: 1px solid rgba(209, 213, 219, 0.6);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.modern-category-btn-default:hover {
-  background: rgba(59, 130, 246, 0.08);
-  color: #3b82f6;
-  border-color: rgba(59, 130, 246, 0.3);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(59, 130, 246, 0.15);
-}
-
-.modern-category-btn-active {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  color: white;
-  border: 1px solid transparent;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-}
-
-.modern-category-btn-active:hover {
-  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
-}
-
-.close-icon {
-  margin-left: 4px;
-  opacity: 0.8;
-}
-
-.modern-view-all-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 18px;
-  border-radius: 25px;
-  font-size: 14px;
-  font-weight: 500;
-  text-decoration: none;
-  background: rgba(255, 255, 255, 0.9);
-  color: #6366f1;
-  border: 1px dashed rgba(99, 102, 241, 0.4);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  backdrop-filter: blur(10px);
-}
-
-.modern-view-all-btn:hover {
-  background: rgba(99, 102, 241, 0.1);
-  border-color: rgba(99, 102, 241, 0.6);
-  border-style: solid;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.2);
-  color: #4f46e5;
-}
-
-.view-all-icon {
-  transition: transform 0.2s ease;
-}
-
-.modern-view-all-btn:hover .view-all-icon {
-  transform: rotate(90deg);
-}
-
-/* 响应式优化 */
-@media (max-width: 640px) {
-  .quick-filter-container {
-    gap: 8px;
-  }
-  
-  .modern-category-btn,
-  .modern-view-all-btn {
-    padding: 8px 14px;
-    font-size: 13px;
-    border-radius: 20px;
-  }
-}
 
 /* 新的 Flexbox 布局样式 */
 .main-content-wrapper {
@@ -1240,98 +715,9 @@ watch(() => userStore.isAuthenticated, (newAuth, oldAuth) => {
   min-height: 0; /* 允许内容区域自适应高度 */
 }
 
-/* 翻页组件独立容器 - 确保固定在底部并与内容分离 */
-.pagination-container {
-  margin-top: 4rem; /* 与内容区域保持固定间距 */
-  margin-bottom: 2rem;
-  padding-top: 2rem;
-  padding-bottom: 1rem;
-  display: flex;
-  justify-content: center;
-  border-top: 1px solid #f1f5f9; /* 添加分隔线 */
-  background: rgba(255, 255, 255, 0.8); /* 轻微背景色区分 */
-  backdrop-filter: blur(8px); /* 毛玻璃效果 */
-  border-radius: 16px;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05); /* 轻微阴影 */
-}
-
 .sidebar-section {
   width: 320px;
   flex-shrink: 0;
-}
-
-/* 快速筛选标签间距 */
-.quick-filter-tags {
-  gap: 8px;
-  row-gap: 12px; /* 增加上下间距 */
-}
-
-.quick-filter-tag {
-  transition: all 0.2s ease;
-}
-
-.quick-filter-tag:hover {
-  transform: scale(1.05);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-/* 布局样式由JS动态控制，移除固定断点媒体查询 */
-
-/* 搜索框主容器样式 */
-.search-input {
-  --el-border-radius-base: 12px;
-}
-
-.search-input :deep(.el-input) {
-  border-radius: 12px;
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-}
-
-/* 搜索输入框样式 - 完全重写确保一致性 */
-.search-input :deep(.el-input-group) {
-  display: flex;
-  width: 100%;
-}
-
-.search-input :deep(.el-input__wrapper) {
-  border-radius: 12px 0 0 12px !important;
-  border: 2px solid #e5e7eb !important;
-  border-right: none !important;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-}
-
-.search-input :deep(.el-input__wrapper:hover) {
-  border-color: #3b82f6 !important;
-  border-right: none !important;
-}
-
-.search-input :deep(.el-input__wrapper.is-focus) {
-  border-color: #3b82f6 !important;
-  border-right: none !important;
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 0 0 3px rgb(59 130 246 / 0.1);
-}
-
-.search-input :deep(.el-input-group__append) {
-  border-radius: 0 12px 12px 0 !important;
-  border: 2px solid #3b82f6 !important;
-  border-left: none !important;
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-  transition: all 0.3s ease;
-}
-
-.search-input :deep(.el-input-group__append .el-button) {
-  border: none !important;
-  border-radius: 0 10px 10px 0 !important;
-  background: #3b82f6 !important;
-  color: white !important;
-  font-weight: 500;
-  padding: 0 20px;
-  height: 100%;
-}
-
-.search-input :deep(.el-input-group__append .el-button:hover) {
-  background: #2563eb !important;
 }
 
 /* 文章列表切换按钮样式优化 */
@@ -1352,134 +738,6 @@ watch(() => userStore.isAuthenticated, (newAuth, oldAuth) => {
   line-height: 44px !important;
 }
 
-/* 修复焦点状态下的边框连接 */
-.search-input :deep(.el-input__wrapper.is-focus) + .el-input-group__append {
-  border-color: #3b82f6 !important;
-}
-
-/* 文章元信息样式 */
-.post-meta-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.875rem;
-  color: #6b7280;
-}
-
-.post-meta-item i {
-  font-size: 0.75rem;
-  color: #9ca3af;
-  width: 14px;
-  text-align: center;
-}
-
-.post-meta-divider {
-  margin: 0 8px;
-  color: #d1d5db;
-  font-weight: 300;
-}
-
-/* 交互按钮容器样式 */
-.interaction-buttons-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px !important; /* 强制应用16px间距 */
-}
-
-/* 交互按钮样式 */
-.interaction-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  background: linear-gradient(135deg, #f8fafc, #e2e8f0);
-  border: 1px solid #e2e8f0;
-  border-radius: 20px;
-  color: #64748b;
-  font-size: 0.875rem;
-  font-weight: 500;
-  transition: all 0.3s ease;
-  cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.interaction-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  border-color: #cbd5e1;
-}
-
-.interaction-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.interaction-btn i {
-  font-size: 0.875rem;
-  transition: all 0.3s ease;
-}
-
-/* 点赞状态 */
-.interaction-btn.liked {
-  background: linear-gradient(135deg, #fef2f2, #fecaca);
-  border-color: #fca5a5;
-  color: #dc2626;
-}
-
-.interaction-btn.liked:hover {
-  background: linear-gradient(135deg, #fee2e2, #fca5a5);
-  border-color: #f87171;
-}
-
-/* 收藏状态 */
-.interaction-btn.bookmarked {
-  background: linear-gradient(135deg, #eff6ff, #bfdbfe);
-  border-color: #93c5fd;
-  color: #2563eb;
-}
-
-.interaction-btn.bookmarked:hover {
-  background: linear-gradient(135deg, #dbeafe, #93c5fd);
-  border-color: #60a5fa;
-}
-
-/* 封面图片容器样式 - 现代化设计 */
-.cover-image-container {
-  margin: -24px -24px 24px -24px; /* 负边距让图片延伸到卡片边缘 */
-  position: relative;
-}
-
-.cover-image-wrapper {
-  border-radius: 24px; /* 与卡片圆角保持一致 (rounded-3xl = 24px) */
-  overflow: hidden;
-  box-shadow: 
-    0 10px 25px -5px rgba(0, 0, 0, 0.1),
-    0 8px 10px -6px rgba(0, 0, 0, 0.1); /* 深度阴影效果 */
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.cover-image-wrapper:hover {
-  box-shadow: 
-    0 20px 25px -5px rgba(0, 0, 0, 0.15),
-    0 10px 10px -5px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px); /* 轻微上移效果 */
-}
-
-/* 文章卡片hover效果 */
-.article-card {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  border-radius: 24px !important; /* 强制应用圆角，与 rounded-3xl 一致 */
-  overflow: hidden !important; /* 确保内容不会溢出圆角边界 */
-}
-
-.article-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-}
-
 /* 响应式网格布局 */
 .article-grid {
   display: flex;
@@ -1497,68 +755,7 @@ watch(() => userStore.isAuthenticated, (newAuth, oldAuth) => {
   }
 }
 
-.article-card:hover .author-avatar-container {
-  transform: scale(1.05);
-  transition: transform 0.2s ease;
-}
-
-/* 强制控制作者头像尺寸 */
-.author-avatar-container {
-  width: 32px !important;
-  height: 32px !important;
-  min-width: 32px !important;
-  min-height: 32px !important;
-  max-width: 32px !important;
-  max-height: 32px !important;
-  border-radius: 50% !important;
-  overflow: hidden !important;
-  flex-shrink: 0 !important;
-}
-
-.author-avatar-container img {
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: cover !important;
-  object-position: center !important;
-}
-
-.line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.line-clamp-3 {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* 头像容错样式 */
-.avatar-fallback {
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 @media (max-width: 768px) {
-  .hero-section {
-    padding: 2rem 1rem;
-    margin: 0 0 2rem 0;
-  }
-  
-  .article-card .md\:flex {
-    flex-direction: column;
-  }
-  
-  .article-card .md\:w-80 {
-    width: 100%;
-  }
-  
-  
   /* 移动端文章列表控制器 */
   .flex.flex-col.sm\:flex-row {
     gap: 1rem;
@@ -1566,19 +763,8 @@ watch(() => userStore.isAuthenticated, (newAuth, oldAuth) => {
 }
 
 @media (max-width: 480px) {
-  .hero-section {
-    padding: 1.5rem 0.5rem;
-  }
-  
   .bg-white.rounded-xl.shadow-sm {
     padding: 1rem;
-  }
-}
-
-@media (max-width: 1024px) {
-  /* 调整容器间距 */
-  .el-row {
-    --el-row-gutter: 16px;
   }
 }
 </style>

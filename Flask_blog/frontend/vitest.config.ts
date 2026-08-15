@@ -31,8 +31,8 @@ export default defineConfig({
       enabled: true,
       include: ['src/stores/', 'src/views/Login.vue', 'src/components/ArticleContentRenderer.vue'],
       thresholds: {
-        lines: 60,
-        statements: 60,
+        lines: 80,
+        statements: 80,
       },
     },
   },

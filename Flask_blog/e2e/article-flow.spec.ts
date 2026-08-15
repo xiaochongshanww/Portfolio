@@ -20,15 +20,19 @@ test.describe('文章流程', () => {
   test('登录 → 创建文章 → 进入编辑页 → 可查看', async ({ page }) => {
     // 注册并登录
     await page.goto('/register')
-    await page.fill('input[name="email"]', TEST_USER.email)
-    await page.fill('input[name="password"]', TEST_USER.password)
-    await page.click('button[type="submit"]')
-    await page.waitForURL('/login')
+    await page.fill('input[placeholder="you@example.com"]', TEST_USER.email)
+    await page.fill('input[type="password"]', TEST_USER.password)
+    await Promise.all([
+      page.waitForURL('**/login', { timeout: 20000 }),
+      page.click('button:has-text("注册")'),
+    ])
 
-    await page.fill('input[name="email"]', TEST_USER.email)
-    await page.fill('input[name="password"]', TEST_USER.password)
-    await page.click('button[type="submit"]')
-    await page.waitForURL('/')
+    await page.fill('input[placeholder="you@example.com"]', TEST_USER.email)
+    await page.fill('input[type="password"]', TEST_USER.password)
+    await Promise.all([
+      page.waitForURL('**/', { timeout: 20000 }),
+      page.click('button:has-text("登录")'),
+    ])
 
     // 打开新建文章页
     await page.goto('/articles/new')

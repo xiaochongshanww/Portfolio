@@ -18,18 +18,23 @@ test.describe('核心流程', () => {
   test('用户注册 → 登录 → 首页显示已登录', async ({ page }) => {
     // 注册
     await page.goto('/register')
-    await page.fill('input[name="email"]', TEST_USER.email)
-    await page.fill('input[name="password"]', TEST_USER.password)
-    await page.click('button[type="submit"]')
-    await page.waitForURL('/login')
+    await page.fill('input[placeholder="you@example.com"]', TEST_USER.email)
+    await page.fill('input[type="password"]', TEST_USER.password)
+    await Promise.all([
+      page.waitForURL('**/login', { timeout: 20000 }),
+      page.click('button:has-text("注册")'),
+    ])
 
     // 登录
-    await page.fill('input[name="email"]', TEST_USER.email)
-    await page.fill('input[name="password"]', TEST_USER.password)
-    await page.click('button[type="submit"]')
-    await page.waitForURL('/')
+    await page.fill('input[placeholder="you@example.com"]', TEST_USER.email)
+    await page.fill('input[type="password"]', TEST_USER.password)
+    await Promise.all([
+      page.waitForURL('**/', { timeout: 20000 }),
+      page.click('button:has-text("登录")'),
+    ])
 
-    // 首页应显示用户信息
-    await expect(page.locator('text=Logout').or(page.locator('text=退出'))).toBeVisible({ timeout: 5000 })
+    // 首页应显示登录成功标志（"写文章"入口 + 用户菜单）
+    await expect(page.locator('a[href="/articles/new"]')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('text=写文章').first()).toBeVisible({ timeout: 5000 })
   })
 })

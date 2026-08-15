@@ -110,10 +110,21 @@
 
 | 项 | 说明 | 优先级 |
 |----|------|--------|
-| 其余大文件拆分 | UserManagement(1961) / TagManagement(1860) / ArticleManagement(1596) / Home(1583) — 不在 deep-plan 清单内 | 低 |
-| 后端 service 层未全覆盖 | security（模拟数据）/ logs（已有 logging_utils）/ search / settings（逻辑简单）无独立 service.py | 低 |
-| E2E 稳定性验证 | e2e job 已配置，但需真实 MySQL 环境跑通验证（CI 运行时问题未实机验证） | 中 |
-| 前端覆盖率门槛 | 实际 82.55% > 60% 门槛，可后续上调 | 低 |
+| 其余大文件拆分 | UserManagement / TagManagement / ArticleManagement / Home 已拆分（2026-08-14，见下） | ✅ 完成 |
+| 后端 service 层 | security / logs / search / settings 已拆分 service.py（2026-08-14，88/88 测试通过）；全部模块已覆盖 | ✅ 完成 |
+| E2E 稳定性验证 | 已本地跑通：3 条 spec（core-flow / article-flow / search）连续两轮全绿。修复：选择器与实际页面匹配（placeholder/type=password）、webServer 跨平台（cwd+args+PYTHON_BIN）、@playwright/test 依赖声明、limiter Redis 降级到内存 | ✅ 完成 |
+| 前端覆盖率门槛 | 实际 82.55% > 门槛，已上调至 80% | ✅ 完成 |
+
+### 大文件拆分明细（2026-08-14）
+
+| 文件 | 拆分前 | 拆分后 | 提取的子组件 |
+|------|--------|--------|-------------|
+| UserManagement.vue | 1745 | 1672 | UserDetailDialog / ChangeRoleDialog |
+| TagManagement.vue | 1861 | 1406 | TagEditDialog |
+| ArticleManagement.vue | 1597 | 1059 | ArticleFilterBar / ArticleBulkActionsPanel / ArticleRejectDialog |
+| Home.vue | 1584 | 725 | HomeHero / ArticleCard / HomePagination |
+
+> 拆分过程中修复真 bug：ArticleManagement `handleBulkReject` 误调用 `API.approveArticle` → 改为 `API.rejectArticle(id, {reason})`。
 
 ---
 

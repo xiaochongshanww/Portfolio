@@ -1,3 +1,4 @@
-from .routes import log_security_event, security_bp
+from .routes import security_bp
+from .service import log_security_event
 
 __all__ = ["security_bp", "log_security_event"]

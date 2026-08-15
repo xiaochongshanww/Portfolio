@@ -8,18 +8,24 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:5173',
     headless: true,
+    launchOptions: {
+      executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined,
+    },
   },
   webServer: [
     {
-      command: 'cd backend && python run.py',
+      command: process.env.PYTHON_BIN || 'python',
+      args: ['run.py'],
+      cwd: 'backend',
       port: 5000,
-      timeout: 10000,
+      timeout: 15000,
       reuseExistingServer: true,
     },
     {
-      command: 'cd frontend && npx vite --port 5173',
+      command: 'npx vite --port 5173',
+      cwd: 'frontend',
       port: 5173,
-      timeout: 10000,
+      timeout: 15000,
       reuseExistingServer: true,
     },
   ],

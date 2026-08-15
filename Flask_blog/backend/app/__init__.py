@@ -247,6 +247,10 @@ def _setup_redis(app):
 
 def _setup_limiter(app):
     global limiter
+    # Redis 不可用时回退到内存限流存储，避免限流器导致服务整体 500
+    storage_uri = app.config.get("REDIS_URL", "redis://127.0.0.1:6379/0")
+    if redis_client is None:
+        storage_uri = "memory://"
     limiter = Limiter(
         app=app,
         key_func=get_remote_address,
@@ -254,7 +258,7 @@ def _setup_limiter(app):
             f"{app.config.get('RATE_LIMIT_DEFAULT_MINUTE', 200)}/minute",
             f"{app.config.get('RATE_LIMIT_DEFAULT_DAY', 2000)}/day",
         ],
-        storage_uri=app.config.get("REDIS_URL", "redis://127.0.0.1:6379/0"),
+        storage_uri=storage_uri,
     )
 
     @app.errorhandler(RateLimitExceeded)

@@ -65,6 +65,9 @@ export interface Article {
   likes_count?: number;
   bookmarks_count?: number;
   comments_count?: number;
+  content_excerpt?: string;
+  is_liked?: boolean;
+  is_bookmarked?: boolean;
   score?: number;
   excerpt?: string;
   highlight?: { content?: string };

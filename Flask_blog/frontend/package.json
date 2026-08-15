@@ -47,6 +47,7 @@
   },
   "devDependencies": {
     "@lhci/cli": "^0.13.0",
+    "@playwright/test": "^1.62.1",
     "@shikijs/markdown-it": "^3.11.0",
     "@tailwindcss/vite": "^4.1.12",
     "@typescript-eslint/eslint-plugin": "^8.24.0",
