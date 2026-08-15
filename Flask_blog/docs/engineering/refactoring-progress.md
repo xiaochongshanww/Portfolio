@@ -150,17 +150,32 @@
 
 ---
 
-## 五·六、剩余 Backlog（未解决项）
+## 五·六、Backlog
+
+**2026-08-15 已完成后移出**:README 顶层拼接收敛、pre-commit 钩子、openapi.json 单一来源 + governance drift 进 CI、认证测试合并（详见下方"五·七 低风险 backlog 修复"）。
 
 | 项 | 说明 | 优先级 |
 |----|------|--------|
-| 时区双轨（原 M3） | models.py 部分表存 UTC、部分存上海时区，序列化各自手写转换；统一需评估存量数据 | 高 |
-| 部署脚本收敛（原 M7） | root / deploy/ / scripts/ 约 15 个脚本，Windows+bash 双份维护 | 中 |
+| 时区双轨（原 M3） | models.py 部分表存 UTC、部分存上海时区，序列化各自手写转换；**方向已定：统一存 UTC**，需评估存量数据迁移 | 高 |
+| 部署脚本收敛（原 M7） | root / deploy/ / scripts/ 约 15 个脚本，Windows+bash 双份维护；**方向已定：收敛到 bash** | 中 |
 | 备份引擎抽象（原 L4） | backup/ 下 12 个文件，`physical_restore_engine` / `simple_restore_engine` / `restore_manager` / `ultralthink_restore_manager` 职责重叠 | 中 |
-| 认证测试合并（原 L5） | test_auth.py / test_auth_comprehensive.py / test_auth_refresh_logout.py / test_change_password_revokes_refresh.py 重叠 | 低 |
-| README 顶层拼接收敛 | 根 README 仍是三段历史文档拼接，"Phase 1 待实现"与实现漂移 | 中 |
-| openapi.json 单一来源 | 4 份副本已漂移（frontend/scripts 不一致）；`governance:check` 未进 CI | 中 |
-| pre-commit 钩子 | `.pre-commit-config.yaml` 未落地，lint 前移到提交前 | 低 |
+
+---
+
+## 五·七、低风险 backlog 修复（2026-08-15 第二轮）
+
+**README 顶层拼接收敛** ✅ 根 README 由三段历史拼接重写为单一连贯文档（当前状态，不再标注"Phase 1 待实现"），并修正 openapi 路由为 `GET /spec`。
+
+**pre-commit 钩子** ✅ 新增 `.pre-commit-config.yaml`（基础钩子 + black/flake8/isort，`files: ^backend/`），版本对齐 requirements-dev；`pre-commit==3.8.0` 加入 requirements-dev.txt。
+
+**openapi.json 单一来源 + governance 进 CI** ✅
+- 4 份副本收敛为 2 份：`backend/openapi.json`（唯一来源）+ `frontend/openapi.json`（前端快照）；删除根目录与 frontend/scripts 冗余副本。
+- `export_openapi.py` 移除 `x-generated-at` 时间戳，导出变为确定性（与运行时快照一致），drift 检查可用。
+- `download-openapi.mjs` 不再复制到根目录，兜底改为读 backend 快照。
+- 新增 CI job `check-openapi`：重新生成 + `git diff --exit-code` 校验 backend/frontend 快照无漂移 + `governance:check`。
+- **顺带修复真实 drift**：后端实际使用 4040/4090 错误码但未在 ERROR_CODES 注册，导致 governance 漂移 —— 已在 `docs/openapi.py` 补注册并重新生成前端 errorCodes。
+
+**认证测试合并（L5）** ✅ `test_auth.py` / `test_auth_comprehensive.py` / `test_auth_refresh_logout.py` / `test_change_password_revokes_refresh.py` 合并为一个 `test_auth.py`（12 个测试全保留，覆盖不降），删除 3 个冗余文件。
 
 ---
 

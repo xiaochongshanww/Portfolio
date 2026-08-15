@@ -46,8 +46,7 @@ async function withRetry(fn, times=3, delay=800){
       console.warn('[download-openapi] Warning: missing openapi field');
     }
     fs.writeFileSync('openapi.json', JSON.stringify(parsed,null,2));
-    try { fs.copyFileSync('openapi.json','../openapi.json'); } catch(_){}
-    console.log('Downloaded OpenAPI spec to openapi.json (and copied to parent)');
+    console.log('Downloaded OpenAPI spec to openapi.json');
   } catch(e){
     console.error('Failed to download OpenAPI spec:', e && e.stack || e && e.message || e);
     let success = false;
@@ -60,7 +59,6 @@ async function withRetry(fn, times=3, delay=800){
             const content = fs.readFileSync(rel, 'utf-8');
             console.log('[download-openapi] Using local fallback', rel);
             fs.writeFileSync('openapi.json', content);
-            try { fs.copyFileSync('openapi.json','../openapi.json'); } catch(_){ }
             success = true; break;
         }
       }
@@ -69,9 +67,9 @@ async function withRetry(fn, times=3, delay=800){
       console.warn('[download-openapi] fallback error', e2 && e2.message);
     }
     if(!success){
-      if(fs.existsSync('../openapi.json')){
-        console.warn('[download-openapi] using existing parent openapi.json as cached spec');
-        try { fs.copyFileSync('../openapi.json','openapi.json'); success = true; } catch(_){ }
+      if(fs.existsSync('../backend/openapi.json')){
+        console.warn('[download-openapi] using backend snapshot as cached spec');
+        try { fs.copyFileSync('../backend/openapi.json','openapi.json'); success = true; } catch(_){ }
       }
     }
     process.exit(success ? 0 : 1);

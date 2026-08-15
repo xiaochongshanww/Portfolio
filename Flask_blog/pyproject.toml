@@ -71,3 +71,8 @@ ignore_errors = true
 [[tool.mypy.overrides]]
 module = "app"
 ignore_errors = true
+
+# 第 3 方无类型库(bleach/markdown)导入,豁免 import-untyped
+[[tool.mypy.overrides]]
+module = "app.services.content_sanitizer"
+disable_error_code = ["import-untyped"]

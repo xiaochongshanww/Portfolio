@@ -2308,6 +2308,16 @@ def _apply_openapi_post_processing():
             },
             {"code": 4001, "message": "not_found", "description": "资源不存在"},
             {
+                "code": 4040,
+                "message": "not_found",
+                "description": "文章/版本/资源不存在（对外隐藏权限细节）",
+            },
+            {
+                "code": 4090,
+                "message": "conflict",
+                "description": "资源冲突（重复 slug/邮箱、更新冲突）",
+            },
+            {
                 "code": 5000,
                 "message": "internal_error",
                 "description": "服务器内部错误",

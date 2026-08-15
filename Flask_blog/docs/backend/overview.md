@@ -40,7 +40,7 @@ docker compose logs -f backend
 环境变量可在 `docker-compose.yml` 中修改（JWT_SECRET_KEY / DATABASE_URL 等）。
 
 ## API Documentation
-- OpenAPI JSON: GET /api/openapi.json (当前版本 1.0.0)
+- OpenAPI JSON: GET /spec (当前版本 1.0.0)
 
 ## Celery (scheduled publish)
 ```

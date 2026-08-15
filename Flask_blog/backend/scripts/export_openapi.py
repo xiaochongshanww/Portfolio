@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import datetime
 import json
 import os
 import sys
@@ -24,8 +23,6 @@ def main():
         OPENAPI_SPEC["info"]["version"] = app.config.get("VERSION") or OPENAPI_SPEC[
             "info"
         ].get("version")
-        # 补充生成时间元信息 (非标准扩展字段)
-        OPENAPI_SPEC["x-generated-at"] = datetime.datetime.utcnow().isoformat() + "Z"
         data = json.dumps(OPENAPI_SPEC, ensure_ascii=False, indent=2)
         out_path.write_text(data, encoding="utf-8")
         print(f"Exported OpenAPI spec -> {out_path}")

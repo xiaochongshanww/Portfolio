@@ -16,14 +16,12 @@ import re
 from typing import Iterable
 from urllib.parse import parse_qs, urlparse
 
-import bleach  # type: ignore[import-untyped]
-import markdown as md  # type: ignore[import-untyped]
+import bleach
+import markdown as md
 
 # 兼容: 某些 bleach 版本可能没有 build_rel_callback；提供回退实现
 try:  # pragma: no cover - 简单探测
-    from bleach.linkifier import (  # type: ignore[import-untyped]
-        build_rel_callback as _build_rel_callback,
-    )
+    from bleach.linkifier import build_rel_callback as _build_rel_callback
 except Exception:  # noqa
     _build_rel_callback = None
 

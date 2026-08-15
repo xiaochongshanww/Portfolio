@@ -81,6 +81,34 @@ jobs:
       - working-directory: frontend
         run: npm run typecheck
 
+  check-openapi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install backend deps
+        working-directory: backend
+        run: pip install -r requirements.txt
+      - name: Regenerate spec (deterministic)
+        working-directory: backend
+        run: python scripts/export_openapi.py
+      - name: Fail on backend spec drift
+        run: git diff --exit-code -- backend/openapi.json
+      - name: Sync frontend snapshot
+        run: cp backend/openapi.json frontend/openapi.json
+      - name: Fail on frontend spec drift
+        run: git diff --exit-code -- frontend/openapi.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - working-directory: frontend
+        run: npm ci
+      - name: Governance drift check
+        working-directory: frontend
+        run: npm run governance:check
+
   e2e:
     runs-on: ubuntu-latest
     services:
