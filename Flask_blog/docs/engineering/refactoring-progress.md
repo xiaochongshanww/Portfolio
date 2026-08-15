@@ -152,11 +152,10 @@
 
 ## 五·六、Backlog
 
-**2026-08-15 已完成后移出**:README 顶层拼接收敛、pre-commit 钩子、openapi.json 单一来源 + governance drift 进 CI、认证测试合并（详见下方"五·七 低风险 backlog 修复"）。
+**2026-08-15 已完成后移出**:README 顶层拼接收敛、pre-commit 钩子、openapi.json 单一来源 + governance drift 进 CI、认证测试合并、时区双轨统一（详见下方"五·七 低风险 backlog 修复"与"五·八 时区统一"）。
 
 | 项 | 说明 | 优先级 |
 |----|------|--------|
-| 时区双轨（原 M3） | models.py 部分表存 UTC、部分存上海时区，序列化各自手写转换；**方向已定：统一存 UTC**，需评估存量数据迁移 | 高 |
 | 部署脚本收敛（原 M7） | root / deploy/ / scripts/ 约 15 个脚本，Windows+bash 双份维护；**方向已定：收敛到 bash** | 中 |
 | 备份引擎抽象（原 L4） | backup/ 下 12 个文件，`physical_restore_engine` / `simple_restore_engine` / `restore_manager` / `ultralthink_restore_manager` 职责重叠 | 中 |
 
@@ -176,6 +175,20 @@
 - **顺带修复真实 drift**：后端实际使用 4040/4090 错误码但未在 ERROR_CODES 注册，导致 governance 漂移 —— 已在 `docs/openapi.py` 补注册并重新生成前端 errorCodes。
 
 **认证测试合并（L5）** ✅ `test_auth.py` / `test_auth_comprehensive.py` / `test_auth_refresh_logout.py` / `test_change_password_revokes_refresh.py` 合并为一个 `test_auth.py`（12 个测试全保留，覆盖不降），删除 3 个冗余文件。
+
+---
+
+## 五·八、时区双轨统一（M3，2026-08-15 第三轮）
+
+**方向（用户决策）**:DATETIME 统一存 **UTC**;访客统计"今天"日边界保持上海;存量数据经 **Alembic 数据迁移**减 8 小时转 UTC。
+
+- models.py:此前用 SHANGHAI_TZ 默认值的列（ArticleLike / ArticleBookmark / VisitorStats / DailyStats / LogEntry / LogConfig / BackupRecord.created_at / RestoreRecord.created_at）改为 `datetime.now(timezone.utc)`。
+- 写入点:备份模块（backup_manager / restore_manager / routes / service / task_cleaner / ultralthink_restore_manager / backup_records_external）与 visitor_tracker / metrics 的 `now` 写入全部改为 UTC。
+- 序列化:`BackupRecord.to_dict` 的 `format_datetime` 从"假定存上海"改为"naive 假定 UTC → 转上海展示"（与 RestoreRecord/Media 一致）。
+- 日边界:`visitor_tracker` / `metrics` 的 `today = datetime.now(SHANGHAI_TZ).date()` 保留（visited_date/stat_date 仍是上海日）。
+- `SHANGHAI_TZ` 常量保留,语义变为"展示/日聚合时区"。
+- 迁移:`migrations/versions/0014_convert_shanghai_to_utc.py`（MySQL `DATE_SUB` / SQLite `datetime('-8 hours')`,16 个 DATETIME 列;downgrade 反向 +8h）。
+- 验证:后端测试 50.93% 通过,迁移 SQL 在 sqlite 往返验证正确。
 
 ---
 
