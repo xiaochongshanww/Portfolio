@@ -308,7 +308,8 @@ def cleaner_status():
 def trigger_cleaner():
     try:
         cleaner = BackupTaskCleaner(current_app._get_current_object())
-        count = cleaner.cleanup()
+        result = cleaner.cleanup_stuck_tasks()
+        count = result.get("total_cleaned", 0)
         return _ok({"cleaned": count}, f"Cleaner triggered: {count} cleaned")
     except Exception as e:
         return _err(5000, str(e), 500)
