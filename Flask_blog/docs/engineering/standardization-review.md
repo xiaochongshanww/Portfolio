@@ -17,7 +17,7 @@
 > **综合评分:5.5 → 8.0 / 10**。下文旧报告为 2026-08-12 的存档快照,其列出的问题**(S1/S2/S3/M1-M8/L1/L2/L4/L5 等)绝大多数已于 2026-08-15 当天解决**,最新进度见 [refactoring-progress.md](./refactoring-progress.md)。
 >
 > **实测现状(2026-08-15)**:
-> - 测试:后端 300+ 全绿、**覆盖率 64.10%**(门槛 50%);前端 20/20→103 测试、**覆盖率 28.72%**(全应用口径,门槛 24)。
+> - 测试:后端 300+ 全绿、**覆盖率 64.10%**(门槛 50%);前端 20/20→114 测试、**覆盖率 28.82%**(全应用口径,门槛 24)。
 > - CI:lint×2 / test×2 / typecheck×2 / **check-openapi(新)** / e2e / lhci,black/flake8/isort/mypy/vue-tsc/coverage/openapi-drift **全部为真实硬门禁**(无 `--exit-zero`/`continue-on-error`/`|| echo` 放水,除 lhci 外)。
 > - 架构:service 层全覆盖;时区统一存 UTC(迁移 0014);备份模块死代码清理(12→6 文件);部署脚本收敛到 bash;README 拼接收敛;认证测试 4→1 文件。
 > - 剩余差距(诚实清单):前端覆盖率仍低(7 spec/37 视图);后端覆盖率低于自定 80% 标准;mypy 仍有 `app.backup.*`/`app.models`/`app` 3 处遗留 ignore;`tests_manual/` 4 个手动脚本;lhci 非阻断。
