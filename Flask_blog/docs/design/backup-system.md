@@ -8,6 +8,8 @@
 > 
 > **作者**: Claude Code Assistant
 
+> **⚠️ 2026-08-15 架构更新（L4 备份引擎收敛）**:本文下方部分代码示例引用 `BackupManager` / `RestoreManager` / `StorageManager` / `SmartTableValidator` —— 这些为迭代遗留死代码，已于 2026-08-15 删除。**当前实际实现**为 `service.py` 编排 `PhysicalBackupEngine`（备份）+ `PhysicalRestoreEngine`（恢复），配合 `backup_records_external.py`（外部元数据）与 `task_cleaner.py`（任务清理）。下方"实现计划"中的示例仅为规划示意，非当前 API。
+
 ## 🎯 项目概述
 
 基于业界最佳实践，为Flask博客系统设计企业级站点快照与数据库备份恢复功能，确保数据安全、业务连续性和快速恢复能力。
@@ -261,14 +263,15 @@ class CloudStorageManager:
 
 #### 后端实现
 ```python
-# 新建 app/backup/ 目录结构
+# 新建 app/backup/ 目录结构 (当前实现)
 app/backup/
 ├── __init__.py
-├── routes.py          # API路由
-├── backup_manager.py  # 备份管理器
-├── storage_manager.py # 存储管理器  
-├── restore_manager.py # 恢复管理器
-└── tasks.py          # 异步任务
+├── routes.py               # API路由
+├── service.py              # 业务编排 (备份/恢复/配置/清理)
+├── physical_backup_engine.py   # 物理备份引擎
+├── physical_restore_engine.py  # 物理恢复引擎
+├── backup_records_external.py  # 外部元数据系统
+└── task_cleaner.py         # 任务清理
 ```
 
 #### 数据库模型

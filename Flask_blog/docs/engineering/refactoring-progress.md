@@ -152,11 +152,7 @@
 
 ## 五·六、Backlog
 
-**2026-08-15 已完成后移出**:README 顶层拼接收敛、pre-commit 钩子、openapi.json 单一来源 + governance drift 进 CI、认证测试合并、时区双轨统一、部署脚本收敛（详见下方"五·七 ~ 五·九"）。
-
-| 项 | 说明 | 优先级 |
-|----|------|--------|
-| 备份引擎抽象（原 L4） | backup/ 下 12 个文件，`physical_restore_engine` / `simple_restore_engine` / `restore_manager` / `ultralthink_restore_manager` 职责重叠 | 中 |
+**2026-08-15 全部完成 ✅** —— 原 backlog 项（README 拼接收敛、pre-commit 钩子、openapi 单一来源 + governance CI、认证测试合并、时区双轨统一、部署脚本收敛、备份引擎抽象）已在 2026-08-15 当天处理完毕（详见"五·七 ~ 五·十"）。backlog 现为空。
 
 ---
 
@@ -203,7 +199,17 @@
 
 ---
 
-## 六、相关 Git 记录
+## 五·十、备份引擎抽象（L4，2026-08-15 第五轮）
+
+**结论**:备份模块存在多个"职责重叠"的引擎实现，但经过完整 wiring 排查，**只有一套在线**（routes → service → PhysicalBackupEngine / PhysicalRestoreEngine）；其余为迭代遗留的死代码。
+
+- **删除 6 个零在线引用文件(约 2400 行)**:`backup_manager.py`、`restore_manager.py`、`simple_restore_engine.py`、`ultralthink_restore_manager.py`、`storage_manager.py`、`smart_table_validator.py`（全仓库仅被彼此与测试引用）。
+- 备份模块由 12 个文件瘦身为 **6 个**:`routes.py` / `service.py` / `physical_backup_engine.py` / `physical_restore_engine.py` / `backup_records_external.py` / `task_cleaner.py`。
+- 职责收敛:备份 = PhysicalBackupEngine，恢复 = PhysicalRestoreEngine，由 service.py 编排;外部元数据 = backup_records_external;任务清理 = task_cleaner。
+- 测试:`test_backup_engines.py` 裁剪为仅保留在线引擎（PhysicalBackupEngine）的测试。
+- 验证:后端测试全绿、覆盖率 ≥50%。
+
+---
 
 | 提交 | 内容 |
 |------|------|
