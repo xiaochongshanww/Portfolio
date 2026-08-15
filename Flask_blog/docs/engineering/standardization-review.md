@@ -10,6 +10,18 @@
 > - **M2 部分解决**：CI 新增 `typecheck-backend`（mypy）与 `typecheck-frontend`（vue-tsc）非阻断 job，用于建立错误基线（存量 ~1774 前端类型错误需后续排期修复）。
 > - **额外修复**：格式化/静态检查过程中发现并修复 `backend/app/backup/service.py` 中 `timedelta` 未导入的真 bug。
 
+> ---
+>
+> ## 🆕 2026-08-15 会话末复查更新（取代下文旧结论）
+>
+> **综合评分:5.5 → 8.0 / 10**。下文旧报告为 2026-08-12 的存档快照,其列出的问题**(S1/S2/S3/M1-M8/L1/L2/L4/L5 等)绝大多数已于 2026-08-15 当天解决**,最新进度见 [refactoring-progress.md](./refactoring-progress.md)。
+>
+> **实测现状(2026-08-15)**:
+> - 测试:后端 300+ 全绿、**覆盖率 62.57%**(门槛 50%);前端 20/20、**覆盖率 25.05%**(全应用口径,门槛 24)。
+> - CI:lint×2 / test×2 / typecheck×2 / **check-openapi(新)** / e2e / lhci,black/flake8/isort/mypy/vue-tsc/coverage/openapi-drift **全部为真实硬门禁**(无 `--exit-zero`/`continue-on-error`/`|| echo` 放水,除 lhci 外)。
+> - 架构:service 层全覆盖;时区统一存 UTC(迁移 0014);备份模块死代码清理(12→6 文件);部署脚本收敛到 bash;README 拼接收敛;认证测试 4→1 文件。
+> - 剩余差距(诚实清单):前端覆盖率仍低(7 spec/37 视图);后端覆盖率低于自定 80% 标准;mypy 仍有 `app.backup.*`/`app.models`/`app` 3 处遗留 ignore;`tests_manual/` 4 个手动脚本;lhci 非阻断。
+
 ## 一、评估方法与结论
 
 基于对项目结构、CI/CD、测试、依赖管理、版本控制、代码质量配置、部署脚本的静态审查，并结合**实测运行**验证（后端测试套件实际执行结果），从"工程规范化"维度客观评估。
