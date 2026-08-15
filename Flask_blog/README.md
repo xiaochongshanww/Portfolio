@@ -27,10 +27,10 @@
 ### 一键 Docker 部署
 
 ```bash
-# Linux/macOS
-./deploy.sh
-# Windows PowerShell
-.\deploy.ps1
+./deploy.sh                 # 标准生产部署（bash 唯一入口）
+./deploy.sh --rebuild       # 无缓存重建
+./deploy.sh --skip-build    # 跳过构建
+COMPOSE_FILE=docker-compose.monitoring.yml ./deploy.sh   # 监控编排
 ```
 
 或直接 `docker compose up -d --build`（dev）/ `docker compose -f docker-compose.prod.yml up -d --build`（生产）。

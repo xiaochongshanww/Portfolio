@@ -85,9 +85,8 @@ Flask_blog/
 ├── Dockerfile.frontend   # 前端镜像 (target=dev)
 ├── docker-compose.yml    # 生产 Compose
 ├── Makefile              # 测试 / Lint 命令 (跨平台)
-├── dev-*.ps1             # 开发工具脚本 (Windows)
-├── deploy.sh             # 部署脚本 (Linux/macOS)
-└── deploy.ps1            # 部署脚本 (Windows)
+├── dev-*.ps1             # 开发工具脚本 (Windows 专用,无 bash 等价物)
+├── deploy.sh             # 部署脚本 (bash 唯一入口)
 ```
 
 ## 🔧 高级配置

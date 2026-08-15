@@ -152,11 +152,10 @@
 
 ## 五·六、Backlog
 
-**2026-08-15 已完成后移出**:README 顶层拼接收敛、pre-commit 钩子、openapi.json 单一来源 + governance drift 进 CI、认证测试合并、时区双轨统一（详见下方"五·七 低风险 backlog 修复"与"五·八 时区统一"）。
+**2026-08-15 已完成后移出**:README 顶层拼接收敛、pre-commit 钩子、openapi.json 单一来源 + governance drift 进 CI、认证测试合并、时区双轨统一、部署脚本收敛（详见下方"五·七 ~ 五·九"）。
 
 | 项 | 说明 | 优先级 |
 |----|------|--------|
-| 部署脚本收敛（原 M7） | root / deploy/ / scripts/ 约 15 个脚本，Windows+bash 双份维护；**方向已定：收敛到 bash** | 中 |
 | 备份引擎抽象（原 L4） | backup/ 下 12 个文件，`physical_restore_engine` / `simple_restore_engine` / `restore_manager` / `ultralthink_restore_manager` 职责重叠 | 中 |
 
 ---
@@ -189,6 +188,18 @@
 - `SHANGHAI_TZ` 常量保留,语义变为"展示/日聚合时区"。
 - 迁移:`migrations/versions/0014_convert_shanghai_to_utc.py`（MySQL `DATE_SUB` / SQLite `datetime('-8 hours')`,16 个 DATETIME 列;downgrade 反向 +8h）。
 - 验证:后端测试 50.93% 通过,迁移 SQL 在 sqlite 往返验证正确。
+
+---
+
+## 五·九、部署脚本收敛（M7，2026-08-15 第四轮）
+
+**方向（用户决策）**:收敛到 bash 唯一部署入口。
+
+- 删除 4 个 PowerShell 部署重复脚本:`deploy.ps1`（root）、`deploy/deploy.ps1`、`deploy/deploy-enhanced.ps1`、`scripts/init-deployment.ps1`。
+- `scripts/init-deployment.sh` 增强:新增 `-f/--compose`（默认 `docker-compose.prod.yml`）、`--rebuild`、`--pull`、`--skip-build` 参数,覆盖原 deploy-enhanced.ps1 的核心能力;`COMPOSE_FILE` 环境变量可切换监控/性能编排。
+- `deploy.sh`（root）继续作为薄壳转发到 `init-deployment.sh`。
+- **保留** `dev.ps1` / `dev-start.ps1` / `dev-stop.ps1` / `dev-debug.ps1`（Windows 专用开发脚本,无 bash 等价物,不属于双份维护）。
+- 文档同步:README、`docs/operations/deployment.md`（脚本用法/对比表/目录树）、`docs/getting-started/development.md` 移除已删脚本引用。
 
 ---
 

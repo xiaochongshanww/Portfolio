@@ -73,63 +73,35 @@ ls -la
 
 项目提供了多层次的部署脚本，根据不同使用场景选择：
 
-#### 🚀 快速开始 (推荐新用户)
-**适用场景**: 开发、测试环境，快速体验
+#### 🚀 快速开始
+**适用场景**: 开发、测试、生产环境统一入口（bash 唯一部署脚本，Windows 可用 Git Bash / WSL）
 
 ```bash
-# Linux/macOS - 基础一键部署
+# 基础一键部署
 chmod +x deploy.sh && ./deploy.sh
-
-# Windows - 基础一键部署  
-.\deploy.ps1
 ```
 
-#### 🏗️ 标准生产部署
-**适用场景**: 生产环境，基础部署需求
+#### 🏗️ 高级选项
+
+`./deploy.sh` 透传到 `scripts/init-deployment.sh`，支持：
+
+| 参数 | 说明 |
+|------|------|
+| `-f, --compose <file>` | 指定 compose 文件（默认 `docker-compose.prod.yml`） |
+| `--rebuild` | 无缓存重建镜像 |
+| `--pull` | 先拉取镜像 |
+| `--skip-build` | 跳过构建（仅启动） |
 
 ```bash
-# Linux/macOS
-./deploy/deploy.ps1
+# 指定监控/性能 compose（企业级）
+COMPOSE_FILE=docker-compose.monitoring.yml ./deploy.sh
+COMPOSE_FILE=docker-compose.performance.yml ./deploy.sh
 
-# Windows
-.\deploy\deploy.ps1
-```
-
-#### 🎯 企业级部署 (完整功能)
-**适用场景**: 企业生产环境，需要完整的监控、性能优化、备份策略
-
-```bash
-# 标准模式
-.\deploy\deploy-enhanced.ps1
-
-# 性能优化模式
-.\deploy\deploy-enhanced.ps1 -Mode performance
-
-# 监控模式 
-.\deploy\deploy-enhanced.ps1 -Mode monitoring
-
-# 完整模式 (性能优化 + 监控)
-.\deploy\deploy-enhanced.ps1 -Mode full -BackupFirst
-
-# 查看所有选项
-.\deploy\deploy-enhanced.ps1 --help
-```
-
-#### 📚 脚本功能对比
-
-| 脚本 | 复杂度 | 功能特性 | 适用环境 |
-|------|--------|----------|----------|
-| `deploy.sh/ps1` | ⭐ | 基础部署、环境检查 | 开发/测试 |
-| `deploy/deploy.ps1` | ⭐⭐ | 健康检查、基础监控 | 轻量生产 |
-| `deploy/deploy-enhanced.ps1` | ⭐⭐⭐⭐⭐ | 完整监控、性能优化、备份、SSL | 企业生产 |
-
-#### 🔧 基础脚本高级选项
-```bash
 # 跳过Docker镜像构建 (如果已构建过)
 ./deploy.sh --skip-build
 
-# 强制重新创建所有资源  
-./deploy.sh --force
+# 无缓存重建
+./deploy.sh --rebuild
 ```
 
 ### 3. 部署验证
@@ -222,12 +194,10 @@ Flask_blog/
 │   ├── nginx.conf              # Nginx配置
 │   └── nginx-ssl.conf          # SSL配置模板
 ├── scripts/
-│   ├── init-deployment.sh      # Linux/macOS部署脚本
-│   └── init-deployment.ps1     # Windows部署脚本
+│   └── init-deployment.sh       # 一键部署脚本 (bash 唯一入口)
 ├── docker-compose.yml          # 开发环境配置
 ├── docker-compose.prod.yml     # 生产环境配置
-├── deploy.sh                   # 快捷部署脚本 (Unix)
-└── deploy.ps1                  # 快捷部署脚本 (Windows)
+└── deploy.sh                   # 快捷部署脚本 → scripts/init-deployment.sh
 ```
 
 ## 📊 功能特性
