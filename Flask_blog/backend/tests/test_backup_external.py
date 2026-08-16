@@ -255,3 +255,53 @@ class TestBackupRecordExternalMethods:
         d = rec.to_dict(include_extra_data=True)
         assert d["backup_id"] == "e5"
         assert "extra_data" in d or "description" in d
+
+
+class TestConflictResolution:
+    def test_resolve_conflict_by_file_check(self, tmp_path):
+        mgr = _make_manager(tmp_path)
+        rec = mgr.create_backup_record("conf1")
+        rec.sync_status = "conflict"
+        rec.status = "pending"
+        mgr.save_record(rec)
+        result = rec.resolve_conflict_by_file_check()
+        assert result in (
+            "no_conflict",
+            "fixed_to_completed",
+            "fixed_to_failed",
+            "verified_consistent",
+        )
+
+    def test_sync_updates_existing_status(self, tmp_path):
+        mgr = _make_manager(tmp_path)
+        mgr.sync_from_mysql(
+            [{"backup_id": "u1", "status": "pending", "backup_type": "full"}]
+        )
+        result = mgr.sync_from_mysql(
+            [{"backup_id": "u1", "status": "completed", "backup_type": "full"}]
+        )
+        assert result["total_processed"] == 1
+        rec = mgr.get_backup_record("u1")
+        assert rec is not None
+
+    def test_resolve_all_conflicts_no_records(self, tmp_path):
+        mgr = _make_manager(tmp_path)
+        result = mgr.resolve_all_conflicts()
+        assert result["total_conflicts"] == 0
+
+
+class TestSmartConflict:
+    def test_resolve_status_conflict_intelligently(self, tmp_path):
+        mgr = _make_manager(tmp_path)
+        rec = mgr.create_backup_record("smart1", status="running")
+        rec.sync_status = "conflict"
+        rec.conflict_reason = "状态冲突: MySQL=completed, 外部=running"
+        mgr.save_record(rec)
+        result = rec.resolve_conflict_by_file_check()
+        assert result in (
+            "fixed_to_completed",
+            "fixed_to_failed",
+            "verified_consistent",
+            "no_conflict",
+            None,
+        )

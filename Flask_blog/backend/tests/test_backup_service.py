@@ -255,3 +255,22 @@ class TestTaskCleaner:
         cleaner.config["enable_auto_cleanup"] = False
         cleaner.start_cleanup_daemon()
         assert cleaner.cleaning_thread is None
+
+
+class TestTaskCleanerMore:
+    def test_check_database_connection(self, app):
+        cleaner = TaskCleaner()
+        assert cleaner._check_database_connection() is True
+
+    def test_daemon_worker_exits_when_stopped(self, app):
+        cleaner = TaskCleaner()
+        cleaner.app = app
+        cleaner.config["cleanup_interval_minutes"] = 0
+        cleaner.stop_event.set()
+        cleaner._cleanup_daemon_worker()  # 应立刻退出,不挂起
+
+    def test_cleanup_stuck_backups_returns_errors(self, app):
+        cleaner = TaskCleaner()
+        # 直接调用内部方法,模拟无卡死任务
+        result = cleaner._cleanup_stuck_backups()
+        assert result["cleaned_count"] == 0

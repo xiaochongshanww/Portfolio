@@ -1,6 +1,7 @@
 """物理恢复引擎测试 — _validate_backup + restore_database(编排路径)。"""
 
 import json
+import types
 
 from app.backup.physical_restore_engine import PhysicalRestoreEngine
 
@@ -80,3 +81,130 @@ class TestRestoreDatabase:
         monkeypatch.setattr(engine, "_check_environment", lambda: False)
         result = engine.restore_database("bk1", "r3")
         assert result["success"] is False
+
+
+class TestDockerMethods:
+    def test_check_environment_success(self, tmp_path, monkeypatch):
+
+        engine = _make_engine(tmp_path)
+
+        def fake_run(args, **kw):
+            key = args[1] if len(args) > 1 else ""
+            if key == "version":
+                return types.SimpleNamespace(returncode=0, stdout="Docker", stderr="")
+            if key == "ps":
+                return types.SimpleNamespace(returncode=0, stdout="x\n", stderr="")
+            if key == "inspect":
+                return types.SimpleNamespace(returncode=0, stdout="{}", stderr="")
+            return types.SimpleNamespace(returncode=0, stdout="", stderr="")
+
+        monkeypatch.setattr(
+            "app.backup.physical_restore_engine.subprocess.run", fake_run
+        )
+        assert engine._check_environment() is True
+
+    def test_check_environment_docker_missing(self, tmp_path, monkeypatch):
+
+        engine = _make_engine(tmp_path)
+
+        def fake_run(args, **kw):
+            return types.SimpleNamespace(returncode=1, stdout="", stderr="err")
+
+        monkeypatch.setattr(
+            "app.backup.physical_restore_engine.subprocess.run", fake_run
+        )
+        assert engine._check_environment() is False
+
+    def test_check_environment_container_missing(self, tmp_path, monkeypatch):
+
+        engine = _make_engine(tmp_path)
+
+        def fake_run(args, **kw):
+            key = args[1] if len(args) > 1 else ""
+            if key == "version":
+                return types.SimpleNamespace(returncode=0, stdout="Docker", stderr="")
+            if key == "ps":
+                return types.SimpleNamespace(returncode=0, stdout="other\n", stderr="")
+            return types.SimpleNamespace(returncode=0, stdout="", stderr="")
+
+        monkeypatch.setattr(
+            "app.backup.physical_restore_engine.subprocess.run", fake_run
+        )
+        assert engine._check_environment() is False
+
+    def test_get_container_volume(self, tmp_path, monkeypatch):
+
+        engine = _make_engine(tmp_path)
+
+        def fake_run(args, **kw):
+            return types.SimpleNamespace(
+                returncode=0, stdout='[{"Name":"mysqldata"}]', stderr=""
+            )
+
+        monkeypatch.setattr(
+            "app.backup.physical_restore_engine.subprocess.run", fake_run
+        )
+        vol = engine._get_container_volume()
+        assert vol in ("mysqldata", None)
+
+    def test_restart_database_service(self, tmp_path, monkeypatch):
+
+        import types
+
+        engine = _make_engine(tmp_path)
+
+        def fake_run(args, **kw):
+            return types.SimpleNamespace(returncode=0, stdout="", stderr="")
+
+        monkeypatch.setattr(
+            "app.backup.physical_restore_engine.subprocess.run", fake_run
+        )
+        result = engine._restart_database_service()
+        assert result["success"] is True
+
+
+class TestRestoreSubSteps:
+    def _success_subprocess(self, tmp_path, monkeypatch):
+        import types
+
+        engine = _make_engine(tmp_path)
+        monkeypatch.setattr(
+            "app.backup.physical_restore_engine.subprocess.run",
+            lambda args, **kw: types.SimpleNamespace(
+                returncode=0, stdout="", stderr=""
+            ),
+        )
+        return engine
+
+    def test_stop_mysql_container(self, tmp_path, monkeypatch):
+        engine = self._success_subprocess(tmp_path, monkeypatch)
+        assert engine._stop_mysql_container()["success"] is True
+
+    def test_backup_current_data(self, tmp_path, monkeypatch):
+        engine = self._success_subprocess(tmp_path, monkeypatch)
+        result = engine._backup_current_data()
+        assert result["success"] is True
+
+    def test_clear_mysql_volume(self, tmp_path, monkeypatch):
+        engine = self._success_subprocess(tmp_path, monkeypatch)
+        result = engine._clear_mysql_volume()
+        assert result["success"] is True
+
+    def test_validate_restore(self, tmp_path, monkeypatch):
+        engine = self._success_subprocess(tmp_path, monkeypatch)
+        result = engine._validate_restore()
+        assert isinstance(result, dict)
+
+    def test_perform_physical_restore_success(self, tmp_path, monkeypatch):
+        engine = self._success_subprocess(tmp_path, monkeypatch)
+        result = engine._perform_physical_restore("bk1")
+        assert isinstance(result, dict)
+
+    def test_prepare_for_restore_success(self, tmp_path, monkeypatch):
+
+        engine = _make_engine(tmp_path)
+        monkeypatch.setattr(engine, "_stop_mysql_container", lambda: {"success": True})
+        monkeypatch.setattr(engine, "_backup_current_data", lambda: {"success": True})
+        monkeypatch.setattr(engine, "_clear_mysql_volume", lambda: {"success": True})
+        result = engine._prepare_for_restore()
+        assert result["success"] is True

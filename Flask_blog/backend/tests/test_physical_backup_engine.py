@@ -357,3 +357,30 @@ class TestMoreMethods:
         archive = engine._create_compressed_archive(d, "bk")
         assert archive.exists()
         assert archive.name == "bk.tar.gz"
+
+
+class TestColdBackup:
+    def test_cold_backup_success(self, tmp_path, monkeypatch):
+        import types
+
+        engine = PhysicalBackupEngine(
+            {
+                "mysql_container": "x",
+                "mysql_volume": "mysqldata",
+                "backup_root": str(tmp_path),
+            }
+        )
+        calls = []
+
+        def fake_run(args, **kw):
+            calls.append(args[1] if len(args) > 1 else "")
+            return types.SimpleNamespace(returncode=0, stdout="", stderr="")
+
+        monkeypatch.setattr(
+            "app.backup.physical_backup_engine.subprocess.run", fake_run
+        )
+        d = tmp_path / "bk"
+        d.mkdir()
+        result = engine._cold_backup_with_lock(d)
+        assert result["success"] is True
+        assert len(calls) >= 3
