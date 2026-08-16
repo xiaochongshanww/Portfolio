@@ -672,14 +672,16 @@ class ExternalMetadataManager:
                     backup_id = record_dict["backup_id"]
 
                     # 查找外部数据库中是否存在该记录
-                    existing_record = BackupRecordExternal.query.filter_by(
-                        backup_id=backup_id
-                    ).first()
+                    existing_record = (
+                        self._get_query_class(BackupRecordExternal)
+                        .filter_by(backup_id=backup_id)
+                        .first()
+                    )
 
                     if not existing_record:
                         # 创建新记录
                         new_record = BackupRecordExternal.from_mysql_record(record_dict)
-                        external_db.session.add(new_record)
+                        self._get_session().add(new_record)
                         result["created"] += 1
 
                         # 记录同步日志
@@ -714,10 +716,10 @@ class ExternalMetadataManager:
                     continue
 
             # 提交所有更改
-            external_db.session.commit()
+            self._get_session().commit()
 
         except Exception as e:
-            external_db.session.rollback()
+            self._get_session().rollback()
             result["errors"].append(f"同步过程发生异常: {e}")
 
         return result
@@ -850,9 +852,11 @@ class ExternalMetadataManager:
 
         try:
             # 查找所有冲突状态的记录
-            conflict_records = BackupRecordExternal.query.filter_by(
-                sync_status="conflict"
-            ).all()
+            conflict_records = (
+                self._get_query_class(BackupRecordExternal)
+                .filter_by(sync_status="conflict")
+                .all()
+            )
             result["total_conflicts"] = len(conflict_records)
 
             for record in conflict_records:
@@ -890,10 +894,10 @@ class ExternalMetadataManager:
                     result["unresolved"] += 1
 
             # 提交所有更改
-            external_db.session.commit()
+            self._get_session().commit()
 
         except Exception as e:
-            external_db.session.rollback()
+            self._get_session().rollback()
             result["errors"].append(f"解决冲突过程发生异常: {e}")
 
         return result
@@ -924,7 +928,7 @@ class ExternalMetadataManager:
                 details=details,
                 created_at=datetime.now(timezone.utc),
             )
-            external_db.session.add(log_entry)
+            self._get_session().add(log_entry)
         except Exception:
             # 日志记录失败不应影响主要操作
             pass
@@ -933,7 +937,8 @@ class ExternalMetadataManager:
         """获取同步统计信息"""
         try:
             # 备份记录统计
-            backup_stats = external_db.session.query(
+            _session = self._get_session()
+            backup_stats = _session.query(
                 external_db.func.count(BackupRecordExternal.id).label("total"),
                 external_db.func.sum(
                     external_db.case(
@@ -958,18 +963,20 @@ class ExternalMetadataManager:
             ).first()
 
             # 最近同步时间
-            last_sync_result = external_db.session.query(
+            last_sync_result = _session.query(
                 external_db.func.max(BackupRecordExternal.last_sync_at)
             ).scalar()
 
             # 文件验证统计
-            file_verified_count = BackupRecordExternal.query.filter(
-                BackupRecordExternal.file_verified_at.isnot(None)
-            ).count()
+            file_verified_count = (
+                self._get_query_class(BackupRecordExternal)
+                .filter(BackupRecordExternal.file_verified_at.isnot(None))
+                .count()
+            )
 
             # 同步日志统计
             recent_operations = (
-                external_db.session.query(
+                _session.query(
                     SyncLogExternal.operation,
                     external_db.func.count(SyncLogExternal.id).label("count"),
                 )
@@ -1018,18 +1025,21 @@ class ExternalMetadataManager:
         """清理旧的同步日志"""
         try:
             cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_to_keep)
-            old_logs = SyncLogExternal.query.filter(
-                SyncLogExternal.created_at < cutoff_date
-            ).all()
+            old_logs = (
+                self._get_query_class(SyncLogExternal)
+                .filter(SyncLogExternal.created_at < cutoff_date)
+                .all()
+            )
 
             count = len(old_logs)
+            session = self._get_session()
             for log in old_logs:
-                external_db.session.delete(log)
+                session.delete(log)
 
-            external_db.session.commit()
+            session.commit()
             return count
         except Exception:
-            external_db.session.rollback()
+            self._get_session().rollback()
             return 0
 
     # ==================== 辅助方法 ====================

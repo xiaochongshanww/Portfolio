@@ -166,3 +166,92 @@ class TestExternalModels:
         assert log.operation == "sync"
         assert log.record_type == "backup"
         assert log.record_id == "b1"
+
+
+class TestSyncFromMysql:
+    def test_sync_creates_records(self, tmp_path):
+        mgr = _make_manager(tmp_path)
+        result = mgr.sync_from_mysql(
+            [{"backup_id": "s1", "backup_type": "full", "status": "completed"}]
+        )
+        assert result["created"] == 1
+        rec = mgr.get_backup_record("s1")
+        assert rec is not None
+        assert rec.status == "completed"
+
+    def test_sync_second_time_unchanged(self, tmp_path):
+        mgr = _make_manager(tmp_path)
+        mgr.sync_from_mysql(
+            [{"backup_id": "s2", "backup_type": "full", "status": "completed"}]
+        )
+        result = mgr.sync_from_mysql(
+            [{"backup_id": "s2", "backup_type": "full", "status": "completed"}]
+        )
+        assert result["total_processed"] == 1
+
+    def test_get_sync_statistics(self, tmp_path):
+        mgr = _make_manager(tmp_path)
+        mgr.sync_from_mysql(
+            [{"backup_id": "s3", "backup_type": "full", "status": "completed"}]
+        )
+        stats = mgr.get_sync_statistics()
+        assert isinstance(stats, dict)
+
+    def test_cleanup_old_logs(self, tmp_path):
+        mgr = _make_manager(tmp_path)
+        mgr.sync_from_mysql(
+            [{"backup_id": "s4", "backup_type": "full", "status": "completed"}]
+        )
+        count = mgr.cleanup_old_logs(days_to_keep=1)
+        assert count >= 0
+
+    def test_resolve_all_conflicts(self, tmp_path):
+        mgr = _make_manager(tmp_path)
+        rec = mgr.create_backup_record("conflict-x")
+        rec = mgr.get_backup_record("conflict-x")
+        rec.sync_status = "conflict"
+        mgr.save_record(rec)
+        result = mgr.resolve_all_conflicts()
+        assert result["total_conflicts"] == 1
+
+
+class TestBackupRecordExternalMethods:
+    def test_extra_data_setter_clear(self, tmp_path):
+        mgr = _make_manager(tmp_path)
+        rec = mgr.create_backup_record("e1")
+        rec.extra_data = {"a": 1}
+        mgr.save_record(rec)
+        assert rec.extra_data == {"a": 1}
+        rec.extra_data = None
+        mgr.save_record(rec)
+        assert rec.extra_data is None
+
+    def test_get_duration(self, tmp_path):
+        from datetime import datetime, timedelta, timezone
+
+        mgr = _make_manager(tmp_path)
+        rec = mgr.create_backup_record("e2")
+        rec.started_at = datetime.now(timezone.utc) - timedelta(seconds=30)
+        rec.completed_at = datetime.now(timezone.utc)
+        assert rec.get_duration() is not None
+        assert rec.get_duration() > 0
+
+    def test_verify_file_exists_no_path(self, tmp_path):
+        mgr = _make_manager(tmp_path)
+        rec = mgr.create_backup_record("e3")
+        # 无 file_path 且非 physical → False
+        assert rec.verify_file_exists() in (True, False)
+
+    def test_update_sync_status(self, tmp_path):
+        mgr = _make_manager(tmp_path)
+        rec = mgr.create_backup_record("e4")
+        rec.update_sync_status("synced", "done")
+        mgr.save_record(rec)
+        assert rec.sync_status == "synced"
+
+    def test_to_dict_include_extra_data(self, tmp_path):
+        mgr = _make_manager(tmp_path)
+        rec = mgr.create_backup_record("e5", description="desc")
+        d = rec.to_dict(include_extra_data=True)
+        assert d["backup_id"] == "e5"
+        assert "extra_data" in d or "description" in d

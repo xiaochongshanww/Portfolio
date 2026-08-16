@@ -307,3 +307,53 @@ class TestPhysicalBackupExecution:
         )
         result = engine._perform_physical_backup(tmp_path / "bk")
         assert result["success"] is True
+
+
+class TestMoreMethods:
+    def test_get_database_info(self, tmp_path, monkeypatch):
+        import types
+
+        engine = PhysicalBackupEngine(
+            {
+                "mysql_container": "x",
+                "mysql_volume": "mysqldata",
+                "backup_root": str(tmp_path),
+            }
+        )
+
+        def fake_run(args, **kw):
+            return types.SimpleNamespace(returncode=0, stdout="5.7\n", stderr="")
+
+        monkeypatch.setattr(
+            "app.backup.physical_backup_engine.subprocess.run", fake_run
+        )
+        info = engine._get_database_info()
+        assert isinstance(info, dict)
+
+    def test_calculate_backup_size(self, tmp_path):
+        engine = PhysicalBackupEngine(
+            {
+                "mysql_container": "x",
+                "mysql_volume": "mysqldata",
+                "backup_root": str(tmp_path),
+            }
+        )
+        d = tmp_path / "bk"
+        d.mkdir()
+        (d / "a").write_bytes(b"12345")
+        assert engine._calculate_backup_size(d) == 5
+
+    def test_create_compressed_archive(self, tmp_path):
+        engine = PhysicalBackupEngine(
+            {
+                "mysql_container": "x",
+                "mysql_volume": "mysqldata",
+                "backup_root": str(tmp_path),
+            }
+        )
+        d = tmp_path / "bk"
+        d.mkdir()
+        (d / "a").write_bytes(b"x")
+        archive = engine._create_compressed_archive(d, "bk")
+        assert archive.exists()
+        assert archive.name == "bk.tar.gz"

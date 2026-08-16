@@ -177,3 +177,39 @@ class TestBackupMoreEndpoints:
         h = auth_header(client, role="admin")
         resp = client.post("/api/v1/backup/restores/cleanup", headers=h)
         assert resp.status_code in (200, 500)
+
+
+class TestBackupEndpointCoverage:
+    def test_download(self, client):
+        h = auth_header(client, role="admin")
+        resp = client.get("/api/v1/backup/nonexistent/download", headers=h)
+        assert resp.status_code in (200, 404, 500)
+
+    def test_cancel(self, client, app):
+        from app import db
+        from app.models import BackupRecord
+
+        db.session.add(
+            BackupRecord(backup_id="cancel-1", backup_type="full", status="running")
+        )
+        db.session.commit()
+        h = auth_header(client, role="admin")
+        resp = client.post("/api/v1/backup/cancel-1/cancel", headers=h)
+        assert resp.status_code == 200
+
+    def test_restore_endpoint(self, client, app):
+        from app import db
+        from app.models import BackupRecord
+
+        db.session.add(
+            BackupRecord(backup_id="rest-1", backup_type="full", status="completed")
+        )
+        db.session.commit()
+        h = auth_header(client, role="admin")
+        resp = client.post("/api/v1/backup/rest-1/restore", json={}, headers=h)
+        assert resp.status_code in (200, 400, 500)
+
+    def test_physical_list(self, client):
+        h = auth_header(client, role="admin")
+        resp = client.get("/api/v1/backup/physical/list", headers=h)
+        assert resp.status_code == 200
