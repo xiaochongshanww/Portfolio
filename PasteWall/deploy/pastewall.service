@@ -1,0 +1,23 @@
+# PasteWall systemd 服务单元(参考版,适用于系统级 Node.js)
+# 部署脚本 deploy.sh 会按远端 Node 实际位置自动生成适配版本并安装到 /etc/systemd/system/pastewall.service
+[Unit]
+Description=PasteWall LAN shared clipboard
+After=network.target
+
+[Service]
+Type=simple
+User=pastewall
+WorkingDirectory=/opt/pastewall
+ExecStart=/usr/bin/env node server.js
+Restart=always
+RestartSec=3
+Environment=NODE_ENV=production
+Environment=PORT=3002
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=yes
+ReadWritePaths=/opt/pastewall/data
+
+[Install]
+WantedBy=multi-user.target

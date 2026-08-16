@@ -1,0 +1,100 @@
+@import 'tailwindcss';
+
+/* ---------- 设计 token:纸面剪贴板 ---------- */
+:root {
+  --background: #f4f5f7; /* 冷调纸面 */
+  --foreground: #1f2733; /* 墨色 */
+  --card: #ffffff;
+  --card-foreground: #1f2733;
+  --primary: #1f2733;
+  --primary-foreground: #ffffff;
+  --secondary: #eef0f3;
+  --secondary-foreground: #1f2733;
+  --muted: #f4f5f7;
+  --muted-foreground: #69717d;
+  --accent: #f0a32a; /* 荧光笔强调 */
+  --accent-foreground: #6b4300;
+  --destructive: #c4453b;
+  --destructive-foreground: #ffffff;
+  --border: #dce0e6;
+  --input: #c7cdd5;
+  --ring: #f0a32a;
+  --radius: 0.625rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --font-sans: system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Consolas', Menlo, monospace;
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html,
+  body {
+    margin: 0;
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  #app {
+    min-height: 100vh;
+  }
+}
+
+/* 新条目入场 */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.item-new {
+  animation: rise 0.28s ease-out;
+}
+
+/* 长文本换行 */
+.break-pre-wrap {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
