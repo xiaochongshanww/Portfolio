@@ -160,3 +160,150 @@ class TestCreateBackup:
         monkeypatch.setattr(engine, "_check_docker_environment", lambda: False)
         result = engine.create_backup("bk-fail")
         assert result["success"] is False
+
+
+class TestDockerMethods:
+    def _fake_run(self, results):
+        def fake_run(args, **kw):
+            key = args[1] if len(args) > 1 else ""
+            return results.get(
+                key,
+                __import__("types").SimpleNamespace(returncode=0, stdout="", stderr=""),
+            )
+
+        return fake_run
+
+    def test_check_docker_success(self, tmp_path, monkeypatch):
+        engine = PhysicalBackupEngine(
+            {
+                "mysql_container": "blog-mysql",
+                "mysql_volume": "mysqldata",
+                "backup_root": str(tmp_path),
+            }
+        )
+        import types
+
+        def fake_run(args, **kw):
+            key = args[1] if len(args) > 1 else ""
+            if key == "version":
+                return types.SimpleNamespace(
+                    returncode=0, stdout="Docker version", stderr=""
+                )
+            if key == "ps":
+                return types.SimpleNamespace(
+                    returncode=0, stdout="blog-mysql\n", stderr=""
+                )
+            if key == "volume":
+                return types.SimpleNamespace(
+                    returncode=0, stdout="mysqldata\n", stderr=""
+                )
+            return types.SimpleNamespace(returncode=0, stdout="", stderr="")
+
+        monkeypatch.setattr(engine, "_get_container_volume", lambda: "mysqldata")
+        monkeypatch.setattr(
+            "app.backup.physical_backup_engine.subprocess.run", fake_run
+        )
+        assert engine._check_docker_environment() is True
+
+    def test_check_docker_missing_container(self, tmp_path, monkeypatch):
+        engine = PhysicalBackupEngine(
+            {
+                "mysql_container": "blog-mysql",
+                "mysql_volume": "mysqldata",
+                "backup_root": str(tmp_path),
+            }
+        )
+        import types
+
+        def fake_run(args, **kw):
+            key = args[1] if len(args) > 1 else ""
+            if key == "version":
+                return types.SimpleNamespace(returncode=0, stdout="Docker", stderr="")
+            if key == "ps":
+                return types.SimpleNamespace(returncode=0, stdout="other\n", stderr="")
+            return types.SimpleNamespace(returncode=0, stdout="", stderr="")
+
+        monkeypatch.setattr(
+            "app.backup.physical_backup_engine.subprocess.run", fake_run
+        )
+        assert engine._check_docker_environment() is False
+
+
+class TestPhysicalBackupExecution:
+    def test_hot_backup_success(self, tmp_path, monkeypatch):
+        import types
+
+        engine = PhysicalBackupEngine(
+            {
+                "mysql_container": "x",
+                "mysql_volume": "mysqldata",
+                "backup_root": str(tmp_path),
+            }
+        )
+        monkeypatch.setattr(
+            "app.backup.physical_backup_engine.subprocess.run",
+            lambda args, **kw: types.SimpleNamespace(
+                returncode=0, stdout="", stderr=""
+            ),
+        )
+        result = engine._hot_backup_via_docker(tmp_path / "bk")
+        assert result["success"] is True
+
+    def test_hot_backup_fail(self, tmp_path, monkeypatch):
+        import types
+
+        engine = PhysicalBackupEngine(
+            {
+                "mysql_container": "x",
+                "mysql_volume": "mysqldata",
+                "backup_root": str(tmp_path),
+            }
+        )
+        monkeypatch.setattr(
+            "app.backup.physical_backup_engine.subprocess.run",
+            lambda args, **kw: types.SimpleNamespace(
+                returncode=1, stdout="", stderr="err"
+            ),
+        )
+        result = engine._hot_backup_via_docker(tmp_path / "bk")
+        assert result["success"] is False
+
+    def test_perform_physical_backup_hot(self, tmp_path, monkeypatch):
+        import types
+
+        engine = PhysicalBackupEngine(
+            {
+                "mysql_container": "x",
+                "mysql_volume": "mysqldata",
+                "backup_root": str(tmp_path),
+                "hot_backup": True,
+            }
+        )
+        monkeypatch.setattr(
+            "app.backup.physical_backup_engine.subprocess.run",
+            lambda args, **kw: types.SimpleNamespace(
+                returncode=0, stdout="", stderr=""
+            ),
+        )
+        result = engine._perform_physical_backup(tmp_path / "bk")
+        assert result["success"] is True
+
+    def test_perform_physical_backup_cold(self, tmp_path, monkeypatch):
+        import types
+
+        engine = PhysicalBackupEngine(
+            {
+                "mysql_container": "x",
+                "mysql_volume": "mysqldata",
+                "backup_root": str(tmp_path),
+                "hot_backup": False,
+            }
+        )
+        monkeypatch.setattr(
+            "app.backup.physical_backup_engine.subprocess.run",
+            lambda args, **kw: types.SimpleNamespace(
+                returncode=0, stdout="", stderr=""
+            ),
+        )
+        result = engine._perform_physical_backup(tmp_path / "bk")
+        assert result["success"] is True

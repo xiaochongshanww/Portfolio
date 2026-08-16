@@ -110,3 +110,59 @@ class TestArticleWorkflow:
         db.session.commit()
         resp = client.get("/api/v1/articles/public/slug-lookup")
         assert resp.status_code in (200, 404)
+
+
+class TestArticleMoreEndpoints:
+    def test_version_detail_and_diff(self, client):
+        h = auth_header(client, role="author")
+        aid = _create_via_api(client, h, slug="wf-more").get_json()["data"]["id"]
+        client.put(f"/api/v1/articles/{aid}", json={"title": "V2"}, headers=h)
+        versions = client.get(f"/api/v1/articles/{aid}/versions", headers=h)
+        assert versions.status_code == 200
+        data = versions.get_json()["data"]
+        if isinstance(data, list) and data:
+            vno = data[0]["version_no"]
+            detail = client.get(f"/api/v1/articles/{aid}/versions/{vno}", headers=h)
+            assert detail.status_code == 200
+            diff = client.get(
+                f"/api/v1/articles/{aid}/versions/{vno}/diff?target_no=1", headers=h
+            )
+            assert diff.status_code in (200, 400)
+
+    def test_audit_logs(self, client):
+        h = auth_header(client, role="author")
+        aid = _create_via_api(client, h, slug="wf-audit").get_json()["data"]["id"]
+        admin_h = auth_header(client, role="admin")
+        resp = client.get(f"/api/v1/articles/{aid}/audit_logs", headers=admin_h)
+        assert resp.status_code == 200
+
+    def test_bookmarks(self, client):
+        h = auth_header(client, role="author")
+        _create_via_api(client, h, slug="wf-bm")
+        resp = client.get("/api/v1/articles/bookmarks", headers=h)
+        assert resp.status_code == 200
+
+    def test_public_list_and_hot(self, client):
+        h = auth_header(client, role="author")
+        aid = _create_via_api(client, h, slug="wf-pub").get_json()["data"]["id"]
+        client.post(f"/api/v1/articles/{aid}/submit", headers=h)
+        admin_h = auth_header(client, role="admin")
+        client.post(f"/api/v1/articles/{aid}/approve", headers=admin_h)
+        listing = client.get("/api/v1/articles/public/")
+        assert listing.status_code == 200
+        hot = client.get("/api/v1/articles/public/hot")
+        assert hot.status_code == 200
+
+    def test_schedule_and_unpublish(self, client):
+        h = auth_header(client, role="author")
+        aid = _create_via_api(client, h, slug="wf-sch").get_json()["data"]["id"]
+        client.post(f"/api/v1/articles/{aid}/submit", headers=h)
+        admin_h = auth_header(client, role="admin")
+        schedule = client.post(
+            f"/api/v1/articles/{aid}/schedule",
+            json={"scheduled_at": "2027-01-01T00:00:00"},
+            headers=admin_h,
+        )
+        assert schedule.status_code in (200, 400, 409)
+        unpublish = client.post(f"/api/v1/articles/{aid}/unpublish", headers=admin_h)
+        assert unpublish.status_code in (200, 400)

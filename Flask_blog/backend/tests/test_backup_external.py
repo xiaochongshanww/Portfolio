@@ -125,3 +125,44 @@ class TestSyncStats:
         mgr = _make_manager(tmp_path)
         assert mgr.get_conflict_count() >= 0
         assert isinstance(mgr.find_conflicts(), list)
+
+
+class TestExternalModels:
+    def test_restore_record_external_to_dict(self, tmp_path):
+        from app.backup.backup_records_external import RestoreRecordExternal
+
+        mgr = _make_manager(tmp_path)
+        session = mgr._get_session()
+        rec = RestoreRecordExternal(
+            restore_id="rr1", restore_type="full", status="pending"
+        )
+        session.add(rec)
+        session.commit()
+        d = rec.to_dict()
+        assert d["restore_id"] == "rr1"
+        assert d["restore_type"] == "full"
+
+    def test_restore_options_property(self, tmp_path):
+        from app.backup.backup_records_external import RestoreRecordExternal
+
+        mgr = _make_manager(tmp_path)
+        session = mgr._get_session()
+        rec = RestoreRecordExternal(
+            restore_id="rr2", restore_type="full", status="pending"
+        )
+        rec.restore_options = {"target_db": "blog"}
+        session.add(rec)
+        session.commit()
+        assert rec.restore_options == {"target_db": "blog"}
+
+    def test_sync_log_external_to_dict(self, tmp_path):
+        from app.backup.backup_records_external import SyncLogExternal
+
+        mgr = _make_manager(tmp_path)
+        session = mgr._get_session()
+        log = SyncLogExternal(operation="sync", record_type="backup", record_id="b1")
+        session.add(log)
+        session.commit()
+        assert log.operation == "sync"
+        assert log.record_type == "backup"
+        assert log.record_id == "b1"
