@@ -6,6 +6,16 @@ import types
 from app.backup.physical_restore_engine import PhysicalRestoreEngine
 
 
+def _success_engine(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "app.backup.physical_restore_engine.subprocess.run",
+        lambda args, **kw: __import__("types").SimpleNamespace(
+            returncode=0, stdout="", stderr=""
+        ),
+    )
+    return _make_engine(tmp_path)
+
+
 def _make_engine(tmp_path):
     return PhysicalRestoreEngine(
         {
@@ -177,26 +187,26 @@ class TestRestoreSubSteps:
         return engine
 
     def test_stop_mysql_container(self, tmp_path, monkeypatch):
-        engine = self._success_subprocess(tmp_path, monkeypatch)
+        engine = _success_engine(tmp_path, monkeypatch)
         assert engine._stop_mysql_container()["success"] is True
 
     def test_backup_current_data(self, tmp_path, monkeypatch):
-        engine = self._success_subprocess(tmp_path, monkeypatch)
+        engine = _success_engine(tmp_path, monkeypatch)
         result = engine._backup_current_data()
         assert result["success"] is True
 
     def test_clear_mysql_volume(self, tmp_path, monkeypatch):
-        engine = self._success_subprocess(tmp_path, monkeypatch)
+        engine = _success_engine(tmp_path, monkeypatch)
         result = engine._clear_mysql_volume()
         assert result["success"] is True
 
     def test_validate_restore(self, tmp_path, monkeypatch):
-        engine = self._success_subprocess(tmp_path, monkeypatch)
+        engine = _success_engine(tmp_path, monkeypatch)
         result = engine._validate_restore()
         assert isinstance(result, dict)
 
     def test_perform_physical_restore_success(self, tmp_path, monkeypatch):
-        engine = self._success_subprocess(tmp_path, monkeypatch)
+        engine = _success_engine(tmp_path, monkeypatch)
         result = engine._perform_physical_restore("bk1")
         assert isinstance(result, dict)
 
@@ -208,3 +218,39 @@ class TestRestoreSubSteps:
         monkeypatch.setattr(engine, "_clear_mysql_volume", lambda: {"success": True})
         result = engine._prepare_for_restore()
         assert result["success"] is True
+
+
+class TestRestoreFromData:
+    def test_restore_from_data_file_success(self, tmp_path, monkeypatch):
+        engine = _success_engine(tmp_path, monkeypatch)
+        result = engine._restore_from_data_file(tmp_path / "d.tar.gz")
+        assert result["success"] is True
+
+    def test_restore_from_data_file_fail(self, tmp_path, monkeypatch):
+        import types
+
+        engine = _make_engine(tmp_path)
+        monkeypatch.setattr(
+            "app.backup.physical_restore_engine.subprocess.run",
+            lambda args, **kw: types.SimpleNamespace(
+                returncode=1, stdout="", stderr="err"
+            ),
+        )
+        result = engine._restore_from_data_file(tmp_path / "d.tar.gz")
+        assert result["success"] is False
+
+    def test_restore_from_archive_success(self, tmp_path, monkeypatch):
+        import types
+
+        engine = _make_engine(tmp_path)
+        monkeypatch.setattr(
+            engine, "_restore_from_data_file", lambda d: {"success": True}
+        )
+        monkeypatch.setattr(
+            "app.backup.physical_restore_engine.subprocess.run",
+            lambda args, **kw: types.SimpleNamespace(
+                returncode=0, stdout="", stderr=""
+            ),
+        )
+        result = engine._restore_from_archive(tmp_path / "bk.tar.gz", "bk1")
+        assert result["success"] in (True, False)

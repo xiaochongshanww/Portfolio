@@ -53,3 +53,26 @@ class TestSettingsApi:
         h = auth_header(client, role="author")
         resp = client.get("/api/v1/settings/all", headers=h)
         assert resp.status_code in (401, 403)
+
+
+class TestSettingsOperations:
+    def test_cleanup_logs(self, client):
+        h = auth_header(client, role="admin")
+        resp = client.post("/api/v1/settings/system/cleanup-logs", headers=h)
+        assert resp.status_code == 200
+
+    def test_generate_sitemap(self, client, app, monkeypatch, tmp_path):
+        monkeypatch.chdir(tmp_path)
+        h = auth_header(client, role="admin")
+        resp = client.post("/api/v1/settings/system/generate-sitemap", headers=h)
+        assert resp.status_code == 200
+
+    def test_backup(self, client):
+        h = auth_header(client, role="admin")
+        resp = client.post("/api/v1/settings/system/backup", headers=h)
+        assert resp.status_code == 200
+
+    def test_backup_history(self, client):
+        h = auth_header(client, role="admin")
+        resp = client.get("/api/v1/settings/backup/history", headers=h)
+        assert resp.status_code == 200

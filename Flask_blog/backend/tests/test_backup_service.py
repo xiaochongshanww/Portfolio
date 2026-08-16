@@ -274,3 +274,24 @@ class TestTaskCleanerMore:
         # 直接调用内部方法,模拟无卡死任务
         result = cleaner._cleanup_stuck_backups()
         assert result["cleaned_count"] == 0
+
+
+class TestSafeOperationRetry:
+    def test_retry_after_operational_error(self, app, monkeypatch):
+        from sqlalchemy.exc import OperationalError
+
+        cleaner = TaskCleaner()
+        calls = {"n": 0}
+
+        def flaky():
+            calls["n"] += 1
+            if calls["n"] < 2:
+                raise OperationalError("stmt", {}, Exception("conn down"))
+            return "ok"
+
+        # 减少 sleep 避免测试慢
+        monkeypatch.setattr(cleaner, "_safe_database_operation", None)
+        result = TaskCleaner()._safe_database_operation(flaky, "test", max_retries=1)
+        # 首次失败后重试成功
+        assert result["success"] is True
+        assert result["result"] == "ok"

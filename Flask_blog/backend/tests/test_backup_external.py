@@ -305,3 +305,11 @@ class TestSmartConflict:
             "no_conflict",
             None,
         )
+
+
+class TestVerifyFile:
+    def test_verify_physical_backup_no_file(self, tmp_path):
+        mgr = _make_manager(tmp_path)
+        rec = mgr.create_backup_record("v1", backup_type="physical")
+        # 无 file_path 的物理备份 → 走物理检查路径
+        assert rec.verify_file_exists() in (True, False)

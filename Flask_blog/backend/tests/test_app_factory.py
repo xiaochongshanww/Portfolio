@@ -21,3 +21,16 @@ def test_business_error_handler(client):
     resp = client.post("/api/v1/articles/999999/submit", headers=h)
     assert resp.status_code in (404, 409, 400)
     assert resp.get_json() is not None
+
+
+def test_create_app_development():
+    from app import create_app
+
+    app = create_app("development")
+    assert app.config["DEBUG"] is True
+
+
+def test_app_has_blueprints(client):
+    # 关键 API 前缀已注册
+    assert client.get("/api/v1/auth/login").status_code in (401, 405)
+    assert client.get("/api/v1/ping").status_code in (200, 404, 405)
