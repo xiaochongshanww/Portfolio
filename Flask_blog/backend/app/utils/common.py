@@ -2,8 +2,8 @@ import hashlib
 import json
 from typing import Optional
 
-import bleach  # type: ignore
-import markdown as md  # type: ignore
+import bleach
+import markdown as md
 
 ALLOWED_TAGS = bleach.sanitizer.ALLOWED_TAGS.union(
     {

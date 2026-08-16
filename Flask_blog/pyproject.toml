@@ -53,26 +53,19 @@ addopts = "-q --tb=short --cov=app --cov-report=term-missing --cov-report=xml --
 
 [tool.mypy]
 python_version = "3.11"
+plugins = ["sqlalchemy.ext.mypy.plugin"]
 ignore_missing_imports = true
 warn_unused_ignores = true
 exclude = [
     "migrations/",
 ]
 
-# 遗留/待重构文件暂不纳入 mypy 检查(见 docs/engineering/refactoring-progress.md backlog)
-[[tool.mypy.overrides]]
-module = "app.backup.*"
-ignore_errors = true
-
-[[tool.mypy.overrides]]
-module = "app.models"
-ignore_errors = true
-
-[[tool.mypy.overrides]]
-module = "app"
-ignore_errors = true
-
 # 第 3 方无类型库(bleach/markdown)导入,豁免 import-untyped
 [[tool.mypy.overrides]]
-module = "app.services.content_sanitizer"
+module = ["app.services.content_sanitizer", "app.utils.common", "app"]
 disable_error_code = ["import-untyped"]
+
+# flask-sqlalchemy 的 db.Model / external_db.Model 基类无法被 mypy 解析(name-defined)
+[[tool.mypy.overrides]]
+module = ["app.models", "app.backup.backup_records_external"]
+disable_error_code = ["name-defined"]

@@ -189,7 +189,7 @@ class BackupRecordExternal(external_db.Model):
             # 任何异常都使用保守策略
             return True
 
-    def update_sync_status(self, new_status: str, reason: str = None):
+    def update_sync_status(self, new_status: str, reason: Optional[str] = None):
         """更新同步状态"""
         old_status = self.sync_status
         self.sync_status = new_status
@@ -297,6 +297,8 @@ class BackupRecordExternal(external_db.Model):
                         f"智能解决：从{old_status}同步为{mysql_status}（有完成时间）",
                     )
                     return "fixed_to_completed"
+                # 无完成时间，保守维持当前状态
+                return "verified_consistent"
 
             # 2. 如果外部状态是completed，但MySQL是failed，需要文件验证
             elif external_status == "completed" and mysql_status == "failed":
@@ -331,7 +333,7 @@ class BackupRecordExternal(external_db.Model):
 
     def to_dict(self, include_extra_data: bool = True) -> Dict[str, Any]:
         """转换为字典"""
-        result = {
+        result: Dict[str, Any] = {
             "id": self.id,
             "backup_id": self.backup_id,
             "backup_type": self.backup_type,
@@ -573,7 +575,7 @@ class SyncLogExternal(external_db.Model):
 class ExternalMetadataManager:
     """外部元数据管理器"""
 
-    def __init__(self, app=None, db_path: str = None):
+    def __init__(self, app=None, db_path: Optional[str] = None):
         self.app = app
         self.db_path = db_path or self._get_default_db_path()
         self._standalone_engine = None
@@ -628,7 +630,7 @@ class ExternalMetadataManager:
 
     def sync_from_mysql(self, mysql_records: list) -> dict:
         """从MySQL同步备份记录到外部数据库"""
-        result = {
+        result: Dict[str, Any] = {
             "total_processed": 0,
             "created": 0,
             "updated": 0,
@@ -840,7 +842,7 @@ class ExternalMetadataManager:
 
     def resolve_all_conflicts(self) -> dict:
         """解决所有状态冲突"""
-        result = {
+        result: Dict[str, Any] = {
             "total_conflicts": 0,
             "resolved": 0,
             "fixed_to_completed": 0,
@@ -907,12 +909,12 @@ class ExternalMetadataManager:
         operation: str,
         record_type: str,
         record_id: str,
-        old_status: str = None,
-        new_status: str = None,
+        old_status: Optional[str] = None,
+        new_status: Optional[str] = None,
         sync_direction: str = "mysql_to_sqlite",
         conflict_resolved: bool = False,
-        file_exists: bool = None,
-        details: dict = None,
+        file_exists: Optional[bool] = None,
+        details: Optional[dict] = None,
     ):
         """记录同步操作日志"""
         try:

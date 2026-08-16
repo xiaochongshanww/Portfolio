@@ -8,7 +8,7 @@ import logging
 import threading
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from flask import Flask
 from sqlalchemy.exc import DisconnectionError, OperationalError
@@ -20,7 +20,7 @@ from ..models import BackupRecord, RestoreRecord
 class TaskCleaner:
     """任务自动清理器"""
 
-    def __init__(self, app: Flask = None):
+    def __init__(self, app: Optional[Flask] = None):
         self.app = app
         self.cleaning_thread = None
         self.stop_event = threading.Event()
@@ -115,7 +115,7 @@ class TaskCleaner:
 
     def cleanup_stuck_tasks(self) -> Dict[str, Any]:
         """清理卡死的任务"""
-        result = {
+        result: Dict[str, Any] = {
             "backup_cleaned": 0,
             "restore_cleaned": 0,
             "total_cleaned": 0,

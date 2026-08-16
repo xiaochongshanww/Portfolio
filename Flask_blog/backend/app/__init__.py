@@ -419,7 +419,7 @@ try:
 
     METRICS_ENABLED = True
 except Exception:
-    Counter = Histogram = Gauge = None
+    Counter = Histogram = Gauge = None  # type: ignore[assignment,misc]
 
 
 def _setup_metrics(app):
@@ -446,31 +446,33 @@ def _setup_metrics(app):
 # 指标计数器（供各模块导入）
 ARTICLE_PUBLISHED_TOTAL = (
     Counter("article_published_total", "Articles published", ["method"])
-    if Counter
+    if METRICS_ENABLED
     else None
 )
 SEARCH_QUERIES_TOTAL = (
-    Counter("search_queries_total", "Search queries") if Counter else None
+    Counter("search_queries_total", "Search queries") if METRICS_ENABLED else None
 )
 SEARCH_ZERO_RESULT_TOTAL = (
     Counter("search_zero_result_total", "Search queries with zero results")
-    if Counter
+    if METRICS_ENABLED
     else None
 )
 CACHE_HIT_TOTAL = (
-    Counter("cache_hit_total", "Cache hits", ["endpoint"]) if Counter else None
+    Counter("cache_hit_total", "Cache hits", ["endpoint"]) if METRICS_ENABLED else None
 )
 CACHE_MISS_TOTAL = (
-    Counter("cache_miss_total", "Cache misses", ["endpoint"]) if Counter else None
+    Counter("cache_miss_total", "Cache misses", ["endpoint"])
+    if METRICS_ENABLED
+    else None
 )
 PUBLIC_AUTHOR_PROFILE_REQUESTS_TOTAL = (
     Counter("public_author_profile_requests_total", "Public author profile requests")
-    if Counter
+    if METRICS_ENABLED
     else None
 )
 PUBLIC_AUTHOR_ARTICLES_REQUESTS_TOTAL = (
     Counter("public_author_articles_requests_total", "Public author articles requests")
-    if Counter
+    if METRICS_ENABLED
     else None
 )
 PUBLIC_AUTHOR_ARTICLES_ZERO_RESULT_TOTAL = (
@@ -478,6 +480,6 @@ PUBLIC_AUTHOR_ARTICLES_ZERO_RESULT_TOTAL = (
         "public_author_articles_zero_result_total",
         "Public author articles zero results",
     )
-    if Counter
+    if METRICS_ENABLED
     else None
 )

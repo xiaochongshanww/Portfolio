@@ -79,7 +79,7 @@ class PhysicalBackupEngine:
 
         return logger
 
-    def create_backup(self, backup_id: str = None) -> Dict[str, Any]:
+    def create_backup(self, backup_id: Optional[str] = None) -> Dict[str, Any]:
         """创建物理备份"""
         # 记录开始时间
         start_time = time.time()
@@ -119,7 +119,7 @@ class PhysicalBackupEngine:
 
             # 创建压缩包（可选）
             compressed_size = None
-            compression_duration = 0
+            compression_duration = 0.0
             archive_path = None
 
             if self.config.get("compress_backup", True):
@@ -624,8 +624,8 @@ class PhysicalBackupEngine:
             # 时间统计
             from collections import defaultdict
 
-            monthly_size = defaultdict(int)
-            daily_size = defaultdict(int)
+            monthly_size: defaultdict[str, int] = defaultdict(int)
+            daily_size: defaultdict[str, int] = defaultdict(int)
 
             # 大小分布统计
             size_ranges = {
@@ -651,7 +651,7 @@ class PhysicalBackupEngine:
                     final_size = raw_size
 
                 # 计算归档文件实际大小
-                backup_id = backup.get("backup_id")
+                backup_id = backup.get("backup_id") or ""
                 archive_path = self.backup_root / f"{backup_id}.tar.gz"
                 if archive_path.exists():
                     archive_size = archive_path.stat().st_size
@@ -689,7 +689,7 @@ class PhysicalBackupEngine:
                     size_ranges["huge"] += 1
 
             # 计算压缩效率
-            overall_compression_ratio = 0
+            overall_compression_ratio = 0.0
             if total_raw_size > 0 and total_compressed_size > 0:
                 overall_compression_ratio = total_compressed_size / total_raw_size
 

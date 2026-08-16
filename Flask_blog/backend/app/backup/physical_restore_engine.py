@@ -24,7 +24,7 @@ class PhysicalRestoreEngine:
         self.logger = self._setup_logger()
         self.container_name = config.get("mysql_container", "blog-mysql")
         # volume_name 将从备份元数据中动态获取，而不是配置中硬编码
-        self.volume_name = None
+        self.volume_name: Optional[str] = None
         self.backup_root = Path(config.get("backup_root", "./backups/physical"))
 
     def _setup_logger(self) -> logging.Logger:
@@ -102,7 +102,7 @@ class PhysicalRestoreEngine:
             return None
 
     def restore_database(
-        self, backup_id: str, restore_id: str = None
+        self, backup_id: str, restore_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """执行物理恢复"""
         if not restore_id:
@@ -242,7 +242,7 @@ class PhysicalRestoreEngine:
 
             # 检查Docker volume
             result = subprocess.run(
-                ["docker", "volume", "inspect", self.volume_name],
+                ["docker", "volume", "inspect", self.volume_name or "mysqldata"],
                 capture_output=True,
                 text=True,
                 timeout=10,
@@ -541,7 +541,7 @@ class PhysicalRestoreEngine:
         try:
             self.logger.info("验证恢复结果...")
 
-            validation_results = {}
+            validation_results: Dict[str, Any] = {}
 
             # 1. 检查数据库连接
             try:

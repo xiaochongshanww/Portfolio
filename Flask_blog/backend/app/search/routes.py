@@ -17,10 +17,10 @@ try:
         SEARCH_ZERO_RESULT_TOTAL,
     )
 except Exception:
-    SEARCH_QUERIES_TOTAL = None  # type: ignore[assignment]
-    SEARCH_ZERO_RESULT_TOTAL = None  # type: ignore[assignment]
-    CACHE_HIT_TOTAL = None  # type: ignore[assignment]
-    CACHE_MISS_TOTAL = None  # type: ignore[assignment]
+    SEARCH_QUERIES_TOTAL = None
+    SEARCH_ZERO_RESULT_TOTAL = None
+    CACHE_HIT_TOTAL = None
+    CACHE_MISS_TOTAL = None
 
 search_bp = Blueprint("search", __name__)
 

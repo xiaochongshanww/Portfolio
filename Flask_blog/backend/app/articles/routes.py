@@ -32,7 +32,7 @@ from .service import update_article
 try:
     from .. import ARTICLE_PUBLISHED_TOTAL, CACHE_HIT_TOTAL, CACHE_MISS_TOTAL
 except Exception:
-    ARTICLE_PUBLISHED_TOTAL = CACHE_HIT_TOTAL = CACHE_MISS_TOTAL = None  # type: ignore[assignment]  # noqa: E501
+    ARTICLE_PUBLISHED_TOTAL = CACHE_HIT_TOTAL = CACHE_MISS_TOTAL = None  # noqa: E501
 
 articles_bp = Blueprint("articles", __name__)
 

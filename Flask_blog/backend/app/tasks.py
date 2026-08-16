@@ -11,7 +11,7 @@ from .search.indexer import index_article
 try:
     from . import ARTICLE_PUBLISHED_TOTAL
 except Exception:
-    ARTICLE_PUBLISHED_TOTAL = None  # type: ignore[assignment]
+    ARTICLE_PUBLISHED_TOTAL = None
 
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", CELERY_BROKER_URL)
