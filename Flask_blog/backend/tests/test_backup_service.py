@@ -295,3 +295,21 @@ class TestSafeOperationRetry:
         # 首次失败后重试成功
         assert result["success"] is True
         assert result["result"] == "ok"
+
+
+class TestDaemonLifecycle:
+    def test_start_and_stop_daemon(self, app):
+        import time
+
+        cleaner = TaskCleaner(app=app)
+        cleaner.config["cleanup_interval_minutes"] = 0
+        cleaner.config["enable_auto_cleanup"] = True
+        cleaner.start_cleanup_daemon()
+        assert cleaner.cleaning_thread is not None
+        time.sleep(0.1)
+        cleaner.stop_cleanup_daemon()
+        assert cleaner.cleaning_thread is None or not cleaner.cleaning_thread.is_alive()
+
+    def test_stop_daemon_without_start(self, app):
+        cleaner = TaskCleaner()
+        cleaner.stop_cleanup_daemon()  # 不应抛异常

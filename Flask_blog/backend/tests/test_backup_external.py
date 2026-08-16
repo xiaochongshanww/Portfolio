@@ -313,3 +313,38 @@ class TestVerifyFile:
         rec = mgr.create_backup_record("v1", backup_type="physical")
         # 无 file_path 的物理备份 → 走物理检查路径
         assert rec.verify_file_exists() in (True, False)
+
+
+class TestStatusConflict:
+    def test_conflict_rules(self, tmp_path):
+        mgr = _make_manager(tmp_path)
+        # completed(外) + running(内) + 文件存在 → 冲突
+        assert mgr._is_status_conflict("completed", "running", True) is True
+        # completed(外) + running(内) + 文件不存在 → 不冲突
+        assert mgr._is_status_conflict("completed", "running", False) is False
+        # running(外) + completed(内) + 文件不存在 → 冲突
+        assert mgr._is_status_conflict("running", "completed", False) is True
+        # 相同状态 → 不冲突
+        assert mgr._is_status_conflict("completed", "completed", True) is False
+        assert mgr._is_status_conflict("pending", "pending", False) is False
+
+    def test_sync_detects_conflict(self, tmp_path):
+        mgr = _make_manager(tmp_path)
+        # 外部 completed,MySQL 报 running,且文件不存在 → 不冲突,更新为 running
+        mgr.sync_from_mysql(
+            [{"backup_id": "c1", "status": "completed", "backup_type": "full"}]
+        )
+        result = mgr.sync_from_mysql(
+            [{"backup_id": "c1", "status": "running", "backup_type": "full"}]
+        )
+        assert result["conflicts"] + result["updated"] + result["unchanged"] == 1
+
+    def test_sync_unchanged(self, tmp_path):
+        mgr = _make_manager(tmp_path)
+        mgr.sync_from_mysql(
+            [{"backup_id": "u2", "status": "completed", "backup_type": "full"}]
+        )
+        result = mgr.sync_from_mysql(
+            [{"backup_id": "u2", "status": "completed", "backup_type": "full"}]
+        )
+        assert result["unchanged"] == 1
