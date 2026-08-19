@@ -195,6 +195,24 @@ def test_runtime_package_includes_only_pdfs_when_explicit(tmp_path: Path):
         assert "runtime/raw/ignore.txt" not in names
 
 
+def test_runtime_package_rejects_test_only_sources(tmp_path: Path):
+    source = _source_runtime(tmp_path)
+    manifest = json.loads(source["manifest"].read_text(encoding="utf-8"))
+    manifest["documents"][0]["status"] = "test"
+    _write_json(source["manifest"], manifest)
+
+    with pytest.raises(KnowledgePackageError, match="包含 test_only 来源"):
+        export_runtime_package(
+            tmp_path / "knowledge.zip",
+            active_db_path=source["active"],
+            fallback_manifest_path=source["manifest"],
+            structured_tables_dir=source["structured"],
+            images_dir=source["images"],
+            metadata_dir=source["metadata"],
+            raw_dir=source["raw"],
+        )
+
+
 def test_runtime_package_rejects_hash_tampering(tmp_path: Path):
     package = _export(tmp_path)
     tampered = tmp_path / "tampered.zip"

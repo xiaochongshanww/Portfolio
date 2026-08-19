@@ -259,6 +259,16 @@ def _write_export_audit(audit_dir: Path, event: dict[str, Any]) -> Path:
     return path
 
 
+def _test_only_sources(manifest: dict[str, Any]) -> list[str]:
+    return sorted(
+        str(document.get("source_file") or "")
+        for document in manifest.get("documents", [])
+        if isinstance(document, dict)
+        and document.get("status") == "test"
+        and str(document.get("source_file") or "").strip()
+    )
+
+
 def export_runtime_package(
     output_path: Path,
     *,
@@ -293,6 +303,12 @@ def export_runtime_package(
     manifest = read_manifest(manifest_path)
     if not manifest:
         raise KnowledgePackageError(f"活动 manifest 不存在或为空: {manifest_path}")
+    test_only_sources = _test_only_sources(manifest)
+    if test_only_sources:
+        raise KnowledgePackageError(
+            "活动 manifest 包含 test_only 来源，不能导出生产运行包；"
+            f"请先从活动知识版本移除测试夹具: {', '.join(test_only_sources)}"
+        )
     if not db_dir.is_dir():
         raise KnowledgePackageError(f"活动数据库目录不存在: {db_dir}")
 
@@ -602,6 +618,12 @@ def validate_runtime_package(
             raise KnowledgePackageError("runtime/manifest.json 无效") from exc
         if runtime_manifest.get("data_version_hash") != package_manifest.get("data_version_hash"):
             raise KnowledgePackageError("包清单与运行 manifest 的数据版本不一致")
+        test_only_sources = _test_only_sources(runtime_manifest)
+        if test_only_sources:
+            raise KnowledgePackageError(
+                "运行知识包包含 test_only 来源，禁止作为生产运行包导入: "
+                + ", ".join(test_only_sources)
+            )
         if int(runtime_manifest.get("chunk_count", -1)) != int(
             package_manifest.get("chunk_count", -2)
         ):

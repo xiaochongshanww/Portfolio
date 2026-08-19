@@ -12,8 +12,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REGISTER_PATH = PROJECT_ROOT / "docs" / "governance" / "来源登记台账.json"
 DEFAULT_METADATA_PATH = PROJECT_ROOT / "data" / "metadata" / "specs.json"
 DEFAULT_SOURCE_ROOT = PROJECT_ROOT / "data" / "raw"
+DEFAULT_ACTIVE_DB_PATH = PROJECT_ROOT / "data" / "active_db.json"
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 RIGHTS_STATUSES = {"A", "B", "C", "test_fixture"}
+RELEASE_SCOPES = {"production", "test_only"}
 TAKEDOWN_STATUSES = {"active", "suspended", "removed"}
 REQUIRED_RECORD_FIELDS = {
     "source_id",
@@ -22,6 +24,7 @@ REQUIRED_RECORD_FIELDS = {
     "title",
     "version",
     "source_kind",
+    "release_scope",
     "original_sha256",
     "acquisition",
     "rights",
@@ -85,6 +88,9 @@ def _validate_record_shape(record: dict[str, Any], index: int, issues: list[str]
     _string(record.get("title"), f"{prefix}.title", issues)
     _string(record.get("version"), f"{prefix}.version", issues)
     _string(record.get("source_kind"), f"{prefix}.source_kind", issues)
+    release_scope = _string(record.get("release_scope"), f"{prefix}.release_scope", issues)
+    if release_scope and release_scope not in RELEASE_SCOPES:
+        issues.append(f"{prefix}.release_scope不受支持：{release_scope}")
     digest = _string(record.get("original_sha256"), f"{prefix}.original_sha256", issues)
     if digest and not SHA256_PATTERN.fullmatch(digest.lower()):
         issues.append(f"{prefix}.original_sha256必须是 64 位小写 SHA-256")
@@ -143,11 +149,24 @@ def _validate_record_shape(record: dict[str, Any], index: int, issues: list[str]
     if source_file and Path(source_file).name != source_file:
         issues.append(f"{prefix}.source_file只能包含文件名，不能包含目录")
 
+    if release_scope == "test_only":
+        if record.get("source_kind") != "repository_test_fixture":
+            issues.append(f"{prefix}.test_only来源必须是 repository_test_fixture")
+        if rights_status != "test_fixture":
+            issues.append(f"{prefix}.test_only来源的 rights.status 必须是 test_fixture")
+        if review.get("status") != "not_applicable":
+            issues.append(f"{prefix}.test_only来源的 review.status 必须是 not_applicable")
+        if record.get("repository_storage") != "tracked_test_fixture":
+            issues.append(f"{prefix}.test_only来源必须使用 tracked_test_fixture 存储标识")
+    elif release_scope == "production" and record.get("source_kind") == "repository_test_fixture":
+        issues.append(f"{prefix}.repository_test_fixture不能声明为 production 来源")
+
 
 def validate_source_register(
     register_path: Path = DEFAULT_REGISTER_PATH,
     metadata_path: Path = DEFAULT_METADATA_PATH,
     source_root: Path = DEFAULT_SOURCE_ROOT,
+    active_db_path: Path = DEFAULT_ACTIVE_DB_PATH,
 ) -> dict[str, Any]:
     register = _load_json(register_path.resolve(), "来源登记台账")
     metadata = _load_json(metadata_path.resolve(), "运行来源元数据")
@@ -172,6 +191,7 @@ def validate_source_register(
     record_files: set[str] = set()
     record_ids: set[str] = set()
     release_blockers: list[str] = []
+    record_scopes: dict[str, str] = {}
 
     for index, raw_record in enumerate(records):
         if not isinstance(raw_record, dict):
@@ -180,6 +200,9 @@ def validate_source_register(
         _validate_record_shape(raw_record, index, issues)
         source_file = str(raw_record.get("source_file") or "").strip()
         source_id = str(raw_record.get("source_id") or "").strip()
+        release_scope = str(raw_record.get("release_scope") or "").strip()
+        if source_file and release_scope:
+            record_scopes[source_file] = release_scope
         if source_file in record_files:
             issues.append(f"来源登记包含重复 source_file：{source_file}")
         if source_id in record_ids:
@@ -202,6 +225,8 @@ def validate_source_register(
             raw_record.get("acquisition") if isinstance(raw_record.get("acquisition"), dict) else {}
         )
         review = raw_record.get("review") if isinstance(raw_record.get("review"), dict) else {}
+        if release_scope == "test_only":
+            continue
         if rights_status != "A":
             release_blockers.append(f"{source_file}: 权利等级为 {rights_status or '未填'}")
         if not acquisition.get("date") or not acquisition.get("reference_index"):
@@ -220,6 +245,54 @@ def validate_source_register(
     if extra:
         issues.append("来源台账包含未进入运行元数据的文件：" + ", ".join(extra))
 
+    metadata_scopes = {
+        str(item.get("source_file") or "").strip(): (
+            "test_only" if item.get("status") == "test" else "production"
+        )
+        for item in metadata_records
+        if isinstance(item, dict) and str(item.get("source_file") or "").strip()
+    }
+    for source_file, metadata_scope in metadata_scopes.items():
+        registered_scope = record_scopes.get(source_file)
+        if registered_scope and registered_scope != metadata_scope:
+            issues.append(
+                f"{source_file} 的来源范围不一致：台账={registered_scope}，运行元数据={metadata_scope}"
+            )
+
+    runtime_test_only_sources: list[str] = []
+    if not active_db_path.is_file():
+        warnings.append(f"活动数据库指针不存在，未能校验运行来源范围：{active_db_path}")
+        release_blockers.append("活动数据库指针不存在，不能确认生产运行来源范围")
+    else:
+        active_db = _load_json(active_db_path.resolve(), "活动数据库指针")
+        manifest_reference = str(active_db.get("manifest") or "").strip()
+        if manifest_reference:
+            manifest_path = Path(manifest_reference)
+            if not manifest_path.is_absolute():
+                manifest_path = active_db_path.resolve().parent / manifest_path
+            if manifest_path.is_file():
+                runtime_manifest = _load_json(manifest_path.resolve(), "活动运行 manifest")
+                runtime_sources = {
+                    str(item.get("source_file") or "").strip(): item
+                    for item in runtime_manifest.get("documents", [])
+                    if isinstance(item, dict) and str(item.get("source_file") or "").strip()
+                }
+                runtime_test_only_sources = sorted(
+                    source_file
+                    for source_file, item in runtime_sources.items()
+                    if item.get("status") == "test"
+                )
+                for source_file in runtime_test_only_sources:
+                    release_blockers.append(
+                        f"{source_file}: test_only 来源仍位于活动运行 manifest，不能作为生产运行包发布"
+                    )
+            else:
+                warnings.append(f"活动运行 manifest 不存在，未能校验测试来源范围：{manifest_path}")
+                release_blockers.append("活动运行 manifest 不存在，不能确认生产运行来源范围")
+        else:
+            warnings.append("活动数据库指针缺少 manifest，未能校验运行来源范围")
+            release_blockers.append("活动数据库指针缺少 manifest，不能确认生产运行来源范围")
+
     if issues:
         raise SourceRegisterError(issues)
     return {
@@ -227,6 +300,11 @@ def validate_source_register(
         "registry_path": str(register_path.resolve()),
         "metadata_path": str(metadata_path.resolve()),
         "source_count": len(records),
+        "production_source_count": sum(scope == "production" for scope in record_scopes.values()),
+        "test_only_sources": sorted(
+            source_file for source_file, scope in record_scopes.items() if scope == "test_only"
+        ),
+        "runtime_test_only_sources": runtime_test_only_sources,
         "release_eligible": not release_blockers,
         "release_blockers": release_blockers,
         "warnings": warnings,
@@ -242,6 +320,7 @@ def main() -> int:
     parser.add_argument("--register", type=Path, default=DEFAULT_REGISTER_PATH)
     parser.add_argument("--metadata", type=Path, default=DEFAULT_METADATA_PATH)
     parser.add_argument("--source-root", type=Path, default=DEFAULT_SOURCE_ROOT)
+    parser.add_argument("--active-db", type=Path, default=DEFAULT_ACTIVE_DB_PATH)
     parser.add_argument(
         "--require-release-eligible",
         action="store_true",
@@ -249,7 +328,9 @@ def main() -> int:
     )
     args = parser.parse_args()
     try:
-        result = validate_source_register(args.register, args.metadata, args.source_root)
+        result = validate_source_register(
+            args.register, args.metadata, args.source_root, args.active_db
+        )
         if args.require_release_eligible and not result["release_eligible"]:
             result = {
                 **result,
