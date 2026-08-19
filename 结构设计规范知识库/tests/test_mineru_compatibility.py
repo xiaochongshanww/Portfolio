@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 from src.pipeline import builder
+from src.pipeline.metadata import SpecMetadata
 from src.pipeline.parsers.base import ParserUnavailableError
 from src.pipeline.parsers.mineru import (
     MineruParser,
@@ -234,6 +235,29 @@ def test_build_preflight_failure_happens_before_output_cleanup(
         builder.rebuild(source)
 
     assert cleanup_called is False
+
+
+def test_production_source_selection_excludes_test_fixtures():
+    production = Path("production.pdf")
+    fixture = Path("test_image.pdf")
+    metadata = {
+        production.name: SpecMetadata(
+            source_file=production.name,
+            code="GB 50009-2012",
+            name="建筑结构荷载规范",
+        ),
+        fixture.name: SpecMetadata(
+            source_file=fixture.name,
+            code="TEST",
+            name="测试图片文档",
+            status="test",
+        ),
+    }
+
+    selected, excluded = builder.select_production_sources([production, fixture], metadata)
+
+    assert selected == [production]
+    assert excluded == [fixture.name]
 
 
 def test_build_manifest_records_parser_environment(

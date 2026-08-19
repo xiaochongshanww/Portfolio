@@ -34,12 +34,13 @@ def _valid_runtime_files(tmp_path: Path) -> tuple[Path, Path]:
     return active, manifest
 
 
-def test_current_runtime_manifest_exposes_chunk_count_drift():
+def test_current_runtime_manifest_is_consistent_after_repair():
     result = validate_runtime_manifest()
 
-    assert result["ok"] is False
-    assert any("manifest.chunk_count不一致" in issue for issue in result["issues"])
-    assert result["chunk_sum"] == 1636
+    assert result["ok"] is True
+    assert result["issues"] == []
+    assert result["document_count"] == 5
+    assert result["chunk_sum"] == 1635
     assert result["declared_chunk_count"] == 1635
 
 
@@ -50,3 +51,29 @@ def test_runtime_manifest_accepts_matching_pointer_and_document_totals(tmp_path)
 
     assert result["ok"] is True
     assert result["issues"] == []
+
+
+def test_runtime_manifest_resolves_project_relative_pointer(tmp_path):
+    data_dir = tmp_path / "data"
+    manifest = _write_json(
+        data_dir / "db_versions" / "candidate" / "manifest.json",
+        {
+            "documents": [{"source_file": "a.pdf", "chunk_count": 1}],
+            "document_count": 1,
+            "chunk_count": 1,
+            "data_version_hash": "b" * 64,
+        },
+    )
+    active = _write_json(
+        data_dir / "active_db.json",
+        {
+            "manifest": "data/db_versions/candidate/manifest.json",
+            "data_version_hash": "b" * 64,
+            "chunk_count": 1,
+        },
+    )
+
+    result = validate_runtime_manifest(active)
+
+    assert result["ok"] is True
+    assert Path(result["manifest_path"]) == manifest.resolve()

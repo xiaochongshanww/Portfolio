@@ -16,11 +16,11 @@ def test_current_source_register_is_structurally_valid_but_not_release_eligible(
     assert result["source_count"] == 6
     assert result["production_source_count"] == 5
     assert result["test_only_sources"] == ["test_image.pdf"]
-    assert result["runtime_test_only_sources"] == ["test_image.pdf"]
+    assert result["runtime_test_only_sources"] == []
     assert result["release_eligible"] is False
     assert any("权利等级为 B" in item for item in result["release_blockers"])
     assert any("原始扫描件仍位于仓库跟踪路径" in item for item in result["release_blockers"])
-    assert any(
+    assert not any(
         "test_only 来源仍位于活动运行 manifest" in item for item in result["release_blockers"]
     )
 

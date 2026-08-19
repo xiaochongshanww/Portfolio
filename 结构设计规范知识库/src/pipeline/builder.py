@@ -40,6 +40,20 @@ def list_pdf_files(source_dir: Path) -> list[Path]:
     )
 
 
+def select_production_sources(
+    pdf_files: list[Path], metadata: dict[str, Any]
+) -> tuple[list[Path], list[str]]:
+    """Keep test fixtures out of production builds while reporting what was skipped."""
+    production_files: list[Path] = []
+    excluded_test_sources: list[str] = []
+    for pdf in pdf_files:
+        if metadata[pdf.name].status == "test":
+            excluded_test_sources.append(pdf.name)
+        else:
+            production_files.append(pdf)
+    return production_files, excluded_test_sources
+
+
 DEFAULT_PARSER_BACKEND = os.environ.get("PDF_PARSER_BACKEND", "mineru")
 
 
@@ -74,12 +88,14 @@ def dry_run(
 ) -> dict[str, Any]:
     pdf_files = list_pdf_files(source_dir)
     metadata = load_spec_metadata(pdf_files, METADATA_DIR / "specs.json")
+    pdf_files, excluded_test_sources = select_production_sources(pdf_files, metadata)
     return {
         "mode": "dry-run",
         "source_dir": str(source_dir),
         "parser_backend": parser_backend,
         "document_count": len(pdf_files),
         "documents": [metadata[pdf.name].to_dict() for pdf in pdf_files],
+        "excluded_test_sources": excluded_test_sources,
     }
 
 
@@ -121,6 +137,10 @@ def rebuild(
     source_dir = source_dir.resolve()
     pdf_files = list_pdf_files(source_dir)
     metadata = load_spec_metadata(pdf_files, METADATA_DIR / "specs.json")
+    pdf_files, excluded_test_sources = select_production_sources(pdf_files, metadata)
+    metadata = {pdf.name: metadata[pdf.name] for pdf in pdf_files}
+    if excluded_test_sources:
+        logging.info("生产构建排除测试来源: %s", ", ".join(excluded_test_sources))
 
     if dry_run_only:
         return dry_run(source_dir, parser_backend=parser_backend)
@@ -197,6 +217,7 @@ def rebuild(
             "apply_corrections": apply_corrections,
             "corrections_dir": str(CORRECTIONS_DIR),
             "loaded_chunks": total_loaded,
+            "excluded_test_sources": excluded_test_sources,
         },
     )
     write_manifest(manifest_path, manifest)

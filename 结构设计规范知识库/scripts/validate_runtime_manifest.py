@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from src.pipeline.active_db import resolve_pointer_path
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_ACTIVE_DB_PATH = PROJECT_ROOT / "data" / "active_db.json"
 
@@ -32,8 +34,7 @@ def _resolve_manifest_path(active_db_path: Path, active_db: dict[str, Any]) -> P
     reference = str(active_db.get("manifest") or "").strip()
     if not reference:
         raise RuntimeManifestError("活动数据库指针缺少 manifest")
-    path = Path(reference)
-    return path.resolve() if path.is_absolute() else (active_db_path.parent / path).resolve()
+    return resolve_pointer_path(reference, active_db_path, active_db_path.parent / "manifest.json")
 
 
 def validate_runtime_manifest(

@@ -8,6 +8,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from src.pipeline.active_db import resolve_pointer_path
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REGISTER_PATH = PROJECT_ROOT / "docs" / "governance" / "来源登记台账.json"
 DEFAULT_METADATA_PATH = PROJECT_ROOT / "data" / "metadata" / "specs.json"
@@ -267,9 +269,11 @@ def validate_source_register(
         active_db = _load_json(active_db_path.resolve(), "活动数据库指针")
         manifest_reference = str(active_db.get("manifest") or "").strip()
         if manifest_reference:
-            manifest_path = Path(manifest_reference)
-            if not manifest_path.is_absolute():
-                manifest_path = active_db_path.resolve().parent / manifest_path
+            manifest_path = resolve_pointer_path(
+                manifest_reference,
+                active_db_path.resolve(),
+                active_db_path.resolve().parent / "manifest.json",
+            )
             if manifest_path.is_file():
                 runtime_manifest = _load_json(manifest_path.resolve(), "活动运行 manifest")
                 runtime_sources = {
