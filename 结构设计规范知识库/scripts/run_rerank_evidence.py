@@ -4,6 +4,8 @@ import argparse
 import json
 import os
 import sys
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +18,7 @@ DEFAULT_OUTPUT_MARKDOWN = (
     PROJECT_ROOT / "data" / "audit" / "reports" / "rerank_comparison_latest.md"
 )
 DEFAULT_EVALUATION = PROJECT_ROOT / "data" / "evaluation" / "queries.jsonl"
+RERANK_ENVIRONMENT_KEYS = ("ZHIPUAI_API_KEY", "RERANK_ENABLED", "RERANK_PROVIDER")
 
 
 class RerankEvidenceError(RuntimeError):
@@ -41,6 +44,20 @@ def _configure_rerank_environment(api_key: str, environ: dict[str, str] | None =
     values["RERANK_PROVIDER"] = "zhipu"
 
 
+@contextmanager
+def _temporary_rerank_environment(api_key: str) -> Iterator[None]:
+    previous = {name: os.environ.get(name) for name in RERANK_ENVIRONMENT_KEYS}
+    _configure_rerank_environment(api_key)
+    try:
+        yield
+    finally:
+        for name, value in previous.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+
+
 def run_rerank_evidence(
     *,
     api_key_file: Path,
@@ -52,17 +69,16 @@ def run_rerank_evidence(
     if top_k <= 0:
         raise RerankEvidenceError("top_k 必须大于 0")
     api_key = _read_api_key(api_key_file)
-    _configure_rerank_environment(api_key)
+    with _temporary_rerank_environment(api_key):
+        try:
+            from src.evaluation.rerank_comparison import (
+                render_rerank_comparison_markdown,
+                run_rerank_comparison,
+            )
 
-    from src.evaluation.rerank_comparison import (
-        render_rerank_comparison_markdown,
-        run_rerank_comparison,
-    )
-
-    try:
-        result = run_rerank_comparison(evaluation_file.resolve(), top_k=top_k)
-    except Exception as exc:
-        raise RerankEvidenceError(f"精排对照执行失败：{type(exc).__name__}") from exc
+            result = run_rerank_comparison(evaluation_file.resolve(), top_k=top_k)
+        except Exception as exc:
+            raise RerankEvidenceError(f"精排对照执行失败：{type(exc).__name__}") from exc
 
     result["credential_source"] = "command_file"
     result["credential_persisted"] = False
