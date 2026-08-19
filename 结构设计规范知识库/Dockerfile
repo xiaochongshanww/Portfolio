@@ -13,7 +13,7 @@ COPY frontend/src/ src/
 RUN npm run build
 
 # ---- Python dependency builder ----
-FROM python:3.11-slim@sha256:90744cff8f32887f075c47d747a173ff333e9e98801667af93c357fa9f5e28ff AS python-builder
+FROM python:3.11-slim@sha256:9c900dea9e8fb7e16277c179b555cc72d29a352dbc33cff48ad5a0412fd5bfc7 AS python-builder
 
 WORKDIR /app
 COPY requirements-runtime.txt .
@@ -24,7 +24,7 @@ RUN python -m pip check
 RUN python -m pip uninstall --yes wheel setuptools pip
 
 # ---- Runtime ----
-FROM python:3.11-slim@sha256:90744cff8f32887f075c47d747a173ff333e9e98801667af93c357fa9f5e28ff AS runtime
+FROM python:3.11-slim@sha256:9c900dea9e8fb7e16277c179b555cc72d29a352dbc33cff48ad5a0412fd5bfc7 AS runtime
 
 WORKDIR /app
 
