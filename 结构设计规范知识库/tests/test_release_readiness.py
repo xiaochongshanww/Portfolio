@@ -156,3 +156,17 @@ def test_readiness_cli_direct_entry_is_ascii_safe_and_fails_closed():
     assert completed.returncode == 1
     assert '"ready": false' in completed.stdout
     assert "ModuleNotFoundError" not in completed.stderr
+
+
+def test_readiness_cli_help_is_utf8_safe():
+    completed = subprocess.run(
+        [sys.executable, "scripts/audit_release_readiness.py", "--help"],
+        cwd=readiness.PROJECT_ROOT,
+        capture_output=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0
+    stdout = completed.stdout.decode("utf-8")
+    assert "审计当前项目是否具备对外发布条件" in stdout
+    assert "����" not in stdout

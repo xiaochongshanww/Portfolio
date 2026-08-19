@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -245,6 +246,10 @@ def validate_trial_record(path: Path) -> dict[str, Any]:
 
 
 def main() -> int:
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8", errors="backslashreplace")
     parser = argparse.ArgumentParser(description="校验封闭试用记录的结构、前置条件和安全边界")
     parser.add_argument("--record", type=Path, required=True, help="机器可读试用记录 JSON")
     args = parser.parse_args()

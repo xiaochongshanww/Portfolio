@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import re
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -233,6 +234,10 @@ def validate_source_register(
 
 
 def main() -> int:
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8", errors="backslashreplace")
     parser = argparse.ArgumentParser(description="校验来源登记台账与运行来源元数据")
     parser.add_argument("--register", type=Path, default=DEFAULT_REGISTER_PATH)
     parser.add_argument("--metadata", type=Path, default=DEFAULT_METADATA_PATH)

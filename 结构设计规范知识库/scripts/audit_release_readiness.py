@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -336,7 +337,16 @@ def render_markdown(result: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _configure_cli_streams() -> None:
+    """Keep governance CLI diagnostics readable on Windows code pages."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8", errors="backslashreplace")
+
+
 def main() -> int:
+    _configure_cli_streams()
     parser = argparse.ArgumentParser(description="审计当前项目是否具备对外发布条件")
     parser.add_argument("--trial-record", type=Path, help="已完成的封闭试用记录 JSON")
     parser.add_argument("--json-output", type=Path)
