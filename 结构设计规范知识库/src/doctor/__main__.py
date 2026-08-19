@@ -9,7 +9,7 @@ def _configure_cli_streams() -> None:
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
         if reconfigure is not None:
-            reconfigure(errors="backslashreplace")
+            reconfigure(encoding="utf-8", errors="backslashreplace")
 
 
 def main() -> None:
@@ -30,7 +30,9 @@ def main() -> None:
     args = parser.parse_args()
     report = run_doctor(profile=args.profile)
     if args.format == "json":
-        print(json.dumps(report, ensure_ascii=False, indent=2))
+        # JSON is consumed by shells and CI as well as humans; escaped Unicode
+        # keeps the machine-readable stream portable across Windows code pages.
+        print(json.dumps(report, ensure_ascii=True, indent=2))
     else:
         print(render_text(report))
     raise SystemExit(0 if report["ok"] else 1)

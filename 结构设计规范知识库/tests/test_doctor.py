@@ -309,6 +309,31 @@ def test_cli_uses_report_status_as_exit_code(
     assert json.loads(capsys.readouterr().out)["ok"] is ok
 
 
+def test_cli_json_output_is_ascii_safe(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+):
+    report = {
+        "schema_version": 1,
+        "ok": True,
+        "status": "ready",
+        "profile": "runtime",
+        "checked_at": "2026-08-09T00:00:00+00:00",
+        "platform": {"python": "3.11.0", "system": "Windows", "machine": "AMD64"},
+        "summary": {"total": 1, "passed": 1, "warnings": 0, "failed": 0, "failed_required": 0},
+        "checks": [{"id": "example", "message": "中文输出"}],
+    }
+    monkeypatch.setattr(doctor_cli, "run_doctor", lambda **_kwargs: report)
+    monkeypatch.setattr(sys, "argv", ["doctor", "--format", "json"])
+
+    with pytest.raises(SystemExit) as raised:
+        doctor_cli.main()
+
+    output = capsys.readouterr().out
+    assert raised.value.code == 0
+    assert output.isascii()
+    assert json.loads(output)["checks"][0]["message"] == "中文输出"
+
+
 @pytest.mark.parametrize("profile", ["invalid", "", "Runtime"])
 def test_unknown_profile_is_rejected(profile: str, tmp_path: Path):
     with pytest.raises(ValueError, match="profile"):
