@@ -78,6 +78,8 @@ jobs:
         run: python -m pytest -q
       - name: Validate configuration example
         run: python scripts/validate_configuration_example.py
+      - name: Validate source register
+        run: python scripts/validate_source_register.py
       - name: Validate quality evidence snapshot
         run: python scripts/snapshot_quality_evidence.py
 

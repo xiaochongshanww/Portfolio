@@ -1,0 +1,267 @@
+{
+  "schema_version": 1,
+  "registry_status": "internal_draft",
+  "access_level": "restricted",
+  "updated_at": "2026-08-20",
+  "purpose": "记录运行来源与派生内容的权利状态，不保存授权原件或联系人信息",
+  "documents": [
+    {
+      "source_id": "src-gb-50009-2012",
+      "source_file": "GB 50009-2012_.建筑结构荷载规范.pdf",
+      "standard_code": "GB 50009-2012",
+      "title": "建筑结构荷载规范",
+      "version": "2012",
+      "source_kind": "network_collected_scan",
+      "original_sha256": "d1a91530b06fdda26dc1450e48d3c7e6b4ca79fb182cb7c3d0e5d372e265e0a2",
+      "acquisition": {
+        "date": null,
+        "method": "network_collected",
+        "reference_index": null
+      },
+      "rights": {
+        "status": "B",
+        "allowed_uses": ["internal_research", "closed_validation"]
+      },
+      "permissions": {
+        "page_screenshot": false,
+        "original_excerpt": false,
+        "table_export": false,
+        "external_retrieval": false,
+        "paid_service": false
+      },
+      "processing": {
+        "parser": "magic-pdf",
+        "parser_version": "1.3.12",
+        "package_schema_version": 4,
+        "owner": "pipeline"
+      },
+      "review": {
+        "status": "pending",
+        "date": null,
+        "owner": "content-governance",
+        "complaint_index": null
+      },
+      "takedown": {
+        "status": "active",
+        "reason_index": null
+      },
+      "repository_storage": "tracked_raw_source",
+      "derived_asset_policy": "inherit_source_restrictions"
+    },
+    {
+      "source_id": "src-gb-50011-2010-2016",
+      "source_file": "GB 50011-2010_建筑抗震设计规范_2016年版.pdf",
+      "standard_code": "GB 50011-2010",
+      "title": "建筑抗震设计规范",
+      "version": "2016年版",
+      "source_kind": "network_collected_scan",
+      "original_sha256": "28283726d8ddeaba54ea51774ae139f10cc2663bfbcfc7f4fe266de3c63f5236",
+      "acquisition": {
+        "date": null,
+        "method": "network_collected",
+        "reference_index": null
+      },
+      "rights": {
+        "status": "B",
+        "allowed_uses": ["internal_research", "closed_validation"]
+      },
+      "permissions": {
+        "page_screenshot": false,
+        "original_excerpt": false,
+        "table_export": false,
+        "external_retrieval": false,
+        "paid_service": false
+      },
+      "processing": {
+        "parser": "magic-pdf",
+        "parser_version": "1.3.12",
+        "package_schema_version": 4,
+        "owner": "pipeline"
+      },
+      "review": {
+        "status": "pending",
+        "date": null,
+        "owner": "content-governance",
+        "complaint_index": null
+      },
+      "takedown": {
+        "status": "active",
+        "reason_index": null
+      },
+      "repository_storage": "tracked_raw_source",
+      "derived_asset_policy": "inherit_source_restrictions"
+    },
+    {
+      "source_id": "src-gb-50068-2018",
+      "source_file": "GB 50068-2018_建筑结构可靠性设计统一标准.pdf",
+      "standard_code": "GB 50068-2018",
+      "title": "建筑结构可靠性设计统一标准",
+      "version": "2018",
+      "source_kind": "network_collected_scan",
+      "original_sha256": "399ac69d99d040567314345aaff0173ce2baa784cbd31ba209ac3dd306073d88",
+      "acquisition": {
+        "date": null,
+        "method": "network_collected",
+        "reference_index": null
+      },
+      "rights": {
+        "status": "B",
+        "allowed_uses": ["internal_research", "closed_validation"]
+      },
+      "permissions": {
+        "page_screenshot": false,
+        "original_excerpt": false,
+        "table_export": false,
+        "external_retrieval": false,
+        "paid_service": false
+      },
+      "processing": {
+        "parser": "magic-pdf",
+        "parser_version": "1.3.12",
+        "package_schema_version": 4,
+        "owner": "pipeline"
+      },
+      "review": {
+        "status": "pending",
+        "date": null,
+        "owner": "content-governance",
+        "complaint_index": null
+      },
+      "takedown": {
+        "status": "active",
+        "reason_index": null
+      },
+      "repository_storage": "tracked_raw_source",
+      "derived_asset_policy": "inherit_source_restrictions"
+    },
+    {
+      "source_id": "src-gb-50223-2008",
+      "source_file": "GB 50223-2008_建筑工程抗震设防分类标准.pdf",
+      "standard_code": "GB 50223-2008",
+      "title": "建筑工程抗震设防分类标准",
+      "version": "2008",
+      "source_kind": "network_collected_scan",
+      "original_sha256": "c764cf3b001dfb229626c654589b6c546de8fa68d51900e1436061558a80a4fa",
+      "acquisition": {
+        "date": null,
+        "method": "network_collected",
+        "reference_index": null
+      },
+      "rights": {
+        "status": "B",
+        "allowed_uses": ["internal_research", "closed_validation"]
+      },
+      "permissions": {
+        "page_screenshot": false,
+        "original_excerpt": false,
+        "table_export": false,
+        "external_retrieval": false,
+        "paid_service": false
+      },
+      "processing": {
+        "parser": "magic-pdf",
+        "parser_version": "1.3.12",
+        "package_schema_version": 4,
+        "owner": "pipeline"
+      },
+      "review": {
+        "status": "pending",
+        "date": null,
+        "owner": "content-governance",
+        "complaint_index": null
+      },
+      "takedown": {
+        "status": "active",
+        "reason_index": null
+      },
+      "repository_storage": "tracked_raw_source",
+      "derived_asset_policy": "inherit_source_restrictions"
+    },
+    {
+      "source_id": "src-gb-50300-2013",
+      "source_file": "GB 50300-2013_建筑工程施工质量验收统一标准.pdf",
+      "standard_code": "GB 50300-2013",
+      "title": "建筑工程施工质量验收统一标准",
+      "version": "2013",
+      "source_kind": "network_collected_scan",
+      "original_sha256": "ed5dc40cdba8a653e55950ba82c4bc78a7f982834015646b175a2e1a0e8ae198",
+      "acquisition": {
+        "date": null,
+        "method": "network_collected",
+        "reference_index": null
+      },
+      "rights": {
+        "status": "B",
+        "allowed_uses": ["internal_research", "closed_validation"]
+      },
+      "permissions": {
+        "page_screenshot": false,
+        "original_excerpt": false,
+        "table_export": false,
+        "external_retrieval": false,
+        "paid_service": false
+      },
+      "processing": {
+        "parser": "magic-pdf",
+        "parser_version": "1.3.12",
+        "package_schema_version": 4,
+        "owner": "pipeline"
+      },
+      "review": {
+        "status": "pending",
+        "date": null,
+        "owner": "content-governance",
+        "complaint_index": null
+      },
+      "takedown": {
+        "status": "active",
+        "reason_index": null
+      },
+      "repository_storage": "tracked_raw_source",
+      "derived_asset_policy": "inherit_source_restrictions"
+    },
+    {
+      "source_id": "src-test-image-fixture",
+      "source_file": "test_image.pdf",
+      "standard_code": "TEST",
+      "title": "测试图片文档",
+      "version": "fixture",
+      "source_kind": "repository_test_fixture",
+      "original_sha256": "a077a2c5cf8310f19372e625ec964e247301b2888ff557a02645065b3bd86600",
+      "acquisition": {
+        "date": "2026-07-29",
+        "method": "repository_generated_fixture",
+        "reference_index": "test-fixture"
+      },
+      "rights": {
+        "status": "test_fixture",
+        "allowed_uses": ["internal_tests"]
+      },
+      "permissions": {
+        "page_screenshot": false,
+        "original_excerpt": false,
+        "table_export": false,
+        "external_retrieval": false,
+        "paid_service": false
+      },
+      "processing": {
+        "parser": "magic-pdf",
+        "parser_version": "1.3.12",
+        "package_schema_version": 4,
+        "owner": "test-suite"
+      },
+      "review": {
+        "status": "not_applicable",
+        "date": "2026-07-29",
+        "owner": "test-suite",
+        "complaint_index": null
+      },
+      "takedown": {
+        "status": "active",
+        "reason_index": null
+      },
+      "repository_storage": "tracked_test_fixture",
+      "derived_asset_policy": "test_only"
+    }
+  ]
+}
