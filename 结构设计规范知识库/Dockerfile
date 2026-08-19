@@ -35,8 +35,8 @@ ARG APP_GID=10001
 # 固定基础镜像之外，安装 Debian 已发布的安全修复，避免基础层滞后于安全仓库。
 RUN apt-get update \
     && apt-get upgrade --yes \
-    && rm -rf /var/lib/apt/lists/* \
-    && python -m pip uninstall --yes jaraco.context wheel setuptools pip
+    && rm -rf /var/lib/apt/lists/*
+RUN python -m pip uninstall --yes jaraco.context wheel setuptools pip
 
 # 从 builder 复制已检查且已移除安装工具的虚拟环境。
 COPY --from=python-builder /opt/venv /opt/venv
