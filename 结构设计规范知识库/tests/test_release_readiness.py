@@ -110,6 +110,17 @@ def test_current_readiness_reports_external_blockers(tmp_path, monkeypatch):
     )
     assert any("来源资格" in item for item in result["blockers"])
     assert len(result["warnings"]) == 1
+    assert result["closure"]["blocking_check_ids"] == [
+        "source_release",
+        "closed_trial",
+        "delivery_decision",
+    ]
+    assert result["closure"]["warning_check_ids"] == ["rerank_quality"]
+    trial_closure = next(
+        item for item in result["closure"]["items"] if item["check_id"] == "closed_trial"
+    )
+    assert trial_closure["owner"] == "试用负责人"
+    assert trial_closure["verification"]
 
 
 def test_internal_research_profile_is_ready_without_external_release_evidence(
@@ -362,6 +373,35 @@ def test_render_markdown_includes_source_blocker_details():
     assert "## 来源资格明细" in markdown
     assert "规范 A: 权利等级为 B" in markdown
     assert "规范 A: 凭证索引缺失" in markdown
+
+
+def test_render_markdown_includes_closure_matrix():
+    markdown = readiness.render_markdown(
+        {
+            "profile": "external",
+            "ready": False,
+            "checked_at": "now",
+            "checks": [],
+            "closure": {
+                "items": [
+                    {
+                        "check_id": "closed_trial",
+                        "name": "封闭试用证据",
+                        "status": "not_provided",
+                        "blocking": True,
+                        "owner": "试用负责人",
+                        "verification": ["validate_trial_record.py"],
+                    }
+                ]
+            },
+            "blockers": ["未提供已完成的试用记录"],
+            "warnings": [],
+        }
+    )
+
+    assert "## 收口矩阵" in markdown
+    assert "试用负责人" in markdown
+    assert "validate_trial_record.py" in markdown
 
 
 def test_render_markdown_includes_remediation_actions():

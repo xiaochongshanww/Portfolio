@@ -534,6 +534,42 @@ def _remediation_for_check(check: dict[str, Any]) -> dict[str, Any] | None:
     return None
 
 
+def _closure_summary(checks: list[dict[str, Any]]) -> dict[str, Any]:
+    """Flatten open checks into a stable handoff list for release operators."""
+    open_items: list[dict[str, Any]] = []
+    for check in checks:
+        if check.get("ok"):
+            continue
+        remediation = check.get("remediation")
+        item: dict[str, Any] = {
+            "check_id": str(check.get("id") or ""),
+            "name": str(check.get("name") or ""),
+            "blocking": bool(check.get("blocking")),
+            "status": str(check.get("status") or ""),
+            "detail": str(check.get("detail") or ""),
+        }
+        if isinstance(remediation, dict):
+            item["owner"] = str(remediation.get("owner") or "")
+            item["actions"] = [
+                str(action) for action in remediation.get("actions", []) if str(action).strip()
+            ]
+            item["verification"] = [
+                str(step) for step in remediation.get("verification", []) if str(step).strip()
+            ]
+        open_items.append(item)
+    blocking_items = [item for item in open_items if item["blocking"]]
+    warning_items = [item for item in open_items if not item["blocking"]]
+    return {
+        "ready": not blocking_items,
+        "open_count": len(open_items),
+        "blocking_count": len(blocking_items),
+        "warning_count": len(warning_items),
+        "blocking_check_ids": [item["check_id"] for item in blocking_items],
+        "warning_check_ids": [item["check_id"] for item in warning_items],
+        "items": open_items,
+    }
+
+
 def audit_release_readiness(
     *,
     profile: str = "external",
@@ -605,6 +641,7 @@ def audit_release_readiness(
     blockers = [item["detail"] for item in checks if not item["ok"] and item["blocking"]]
     warnings = [item["detail"] for item in checks if not item["ok"] and not item["blocking"]]
     ready = not blockers
+    closure = _closure_summary(checks)
     return {
         "ok": True,
         "profile": profile,
@@ -614,6 +651,7 @@ def audit_release_readiness(
         "checks": checks,
         "blockers": blockers,
         "warnings": warnings,
+        "closure": closure,
         "context": {
             "delivery_iteration_status": delivery_row.get("status", "missing"),
             "source_decision_default": d001.get("default", "missing"),
@@ -646,6 +684,23 @@ def render_markdown(result: dict[str, Any]) -> str:
             f"{'是' if item.get('blocking') else '否'} | "
             f"`{item.get('status', '')}` | {item.get('detail', '')} |"
         )
+    closure = result.get("closure")
+    if isinstance(closure, dict) and closure.get("items"):
+        lines.extend(["", "## 收口矩阵", ""])
+        lines.extend(
+            [
+                "| 检查项 | 当前状态 | 是否阻断 | 责任角色 | 验证条件 |",
+                "| --- | --- | --- | --- | --- |",
+            ]
+        )
+        for item in closure["items"]:
+            verification = "；".join(item.get("verification", [])) or "-"
+            lines.append(
+                f"| {item.get('name', '')} (`{item.get('check_id', '')}`) | "
+                f"`{item.get('status', '')}` | "
+                f"{'是' if item.get('blocking') else '否'} | "
+                f"{item.get('owner', '-') or '-'} | {verification} |"
+            )
     source_checks = [
         item
         for item in result.get("checks", [])
