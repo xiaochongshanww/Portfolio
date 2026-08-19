@@ -2,6 +2,32 @@
   "schema_version": 1,
   "entries": [
     {
+      "archive_path": "docs/quality/质量证据历史/20260819T185948Z-a9d6a319550c.json",
+      "snapshot_sha256": "a9d6a319550cedd19e0908339fd7783bc812f7ece096c5c5d3f54ffe101f86d9",
+      "release_quality_status": "passed",
+      "verification_generated_at": "2026-08-19T18:59:48.902003+00:00",
+      "quality_gate_generated_at": "2026-08-19T18:59:48.755867+00:00",
+      "failed_checks": [],
+      "evaluation_case_counts": {
+        "regular": 100,
+        "structured": 12,
+        "answer": 24
+      }
+    },
+    {
+      "archive_path": "docs/quality/质量证据历史/20260819T183457Z-aeba7a1e4aab.json",
+      "snapshot_sha256": "aeba7a1e4aab6acb1af92aa85df3c4583b55b4bd3313e3b4340a15df32c9852f",
+      "release_quality_status": "not_passed",
+      "verification_generated_at": "2026-08-19T18:34:57.402730+00:00",
+      "quality_gate_generated_at": "2026-08-19T18:34:56.438836+00:00",
+      "failed_checks": [],
+      "evaluation_case_counts": {
+        "regular": 100,
+        "structured": 12,
+        "answer": 24
+      }
+    },
+    {
       "archive_path": "docs/quality/质量证据历史/20260811T195951Z-354b9d8af294.json",
       "snapshot_sha256": "354b9d8af2942863c6b72582f3237ce6cc03e026c9f17482c1fac95a96eebd5c",
       "release_quality_status": "not_passed",

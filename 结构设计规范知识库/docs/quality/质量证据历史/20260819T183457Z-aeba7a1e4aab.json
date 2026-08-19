@@ -1,19 +1,19 @@
 {
   "schema_version": 1,
-  "release_quality_status": "passed",
+  "release_quality_status": "not_passed",
   "reports": {
     "verification": {
-      "path": "data/audit/reports/runs/5734ee7b99e24203bb657dbb20f271bc/verification.json",
-      "sha256": "076a5e21560c9c383d0ee8cc45a99bd59a23299b4e72365a29dea97702af18fb",
+      "path": "data/audit/reports/runs/bb7430ffc8ab4a9facfed83534422e30/verification.json",
+      "sha256": "f383cd0b6798a4f3ddf9ef83c132eb0ad37df763db6976db79098b733142fb5d",
       "hash_mode": "raw_bytes",
-      "generated_at": "2026-08-19T18:59:48.902003+00:00",
-      "passed": true
+      "generated_at": "2026-08-19T18:34:57.402730+00:00",
+      "passed": false
     },
     "quality_gate": {
-      "path": "data/audit/reports/runs/5734ee7b99e24203bb657dbb20f271bc/quality_gate.json",
-      "sha256": "9255323467e24211669d90419badce06a1183744624b971eda6b2759a91e6d52",
+      "path": "data/audit/reports/runs/bb7430ffc8ab4a9facfed83534422e30/quality_gate.json",
+      "sha256": "a672ac90745226003498f8893e8843d2907e927e26128059b7e77b38e8973673",
       "hash_mode": "raw_bytes",
-      "generated_at": "2026-08-19T18:59:48.755867+00:00",
+      "generated_at": "2026-08-19T18:34:56.438836+00:00",
       "passed": true
     }
   },

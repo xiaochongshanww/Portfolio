@@ -92,7 +92,7 @@ def test_committed_quality_evidence_snapshot_is_valid():
     result = validate_snapshot()
 
     assert result["ok"] is True
-    assert result["release_quality_status"] == "not_passed"
+    assert result["release_quality_status"] == "passed"
     assert result["evaluation_set_count"] == 3
 
 
@@ -314,7 +314,7 @@ def test_snapshot_validation_rejects_missing_system_card_marker(tmp_path: Path):
 
     card = project / "docs/quality/检索增强生成系统卡.md"
     card.write_text(
-        card.read_text(encoding="utf-8").replace("`verification.passed=false`", ""),
+        card.read_text(encoding="utf-8").replace("`verification.passed=true`", ""),
         encoding="utf-8",
     )
 

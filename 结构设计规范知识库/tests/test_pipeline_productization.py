@@ -1,8 +1,10 @@
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 from src.pipeline.artifacts import require_artifacts, scan_mineru_artifacts
+from src.pipeline.audit import multimodal as multimodal_module
 from src.pipeline.audit.corrections import (
     apply_approved_corrections,
     list_candidate_files,
@@ -774,7 +776,11 @@ def test_multimodal_review_helpers_parse_pages_and_json():
 
 
 def test_multimodal_review_without_key_writes_not_configured_report(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("MIMO_API_KEY", "")
+    monkeypatch.setattr(
+        multimodal_module,
+        "settings",
+        replace(multimodal_module.settings, mimo_api_key=""),
+    )
     source_dir = tmp_path / "raw"
     processed_dir = tmp_path / "processed"
     source_dir.mkdir()
