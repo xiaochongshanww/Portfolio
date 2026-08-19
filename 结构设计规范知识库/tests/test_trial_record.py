@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import pytest
+from scripts.create_trial_record import build_planned_record
 from scripts.validate_trial_record import validate_trial_record
 
 
@@ -92,3 +94,34 @@ def test_trial_record_rejects_secret_fields(tmp_path):
 
     assert result["ok"] is False
     assert any("禁止保存密钥" in issue for issue in result["issues"])
+
+
+def test_planned_record_generator_creates_non_evidence_record(tmp_path):
+    record = build_planned_record(
+        trial_id="TRIAL-PLAN-001",
+        participant_id="P-001",
+        delivery="受控宿主机",
+        environment_owner="project-owner",
+        source_register_version="source-register-2026-08-20",
+        tasks=["规范定位", "表格取值", "公式复核"],
+    )
+    path = _write_record(tmp_path, record)
+
+    result = validate_trial_record(path)
+
+    assert result["ok"] is True
+    assert result["status"] == "planned"
+    assert record["preflight"]["participant_acknowledged"] is False
+    assert record["conclusion"] is None
+
+
+def test_planned_record_generator_requires_three_tasks():
+    with pytest.raises(ValueError, match="至少需要 3 个固定任务"):
+        build_planned_record(
+            trial_id="TRIAL-PLAN-001",
+            participant_id="P-001",
+            delivery="受控宿主机",
+            environment_owner="project-owner",
+            source_register_version="source-register-2026-08-20",
+            tasks=["规范定位", "表格取值"],
+        )
