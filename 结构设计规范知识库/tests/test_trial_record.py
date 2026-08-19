@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 from scripts.create_trial_record import build_planned_record
+from scripts.render_trial_record import render_markdown
 from scripts.validate_trial_record import validate_trial_record
 
 
@@ -59,11 +60,16 @@ def _write_record(tmp_path: Path, record: dict) -> Path:
 
 
 def test_completed_trial_record_is_valid(tmp_path):
-    result = validate_trial_record(_write_record(tmp_path, _record()))
+    record = _record()
+    result = validate_trial_record(_write_record(tmp_path, record))
 
     assert result["ok"] is True
     assert result["status"] == "completed"
     assert result["task_count"] == 3
+    markdown = render_markdown(record, result)
+    assert "## 固定任务" in markdown
+    assert "TRIAL-001" in markdown
+    assert "计划记录不构成真实试用完成证据" not in markdown
 
 
 def test_running_trial_requires_all_preflight_checks(tmp_path):
@@ -115,6 +121,7 @@ def test_planned_record_generator_creates_non_evidence_record(tmp_path):
     assert result["status"] == "planned"
     assert record["preflight"]["participant_acknowledged"] is False
     assert record["conclusion"] is None
+    assert "计划记录不构成真实试用完成证据" in render_markdown(record, result)
 
 
 def test_planned_record_generator_requires_three_tasks():
@@ -166,6 +173,25 @@ def test_planned_record_cli_creates_once_and_refuses_overwrite(tmp_path):
     assert json.loads(created.stdout)["status"] == "planned"
     assert "source-register-2026-08-20" not in created.stdout
     assert json.loads(output.read_text(encoding="utf-8"))["status"] == "planned"
+
+    markdown_output = tmp_path / "trial.md"
+    rendered = subprocess.run(
+        [
+            sys.executable,
+            "scripts/render_trial_record.py",
+            "--record",
+            str(output),
+            "--output",
+            str(markdown_output),
+        ],
+        cwd=Path(__file__).resolve().parents[1],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    assert rendered.returncode == 0, rendered.stderr
+    assert "## 固定任务" in markdown_output.read_text(encoding="utf-8")
 
     repeated = subprocess.run(
         command,
