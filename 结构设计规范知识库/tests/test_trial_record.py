@@ -1,0 +1,94 @@
+import json
+from pathlib import Path
+
+from scripts.validate_trial_record import validate_trial_record
+
+
+def _record(**overrides):
+    record = {
+        "schema_version": 1,
+        "status": "completed",
+        "trial_id": "TRIAL-001",
+        "participant_id": "P-001",
+        "started_at": "2026-08-20T09:00:00+08:00",
+        "ended_at": "2026-08-20T10:00:00+08:00",
+        "delivery": "受控宿主机",
+        "environment_owner": "project-owner",
+        "source_register_version": "source-register-2026-08-20",
+        "data_cleanup_date": "2026-08-21",
+        "preflight": {
+            "participant_acknowledged": True,
+            "source_scope_confirmed": True,
+            "no_unrelated_data": True,
+            "key_log_owner_defined": True,
+            "disclaimer_shown": True,
+        },
+        "fixed_tasks": [
+            {
+                "task_id": f"T-00{index}",
+                "question": f"规范定位任务 {index}",
+                "found_basis": True,
+                "references": [f"GB 50009-2012 条文/表号/页码 {index}"],
+                "human_review_required": True,
+                "defect_ids": [],
+            }
+            for index in range(1, 4)
+        ],
+        "defects": [],
+        "conclusion": {
+            "decision": "adjust",
+            "evidence": ["固定任务记录", "参与者反馈"],
+            "unresolved_risks": ["需要继续观察复杂表格"],
+            "data_deleted": True,
+            "next_owner": "project-owner",
+            "next_date": "2026-08-27",
+        },
+    }
+    record.update(overrides)
+    return record
+
+
+def _write_record(tmp_path: Path, record: dict) -> Path:
+    path = tmp_path / "trial.json"
+    path.write_text(json.dumps(record, ensure_ascii=False), encoding="utf-8")
+    return path
+
+
+def test_completed_trial_record_is_valid(tmp_path):
+    result = validate_trial_record(_write_record(tmp_path, _record()))
+
+    assert result["ok"] is True
+    assert result["status"] == "completed"
+    assert result["task_count"] == 3
+
+
+def test_running_trial_requires_all_preflight_checks(tmp_path):
+    record = _record(status="running", ended_at=None, conclusion=None)
+    record["preflight"]["disclaimer_shown"] = False
+
+    result = validate_trial_record(_write_record(tmp_path, record))
+
+    assert result["ok"] is False
+    assert any("全部确认前置条件" in issue for issue in result["issues"])
+
+
+def test_completed_trial_requires_basis_references_and_conclusion(tmp_path):
+    record = _record()
+    record["fixed_tasks"][0]["references"] = []
+    record["conclusion"]["evidence"] = []
+
+    result = validate_trial_record(_write_record(tmp_path, record))
+
+    assert result["ok"] is False
+    assert any("fixed_tasks[0].references不能为空" in issue for issue in result["issues"])
+    assert any("conclusion.evidence不能为空" in issue for issue in result["issues"])
+
+
+def test_trial_record_rejects_secret_fields(tmp_path):
+    record = _record()
+    record["api_key"] = "should-never-be-recorded"
+
+    result = validate_trial_record(_write_record(tmp_path, record))
+
+    assert result["ok"] is False
+    assert any("禁止保存密钥" in issue for issue in result["issues"])

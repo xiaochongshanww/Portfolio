@@ -46,7 +46,7 @@ def _rank_change(before: int | None, after: int | None) -> str:
 
 
 def _has_rerank_metadata(results: list[Any]) -> bool:
-    return not results or any("_rerank_rank" in result.meta for result in results)
+    return bool(results) and any("_rerank_rank" in result.meta for result in results)
 
 
 def run_rerank_comparison(
