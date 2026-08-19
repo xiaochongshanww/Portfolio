@@ -333,6 +333,41 @@ def validate_release_evidence_manifest(
     }
 
 
+def render_markdown(result: dict[str, Any]) -> str:
+    """Render the evidence index result for operators without exposing secrets."""
+    ready = result.get("ready") is True
+    lines = [
+        "# 受控发布证据包索引校验",
+        "",
+        f"- 总体结果：{'已收口' if ready else '未收口'}",
+        f"- 来源数量：`{result.get('source_count', '-')}`",
+        f"- 缺口数量：`{result.get('gap_count', '-')}`",
+        f"- 索引路径：`{result.get('manifest_path', '-')}`",
+    ]
+    issues = result.get("issues") or []
+    if issues:
+        lines.extend(["", "## 结构问题", ""])
+        lines.extend(f"- {issue}" for issue in issues)
+    gaps = result.get("gaps") or []
+    if gaps:
+        lines.extend(
+            [
+                "",
+                "## 待收口项",
+                "",
+                "| 项目 | 状态 | 说明 |",
+                "| --- | --- | --- |",
+            ]
+        )
+        lines.extend(
+            f"| `{item.get('id', '')}` | `{item.get('status', '')}` | {item.get('detail', '')} |"
+            for item in gaps
+        )
+    if not issues and not gaps:
+        lines.extend(["", "## 结论", "", "索引结构和必需证据引用均已通过校验。"])
+    return "\n".join(lines) + "\n"
+
+
 def main() -> int:
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
@@ -346,6 +381,7 @@ def main() -> int:
         action="store_true",
         help="额外要求来源、试用和决策证据全部收口",
     )
+    parser.add_argument("--markdown-output", type=Path, help="适合人工阅读的 Markdown 输出路径")
     args = parser.parse_args()
     try:
         result = validate_release_evidence_manifest(
@@ -358,6 +394,9 @@ def main() -> int:
             "error": "evidence_manifest_invalid",
             "issues": exc.issues,
         }
+    if args.markdown_output:
+        args.markdown_output.resolve().parent.mkdir(parents=True, exist_ok=True)
+        args.markdown_output.resolve().write_text(render_markdown(result), encoding="utf-8")
     print(json.dumps(result, ensure_ascii=True, indent=2))
     if not result.get("ok"):
         return 1

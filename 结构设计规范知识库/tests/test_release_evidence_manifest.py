@@ -5,6 +5,7 @@ import pytest
 from scripts.create_release_evidence_manifest import build_manifest
 from scripts.validate_release_evidence_manifest import (
     EvidenceManifestError,
+    render_markdown,
     validate_release_evidence_manifest,
 )
 
@@ -55,3 +56,14 @@ def test_manifest_rejects_source_set_drift(tmp_path):
 
     with pytest.raises(EvidenceManifestError, match="一一对应"):
         validate_release_evidence_manifest(path)
+
+
+def test_render_markdown_lists_open_gaps(tmp_path):
+    result = validate_release_evidence_manifest(_write_manifest(tmp_path))
+
+    markdown = render_markdown(result)
+
+    assert "# 受控发布证据包索引校验" in markdown
+    assert "## 待收口项" in markdown
+    assert "sources[0].evidence.acquisition" in markdown
+    assert "decisions.D-001" in markdown
