@@ -8,9 +8,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from src.pipeline.active_db import resolve_pointer_path
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.pipeline.active_db import resolve_pointer_path  # noqa: E402
+
 DEFAULT_REGISTER_PATH = PROJECT_ROOT / "docs" / "governance" / "来源登记台账.json"
 DEFAULT_METADATA_PATH = PROJECT_ROOT / "data" / "metadata" / "specs.json"
 DEFAULT_SOURCE_ROOT = PROJECT_ROOT / "data" / "raw"

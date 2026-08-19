@@ -15,6 +15,19 @@
       }
     },
     {
+      "archive_path": "docs/quality/质量证据历史/20260819T185948Z-161dc92003d5.json",
+      "snapshot_sha256": "161dc92003d55807d78a7e9e03b4ff2829649453784855fbab70da8d5fcf34b4",
+      "release_quality_status": "passed",
+      "verification_generated_at": "2026-08-19T18:59:48.902003+00:00",
+      "quality_gate_generated_at": "2026-08-19T18:59:48.755867+00:00",
+      "failed_checks": [],
+      "evaluation_case_counts": {
+        "regular": 100,
+        "structured": 12,
+        "answer": 24
+      }
+    },
+    {
       "archive_path": "docs/quality/质量证据历史/20260819T183457Z-aeba7a1e4aab.json",
       "snapshot_sha256": "aeba7a1e4aab6acb1af92aa85df3c4583b55b4bd3313e3b4340a15df32c9852f",
       "release_quality_status": "not_passed",

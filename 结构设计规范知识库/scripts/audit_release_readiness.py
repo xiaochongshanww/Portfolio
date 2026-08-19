@@ -8,6 +8,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 try:
     from scripts.validate_runtime_manifest import RuntimeManifestError, validate_runtime_manifest
     from scripts.validate_source_register import SourceRegisterError, validate_source_register
@@ -17,7 +21,6 @@ except ModuleNotFoundError:  # Direct ``python scripts/audit_release_readiness.p
     from validate_source_register import SourceRegisterError, validate_source_register
     from validate_trial_record import TrialRecordError, validate_trial_record
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SNAPSHOT = PROJECT_ROOT / "docs" / "quality" / "质量证据状态.json"
 DEFAULT_ROADMAP = PROJECT_ROOT / "docs" / "architecture" / "持续迭代路线图.md"
 DEFAULT_DECISIONS = PROJECT_ROOT / "docs" / "architecture" / "技术与产品待决策事项.md"
@@ -100,7 +103,11 @@ def _decision_rows(path: Path) -> dict[str, dict[str, str]]:
     return rows
 
 
-def _quality_check(snapshot_path: Path) -> dict[str, Any]:
+def _quality_check(
+    snapshot_path: Path,
+    *,
+    runtime_data_version_hash: str | None = None,
+) -> dict[str, Any]:
     snapshot = _load_json(snapshot_path, "质量证据状态")
     if snapshot.get("release_quality_status") != "passed":
         return _check(
@@ -122,6 +129,7 @@ def _quality_check(snapshot_path: Path) -> dict[str, Any]:
             detail="质量快照缺少 reports",
         )
     missing: list[str] = []
+    report_payloads: list[tuple[str, dict[str, Any]]] = []
     for name, report in reports.items():
         if not isinstance(report, dict):
             missing.append(f"{name}: 记录不是对象")
@@ -139,6 +147,30 @@ def _quality_check(snapshot_path: Path) -> dict[str, Any]:
         actual_hash = hashlib.sha256(report_path.read_bytes()).hexdigest()
         if actual_hash != expected_hash:
             missing.append(f"{name}: SHA-256 不匹配")
+            continue
+        try:
+            report_payload = _load_json(report_path, f"质量报告 {name}")
+        except ReadinessAuditError as exc:
+            missing.append(str(exc))
+            continue
+        report_payloads.append((name, report_payload))
+
+    if runtime_data_version_hash:
+        for name, report_payload in report_payloads:
+            report_version = str(report_payload.get("data_version_hash") or "")
+            if report_version != runtime_data_version_hash:
+                missing.append(
+                    f"{name}: data_version_hash={report_version or 'missing'}，"
+                    f"当前运行版本={runtime_data_version_hash}"
+                )
+
+    verification_run_ids = {
+        str(payload.get("verification_run_id") or "")
+        for _, payload in report_payloads
+        if payload.get("verification_run_id")
+    }
+    if len(verification_run_ids) > 1:
+        missing.append("质量报告来自多个 verification_run_id")
     if missing:
         return _check(
             "quality_evidence",
@@ -264,7 +296,7 @@ def _runtime_manifest_check() -> dict[str, Any]:
             status="inconsistent",
             detail="；".join(str(issue) for issue in issues),
         )
-    return _check(
+    check = _check(
         "runtime_manifest",
         "运行 manifest 一致性",
         ok=True,
@@ -272,6 +304,8 @@ def _runtime_manifest_check() -> dict[str, Any]:
         status="consistent",
         detail="活动指针、文档数量和 chunk 数量一致",
     )
+    check["data_version_hash"] = result.get("data_version_hash")
+    return check
 
 
 def audit_release_readiness(
@@ -283,10 +317,17 @@ def audit_release_readiness(
 ) -> dict[str, Any]:
     rows = _roadmap_rows(roadmap_path.resolve())
     decisions = _decision_rows(decisions_path.resolve())
+    runtime_check = _runtime_manifest_check()
+    runtime_data_version_hash = (
+        str(runtime_check.get("data_version_hash") or "") if runtime_check.get("ok") else None
+    )
     checks = [
-        _quality_check(snapshot_path.resolve()),
+        _quality_check(
+            snapshot_path.resolve(),
+            runtime_data_version_hash=runtime_data_version_hash,
+        ),
         _source_check(),
-        _runtime_manifest_check(),
+        runtime_check,
         _trial_check(trial_record),
     ]
 

@@ -147,6 +147,53 @@ def test_rerank_quality_is_non_blocking_when_feature_is_disabled(tmp_path, monke
     assert result["ready"] is True
 
 
+def test_quality_evidence_rejects_report_bound_to_old_runtime_version(tmp_path, monkeypatch):
+    monkeypatch.setattr(readiness, "PROJECT_ROOT", tmp_path)
+    snapshot, roadmap, decisions = _write_context(tmp_path, completed=True)
+    report_path = tmp_path / "verification.json"
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    report["data_version_hash"] = "old-version"
+    report_path.write_text(json.dumps(report), encoding="utf-8")
+    snapshot_payload = json.loads(snapshot.read_text(encoding="utf-8"))
+    snapshot_payload["reports"]["verification"]["sha256"] = (
+        __import__("hashlib").sha256(report_path.read_bytes()).hexdigest()
+    )
+    snapshot.write_text(json.dumps(snapshot_payload), encoding="utf-8")
+
+    monkeypatch.setattr(
+        readiness,
+        "validate_source_register",
+        lambda: {"release_eligible": True, "release_blockers": []},
+    )
+    monkeypatch.setattr(
+        readiness,
+        "validate_runtime_manifest",
+        lambda: {"ok": True, "data_version_hash": "current-version"},
+    )
+    monkeypatch.setattr(
+        readiness,
+        "validate_trial_record",
+        lambda _path: {"ok": True, "status": "completed"},
+    )
+    trial = _write_json(
+        tmp_path / "trial.json",
+        {"status": "completed", "conclusion": {"decision": "continue"}},
+    )
+
+    result = readiness.audit_release_readiness(
+        snapshot_path=snapshot,
+        roadmap_path=roadmap,
+        decisions_path=decisions,
+        trial_record=trial,
+    )
+
+    quality = next(item for item in result["checks"] if item["id"] == "quality_evidence")
+    assert quality["ok"] is False
+    assert quality["status"] == "invalid"
+    assert "当前运行版本=current-version" in quality["detail"]
+    assert result["ready"] is False
+
+
 def test_readiness_cli_direct_entry_is_ascii_safe_and_fails_closed():
     completed = subprocess.run(
         [sys.executable, "scripts/audit_release_readiness.py"],
