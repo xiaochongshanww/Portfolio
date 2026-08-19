@@ -142,3 +142,54 @@ def test_rerank_comparison_rejects_noop_provider(tmp_path: Path):
 
     assert report["ok"] is False
     assert "未启用" in report["error"]
+
+
+def test_rerank_comparison_fails_closed_when_provider_falls_back(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    path = tmp_path / "eval.jsonl"
+    path.write_text(
+        json.dumps(
+            {
+                "id": "case-1",
+                "query": "query",
+                "expected_sources": ["source"],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    class FailingReranker:
+        name = "zhipu"
+
+        def rerank(self, query, results, *, top_n=None):
+            del query
+            return results[:top_n]
+
+    state = SimpleNamespace(
+        ready=True,
+        config=SimpleNamespace(rerank_candidate_multiplier=3, rerank_model="rerank"),
+    )
+    state.retrieve_candidates = lambda query, candidate_limit: (
+        query,
+        [
+            retrieval_result("wrong", source="other", text="目标", score=2),
+            retrieval_result("right", source="source", text="目标", score=1),
+        ][:candidate_limit],
+    )
+    monkeypatch.setattr(
+        "src.evaluation.rerank_comparison.read_active_manifest",
+        lambda: {"data_version_hash": "data-hash"},
+    )
+    report = run_rerank_comparison(
+        path,
+        state=state,
+        reranker=FailingReranker(),
+    )
+
+    assert report["ok"] is False
+    assert report["comparison_complete"] is False
+    assert report["reranked_case_count"] == 0
+    assert report["fallback_case_count"] == 1
+    assert "不能将基线结果解释为真实精排结果" in report["error"]

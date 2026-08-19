@@ -113,9 +113,11 @@ def run_rerank_comparison(
         any("_rerank_rank" in result.meta for result in results)
         for results in candidate_by_id.values()
     )
+    fallback_case_count = len(comparable_cases) - reranked_case_count
     manifest = read_active_manifest()
-    return {
+    report = {
         "ok": True,
+        "comparison_complete": fallback_case_count == 0,
         "generated_at": datetime.now(UTC).isoformat(),
         "evaluation_set": str(path.resolve()),
         "evaluation_set_hash": hashlib.sha256(path.read_bytes()).hexdigest(),
@@ -126,13 +128,20 @@ def run_rerank_comparison(
         "candidate_limit": candidate_limit,
         "case_count": len(comparable_cases),
         "reranked_case_count": reranked_case_count,
-        "fallback_case_count": len(comparable_cases) - reranked_case_count,
+        "fallback_case_count": fallback_case_count,
         "baseline": baseline,
         "reranked": candidate,
         "metric_deltas": metric_deltas,
         "change_counts": change_counts,
         "case_changes": case_changes,
     }
+    if fallback_case_count:
+        report["ok"] = False
+        report["error"] = (
+            f"精排对照未完成：{fallback_case_count} 个用例发生提供方降级，"
+            "不能将基线结果解释为真实精排结果"
+        )
+    return report
 
 
 def render_rerank_comparison_markdown(result: dict[str, Any]) -> str:
@@ -146,13 +155,15 @@ def render_rerank_comparison_markdown(result: dict[str, Any]) -> str:
         f"- 评估集哈希：`{result.get('evaluation_set_hash', '-')}`",
         f"- 用例数：{result.get('case_count', 0)}",
         f"- 最终 Top K / 候选池：{result.get('top_k', 0)} / {result.get('candidate_limit', 0)}",
+        f"- 对照完整性：{'完整' if result.get('comparison_complete') else '不完整'}",
         f"- 实际精排 / 降级用例：{result.get('reranked_case_count', 0)} / "
         f"{result.get('fallback_case_count', 0)}",
         "",
     ]
     if result.get("error"):
-        lines.extend(["## 执行错误", "", str(result["error"]), ""])
-        return "\n".join(lines) + "\n"
+        lines.extend(["## 执行提示", "", str(result["error"]), ""])
+        if "baseline" not in result:
+            return "\n".join(lines) + "\n"
 
     baseline = result.get("baseline", {})
     reranked = result.get("reranked", {})
