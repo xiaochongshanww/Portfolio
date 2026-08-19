@@ -32,6 +32,20 @@ def test_current_source_register_is_eligible_for_internal_research():
     assert result["internal_research_blockers"] == []
 
 
+def test_source_register_blocks_forbidden_rights_in_internal_research(tmp_path):
+    register_path = tmp_path / "来源登记台账.json"
+    register = json.loads(
+        (PROJECT_ROOT / "docs" / "governance" / "来源登记台账.json").read_text(encoding="utf-8")
+    )
+    register["documents"][0]["rights"]["status"] = "C"
+    register_path.write_text(json.dumps(register, ensure_ascii=False), encoding="utf-8")
+
+    result = validate_source_register(register_path)
+
+    assert result["internal_research_eligible"] is False
+    assert any("权利等级为 C" in item for item in result["internal_research_blockers"])
+
+
 def test_source_register_rejects_hash_drift(tmp_path):
     register_path = tmp_path / "来源登记台账.json"
     register = json.loads(

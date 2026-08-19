@@ -241,6 +241,10 @@ def validate_source_register(
             internal_research_blockers.append(
                 f"{source_file}: 未声明 internal_research 或 closed_validation 用途"
             )
+        if rights_status in {"C", "test_fixture"}:
+            internal_research_blockers.append(
+                f"{source_file}: 权利等级为 {rights_status}，不能用于内部研究"
+            )
         takedown_status = str(
             (raw_record.get("takedown") or {}).get("status")
             if isinstance(raw_record.get("takedown"), dict)
