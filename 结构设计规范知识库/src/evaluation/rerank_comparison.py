@@ -45,6 +45,10 @@ def _rank_change(before: int | None, after: int | None) -> str:
     return "improved" if after < before else "regressed"
 
 
+def _has_rerank_metadata(results: list[Any]) -> bool:
+    return not results or any("_rerank_rank" in result.meta for result in results)
+
+
 def run_rerank_comparison(
     path: Path = DEFAULT_EVAL_PATH,
     *,
@@ -76,7 +80,27 @@ def run_rerank_comparison(
     for case in comparable_cases:
         normalized_query, pool = evaluation_state.retrieve_candidates(case.query, candidate_limit)
         baseline_by_id[case.id] = pool[:top_k]
-        candidate_by_id[case.id] = selected_reranker.rerank(normalized_query, pool, top_n=top_k)
+        candidate_results = selected_reranker.rerank(normalized_query, pool, top_n=top_k)
+        candidate_by_id[case.id] = candidate_results
+        if pool and not _has_rerank_metadata(candidate_results):
+            manifest = read_active_manifest()
+            return {
+                "ok": False,
+                "comparison_complete": False,
+                "generated_at": datetime.now(UTC).isoformat(),
+                "evaluation_set": str(path.resolve()),
+                "evaluation_set_hash": hashlib.sha256(path.read_bytes()).hexdigest(),
+                "data_version_hash": str(manifest.get("data_version_hash") or ""),
+                "provider": selected_reranker.name,
+                "model": evaluation_state.config.rerank_model,
+                "top_k": top_k,
+                "candidate_limit": candidate_limit,
+                "case_count": len(comparable_cases),
+                "processed_case_count": len(candidate_by_id),
+                "reranked_case_count": 0,
+                "fallback_case_count": 1,
+                "error": ("精排对照在首个降级用例处提前停止，不能将基线结果解释为真实精排结果"),
+            }
 
     structured_by_id = {
         case.id: find_structured_table_matches(case.query, limit=top_k)
@@ -109,10 +133,7 @@ def run_rerank_comparison(
         metric: float(candidate.get(metric, 0)) - float(baseline.get(metric, 0))
         for metric in COMPARISON_METRICS
     }
-    reranked_case_count = sum(
-        any("_rerank_rank" in result.meta for result in results)
-        for results in candidate_by_id.values()
-    )
+    reranked_case_count = sum(_has_rerank_metadata(results) for results in candidate_by_id.values())
     fallback_case_count = len(comparable_cases) - reranked_case_count
     manifest = read_active_manifest()
     report = {

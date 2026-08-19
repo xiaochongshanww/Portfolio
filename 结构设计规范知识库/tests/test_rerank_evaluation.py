@@ -149,12 +149,15 @@ def test_rerank_comparison_fails_closed_when_provider_falls_back(
 ):
     path = tmp_path / "eval.jsonl"
     path.write_text(
-        json.dumps(
-            {
-                "id": "case-1",
-                "query": "query",
-                "expected_sources": ["source"],
-            }
+        "\n".join(
+            json.dumps(
+                {
+                    "id": f"case-{index}",
+                    "query": "query",
+                    "expected_sources": ["source"],
+                }
+            )
+            for index in (1, 2)
         )
         + "\n",
         encoding="utf-8",
@@ -171,13 +174,19 @@ def test_rerank_comparison_fails_closed_when_provider_falls_back(
         ready=True,
         config=SimpleNamespace(rerank_candidate_multiplier=3, rerank_model="rerank"),
     )
-    state.retrieve_candidates = lambda query, candidate_limit: (
-        query,
-        [
-            retrieval_result("wrong", source="other", text="目标", score=2),
-            retrieval_result("right", source="source", text="目标", score=1),
-        ][:candidate_limit],
-    )
+    state.calls = 0
+
+    def retrieve_candidates(query, candidate_limit):
+        state.calls += 1
+        return (
+            query,
+            [
+                retrieval_result("wrong", source="other", text="目标", score=2),
+                retrieval_result("right", source="source", text="目标", score=1),
+            ][:candidate_limit],
+        )
+
+    state.retrieve_candidates = retrieve_candidates
     monkeypatch.setattr(
         "src.evaluation.rerank_comparison.read_active_manifest",
         lambda: {"data_version_hash": "data-hash"},
@@ -192,4 +201,6 @@ def test_rerank_comparison_fails_closed_when_provider_falls_back(
     assert report["comparison_complete"] is False
     assert report["reranked_case_count"] == 0
     assert report["fallback_case_count"] == 1
+    assert report["processed_case_count"] == 1
+    assert state.calls == 1
     assert "不能将基线结果解释为真实精排结果" in report["error"]
