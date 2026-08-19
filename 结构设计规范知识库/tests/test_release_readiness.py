@@ -12,7 +12,10 @@ def _write_json(path: Path, value: dict) -> Path:
 
 
 def _write_context(tmp_path: Path, *, completed: bool = False) -> tuple[Path, Path, Path]:
-    report = _write_json(tmp_path / "verification.json", {"passed": True})
+    report = _write_json(
+        tmp_path / "verification.json",
+        {"passed": True, "data_version_hash": "current-version"},
+    )
     snapshot = _write_json(
         tmp_path / "snapshot.json",
         {
@@ -49,6 +52,31 @@ def _write_context(tmp_path: Path, *, completed: bool = False) -> tuple[Path, Pa
     return snapshot, roadmap, decisions
 
 
+def _write_rerank_evidence(tmp_path: Path) -> tuple[Path, Path]:
+    comparison = _write_json(
+        tmp_path / "rerank-comparison.json",
+        {
+            "ok": True,
+            "comparison_complete": True,
+            "case_count": 100,
+            "fallback_case_count": 0,
+            "provider": "zhipu",
+            "data_version_hash": "current-version",
+        },
+    )
+    answer = _write_json(
+        tmp_path / "rerank-answer.json",
+        {
+            "ok": True,
+            "rerank_enabled": True,
+            "case_count": 24,
+            "pass_rate": 1.0,
+            "data_version_hash": "current-version",
+        },
+    )
+    return comparison, answer
+
+
 def test_current_readiness_reports_external_blockers(tmp_path, monkeypatch):
     monkeypatch.setattr(readiness, "PROJECT_ROOT", tmp_path)
     snapshot, roadmap, decisions = _write_context(tmp_path)
@@ -80,6 +108,7 @@ def test_current_readiness_reports_external_blockers(tmp_path, monkeypatch):
 def test_readiness_can_pass_with_completed_external_evidence(tmp_path, monkeypatch):
     monkeypatch.setattr(readiness, "PROJECT_ROOT", tmp_path)
     snapshot, roadmap, decisions = _write_context(tmp_path, completed=True)
+    rerank_comparison, rerank_answer = _write_rerank_evidence(tmp_path)
     trial = _write_json(
         tmp_path / "trial.json",
         {"status": "completed", "conclusion": {"decision": "continue"}},
@@ -89,7 +118,48 @@ def test_readiness_can_pass_with_completed_external_evidence(tmp_path, monkeypat
         "validate_source_register",
         lambda: {"release_eligible": True, "release_blockers": []},
     )
-    monkeypatch.setattr(readiness, "validate_runtime_manifest", lambda: {"ok": True})
+    monkeypatch.setattr(
+        readiness,
+        "validate_runtime_manifest",
+        lambda: {"ok": True, "data_version_hash": "current-version"},
+    )
+    monkeypatch.setattr(
+        readiness,
+        "validate_trial_record",
+        lambda _path: {"ok": True, "status": "completed"},
+    )
+
+    result = readiness.audit_release_readiness(
+        snapshot_path=snapshot,
+        roadmap_path=roadmap,
+        decisions_path=decisions,
+        trial_record=trial,
+        rerank_comparison_report=rerank_comparison,
+        rerank_answer_report=rerank_answer,
+    )
+
+    assert result["ready"] is True
+    assert result["blockers"] == []
+    assert result["warnings"] == []
+
+
+def test_completed_rerank_status_without_evidence_is_not_verified(tmp_path, monkeypatch):
+    monkeypatch.setattr(readiness, "PROJECT_ROOT", tmp_path)
+    snapshot, roadmap, decisions = _write_context(tmp_path, completed=True)
+    monkeypatch.setattr(
+        readiness,
+        "validate_source_register",
+        lambda: {"release_eligible": True, "release_blockers": []},
+    )
+    monkeypatch.setattr(
+        readiness,
+        "validate_runtime_manifest",
+        lambda: {"ok": True, "data_version_hash": "current-version"},
+    )
+    trial = _write_json(
+        tmp_path / "trial.json",
+        {"status": "completed", "conclusion": {"decision": "continue"}},
+    )
     monkeypatch.setattr(
         readiness,
         "validate_trial_record",
@@ -103,9 +173,10 @@ def test_readiness_can_pass_with_completed_external_evidence(tmp_path, monkeypat
         trial_record=trial,
     )
 
-    assert result["ready"] is True
-    assert result["blockers"] == []
-    assert result["warnings"] == []
+    rerank = next(item for item in result["checks"] if item["id"] == "rerank_quality")
+    assert rerank["ok"] is False
+    assert rerank["status"] == "invalid"
+    assert "精排对照报告不存在" in rerank["detail"]
 
 
 def test_rerank_quality_is_non_blocking_when_feature_is_disabled(tmp_path, monkeypatch):

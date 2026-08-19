@@ -24,6 +24,12 @@ except ModuleNotFoundError:  # Direct ``python scripts/audit_release_readiness.p
 DEFAULT_SNAPSHOT = PROJECT_ROOT / "docs" / "quality" / "质量证据状态.json"
 DEFAULT_ROADMAP = PROJECT_ROOT / "docs" / "architecture" / "持续迭代路线图.md"
 DEFAULT_DECISIONS = PROJECT_ROOT / "docs" / "architecture" / "技术与产品待决策事项.md"
+DEFAULT_RERANK_COMPARISON_REPORT = (
+    PROJECT_ROOT / "data" / "audit" / "reports" / "rerank_comparison_latest.json"
+)
+DEFAULT_RERANK_ANSWER_REPORT = (
+    PROJECT_ROOT / "data" / "audit" / "reports" / "rerank_answer_latest.json"
+)
 
 
 class ReadinessAuditError(ValueError):
@@ -308,12 +314,106 @@ def _runtime_manifest_check() -> dict[str, Any]:
     return check
 
 
+def _rerank_check(
+    roadmap_status: str,
+    *,
+    comparison_path: Path,
+    answer_path: Path,
+    runtime_data_version_hash: str | None,
+) -> dict[str, Any]:
+    if roadmap_status != "已完成":
+        return _check(
+            "rerank_quality",
+            "精排质量证据",
+            ok=False,
+            blocking=False,
+            status=roadmap_status or "missing",
+            detail="真实供应商对照和回答盲测未完成；精排默认关闭，不阻断基线发布",
+        )
+
+    issues: list[str] = []
+    reports: dict[str, dict[str, Any]] = {}
+    for label, path in (
+        ("精排对照", comparison_path.resolve()),
+        ("回答盲测", answer_path.resolve()),
+    ):
+        if not path.is_file():
+            issues.append(f"{label}报告不存在")
+            continue
+        try:
+            reports[label] = _load_json(path, label)
+        except ReadinessAuditError:
+            issues.append(f"{label}报告不是有效 JSON")
+
+    comparison = reports.get("精排对照", {})
+    if comparison:
+        if comparison.get("ok") is not True:
+            issues.append("精排对照报告未通过")
+        if comparison.get("comparison_complete") is not True:
+            issues.append("精排对照报告不完整")
+        case_count = comparison.get("case_count")
+        if isinstance(case_count, bool) or not isinstance(case_count, int) or case_count < 100:
+            issues.append("精排对照用例数少于 100")
+        fallback_count = comparison.get("fallback_case_count")
+        if fallback_count != 0:
+            issues.append("精排对照存在降级用例")
+        if str(comparison.get("provider") or "") in {"", "none"}:
+            issues.append("精排对照没有有效供应商")
+        if (
+            runtime_data_version_hash
+            and comparison.get("data_version_hash") != runtime_data_version_hash
+        ):
+            issues.append("精排对照未绑定当前运行数据版本")
+
+    answer = reports.get("回答盲测", {})
+    if answer:
+        if answer.get("ok") is not True:
+            issues.append("回答盲测报告未通过")
+        if answer.get("rerank_enabled") is not True:
+            issues.append("回答盲测未声明启用精排")
+        case_count = answer.get("case_count")
+        if isinstance(case_count, bool) or not isinstance(case_count, int) or case_count < 24:
+            issues.append("回答盲测用例数少于当前 24 条盲测集")
+        pass_rate = answer.get("pass_rate")
+        if (
+            not isinstance(pass_rate, (int, float))
+            or isinstance(pass_rate, bool)
+            or pass_rate < 0.9
+        ):
+            issues.append("回答盲测通过率低于 90%")
+        if (
+            runtime_data_version_hash
+            and answer.get("data_version_hash") != runtime_data_version_hash
+        ):
+            issues.append("回答盲测未绑定当前运行数据版本")
+
+    if issues:
+        return _check(
+            "rerank_quality",
+            "精排质量证据",
+            ok=False,
+            blocking=False,
+            status="invalid",
+            detail="；".join(issues),
+        )
+    return _check(
+        "rerank_quality",
+        "精排质量证据",
+        ok=True,
+        blocking=False,
+        status="verified",
+        detail="真实 100 条精排对照和启用精排的回答盲测均通过证据校验",
+    )
+
+
 def audit_release_readiness(
     *,
     snapshot_path: Path = DEFAULT_SNAPSHOT,
     roadmap_path: Path = DEFAULT_ROADMAP,
     decisions_path: Path = DEFAULT_DECISIONS,
     trial_record: Path | None = None,
+    rerank_comparison_report: Path = DEFAULT_RERANK_COMPARISON_REPORT,
+    rerank_answer_report: Path = DEFAULT_RERANK_ANSWER_REPORT,
 ) -> dict[str, Any]:
     rows = _roadmap_rows(roadmap_path.resolve())
     decisions = _decision_rows(decisions_path.resolve())
@@ -351,19 +451,12 @@ def audit_release_readiness(
     )
 
     rerank_row = rows.get("I-034", {})
-    rerank_verified = rerank_row.get("status") == "已完成"
     checks.append(
-        _check(
-            "rerank_quality",
-            "精排质量证据",
-            ok=rerank_verified,
-            blocking=False,
-            status=rerank_row.get("status", "missing"),
-            detail=(
-                "真实精排质量已证"
-                if rerank_verified
-                else "真实供应商对照和回答盲测未完成；精排默认关闭，不阻断基线发布"
-            ),
+        _rerank_check(
+            rerank_row.get("status", "missing"),
+            comparison_path=rerank_comparison_report,
+            answer_path=rerank_answer_report,
+            runtime_data_version_hash=runtime_data_version_hash,
         )
     )
 
@@ -425,11 +518,27 @@ def main() -> int:
     _configure_cli_streams()
     parser = argparse.ArgumentParser(description="审计当前项目是否具备对外发布条件")
     parser.add_argument("--trial-record", type=Path, help="已完成的封闭试用记录 JSON")
+    parser.add_argument(
+        "--rerank-comparison-report",
+        type=Path,
+        default=DEFAULT_RERANK_COMPARISON_REPORT,
+        help="真实精排对照报告 JSON",
+    )
+    parser.add_argument(
+        "--rerank-answer-report",
+        type=Path,
+        default=DEFAULT_RERANK_ANSWER_REPORT,
+        help="启用精排的回答盲测报告 JSON",
+    )
     parser.add_argument("--json-output", type=Path)
     parser.add_argument("--markdown-output", type=Path)
     args = parser.parse_args()
     try:
-        result = audit_release_readiness(trial_record=args.trial_record)
+        result = audit_release_readiness(
+            trial_record=args.trial_record,
+            rerank_comparison_report=args.rerank_comparison_report,
+            rerank_answer_report=args.rerank_answer_report,
+        )
     except ReadinessAuditError as exc:
         result = {
             "ok": False,
