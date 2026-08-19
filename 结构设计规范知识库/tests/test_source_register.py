@@ -25,6 +25,13 @@ def test_current_source_register_is_structurally_valid_but_not_release_eligible(
     )
 
 
+def test_current_source_register_is_eligible_for_internal_research():
+    result = validate_source_register()
+
+    assert result["internal_research_eligible"] is True
+    assert result["internal_research_blockers"] == []
+
+
 def test_source_register_rejects_hash_drift(tmp_path):
     register_path = tmp_path / "来源登记台账.json"
     register = json.loads(

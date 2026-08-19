@@ -105,6 +105,43 @@ def test_current_readiness_reports_external_blockers(tmp_path, monkeypatch):
     assert len(result["warnings"]) == 1
 
 
+def test_internal_research_profile_is_ready_without_external_release_evidence(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(readiness, "PROJECT_ROOT", tmp_path)
+    snapshot, roadmap, decisions = _write_context(tmp_path)
+    monkeypatch.setattr(
+        readiness,
+        "validate_source_register",
+        lambda: {
+            "release_eligible": False,
+            "release_blockers": ["rights"],
+            "internal_research_eligible": True,
+            "internal_research_blockers": [],
+        },
+    )
+    monkeypatch.setattr(readiness, "validate_runtime_manifest", lambda: {"ok": True})
+
+    result = readiness.audit_release_readiness(
+        profile="internal-research",
+        snapshot_path=snapshot,
+        roadmap_path=roadmap,
+        decisions_path=decisions,
+    )
+
+    assert result["ready"] is True
+    assert result["external_release_ready"] is False
+    assert result["blockers"] == []
+    source = next(item for item in result["checks"] if item["id"] == "source_internal_research")
+    assert source["ok"] is True
+    trial = next(item for item in result["checks"] if item["id"] == "closed_trial")
+    assert trial["status"] == "not_required"
+    assert trial["blocking"] is False
+    delivery = next(item for item in result["checks"] if item["id"] == "delivery_decision")
+    assert delivery["status"] == "internal_only"
+    assert delivery["blocking"] is False
+
+
 def test_readiness_can_pass_with_completed_external_evidence(tmp_path, monkeypatch):
     monkeypatch.setattr(readiness, "PROJECT_ROOT", tmp_path)
     snapshot, roadmap, decisions = _write_context(tmp_path, completed=True)

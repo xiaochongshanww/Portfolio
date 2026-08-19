@@ -30,6 +30,7 @@ DEFAULT_RERANK_COMPARISON_REPORT = (
 DEFAULT_RERANK_ANSWER_REPORT = (
     PROJECT_ROOT / "data" / "audit" / "reports" / "rerank_answer_latest.json"
 )
+AUDIT_PROFILES = {"external", "internal-research"}
 
 
 class ReadinessAuditError(ValueError):
@@ -196,7 +197,7 @@ def _quality_check(
     )
 
 
-def _source_check() -> dict[str, Any]:
+def _source_check(profile: str) -> dict[str, Any]:
     try:
         result = validate_source_register()
     except SourceRegisterError as exc:
@@ -207,6 +208,25 @@ def _source_check() -> dict[str, Any]:
             blocking=True,
             status="invalid",
             detail=f"来源台账结构无效（{len(exc.issues)} 项）",
+        )
+    if profile == "internal-research":
+        blockers = result.get("internal_research_blockers") or []
+        if result.get("internal_research_eligible") is not True:
+            return _check(
+                "source_internal_research",
+                "来源内部研究资格",
+                ok=False,
+                blocking=True,
+                status="blocked",
+                detail=f"{len(blockers)} 项内部研究来源阻断",
+            )
+        return _check(
+            "source_internal_research",
+            "来源内部研究资格",
+            ok=True,
+            blocking=True,
+            status="eligible",
+            detail="所有活动来源均登记为允许内部研究或封闭验证",
         )
     blockers = result.get("release_blockers") or []
     if result.get("release_eligible") is not True:
@@ -228,7 +248,16 @@ def _source_check() -> dict[str, Any]:
     )
 
 
-def _trial_check(trial_record: Path | None) -> dict[str, Any]:
+def _trial_check(trial_record: Path | None, profile: str) -> dict[str, Any]:
+    if profile == "internal-research":
+        return _check(
+            "closed_trial",
+            "封闭试用证据",
+            ok=True,
+            blocking=False,
+            status="not_required",
+            detail="内部研究模式不代表真实用户试用，不要求试用记录",
+        )
     if trial_record is None:
         return _check(
             "closed_trial",
@@ -408,6 +437,7 @@ def _rerank_check(
 
 def audit_release_readiness(
     *,
+    profile: str = "external",
     snapshot_path: Path = DEFAULT_SNAPSHOT,
     roadmap_path: Path = DEFAULT_ROADMAP,
     decisions_path: Path = DEFAULT_DECISIONS,
@@ -415,6 +445,8 @@ def audit_release_readiness(
     rerank_comparison_report: Path = DEFAULT_RERANK_COMPARISON_REPORT,
     rerank_answer_report: Path = DEFAULT_RERANK_ANSWER_REPORT,
 ) -> dict[str, Any]:
+    if profile not in AUDIT_PROFILES:
+        raise ReadinessAuditError(f"不支持的审计 profile：{profile}")
     rows = _roadmap_rows(roadmap_path.resolve())
     decisions = _decision_rows(decisions_path.resolve())
     runtime_check = _runtime_manifest_check()
@@ -426,24 +458,30 @@ def audit_release_readiness(
             snapshot_path.resolve(),
             runtime_data_version_hash=runtime_data_version_hash,
         ),
-        _source_check(),
+        _source_check(profile),
         runtime_check,
-        _trial_check(trial_record),
+        _trial_check(trial_record, profile),
     ]
 
     delivery_row = rows.get("I-010", {})
     d001 = decisions.get("D-001", {})
     d002 = decisions.get("D-002", {})
-    delivery_ok = delivery_row.get("status") == "已完成"
+    delivery_ok = profile == "internal-research" or delivery_row.get("status") == "已完成"
     checks.append(
         _check(
             "delivery_decision",
             "交付形态与授权边界",
             ok=delivery_ok,
-            blocking=True,
-            status=delivery_row.get("status", "missing"),
+            blocking=profile != "internal-research",
+            status=(
+                "internal_only"
+                if profile == "internal-research"
+                else delivery_row.get("status", "missing")
+            ),
             detail=(
-                "I-010 已完成"
+                "仅允许项目成员范围内的内部研究，不代表对外交付承诺"
+                if profile == "internal-research"
+                else "I-010 已完成"
                 if delivery_ok
                 else "I-010 仍受 D-001/D-002 约束，不能作出对外交付承诺"
             ),
@@ -462,9 +500,12 @@ def audit_release_readiness(
 
     blockers = [item["detail"] for item in checks if not item["ok"] and item["blocking"]]
     warnings = [item["detail"] for item in checks if not item["ok"] and not item["blocking"]]
+    ready = not blockers
     return {
         "ok": True,
-        "ready": not blockers,
+        "profile": profile,
+        "ready": ready,
+        "external_release_ready": profile == "external" and ready,
         "checked_at": datetime.now(UTC).isoformat(),
         "checks": checks,
         "blockers": blockers,
@@ -478,10 +519,15 @@ def audit_release_readiness(
 
 
 def render_markdown(result: dict[str, Any]) -> str:
+    internal_profile = result.get("profile") == "internal-research"
+    title = "内部研究就绪审计" if internal_profile else "发布就绪审计"
+    ready_label = "内部研究可用" if internal_profile else "可发布"
+    blocked_label = "内部研究阻断" if internal_profile else "阻断"
     lines = [
-        "# 发布就绪审计",
+        f"# {title}",
         "",
-        f"- 总体结果：{'可发布' if result.get('ready') else '阻断'}",
+        f"- 总体结果：{ready_label if result.get('ready') else blocked_label}",
+        f"- 审计范围：`{result.get('profile', 'external')}`",
         f"- 检查时间：`{result.get('checked_at', '-')}`",
         "",
         "## 检查项",
@@ -516,7 +562,15 @@ def _configure_cli_streams() -> None:
 
 def main() -> int:
     _configure_cli_streams()
-    parser = argparse.ArgumentParser(description="审计当前项目是否具备对外发布条件")
+    parser = argparse.ArgumentParser(
+        description="审计当前项目是否具备对外发布条件；也支持内部研究 profile"
+    )
+    parser.add_argument(
+        "--profile",
+        choices=sorted(AUDIT_PROFILES),
+        default="external",
+        help="审计范围：external 对外发布；internal-research 仅内部研究",
+    )
     parser.add_argument("--trial-record", type=Path, help="已完成的封闭试用记录 JSON")
     parser.add_argument(
         "--rerank-comparison-report",
@@ -535,6 +589,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         result = audit_release_readiness(
+            profile=args.profile,
             trial_record=args.trial_record,
             rerank_comparison_report=args.rerank_comparison_report,
             rerank_answer_report=args.rerank_answer_report,

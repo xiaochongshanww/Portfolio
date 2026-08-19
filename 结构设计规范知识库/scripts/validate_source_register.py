@@ -196,6 +196,7 @@ def validate_source_register(
     record_files: set[str] = set()
     record_ids: set[str] = set()
     release_blockers: list[str] = []
+    internal_research_blockers: list[str] = []
     record_scopes: dict[str, str] = {}
 
     for index, raw_record in enumerate(records):
@@ -232,6 +233,23 @@ def validate_source_register(
         review = raw_record.get("review") if isinstance(raw_record.get("review"), dict) else {}
         if release_scope == "test_only":
             continue
+        allowed_uses = rights.get("allowed_uses") if isinstance(rights, dict) else []
+        if not isinstance(allowed_uses, list) or not {
+            "internal_research",
+            "closed_validation",
+        }.intersection(str(item) for item in allowed_uses):
+            internal_research_blockers.append(
+                f"{source_file}: 未声明 internal_research 或 closed_validation 用途"
+            )
+        takedown_status = str(
+            (raw_record.get("takedown") or {}).get("status")
+            if isinstance(raw_record.get("takedown"), dict)
+            else ""
+        )
+        if takedown_status != "active":
+            internal_research_blockers.append(
+                f"{source_file}: 下架状态为 {takedown_status or '未填'}，不能用于内部研究"
+            )
         if rights_status != "A":
             release_blockers.append(f"{source_file}: 权利等级为 {rights_status or '未填'}")
         if not acquisition.get("date") or not acquisition.get("reference_index"):
@@ -293,12 +311,21 @@ def validate_source_register(
                     release_blockers.append(
                         f"{source_file}: test_only 来源仍位于活动运行 manifest，不能作为生产运行包发布"
                     )
+                    internal_research_blockers.append(
+                        f"{source_file}: test_only 来源仍位于活动运行 manifest，不能用于内部研究"
+                    )
             else:
                 warnings.append(f"活动运行 manifest 不存在，未能校验测试来源范围：{manifest_path}")
                 release_blockers.append("活动运行 manifest 不存在，不能确认生产运行来源范围")
+                internal_research_blockers.append(
+                    "活动运行 manifest 不存在，不能确认内部研究来源范围"
+                )
         else:
             warnings.append("活动数据库指针缺少 manifest，未能校验运行来源范围")
             release_blockers.append("活动数据库指针缺少 manifest，不能确认生产运行来源范围")
+            internal_research_blockers.append(
+                "活动数据库指针缺少 manifest，不能确认内部研究来源范围"
+            )
 
     if issues:
         raise SourceRegisterError(issues)
@@ -314,6 +341,8 @@ def validate_source_register(
         "runtime_test_only_sources": runtime_test_only_sources,
         "release_eligible": not release_blockers,
         "release_blockers": release_blockers,
+        "internal_research_eligible": not internal_research_blockers,
+        "internal_research_blockers": internal_research_blockers,
         "warnings": warnings,
     }
 
