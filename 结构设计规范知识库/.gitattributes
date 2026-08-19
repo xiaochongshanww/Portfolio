@@ -4,3 +4,4 @@
 /docs/quality/质量证据历史索引.json text eol=lf
 *.py text eol=lf
 pyproject.toml text eol=lf
+*.pdf binary
