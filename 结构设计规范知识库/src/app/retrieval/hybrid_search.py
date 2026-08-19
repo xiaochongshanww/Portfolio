@@ -56,6 +56,12 @@ EXPLICIT_TABLE_QUESTION_TERMS = (
     "采用哪个表",
 )
 
+DEFINITION_REFERENCE_PAIRS = (("标准值", "设计值"),)
+DEFINITION_RELATION_MARKERS = ("除以", "所得", "分项系数", "分位值")
+DEFINITION_HEADING_RE = re.compile(
+    r"(?:^|\n)\s*(?:[A-Z]\.)?\d+(?:\.\d+){1,3}\s*[^\n]{0,40}(?:标准值|设计值)"
+)
+
 
 def tokenize_chinese(text: str) -> list[str]:
     normalized = re.sub(r"[^一-鿿\w]", " ", text.lower())
@@ -611,6 +617,7 @@ class RetrievalState:
                     candidate.add_source("domain")
                     candidate.add_reason("definition query prefers normative body")
                     self._apply_body_content_evidence_ranking(query_info, candidate)
+                    self._apply_definition_evidence_ranking(query_info, candidate)
             elif query_info.intent == "formula":
                 if section_type == "formula":
                     candidate.score += 3.0
@@ -707,6 +714,53 @@ class RetrievalState:
         else:
             candidate.score -= 0.8
             candidate.add_reason("body evidence misses specific query content")
+
+    def _apply_definition_evidence_ranking(
+        self, query_info: QueryInfo, candidate: RetrievalCandidate
+    ) -> None:
+        """Prefer direct normative definitions over incidental term mentions."""
+        if query_info.intent != "definition":
+            return
+
+        reference_pair = next(
+            (
+                pair
+                for pair in DEFINITION_REFERENCE_PAIRS
+                if all(term in query_info.original for term in pair)
+            ),
+            None,
+        )
+        if reference_pair is None:
+            return
+
+        evidence = " ".join(
+            str(candidate.meta.get(key, "")) for key in ("name", "code", "title", "clause_number")
+        )
+        evidence = f"{evidence}\n{candidate.text}"
+        if not all(term in evidence for term in reference_pair):
+            return
+
+        candidate.score += 1.5
+        candidate.add_reason("definition query matches paired reference terms")
+
+        positions = [evidence.find(term) for term in reference_pair]
+        start = min(positions)
+        end = max(positions)
+        relation_window = evidence[max(0, start - 80) : end + 120]
+        if any(marker in relation_window for marker in DEFINITION_RELATION_MARKERS):
+            candidate.score += 4.0
+            candidate.add_reason("definition query matches normative relationship evidence")
+
+        if DEFINITION_HEADING_RE.search(candidate.text):
+            candidate.score += 4.0
+            candidate.add_reason("definition query matches normative definition heading")
+
+        # Standards often define material strength under the broader term
+        # "material property"; treat that as a terminology relation, not a
+        # query-specific synonym.
+        if "材料强度" in query_info.original and "材料性能" in evidence:
+            candidate.score += 2.0
+            candidate.add_reason("definition query matches material-property terminology")
 
 
 retrieval_state = RetrievalState()

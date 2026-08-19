@@ -216,6 +216,31 @@ def test_domain_ranking_promotes_specific_content_for_classification_queries():
     assert "body evidence misses specific query content" in generic.reasons
 
 
+def test_domain_ranking_prefers_direct_definition_relationships():
+    state = RetrievalState()
+    query_info = analyze_query("材料强度标准值和设计值有什么关系？")
+    direct_definition = RetrievalCandidate(
+        doc_id="direct-definition",
+        text="2.1.63材料性能的设计值，材料性能的标准值除以材料性能分项系数所得的值。",
+        meta={"name": "建筑结构可靠性设计统一标准", "section_type": "body"},
+        score=1.0,
+    )
+    incidental_mention = RetrievalCandidate(
+        doc_id="incidental-mention",
+        text="材料强度标准值确定承载力，设计值用于抗震复核。",
+        meta={"name": "建筑抗震设计规范", "section_type": "body"},
+        score=5.0,
+    )
+    pool = {"direct": direct_definition, "incidental": incidental_mention}
+
+    state._apply_domain_ranking(query_info, pool)
+
+    assert direct_definition.score > incidental_mention.score
+    assert "definition query matches normative relationship evidence" in direct_definition.reasons
+    assert "definition query matches normative definition heading" in direct_definition.reasons
+    assert "definition query matches material-property terminology" in direct_definition.reasons
+
+
 def test_domain_ranking_prefers_formula_chunks_for_formula_queries():
     state = RetrievalState()
     query_info = analyze_query("雪荷载标准值的计算公式是什么？")
