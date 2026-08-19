@@ -44,8 +44,8 @@ def _write_context(tmp_path: Path, *, completed: bool = False) -> tuple[Path, Pa
     decisions.write_text(
         "\n".join(
             [
-                f"| D-001 | 授权 | {'已确定' if completed else '当前默认'} | default | trigger |",
-                f"| D-002 | 交付 | {'已确定' if completed else '当前默认'} | default | trigger |",
+                f"| D-001 | 授权 | {'已确定' if completed else '网络搜集扫描 PDF 仅限内部研究和封闭验证，发布资格关闭'} | default | trigger |",
+                f"| D-002 | 交付 | {'已确定' if completed else '保留宿主机运行和知识包 CLI，不承诺安装器、桌面版或公共 Web 服务'} | default | trigger |",
             ]
         ),
         encoding="utf-8",
@@ -159,6 +159,26 @@ def test_internal_research_profile_is_ready_without_external_release_evidence(
     delivery = next(item for item in result["checks"] if item["id"] == "delivery_decision")
     assert delivery["status"] == "internal_only"
     assert delivery["blocking"] is False
+
+    decisions.write_text(
+        decisions.read_text(encoding="utf-8")
+        .replace("内部研究", "外部公开")
+        .replace("宿主机运行和知识包 CLI，不承诺安装器、桌面版或公共 Web 服务", "公共 Web 服务"),
+        encoding="utf-8",
+    )
+    unsafe_result = readiness.audit_release_readiness(
+        profile="internal-research",
+        snapshot_path=snapshot,
+        roadmap_path=roadmap,
+        decisions_path=decisions,
+    )
+    assert unsafe_result["ready"] is False
+    unsafe_delivery = next(
+        item for item in unsafe_result["checks"] if item["id"] == "delivery_decision"
+    )
+    assert unsafe_delivery["status"] == "blocked"
+    assert unsafe_delivery["blocking"] is True
+    assert any(item.startswith("D-001") for item in unsafe_delivery["items"])
 
 
 def test_evidence_manifest_is_optional_but_blocking_when_supplied(tmp_path, monkeypatch):

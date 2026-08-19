@@ -39,6 +39,10 @@ DEFAULT_RERANK_ANSWER_REPORT = (
     PROJECT_ROOT / "data" / "audit" / "reports" / "rerank_answer_latest.json"
 )
 AUDIT_PROFILES = {"external", "internal-research"}
+INTERNAL_DECISION_BOUNDARIES = {
+    "D-001": ("内部研究", "封闭验证", "发布资格关闭"),
+    "D-002": ("宿主机运行", "知识包 CLI", "不承诺"),
+}
 
 
 class ReadinessAuditError(ValueError):
@@ -120,6 +124,33 @@ def _decision_rows(path: Path) -> dict[str, dict[str, str]]:
         if decision.startswith("D-"):
             rows[decision] = {"name": cells[2], "default": cells[3], "trigger": cells[4]}
     return rows
+
+
+def _decision_boundary_issues(
+    decisions: dict[str, dict[str, str]],
+    *,
+    profile: str,
+    delivery_status: str,
+) -> list[str]:
+    """Validate the documented boundary before treating a profile as usable."""
+    issues: list[str] = []
+    for decision_id, markers in INTERNAL_DECISION_BOUNDARIES.items():
+        row = decisions.get(decision_id)
+        if not row:
+            issues.append(f"{decision_id} 决策记录缺失")
+            continue
+        default = row.get("default", "").strip()
+        if not default:
+            issues.append(f"{decision_id} 当前默认内容为空")
+            continue
+        if profile == "internal-research":
+            missing = [marker for marker in markers if marker not in default]
+            if missing:
+                issues.append(f"{decision_id} 内部边界语义缺失：{'、'.join(missing)}")
+
+    if profile == "external" and delivery_status != "已完成":
+        issues.insert(0, f"I-010 状态为 {delivery_status or 'missing'}，尚未形成对外交付决策")
+    return issues
 
 
 def _quality_check(
@@ -664,25 +695,34 @@ def audit_release_readiness(
     delivery_row = rows.get("I-010", {})
     d001 = decisions.get("D-001", {})
     d002 = decisions.get("D-002", {})
-    delivery_ok = profile == "internal-research" or delivery_row.get("status") == "已完成"
+    decision_issues = _decision_boundary_issues(
+        decisions,
+        profile=profile,
+        delivery_status=delivery_row.get("status", ""),
+    )
+    delivery_ok = not decision_issues
+    delivery_check_status = (
+        "internal_only"
+        if profile == "internal-research" and delivery_ok
+        else "blocked"
+        if not delivery_ok
+        else delivery_row.get("status", "missing")
+    )
     checks.append(
         _check(
             "delivery_decision",
             "交付形态与授权边界",
             ok=delivery_ok,
-            blocking=profile != "internal-research",
-            status=(
-                "internal_only"
-                if profile == "internal-research"
-                else delivery_row.get("status", "missing")
-            ),
+            blocking=profile != "internal-research" or not delivery_ok,
+            status=delivery_check_status,
             detail=(
                 "仅允许项目成员范围内的内部研究，不代表对外交付承诺"
-                if profile == "internal-research"
-                else "I-010 已完成"
+                if profile == "internal-research" and delivery_ok
+                else "I-010、D-001、D-002 已形成对外交付决策"
                 if delivery_ok
-                else "I-010 仍受 D-001/D-002 约束，不能作出对外交付承诺"
+                else f"{len(decision_issues)} 项交付/授权边界阻断，不能作出对外交付承诺"
             ),
+            items=decision_issues or None,
         )
     )
 
