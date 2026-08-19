@@ -83,6 +83,23 @@ def _safe_failure(stage: str, exc: BaseException) -> dict[str, Any]:
     }
 
 
+def _build_child_environment(*, api_key: str, zhipu_key: str, mimo_key: str) -> dict[str, str]:
+    """构造临时 API 环境；目标鉴权 Key 只进入子进程。"""
+    child_environment = dict(os.environ)
+    child_environment.update(
+        {
+            "ZHIPUAI_API_KEY": zhipu_key,
+            "RERANK_ENABLED": "true",
+            "RERANK_PROVIDER": "zhipu",
+        }
+    )
+    if api_key:
+        child_environment["API_KEYS"] = api_key
+    if mimo_key:
+        child_environment["MIMO_API_KEY"] = mimo_key
+    return child_environment
+
+
 def run_rerank_quality_evidence(
     *,
     zhipu_key_file: Path,
@@ -97,16 +114,11 @@ def run_rerank_quality_evidence(
     zhipu_key = _read_secret(zhipu_key_file, "智谱 Key")
     api_key = _read_secret(api_key_file, "目标 API Key") if api_key_file else ""
     mimo_key = _read_secret(mimo_key_file, "Mimo Key") if mimo_key_file else ""
-    child_environment = dict(os.environ)
-    child_environment.update(
-        {
-            "ZHIPUAI_API_KEY": zhipu_key,
-            "RERANK_ENABLED": "true",
-            "RERANK_PROVIDER": "zhipu",
-        }
+    child_environment = _build_child_environment(
+        api_key=api_key,
+        zhipu_key=zhipu_key,
+        mimo_key=mimo_key,
     )
-    if mimo_key:
-        child_environment["MIMO_API_KEY"] = mimo_key
 
     with _temporary_environment(
         {

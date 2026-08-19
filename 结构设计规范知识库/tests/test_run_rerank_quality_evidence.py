@@ -5,6 +5,7 @@ import sys
 import pytest
 from scripts.run_rerank_quality_evidence import (
     RerankQualityEvidenceError,
+    _build_child_environment,
     _read_secret,
     _temporary_environment,
 )
@@ -41,6 +42,21 @@ def test_temporary_environment_restores_provider_values(monkeypatch):
     assert "RERANK_ENABLED" not in os.environ
     assert os.environ["RERANK_PROVIDER"] == "previous-provider"
     assert "MIMO_API_KEY" not in os.environ
+
+
+def test_target_api_key_is_bound_to_child_environment_only(monkeypatch):
+    monkeypatch.setenv("API_KEYS", "parent-api-key")
+
+    child_environment = _build_child_environment(
+        api_key="temporary-api-key",
+        zhipu_key="temporary-zhipu-key",
+        mimo_key="",
+    )
+
+    assert child_environment["API_KEYS"] == "temporary-api-key"
+    assert child_environment["ZHIPUAI_API_KEY"] == "temporary-zhipu-key"
+    assert os.environ["API_KEYS"] == "parent-api-key"
+    assert os.environ.get("ZHIPUAI_API_KEY") != "temporary-zhipu-key"
 
 
 def test_cli_help_is_utf8_safe():
