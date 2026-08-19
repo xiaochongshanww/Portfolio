@@ -42,18 +42,23 @@
 
 ### 1. 安装项目依赖
 
-建议在 Python 3.11 环境下运行。仅运行 API 或导入已验证知识包时使用轻量运行锁；运行自动化测试时使用开发锁：
+建议在 Python 3.11 环境下运行。不要直接把系统 Python 当作项目环境；先创建并激活隔离虚拟环境，再安装锁定依赖。仅运行 API 或导入已验证知识包时使用轻量运行锁；运行自动化测试时使用开发锁：
 
-```bash
-pip install --require-hashes -r requirements-runtime.txt
-pip install --require-hashes -r requirements-dev.txt
+```powershell
+py -3.11 -m venv .venv
+. .\.venv\Scripts\Activate.ps1
+python -m pip install --require-hashes -r requirements-runtime.txt
+python -m pip install --require-hashes -r requirements-dev.txt
 python -m pip check
+python -m src.doctor --profile runtime
 ```
+
+macOS/Linux 使用 `python3.11 -m venv .venv` 和 `source .venv/bin/activate`，激活后继续使用相同的 `python -m ...` 命令。若依赖版本检查失败，先停止测试并重新安装对应锁；不要用全局 Python 的旧包继续运行，因为 OpenAPI 契约和 TestClient 门禁会产生大量误导性失败。
 
 只有从原始 PDF 生产知识资产的独立环境才安装重型解析器锁：
 
 ```bash
-pip install --require-hashes -r requirements-parser.txt
+python -m pip install --require-hashes -r requirements-parser.txt
 python -m src.pipeline parser-status
 ```
 

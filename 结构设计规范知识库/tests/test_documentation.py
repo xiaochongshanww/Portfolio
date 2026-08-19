@@ -255,6 +255,22 @@ def test_configuration_example_validation_is_documented():
     assert implementation.is_file()
 
 
+def test_development_checks_use_an_isolated_locked_environment():
+    readme = Path("README.md").read_text(encoding="utf-8")
+    deployment = Path("docs/operations/部署运行手册.md").read_text(encoding="utf-8")
+    checklist = Path("docs/architecture/开发环境锁定入口实施清单.md")
+    verification = Path("docs/releases/开发环境锁定入口验证记录.md")
+
+    assert "py -3.11 -m venv .venv" in readme
+    assert "python3.11 -m venv .venv" in readme
+    assert "requirements-dev.txt" in readme
+    assert "python -m src.doctor --profile runtime" in readme
+    assert "py -3.11 -m venv .venv" in deployment
+    assert "python -m pip check" in deployment
+    assert checklist.is_file()
+    assert verification.is_file()
+
+
 def test_active_architecture_and_release_entry_points_are_current():
     overview = Path("docs/architecture/系统架构概览.md").read_text(encoding="utf-8")
     detailed_design = Path("docs/architecture/系统详细设计.md").read_text(encoding="utf-8")
