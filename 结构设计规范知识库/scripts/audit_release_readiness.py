@@ -59,8 +59,9 @@ def _check(
     blocking: bool,
     status: str,
     detail: str,
+    items: list[str] | None = None,
 ) -> dict[str, Any]:
-    return {
+    result = {
         "id": check_id,
         "name": name,
         "ok": ok,
@@ -68,6 +69,9 @@ def _check(
         "status": status,
         "detail": detail,
     }
+    if items is not None:
+        result["items"] = list(items)
+    return result
 
 
 def _roadmap_rows(path: Path) -> dict[str, dict[str, str]]:
@@ -208,6 +212,7 @@ def _source_check(profile: str) -> dict[str, Any]:
             blocking=True,
             status="invalid",
             detail=f"来源台账结构无效（{len(exc.issues)} 项）",
+            items=exc.issues,
         )
     if profile == "internal-research":
         blockers = result.get("internal_research_blockers") or []
@@ -219,6 +224,7 @@ def _source_check(profile: str) -> dict[str, Any]:
                 blocking=True,
                 status="blocked",
                 detail=f"{len(blockers)} 项内部研究来源阻断",
+                items=blockers,
             )
         return _check(
             "source_internal_research",
@@ -237,6 +243,7 @@ def _source_check(profile: str) -> dict[str, Any]:
             blocking=True,
             status="blocked",
             detail=f"{len(blockers)} 项来源资格阻断",
+            items=blockers,
         )
     return _check(
         "source_release",
@@ -542,6 +549,15 @@ def render_markdown(result: dict[str, Any]) -> str:
             f"{'是' if item.get('blocking') else '否'} | "
             f"`{item.get('status', '')}` | {item.get('detail', '')} |"
         )
+    source_checks = [
+        item
+        for item in result.get("checks", [])
+        if item.get("id") in {"source_release", "source_internal_research"} and item.get("items")
+    ]
+    if source_checks:
+        lines.extend(["", "## 来源资格明细", ""])
+        for item in source_checks:
+            lines.extend(f"- {issue}" for issue in item["items"])
     lines.extend(["", "## 阻断原因", ""])
     blockers = result.get("blockers") or ["无"]
     lines.extend(f"- {item}" for item in blockers)

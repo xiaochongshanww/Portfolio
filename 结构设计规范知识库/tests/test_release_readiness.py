@@ -101,6 +101,8 @@ def test_current_readiness_reports_external_blockers(tmp_path, monkeypatch):
         "delivery_decision",
         "rerank_quality",
     }
+    source = next(item for item in result["checks"] if item["id"] == "source_release")
+    assert source["items"] == ["rights"]
     assert any("来源资格" in item for item in result["blockers"])
     assert len(result["warnings"]) == 1
 
@@ -328,3 +330,30 @@ def test_readiness_cli_help_is_utf8_safe():
     stdout = completed.stdout.decode("utf-8")
     assert "审计当前项目是否具备对外发布条件" in stdout
     assert "����" not in stdout
+
+
+def test_render_markdown_includes_source_blocker_details():
+    markdown = readiness.render_markdown(
+        {
+            "profile": "external",
+            "ready": False,
+            "checked_at": "now",
+            "checks": [
+                {
+                    "id": "source_release",
+                    "name": "来源发布资格",
+                    "ok": False,
+                    "blocking": True,
+                    "status": "blocked",
+                    "detail": "2 项来源资格阻断",
+                    "items": ["规范 A: 权利等级为 B", "规范 A: 凭证索引缺失"],
+                }
+            ],
+            "blockers": ["2 项来源资格阻断"],
+            "warnings": [],
+        }
+    )
+
+    assert "## 来源资格明细" in markdown
+    assert "规范 A: 权利等级为 B" in markdown
+    assert "规范 A: 凭证索引缺失" in markdown
