@@ -49,6 +49,20 @@ def _has_rerank_metadata(results: list[Any]) -> bool:
     return bool(results) and any("_rerank_rank" in result.meta for result in results)
 
 
+def _failure_details(reranker: BaseReranker) -> dict[str, int | str]:
+    failure = getattr(reranker, "last_failure", None)
+    if not isinstance(failure, dict):
+        return {}
+    details: dict[str, int | str] = {}
+    code = failure.get("code")
+    status = failure.get("http_status")
+    if isinstance(code, str) and code:
+        details["provider_error_code"] = code
+    if isinstance(status, int) and not isinstance(status, bool):
+        details["provider_http_status"] = status
+    return details
+
+
 def run_rerank_comparison(
     path: Path = DEFAULT_EVAL_PATH,
     *,
@@ -84,7 +98,7 @@ def run_rerank_comparison(
         candidate_by_id[case.id] = candidate_results
         if pool and not _has_rerank_metadata(candidate_results):
             manifest = read_active_manifest()
-            return {
+            report = {
                 "ok": False,
                 "comparison_complete": False,
                 "generated_at": datetime.now(UTC).isoformat(),
@@ -101,6 +115,8 @@ def run_rerank_comparison(
                 "fallback_case_count": 1,
                 "error": ("精排对照在首个降级用例处提前停止，不能将基线结果解释为真实精排结果"),
             }
+            report.update(_failure_details(selected_reranker))
+            return report
 
     structured_by_id = {
         case.id: find_structured_table_matches(case.query, limit=top_k)
@@ -162,6 +178,7 @@ def run_rerank_comparison(
             f"精排对照未完成：{fallback_case_count} 个用例发生提供方降级，"
             "不能将基线结果解释为真实精排结果"
         )
+        report.update(_failure_details(selected_reranker))
     return report
 
 
@@ -183,6 +200,15 @@ def render_rerank_comparison_markdown(result: dict[str, Any]) -> str:
     ]
     if result.get("error"):
         lines.extend(["## 执行提示", "", str(result["error"]), ""])
+        if result.get("provider_error_code") or result.get("provider_http_status"):
+            lines.extend(
+                [
+                    "- 供应商失败状态："
+                    f"`{result.get('provider_error_code', '-')}` / "
+                    f"HTTP `{result.get('provider_http_status', '-')}`",
+                    "",
+                ]
+            )
         if "baseline" not in result:
             return "\n".join(lines) + "\n"
 

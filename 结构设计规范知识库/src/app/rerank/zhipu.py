@@ -109,7 +109,9 @@ class ZhipuReranker(BaseReranker):
             raise RerankerError("timeout", "精排请求超时") from exc
         except httpx.HTTPStatusError as exc:
             raise RerankerError(
-                "http_error", f"精排服务返回 HTTP {exc.response.status_code}"
+                "http_error",
+                f"精排服务返回 HTTP {exc.response.status_code}",
+                http_status=exc.response.status_code,
             ) from exc
         except httpx.HTTPError as exc:
             raise RerankerError("network_error", "精排服务网络请求失败") from exc

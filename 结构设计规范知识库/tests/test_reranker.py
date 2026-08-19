@@ -125,6 +125,7 @@ def test_zhipu_reranker_sanitizes_http_and_timeout_failures():
     with pytest.raises(RerankerError, match="HTTP 401") as http_error:
         reranker_with(http_client).rerank("private query", [result(0)])
     assert "secret provider body" not in str(http_error.value)
+    assert http_error.value.http_status == 401
 
     def timeout_handler(request: httpx.Request) -> httpx.Response:
         raise httpx.ReadTimeout("private timeout body", request=request)
@@ -157,6 +158,20 @@ def test_fail_open_reranker_returns_baseline_and_records_fallback(caplog):
     assert after["rerank_fallback_total"] == before["rerank_fallback_total"] + 1
     assert "private-query-value" not in caplog.text
     assert caplog.records[-1].extra_data["error_code"] == "provider_down"
+
+
+def test_fail_open_reranker_exposes_only_sanitized_failure_details():
+    class BrokenReranker:
+        name = "broken"
+
+        def rerank(self, query, results, *, top_n=None):
+            del query, results, top_n
+            raise RerankerError("rate_limited", "provider unavailable", http_status=429)
+
+    reranker = FailOpenReranker(BrokenReranker())
+    reranker.rerank("query", [result(0)])
+
+    assert reranker.last_failure == {"code": "rate_limited", "http_status": 429}
 
 
 def test_fail_open_reranker_records_success():

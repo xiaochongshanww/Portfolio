@@ -11,6 +11,7 @@ class FailOpenReranker(BaseReranker):
     def __init__(self, delegate: BaseReranker) -> None:
         self.delegate = delegate
         self.name = delegate.name
+        self.last_failure: dict[str, int | str | None] | None = None
 
     def rerank(
         self,
@@ -21,11 +22,14 @@ class FailOpenReranker(BaseReranker):
     ) -> list[RetrievalResult]:
         started = perf_counter()
         requested = len(results) if top_n is None else max(top_n, 0)
+        self.last_failure = None
         try:
             reranked = self.delegate.rerank(query, results, top_n=top_n)
         except Exception as exc:
             duration_ms = int((perf_counter() - started) * 1000)
             code = exc.code if isinstance(exc, RerankerError) else "unexpected_error"
+            http_status = exc.http_status if isinstance(exc, RerankerError) else None
+            self.last_failure = {"code": code, "http_status": http_status}
             metrics.record_rerank(success=False, duration_ms=duration_ms)
             logging.warning(
                 "rerank_fallback",

@@ -1,4 +1,6 @@
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -34,3 +36,17 @@ def test_source_register_can_be_used_as_a_release_gate():
 
     assert result["release_blockers"]
     assert result["release_eligible"] is False
+
+
+def test_source_register_release_gate_cli_fails_closed():
+    completed = subprocess.run(
+        [sys.executable, "scripts/validate_source_register.py", "--require-release-eligible"],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 1
+    assert "source_release_not_eligible" in completed.stdout
+    assert "ZHIPUAI_API_KEY" not in completed.stdout

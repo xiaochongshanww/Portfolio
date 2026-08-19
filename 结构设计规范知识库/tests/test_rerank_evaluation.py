@@ -165,6 +165,7 @@ def test_rerank_comparison_fails_closed_when_provider_falls_back(
 
     class FailingReranker:
         name = "zhipu"
+        last_failure = {"code": "rate_limited", "http_status": 429}
 
         def rerank(self, query, results, *, top_n=None):
             del query
@@ -204,6 +205,8 @@ def test_rerank_comparison_fails_closed_when_provider_falls_back(
     assert report["processed_case_count"] == 1
     assert state.calls == 1
     assert "不能将基线结果解释为真实精排结果" in report["error"]
+    assert report["provider_error_code"] == "rate_limited"
+    assert report["provider_http_status"] == 429
 
 
 def test_rerank_comparison_fails_closed_when_candidate_pool_is_empty(tmp_path, monkeypatch):
