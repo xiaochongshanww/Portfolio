@@ -57,6 +57,7 @@ def test_current_readiness_reports_external_blockers(tmp_path, monkeypatch):
         "validate_source_register",
         lambda: {"release_eligible": False, "release_blockers": ["rights"]},
     )
+    monkeypatch.setattr(readiness, "validate_runtime_manifest", lambda: {"ok": True})
 
     result = readiness.audit_release_readiness(
         snapshot_path=snapshot,
@@ -88,6 +89,7 @@ def test_readiness_can_pass_with_completed_external_evidence(tmp_path, monkeypat
         "validate_source_register",
         lambda: {"release_eligible": True, "release_blockers": []},
     )
+    monkeypatch.setattr(readiness, "validate_runtime_manifest", lambda: {"ok": True})
     monkeypatch.setattr(
         readiness,
         "validate_trial_record",
@@ -121,6 +123,7 @@ def test_rerank_quality_is_non_blocking_when_feature_is_disabled(tmp_path, monke
         "validate_source_register",
         lambda: {"release_eligible": True, "release_blockers": []},
     )
+    monkeypatch.setattr(readiness, "validate_runtime_manifest", lambda: {"ok": True})
     trial = _write_json(
         tmp_path / "trial.json",
         {"status": "completed", "conclusion": {"decision": "continue"}},

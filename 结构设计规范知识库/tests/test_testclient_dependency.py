@@ -4,7 +4,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 HTTPX2_REQUIREMENT = "httpx2>=2,<3"
-STARLETTE_FALLBACK_WARNING = "error::starlette.exceptions.StarletteDeprecationWarning"
+STARLETTE_FALLBACK_WARNING = "error::DeprecationWarning:starlette"
 
 
 def _requirement_lines(filename: str) -> set[str]:

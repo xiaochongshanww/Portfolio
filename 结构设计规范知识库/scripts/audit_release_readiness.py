@@ -9,9 +9,11 @@ from pathlib import Path
 from typing import Any
 
 try:
+    from scripts.validate_runtime_manifest import RuntimeManifestError, validate_runtime_manifest
     from scripts.validate_source_register import SourceRegisterError, validate_source_register
     from scripts.validate_trial_record import TrialRecordError, validate_trial_record
 except ModuleNotFoundError:  # Direct ``python scripts/audit_release_readiness.py`` entry.
+    from validate_runtime_manifest import RuntimeManifestError, validate_runtime_manifest
     from validate_source_register import SourceRegisterError, validate_source_register
     from validate_trial_record import TrialRecordError, validate_trial_record
 
@@ -240,6 +242,38 @@ def _trial_check(trial_record: Path | None) -> dict[str, Any]:
     )
 
 
+def _runtime_manifest_check() -> dict[str, Any]:
+    try:
+        result = validate_runtime_manifest()
+    except RuntimeManifestError as exc:
+        return _check(
+            "runtime_manifest",
+            "运行 manifest 一致性",
+            ok=False,
+            blocking=True,
+            status="invalid",
+            detail=f"运行 manifest 无法校验（{len(exc.issues)} 项）",
+        )
+    if not result.get("ok"):
+        issues = result.get("issues") or []
+        return _check(
+            "runtime_manifest",
+            "运行 manifest 一致性",
+            ok=False,
+            blocking=True,
+            status="inconsistent",
+            detail="；".join(str(issue) for issue in issues),
+        )
+    return _check(
+        "runtime_manifest",
+        "运行 manifest 一致性",
+        ok=True,
+        blocking=True,
+        status="consistent",
+        detail="活动指针、文档数量和 chunk 数量一致",
+    )
+
+
 def audit_release_readiness(
     *,
     snapshot_path: Path = DEFAULT_SNAPSHOT,
@@ -252,6 +286,7 @@ def audit_release_readiness(
     checks = [
         _quality_check(snapshot_path.resolve()),
         _source_check(),
+        _runtime_manifest_check(),
         _trial_check(trial_record),
     ]
 

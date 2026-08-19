@@ -11,5 +11,5 @@ line-ending = "lf"
 
 [tool.pytest.ini_options]
 filterwarnings = [
-    "error::starlette.exceptions.StarletteDeprecationWarning",
+    "error::DeprecationWarning:starlette",
 ]
