@@ -251,15 +251,16 @@ def main() -> int:
                 "ok": False,
                 "error": "source_release_not_eligible",
             }
-            print(json.dumps(result, ensure_ascii=False, indent=2))
+            print(json.dumps(result, ensure_ascii=True, indent=2))
             return 1
     except SourceRegisterError as exc:
         for issue in exc.issues:
-            print(f"::error title=Source register::{issue}")
+            safe_issue = issue.encode("ascii", errors="backslashreplace").decode("ascii")
+            print(f"::error title=Source register::{safe_issue}")
         result = {"ok": False, "error": "source_register_invalid", "issues": exc.issues}
-        print(json.dumps(result, ensure_ascii=False, indent=2))
+        print(json.dumps(result, ensure_ascii=True, indent=2))
         return 1
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    print(json.dumps(result, ensure_ascii=True, indent=2))
     return 0
 
 
