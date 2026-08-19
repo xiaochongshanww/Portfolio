@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 import scripts.audit_release_readiness as readiness
+from scripts.create_release_evidence_manifest import build_manifest
 
 
 def _write_json(path: Path, value: dict) -> Path:
@@ -158,6 +159,33 @@ def test_internal_research_profile_is_ready_without_external_release_evidence(
     delivery = next(item for item in result["checks"] if item["id"] == "delivery_decision")
     assert delivery["status"] == "internal_only"
     assert delivery["blocking"] is False
+
+
+def test_evidence_manifest_is_optional_but_blocking_when_supplied(tmp_path, monkeypatch):
+    monkeypatch.setattr(readiness, "PROJECT_ROOT", tmp_path)
+    snapshot, roadmap, decisions = _write_context(tmp_path)
+    manifest_path = tmp_path / "release-evidence.json"
+    manifest_path.write_text(json.dumps(build_manifest()), encoding="utf-8")
+    monkeypatch.setattr(
+        readiness,
+        "validate_source_register",
+        lambda: {"release_eligible": False, "release_blockers": ["rights"]},
+    )
+    monkeypatch.setattr(readiness, "validate_runtime_manifest", lambda: {"ok": True})
+
+    result = readiness.audit_release_readiness(
+        snapshot_path=snapshot,
+        roadmap_path=roadmap,
+        decisions_path=decisions,
+        evidence_manifest=manifest_path,
+    )
+
+    evidence = next(item for item in result["checks"] if item["id"] == "release_evidence_manifest")
+    assert evidence["ok"] is False
+    assert evidence["blocking"] is True
+    assert evidence["status"] == "incomplete"
+    assert evidence["remediation"]["owner"] == "发布证据负责人"
+    assert "release_evidence_manifest" in result["closure"]["blocking_check_ids"]
 
 
 def test_readiness_can_pass_with_completed_external_evidence(tmp_path, monkeypatch):

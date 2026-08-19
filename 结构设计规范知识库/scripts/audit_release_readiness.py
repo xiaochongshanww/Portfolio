@@ -13,10 +13,18 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 try:
+    from scripts.validate_release_evidence_manifest import (
+        EvidenceManifestError,
+        validate_release_evidence_manifest,
+    )
     from scripts.validate_runtime_manifest import RuntimeManifestError, validate_runtime_manifest
     from scripts.validate_source_register import SourceRegisterError, validate_source_register
     from scripts.validate_trial_record import TrialRecordError, validate_trial_record
 except ModuleNotFoundError:  # Direct ``python scripts/audit_release_readiness.py`` entry.
+    from validate_release_evidence_manifest import (  # type: ignore[no-redef]
+        EvidenceManifestError,
+        validate_release_evidence_manifest,
+    )
     from validate_runtime_manifest import RuntimeManifestError, validate_runtime_manifest
     from validate_source_register import SourceRegisterError, validate_source_register
     from validate_trial_record import TrialRecordError, validate_trial_record
@@ -316,6 +324,46 @@ def _trial_check(trial_record: Path | None, profile: str) -> dict[str, Any]:
     )
 
 
+def _evidence_manifest_check(manifest_path: Path, profile: str) -> dict[str, Any]:
+    blocking = profile == "external"
+    try:
+        result = validate_release_evidence_manifest(manifest_path)
+    except EvidenceManifestError as exc:
+        return _check(
+            "release_evidence_manifest",
+            "发布证据包索引",
+            ok=False,
+            blocking=blocking,
+            status="invalid",
+            detail=f"发布证据包索引无法校验（{len(exc.issues)} 项）",
+            items=exc.issues,
+        )
+    if not result.get("ready"):
+        gaps = result.get("gaps") or []
+        items = [
+            f"{item.get('id', '')}: {item.get('detail', '')}"
+            for item in gaps
+            if isinstance(item, dict)
+        ]
+        return _check(
+            "release_evidence_manifest",
+            "发布证据包索引",
+            ok=False,
+            blocking=blocking,
+            status="incomplete",
+            detail=f"{len(gaps)} 项证据尚未收口",
+            items=items,
+        )
+    return _check(
+        "release_evidence_manifest",
+        "发布证据包索引",
+        ok=True,
+        blocking=blocking,
+        status="ready",
+        detail="受控证据索引结构、引用文件和必需收口项均已通过校验",
+    )
+
+
 def _runtime_manifest_check() -> dict[str, Any]:
     try:
         result = validate_runtime_manifest()
@@ -507,6 +555,18 @@ def _remediation_for_check(check: dict[str, Any]) -> dict[str, Any] | None:
                 "审计中的 closed_trial 状态为 completed 且结论为 continue",
             ],
         }
+    if check_id == "release_evidence_manifest":
+        return {
+            "owner": "发布证据负责人",
+            "actions": [
+                "在受限目录生成并填写发布证据包索引，只登记引用、责任人和哈希，不提交授权原件或密钥。",
+                "逐项补齐来源取得、权利复核、存储处置、封闭试用和 D-001/D-002 决策证据，再重新运行索引校验。",
+            ],
+            "verification": [
+                "python scripts/validate_release_evidence_manifest.py --manifest <受限目录>\\release-evidence.json --require-ready",
+                "发布审计中的 release_evidence_manifest 状态为 ready",
+            ],
+        }
     if check_id == "delivery_decision":
         return {
             "owner": "产品与工程负责人",
@@ -577,6 +637,7 @@ def audit_release_readiness(
     roadmap_path: Path = DEFAULT_ROADMAP,
     decisions_path: Path = DEFAULT_DECISIONS,
     trial_record: Path | None = None,
+    evidence_manifest: Path | None = None,
     rerank_comparison_report: Path = DEFAULT_RERANK_COMPARISON_REPORT,
     rerank_answer_report: Path = DEFAULT_RERANK_ANSWER_REPORT,
 ) -> dict[str, Any]:
@@ -597,6 +658,8 @@ def audit_release_readiness(
         runtime_check,
         _trial_check(trial_record, profile),
     ]
+    if evidence_manifest is not None:
+        checks.append(_evidence_manifest_check(evidence_manifest.resolve(), profile))
 
     delivery_row = rows.get("I-010", {})
     d001 = decisions.get("D-001", {})
@@ -754,6 +817,11 @@ def main() -> int:
     )
     parser.add_argument("--trial-record", type=Path, help="已完成的封闭试用记录 JSON")
     parser.add_argument(
+        "--evidence-manifest",
+        type=Path,
+        help="受限目录中的发布证据包索引 JSON；提供后纳入外部发布审计",
+    )
+    parser.add_argument(
         "--rerank-comparison-report",
         type=Path,
         default=DEFAULT_RERANK_COMPARISON_REPORT,
@@ -772,6 +840,7 @@ def main() -> int:
         result = audit_release_readiness(
             profile=args.profile,
             trial_record=args.trial_record,
+            evidence_manifest=args.evidence_manifest,
             rerank_comparison_report=args.rerank_comparison_report,
             rerank_answer_report=args.rerank_answer_report,
         )
