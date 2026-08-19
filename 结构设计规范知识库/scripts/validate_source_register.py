@@ -254,6 +254,8 @@ def main() -> int:
             print(json.dumps(result, ensure_ascii=False, indent=2))
             return 1
     except SourceRegisterError as exc:
+        for issue in exc.issues:
+            print(f"::error title=Source register::{issue}")
         result = {"ok": False, "error": "source_register_invalid", "issues": exc.issues}
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 1
