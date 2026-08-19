@@ -442,6 +442,98 @@ def _rerank_check(
     )
 
 
+def _remediation_for_check(check: dict[str, Any]) -> dict[str, Any] | None:
+    """Return role-based next steps without changing the readiness decision."""
+    if check.get("ok"):
+        return None
+    check_id = check.get("id")
+    if check_id == "quality_evidence":
+        return {
+            "owner": "质量运营负责人",
+            "actions": [
+                "按当前活动数据版本重新生成完整质量证据，不能用旧报告或跨运行报告拼接通过结论。",
+                "先修复报告哈希、运行身份或数据版本不一致，再重新执行发布审计。",
+            ],
+            "verification": [
+                "质量快照的 release_quality_status 为 passed",
+                "三类报告与当前活动 manifest 的 data_version_hash 一致",
+            ],
+        }
+    if check_id == "source_release":
+        return {
+            "owner": "来源治理负责人",
+            "actions": [
+                "按 items 逐条补齐来源取得日期、凭证索引、权利复核和原始文件仓库存储处置。",
+                "只有逐来源证据真实完成后，才更新来源登记台账；不要直接修改审计结果或路线图状态。",
+            ],
+            "verification": [
+                "python scripts/validate_source_register.py --require-release-eligible",
+                "默认 external profile 的 source_release 检查通过",
+            ],
+        }
+    if check_id == "source_internal_research":
+        return {
+            "owner": "来源治理负责人",
+            "actions": [
+                "核对活动来源的 allowed_uses、来源范围和派生资产限制，确保内部研究声明与实际用途一致。",
+                "禁止把 C 级、test_fixture 或未声明内部用途的来源通过临时字段改成可用。",
+            ],
+            "verification": [
+                "python scripts/validate_source_register.py",
+                "python scripts/audit_release_readiness.py --profile internal-research",
+            ],
+        }
+    if check_id == "runtime_manifest":
+        return {
+            "owner": "知识库运维负责人",
+            "actions": [
+                "先定位活动指针、manifest、文档数量或 chunk 数量的差异，禁止手工修改活动指针伪造一致性。",
+                "在维护窗口修复或重新发布完整运行知识包，再执行同一组运行校验。",
+            ],
+            "verification": [
+                "python scripts/validate_runtime_manifest.py",
+                "重新运行发布就绪审计并确认 runtime_manifest 为 consistent",
+            ],
+        }
+    if check_id == "closed_trial":
+        return {
+            "owner": "试用负责人",
+            "actions": [
+                "按封闭试用方案执行受控真实试用，记录参与者范围、任务、错误、成本、隐私处理和停止/继续结论。",
+                "试用记录完成前，不得把计划记录或模板文件当作真实试用证据。",
+            ],
+            "verification": [
+                "python scripts/validate_trial_record.py <completed-trial-record.json>",
+                "审计中的 closed_trial 状态为 completed 且结论为 continue",
+            ],
+        }
+    if check_id == "delivery_decision":
+        return {
+            "owner": "产品与工程负责人",
+            "actions": [
+                "复核 D-001 内容分发授权边界和 D-002 交付形态，形成明确的产品与治理决策。",
+                "在决策生效前继续保持宿主机运行、内部研究和封闭验证边界，不承诺安装器、公共 Web 服务或对外知识包。",
+            ],
+            "verification": [
+                "更新 docs/architecture/技术与产品待决策事项.md 并形成对应 ADR 或发布记录",
+                "路线图中的 I-010 状态与实际决策证据一致",
+            ],
+        }
+    if check_id == "rerank_quality":
+        return {
+            "owner": "检索质量负责人",
+            "actions": [
+                "在真实证据形成前保持 RERANK_ENABLED=false，不把 HTTP 429、降级或模拟结果当作质量结论。",
+                "具备受控供应商额度后，使用完整精排质量入口生成当前数据版本的 100 条对照和启用精排回答盲测。",
+            ],
+            "verification": [
+                "python scripts/run_rerank_quality_evidence.py --help",
+                "两份精排证据报告完整、无降级且通过发布审计校验",
+            ],
+        }
+    return None
+
+
 def audit_release_readiness(
     *,
     profile: str = "external",
@@ -505,6 +597,11 @@ def audit_release_readiness(
         )
     )
 
+    for check in checks:
+        remediation = _remediation_for_check(check)
+        if remediation is not None:
+            check["remediation"] = remediation
+
     blockers = [item["detail"] for item in checks if not item["ok"] and item["blocking"]]
     warnings = [item["detail"] for item in checks if not item["ok"] and not item["blocking"]]
     ready = not blockers
@@ -558,6 +655,19 @@ def render_markdown(result: dict[str, Any]) -> str:
         lines.extend(["", "## 来源资格明细", ""])
         for item in source_checks:
             lines.extend(f"- {issue}" for issue in item["items"])
+    remediation_checks = [item for item in result.get("checks", []) if item.get("remediation")]
+    if remediation_checks:
+        lines.extend(["", "## 整改行动", ""])
+        for item in remediation_checks:
+            remediation = item["remediation"]
+            lines.extend(
+                [
+                    f"### {item.get('name', '')} (`{item.get('id', '')}`)",
+                    f"- 责任角色：{remediation.get('owner', '')}",
+                ]
+            )
+            lines.extend(f"- {action}" for action in remediation.get("actions", []))
+            lines.append("- 验证：" + "；".join(remediation.get("verification", [])))
     lines.extend(["", "## 阻断原因", ""])
     blockers = result.get("blockers") or ["无"]
     lines.extend(f"- {item}" for item in blockers)

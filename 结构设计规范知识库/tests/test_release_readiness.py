@@ -103,6 +103,11 @@ def test_current_readiness_reports_external_blockers(tmp_path, monkeypatch):
     }
     source = next(item for item in result["checks"] if item["id"] == "source_release")
     assert source["items"] == ["rights"]
+    assert source["remediation"]["owner"] == "来源治理负责人"
+    assert (
+        "validate_source_register.py --require-release-eligible"
+        in source["remediation"]["verification"][0]
+    )
     assert any("来源资格" in item for item in result["blockers"])
     assert len(result["warnings"]) == 1
 
@@ -357,3 +362,35 @@ def test_render_markdown_includes_source_blocker_details():
     assert "## 来源资格明细" in markdown
     assert "规范 A: 权利等级为 B" in markdown
     assert "规范 A: 凭证索引缺失" in markdown
+
+
+def test_render_markdown_includes_remediation_actions():
+    markdown = readiness.render_markdown(
+        {
+            "profile": "external",
+            "ready": False,
+            "checked_at": "now",
+            "checks": [
+                {
+                    "id": "closed_trial",
+                    "name": "封闭试用证据",
+                    "ok": False,
+                    "blocking": True,
+                    "status": "not_provided",
+                    "detail": "未提供已完成的试用记录",
+                    "remediation": {
+                        "owner": "试用负责人",
+                        "actions": ["按方案执行受控真实试用"],
+                        "verification": ["validate_trial_record.py"],
+                    },
+                }
+            ],
+            "blockers": ["未提供已完成的试用记录"],
+            "warnings": [],
+        }
+    )
+
+    assert "## 整改行动" in markdown
+    assert "责任角色：试用负责人" in markdown
+    assert "按方案执行受控真实试用" in markdown
+    assert "validate_trial_record.py" in markdown
