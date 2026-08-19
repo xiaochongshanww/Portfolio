@@ -1,4 +1,6 @@
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -125,3 +127,53 @@ def test_planned_record_generator_requires_three_tasks():
             source_register_version="source-register-2026-08-20",
             tasks=["规范定位", "表格取值"],
         )
+
+
+def test_planned_record_cli_creates_once_and_refuses_overwrite(tmp_path):
+    output = tmp_path / "trial.json"
+    command = [
+        sys.executable,
+        "scripts/create_trial_record.py",
+        "--output",
+        str(output),
+        "--trial-id",
+        "TRIAL-CLI-001",
+        "--participant-id",
+        "P-CLI-001",
+        "--delivery",
+        "受控宿主机",
+        "--environment-owner",
+        "project-owner",
+        "--source-register-version",
+        "source-register-2026-08-20",
+        "--task",
+        "规范定位",
+        "--task",
+        "表格取值",
+        "--task",
+        "公式复核",
+    ]
+
+    created = subprocess.run(
+        command,
+        cwd=Path(__file__).resolve().parents[1],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    assert created.returncode == 0, created.stderr
+    assert json.loads(created.stdout)["status"] == "planned"
+    assert "source-register-2026-08-20" not in created.stdout
+    assert json.loads(output.read_text(encoding="utf-8"))["status"] == "planned"
+
+    repeated = subprocess.run(
+        command,
+        cwd=Path(__file__).resolve().parents[1],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    assert repeated.returncode == 1
+    assert "输出文件已存在" in repeated.stdout
