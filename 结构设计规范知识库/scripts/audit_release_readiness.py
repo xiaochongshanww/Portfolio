@@ -718,7 +718,7 @@ def audit_release_readiness(
             detail=(
                 "仅允许项目成员范围内的内部研究，不代表对外交付承诺"
                 if profile == "internal-research" and delivery_ok
-                else "I-010、D-001、D-002 已形成对外交付决策"
+                else "I-010、D-001、D-002 已形成当前阶段交付边界；不代表来源或对外发布资格已获批准"
                 if delivery_ok
                 else f"{len(decision_issues)} 项交付/授权边界阻断，不能作出对外交付承诺"
             ),

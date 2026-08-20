@@ -246,6 +246,33 @@ def test_readiness_can_pass_with_completed_external_evidence(tmp_path, monkeypat
     assert result["warnings"] == []
 
 
+def test_completed_delivery_boundary_does_not_grant_source_or_trial_access(tmp_path, monkeypatch):
+    monkeypatch.setattr(readiness, "PROJECT_ROOT", tmp_path)
+    snapshot, roadmap, decisions = _write_context(tmp_path, completed=True)
+    monkeypatch.setattr(
+        readiness,
+        "validate_source_register",
+        lambda: {"release_eligible": False, "release_blockers": ["rights"]},
+    )
+    monkeypatch.setattr(readiness, "validate_runtime_manifest", lambda: {"ok": True})
+
+    result = readiness.audit_release_readiness(
+        snapshot_path=snapshot,
+        roadmap_path=roadmap,
+        decisions_path=decisions,
+    )
+
+    delivery = next(item for item in result["checks"] if item["id"] == "delivery_decision")
+    assert delivery["ok"] is True
+    assert "不代表来源或对外发布资格已获批准" in delivery["detail"]
+    assert result["ready"] is False
+    assert {item["id"] for item in result["checks"] if not item["ok"]} == {
+        "source_release",
+        "closed_trial",
+        "rerank_quality",
+    }
+
+
 def test_completed_rerank_status_without_evidence_is_not_verified(tmp_path, monkeypatch):
     monkeypatch.setattr(readiness, "PROJECT_ROOT", tmp_path)
     snapshot, roadmap, decisions = _write_context(tmp_path, completed=True)
