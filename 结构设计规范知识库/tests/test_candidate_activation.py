@@ -18,7 +18,7 @@ def _manifest(path: Path, *, chunks: int = 3) -> dict:
         "chunk_count": chunks,
         "image_count": 2,
         "collection_name": "design_specs",
-        "embedding_model": "embedding-2",
+        "embedding_model": "embedding-3",
         "embedding_dimensions": 1024,
         "artifact_status": {"missing_required_count": 0},
         "audit_status": {"high_risk_count": 0},

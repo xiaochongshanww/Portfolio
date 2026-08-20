@@ -210,6 +210,7 @@ def test_asset_access_through_real_middleware_and_router(tmp_path: Path, monkeyp
     content_access._cached_document_records.cache_clear()
     monkeypatch.setattr(security, "settings", configured_security)
     monkeypatch.setattr(images, "settings", SimpleNamespace(img_dir=image_dir))
+    monkeypatch.setattr(images, "active_images_dir", lambda **_kwargs: image_dir)
 
     app = FastAPI()
     app.add_middleware(ServiceMiddleware)

@@ -161,14 +161,14 @@ def assess_candidate_activation(
                 **embedding_request_kwargs(config, [probe_text])
             )
             probe_vector = response.data[0].embedding
-            probe_result = candidate_state.chroma_collection.query(
-                query_embeddings=[probe_vector], n_results=1
-            )
-            probe_ids = probe_result.get("ids", [[]])[0]
+            probe_result = candidate_state.vector_query(probe_vector, 1)
+            probe_ids = [item[0] for item in probe_result]
             check(
                 "vector_query",
                 bool(probe_ids),
-                "候选向量索引可返回结果" if probe_ids else "候选向量索引未返回结果",
+                "候选精确向量索引可返回结果"
+                if probe_ids
+                else "候选向量索引未返回结果",
                 result_count=len(probe_ids),
                 vector_dimension=len(probe_vector),
             )

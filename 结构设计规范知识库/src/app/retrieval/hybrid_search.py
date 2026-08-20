@@ -28,6 +28,7 @@ from ..core.config import Settings, settings
 from ..core.embeddings import embedding_request_kwargs
 from ..rerank.base import BaseReranker
 from ..rerank.factory import get_reranker
+from .dense_vector_store import load_dense_vector_store
 from .models import RetrievalCandidate, RetrievalResult
 from .query import QueryInfo, analyze_query
 
@@ -198,6 +199,7 @@ class RetrievalState:
         self.zhipu_client: Any = None
         self.chroma_client: Any = None
         self.chroma_collection: Any = None
+        self.dense_vector_store: Any = None
         self.bm25_index: Any = None
         self.bm25_texts: list[str] = []
         self.runtime_data: dict[str, list[Any]] = {
@@ -240,25 +242,29 @@ class RetrievalState:
             return
         chroma_client = chromadb.PersistentClient(path=str(db_dir))
         chroma_collection = chroma_client.get_or_create_collection(name=self.config.collection_name)
-        count = chroma_collection.count()
-        logging.info("ChromaDB: %s 条 (%s)", count, db_dir)
-
         bm25_index = None
         bm25_texts: list[str] = []
         runtime_data = {"ids": [], "documents": [], "metadatas": []}
-        if count > 0:
-            runtime_path = processed_dir or active_processed_dir()
-            try:
-                runtime_data = _load_runtime_data(runtime_path)
-            except FileNotFoundError:
-                # Runtime packages created before processed chunks became a required
-                # build asset remain readable through their self-contained Chroma DB.
+        runtime_path = processed_dir or active_processed_dir()
+        processed_files = (
+            sorted(runtime_path.glob("*_chunks.json")) if runtime_path.is_dir() else []
+        )
+        if processed_files:
+            runtime_data = _load_runtime_data(runtime_path)
+            count = len(runtime_data["ids"])
+        else:
+            # Runtime packages created before processed chunks became a required
+            # build asset remain readable through their self-contained Chroma DB.
+            count = chroma_collection.count()
+            if count > 0:
                 runtime_data = _runtime_data_from_collection(chroma_collection)
             if len(runtime_data["ids"]) != count:
                 raise RuntimeError(
-                    f"processed chunks 与 Chroma 条目数不一致: "
-                    f"processed={len(runtime_data['ids'])}, chroma={count}"
+                    f"运行数据与 Chroma 条目数不一致: "
+                    f"runtime={len(runtime_data['ids'])}, chroma={count}"
                 )
+        logging.info("知识库: %s 条 (%s)", count, db_dir)
+        if count > 0:
             if BM25Okapi is None:
                 logging.error("rank-bm25 未安装，跳过 BM25 索引构建")
             else:
@@ -266,10 +272,19 @@ class RetrievalState:
                 tokenized = [tokenize_chinese(text) for text in bm25_texts]
                 bm25_index = BM25Okapi(tokenized)
                 logging.info("BM25 索引构建完成: %s 条", len(bm25_texts))
+        dense_vector_store = load_dense_vector_store(
+            db_dir,
+            expected_ids=runtime_data["ids"] if runtime_data["ids"] else None,
+            embedding_model=self.config.embedding_model,
+            dimensions=self.config.embedding_dimensions,
+        )
+        if dense_vector_store is not None:
+            logging.info("精确向量索引加载完成: %s 条 (%s)", len(dense_vector_store.ids), db_dir)
 
         with self._state_lock:
             self.chroma_client = chroma_client
             self.chroma_collection = chroma_collection
+            self.dense_vector_store = dense_vector_store
             self.bm25_index = bm25_index
             self.bm25_texts = bm25_texts
             self.runtime_data = runtime_data
@@ -305,6 +320,7 @@ class RetrievalState:
             self.zhipu_client = candidate.zhipu_client
             self.chroma_client = candidate.chroma_client
             self.chroma_collection = candidate.chroma_collection
+            self.dense_vector_store = candidate.dense_vector_store
             self.bm25_index = candidate.bm25_index
             self.bm25_texts = candidate.bm25_texts
             self.runtime_data = candidate.runtime_data
@@ -317,12 +333,32 @@ class RetrievalState:
 
     def chroma_count(self) -> int:
         with self._state_lock:
+            if self.dense_vector_store is not None:
+                return len(self.dense_vector_store.ids)
             if not self.chroma_collection:
                 return -1
             try:
                 return self.chroma_collection.count()
             except Exception:
                 return -1
+
+    def vector_query(self, embedding: list[float], n_results: int) -> list[tuple[str, float]]:
+        with self._state_lock:
+            return self._vector_query_unlocked(embedding, n_results)
+
+    def _vector_query_unlocked(
+        self, embedding: list[float], n_results: int
+    ) -> list[tuple[str, float]]:
+        if self.dense_vector_store is not None:
+            return self.dense_vector_store.query(embedding, n_results)
+        if not self.chroma_collection:
+            return []
+        result = self.chroma_collection.query(
+            query_embeddings=[embedding], n_results=n_results
+        )
+        return list(
+            zip(result["ids"][0], result["distances"][0], strict=True)
+        )
 
     def hybrid_search(self, query: str, top_k: int) -> list[RetrievalResult]:
         with self._state_lock:
@@ -368,12 +404,8 @@ class RetrievalState:
                 )
                 embedding = response.data[0].embedding
                 dense_limit = min(candidate_limit * 5, len(all_data["ids"]))
-                results = self.chroma_collection.query(
-                    query_embeddings=[embedding], n_results=dense_limit
-                )
-                for doc_id, distance in zip(
-                    results["ids"][0], results["distances"][0], strict=True
-                ):
+                results = self._vector_query_unlocked(embedding, dense_limit)
+                for doc_id, distance in results:
                     if doc_id in id_to_doc:
                         candidate = self._candidate_for(doc_id, id_to_doc, id_to_meta, results_pool)
                         candidate.dense_score = 1 / (1 + float(distance))

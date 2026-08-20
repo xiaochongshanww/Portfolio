@@ -1,7 +1,6 @@
 import logging
 import math
 import os
-import shutil
 import sqlite3
 import time
 from pathlib import Path
@@ -17,6 +16,7 @@ except ImportError:
 
 from src.app.core.config import settings
 from src.app.core.embeddings import embedding_request_kwargs
+from src.app.retrieval.dense_vector_store import build_dense_vector_store
 
 load_dotenv()
 
@@ -91,13 +91,24 @@ def load_chunks_to_db(chunks_by_file: dict[str, list[dict[str, Any]]], db_dir: P
         metadatas=metadatas,
         ids=ids,
     )
+    build_dense_vector_store(
+        db_dir,
+        ids,
+        embeddings,
+        embedding_model=settings.embedding_model,
+        dimensions=settings.embedding_dimensions,
+    )
     logging.info("入库完成: %s 条, 集合总条目: %s", total, collection.count())
     _wait_for_hnsw_sync(db_dir)
     try:
         db._system.stop()
     except Exception:
         logging.warning("ChromaDB flush/stop 未显式完成", exc_info=True)
-    _repair_incomplete_hnsw_index(db_dir)
+    _clear_chroma_system_cache()
+    _verify_persisted_chroma_index(
+        db_dir,
+        expected_count=total,
+    )
     return total
 
 
@@ -106,7 +117,7 @@ def migrate_collection_embeddings(
     source_db_dir: Path,
     target_db_dir: Path,
 ) -> int:
-    """Rebuild a copied collection by replacing all records without explicit Rust shutdown."""
+    """Build a fresh target collection instead of mutating the source HNSW graph."""
     try:
         import chromadb
         from zai import ZhipuAiClient
@@ -118,18 +129,16 @@ def migrate_collection_embeddings(
         raise PipelineError("ZHIPUAI_API_KEY 未设置，无法执行向量迁移")
     if target_db_dir.exists():
         raise PipelineError(f"迁移目标目录已存在: {target_db_dir}")
-    if not source_db_dir.is_dir():
+    if not source_db_dir.is_dir() or not (source_db_dir / "chroma.sqlite3").is_file():
         raise PipelineError(f"迁移源数据库不存在: {source_db_dir}")
 
-    shutil.copytree(source_db_dir, target_db_dir)
+    target_db_dir.mkdir(parents=True, exist_ok=False)
     zhipu = ZhipuAiClient(api_key=api_key)
     db = chromadb.PersistentClient(path=str(target_db_dir))
-    collection = db.get_collection(settings.collection_name)
-    expected_count = sum(len(chunks) for chunks in chunks_by_file.values())
-    if collection.count() != expected_count:
-        raise PipelineError(
-            f"迁移源集合条目数不一致: expected={expected_count}, actual={collection.count()}"
-        )
+    collection = db.get_or_create_collection(
+        name=settings.collection_name,
+        metadata=CHROMA_HNSW_METADATA,
+    )
     pending_updates = _embed_chunks(zhipu, chunks_by_file)
     ids = [item for batch in pending_updates for item in batch[0]]
     documents = [item for batch in pending_updates for item in batch[1]]
@@ -144,11 +153,24 @@ def migrate_collection_embeddings(
         metadatas=metadatas,
         ids=ids,
     )
+    build_dense_vector_store(
+        target_db_dir,
+        ids,
+        embeddings,
+        embedding_model=settings.embedding_model,
+        dimensions=settings.embedding_dimensions,
+    )
     logging.info("向量迁移完成: %s 条, 集合总条目: %s", len(ids), collection.count())
     _wait_for_hnsw_sync(target_db_dir)
-    _wait_for_hnsw_index(target_db_dir)
-    # Let the migration process exit naturally so Chroma can finish its Rust writer.
-    _repair_incomplete_hnsw_index(target_db_dir)
+    try:
+        db._system.stop()
+    except Exception:
+        logging.warning("目标 Chroma flush/stop 未显式完成", exc_info=True)
+    _clear_chroma_system_cache()
+    _verify_persisted_chroma_index(
+        target_db_dir,
+        expected_count=len(ids),
+    )
     return len(ids)
 
 
@@ -185,15 +207,36 @@ def _embed_chunks(
     return pending_additions
 
 
-def _repair_incomplete_hnsw_index(db_dir: Path) -> None:
-    """Fail closed when Chroma did not persist a readable HNSW index."""
-    index_files = list(db_dir.glob("*/data_level0.bin"))
-    if not index_files:
-        raise PipelineError(f"Chroma HNSW 索引未落盘: {db_dir}")
-    for metadata_path in db_dir.glob("*/index_metadata.pickle"):
-        segment_dir = metadata_path.parent
-        if not (segment_dir / "data_level0.bin").exists():
-            raise PipelineError(f"Chroma HNSW 索引未落盘: {metadata_path}")
+def _verify_persisted_chroma_index(
+    db_dir: Path,
+    *,
+    expected_count: int,
+) -> None:
+    """Verify Chroma's durable record layer without loading its native index."""
+    database_path = db_dir / "chroma.sqlite3"
+    if not database_path.is_file():
+        raise PipelineError(f"Chroma 数据库文件未落盘: {db_dir}")
+    try:
+        with sqlite3.connect(database_path, timeout=5) as connection:
+            actual_count = int(connection.execute("SELECT COUNT(*) FROM embeddings").fetchone()[0])
+        if actual_count != expected_count:
+            raise PipelineError(
+                f"Chroma 持久化条目数不一致: expected={expected_count}, actual={actual_count}"
+            )
+    except PipelineError:
+        raise
+    except (sqlite3.Error, TypeError, IndexError) as exc:
+        raise PipelineError(f"Chroma 持久化验证失败: {db_dir}: {exc}") from exc
+
+
+def _clear_chroma_system_cache() -> None:
+    """Prevent a stopped PersistentClient from being reused for the next path."""
+    try:
+        from chromadb.api.client import SharedSystemClient
+
+        SharedSystemClient.clear_system_cache()
+    except (ImportError, AttributeError):
+        logging.debug("当前 Chroma 版本不提供 SharedSystemClient 缓存清理", exc_info=True)
 
 
 def _pending_embedding_count(db_dir: Path) -> int | None:
@@ -208,23 +251,6 @@ def _pending_embedding_count(db_dir: Path) -> int | None:
     except sqlite3.Error:
         return None
     return int(row[0]) if row else None
-
-
-def _wait_for_hnsw_index(db_dir: Path, *, timeout_seconds: float = 600.0) -> None:
-    """Wait for Chroma's asynchronous HNSW writer to persist graph links."""
-    deadline = time.monotonic() + timeout_seconds
-    while True:
-        metadata_paths = list(db_dir.glob("*/index_metadata.pickle"))
-        if metadata_paths and all(
-            (path.parent / "data_level0.bin").is_file()
-            and (path.parent / "link_lists.bin").is_file()
-            and (path.parent / "link_lists.bin").stat().st_size > 0
-            for path in metadata_paths
-        ):
-            return
-        if time.monotonic() >= deadline:
-            raise PipelineError(f"Chroma HNSW 图文件未落盘: {db_dir}")
-        time.sleep(0.5)
 
 
 def _wait_for_hnsw_sync(db_dir: Path, *, timeout_seconds: float = 600.0) -> None:

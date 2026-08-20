@@ -92,7 +92,7 @@ class Settings:
     rag_top_k: int = field(default_factory=lambda: _env_int("RAG_TOP_K", "12"))
     rag_min_score: float = field(default_factory=lambda: _env_float("RAG_MIN_SCORE", "0.65"))
     embedding_model: str = field(
-        default_factory=lambda: os.getenv("EMBEDDING_MODEL", "embedding-2")
+        default_factory=lambda: os.getenv("EMBEDDING_MODEL", "embedding-3")
     )
     embedding_dimensions: int = field(
         default_factory=lambda: _env_int("EMBEDDING_DIMENSIONS", "1024")
