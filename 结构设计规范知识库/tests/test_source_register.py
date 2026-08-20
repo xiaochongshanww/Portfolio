@@ -4,7 +4,9 @@ import sys
 from pathlib import Path
 
 import pytest
+from scripts.create_release_evidence_manifest import build_manifest
 from scripts.render_source_register_report import render_markdown as render_source_register_markdown
+from scripts.validate_release_evidence_manifest import validate_release_evidence_manifest
 from scripts.validate_source_register import SourceRegisterError, validate_source_register
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -102,6 +104,57 @@ def test_source_register_release_gate_cli_fails_closed(tmp_path):
     )
     assert rendered.returncode == 0, rendered.stderr
     assert "对外发布资格" in report.read_text(encoding="utf-8")
+
+
+def test_source_register_report_can_link_evidence_manifest(tmp_path):
+    manifest = tmp_path / "release-evidence.json"
+    manifest.write_text(
+        json.dumps(build_manifest(), ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    evidence_result = validate_release_evidence_manifest(manifest)
+    evidence_payload = json.loads(manifest.read_text(encoding="utf-8"))
+    evidence_records = {item["source_id"]: item for item in evidence_payload["sources"]}
+    source_result = validate_source_register()
+    register = json.loads(
+        (PROJECT_ROOT / "docs" / "governance" / "来源登记台账.json").read_text(encoding="utf-8")
+    )
+
+    markdown = render_source_register_markdown(
+        source_result,
+        register["documents"],
+        evidence_result,
+        evidence_records,
+    )
+
+    assert "- 受控证据包索引：`未收口`" in markdown
+    assert "## 证据包索引缺口" in markdown
+    assert "受控证据·取得" in markdown
+    assert "sources[0].evidence.acquisition" in markdown
+
+
+def test_source_register_report_rejects_invalid_evidence_manifest(tmp_path):
+    manifest = tmp_path / "release-evidence.json"
+    manifest.write_text("{}", encoding="utf-8")
+    report = tmp_path / "source-register.md"
+
+    rendered = subprocess.run(
+        [
+            sys.executable,
+            "scripts/render_source_register_report.py",
+            "--evidence-manifest",
+            str(manifest),
+            "--output",
+            str(report),
+        ],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+
+    assert rendered.returncode == 1
+    assert not report.exists()
 
 
 def test_source_register_rejects_scope_mismatch(tmp_path):

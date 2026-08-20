@@ -11,6 +11,10 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 try:
+    from scripts.validate_release_evidence_manifest import (
+        EvidenceManifestError,
+        validate_release_evidence_manifest,
+    )
     from scripts.validate_source_register import (
         DEFAULT_ACTIVE_DB_PATH,
         DEFAULT_METADATA_PATH,
@@ -20,6 +24,10 @@ try:
         validate_source_register,
     )
 except ModuleNotFoundError:  # Direct ``python scripts/render_source_register_report.py`` entry.
+    from validate_release_evidence_manifest import (  # type: ignore[no-redef]
+        EvidenceManifestError,
+        validate_release_evidence_manifest,
+    )
     from validate_source_register import (  # type: ignore[no-redef]
         DEFAULT_ACTIVE_DB_PATH,
         DEFAULT_METADATA_PATH,
@@ -41,6 +49,22 @@ def _load_records(path: Path) -> list[dict[str, Any]]:
     return records
 
 
+def _load_evidence_records(path: Path) -> dict[str, dict[str, Any]]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise SourceRegisterError(f"受控证据包索引无法读取或不是有效 UTF-8 JSON：{path}") from exc
+    records = payload.get("sources") if isinstance(payload, dict) else None
+    if not isinstance(records, list) or not all(isinstance(item, dict) for item in records):
+        raise SourceRegisterError("受控证据包索引 sources 必须是对象数组")
+    result: dict[str, dict[str, Any]] = {}
+    for record in records:
+        source_id = record.get("source_id")
+        if isinstance(source_id, str) and source_id.strip():
+            result[source_id.strip()] = record
+    return result
+
+
 def _text(value: Any, fallback: str = "-") -> str:
     if isinstance(value, list):
         value = "、".join(str(item) for item in value)
@@ -60,7 +84,25 @@ def _source_blockers(source_file: str, blockers: list[str]) -> list[str]:
     return [item for item in blockers if item.startswith(prefix)]
 
 
-def render_markdown(result: dict[str, Any], records: list[dict[str, Any]]) -> str:
+def _evidence_summary(value: Any) -> str:
+    if not isinstance(value, dict):
+        return "未登记"
+    status = _text(value.get("status"))
+    reference = value.get("reference")
+    path = value.get("path")
+    if isinstance(reference, str) and reference.strip():
+        return f"{status}；引用已登记"
+    if isinstance(path, str) and path.strip():
+        return f"{status}；文件已登记"
+    return f"{status}；缺少引用"
+
+
+def render_markdown(
+    result: dict[str, Any],
+    records: list[dict[str, Any]],
+    evidence_result: dict[str, Any] | None = None,
+    evidence_records: dict[str, dict[str, Any]] | None = None,
+) -> str:
     """Render a human handoff view without including source document contents."""
     release_ready = bool(result.get("release_eligible"))
     internal_ready = bool(result.get("internal_research_eligible"))
@@ -73,6 +115,11 @@ def render_markdown(result: dict[str, Any], records: list[dict[str, Any]]) -> st
         f"- 登记来源数：{_text(result.get('source_count'))}",
         f"- 生产来源数：{_text(result.get('production_source_count'))}",
         f"- 测试来源：{_text(result.get('test_only_sources'))}",
+        (
+            "- 受控证据包索引：未提供"
+            if evidence_result is None
+            else f"- 受控证据包索引：`{'已收口' if evidence_result.get('ready') else '未收口'}`"
+        ),
         "",
         "> 本报告只展示来源登记字段和待补证状态，不包含规范原文、页面截图、授权原件、联系人信息或密钥；它不是授权证明，也不改变发布门禁结论。",
         "",
@@ -112,6 +159,11 @@ def render_markdown(result: dict[str, Any], records: list[dict[str, Any]]) -> st
         )
         review = record.get("review") if isinstance(record.get("review"), dict) else {}
         source_issues = _source_blockers(source_file, blockers)
+        evidence = (
+            evidence_records.get(str(record.get("source_id")))
+            if evidence_records is not None
+            else None
+        )
         lines.extend(
             [
                 f"### {_text(record.get('standard_code'))} · {_text(record.get('title'))}",
@@ -127,6 +179,15 @@ def render_markdown(result: dict[str, Any], records: list[dict[str, Any]]) -> st
                 f"- 当前开启权限：{_permission_summary(record.get('permissions'))}",
             ]
         )
+        if evidence_records is not None:
+            evidence_payload = evidence.get("evidence") if evidence else None
+            lines.extend(
+                [
+                    f"- 受控证据·取得：`{_evidence_summary(evidence_payload.get('acquisition') if isinstance(evidence_payload, dict) else None)}`",
+                    f"- 受控证据·权利复核：`{_evidence_summary(evidence_payload.get('rights_review') if isinstance(evidence_payload, dict) else None)}`",
+                    f"- 受控证据·存储处置：`{_evidence_summary(evidence_payload.get('storage_disposition') if isinstance(evidence_payload, dict) else None)}`",
+                ]
+            )
         if source_issues:
             lines.append("- 当前对外发布阻断：")
             lines.extend(f"  - {issue}" for issue in source_issues)
@@ -147,6 +208,20 @@ def render_markdown(result: dict[str, Any], records: list[dict[str, Any]]) -> st
             "",
         ]
     )
+    if evidence_result is not None:
+        gaps = evidence_result.get("gaps") or []
+        lines.extend(["", "## 证据包索引缺口", ""])
+        if gaps:
+            lines.extend(
+                f"- {gap.get('id', '-')}: {gap.get('detail', '-')}"
+                for gap in gaps
+                if isinstance(gap, dict)
+            )
+        else:
+            lines.append("- 无")
+        lines.append(
+            "> 证据包索引仍需通过 `validate_release_evidence_manifest.py --require-ready`，本报告不会替代该门禁。"
+        )
     return "\n".join(lines)
 
 
@@ -160,6 +235,7 @@ def main() -> int:
     parser.add_argument("--metadata", type=Path, default=DEFAULT_METADATA_PATH)
     parser.add_argument("--source-root", type=Path, default=DEFAULT_SOURCE_ROOT)
     parser.add_argument("--active-db", type=Path, default=DEFAULT_ACTIVE_DB_PATH)
+    parser.add_argument("--evidence-manifest", type=Path, help="受限目录中的发布证据包索引 JSON")
     parser.add_argument("--output", type=Path, required=True, help="Markdown 输出文件")
     args = parser.parse_args()
     try:
@@ -170,11 +246,21 @@ def main() -> int:
             args.active_db,
         )
         records = _load_records(args.register.resolve())
+        evidence_result = None
+        evidence_records = None
+        if args.evidence_manifest:
+            evidence_result = validate_release_evidence_manifest(
+                args.evidence_manifest,
+                source_register_path=args.register,
+            )
+            evidence_records = _load_evidence_records(args.evidence_manifest.resolve())
         if args.output.exists():
             raise SourceRegisterError(f"输出文件已存在：{args.output}")
         args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(render_markdown(result, records), encoding="utf-8")
-    except (OSError, SourceRegisterError) as exc:
+        args.output.write_text(
+            render_markdown(result, records, evidence_result, evidence_records), encoding="utf-8"
+        )
+    except (OSError, SourceRegisterError, EvidenceManifestError) as exc:
         print(f"source_register_report_error: {exc}")
         return 1
     print(json.dumps({"ok": True, "output": str(args.output.resolve())}, ensure_ascii=True))
