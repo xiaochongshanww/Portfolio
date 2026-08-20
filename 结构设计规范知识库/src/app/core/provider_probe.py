@@ -8,6 +8,7 @@ from typing import Any
 import httpx
 
 from .config import Settings, settings
+from .embeddings import embedding_request_kwargs
 
 PROBE_TIMEOUT_SECONDS = 15.0
 PROBE_INPUT = "connectivity"
@@ -84,8 +85,7 @@ async def _probe_embedding(
         response = await asyncio.wait_for(
             asyncio.to_thread(
                 embedding_client.embeddings.create,
-                model=config.embedding_model,
-                input=[PROBE_INPUT],
+                **embedding_request_kwargs(config, [PROBE_INPUT]),
             ),
             timeout=timeout_seconds,
         )

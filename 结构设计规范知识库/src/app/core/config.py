@@ -25,6 +25,7 @@ PLACEHOLDER_API_KEYS = {"change-me", "changeme", "not-needed", "your-api-key"}
 VALID_LOG_LEVELS = {"CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"}
 VALID_LOG_FORMATS = {"json", "text"}
 VALID_RERANK_PROVIDERS = {"none", "zhipu"}
+VALID_EMBEDDING_DIMENSIONS = {256, 512, 1024, 2048}
 
 
 class ConfigurationError(ValueError):
@@ -92,6 +93,9 @@ class Settings:
     rag_min_score: float = field(default_factory=lambda: _env_float("RAG_MIN_SCORE", "0.65"))
     embedding_model: str = field(
         default_factory=lambda: os.getenv("EMBEDDING_MODEL", "embedding-2")
+    )
+    embedding_dimensions: int = field(
+        default_factory=lambda: _env_int("EMBEDDING_DIMENSIONS", "1024")
     )
     retrieval_dense_weight: float = field(
         default_factory=lambda: _env_float("RETRIEVAL_DENSE_WEIGHT", "1.0")
@@ -216,6 +220,8 @@ class Settings:
             issues.append("RAG_TOP_K 必须在 1 到 100 之间")
         if self.rag_min_score < 0:
             issues.append("RAG_MIN_SCORE 不能小于 0")
+        if self.embedding_dimensions not in VALID_EMBEDDING_DIMENSIONS:
+            issues.append("EMBEDDING_DIMENSIONS 必须是 256、512、1024 或 2048 之一")
         weights = {
             "RETRIEVAL_DENSE_WEIGHT": self.retrieval_dense_weight,
             "RETRIEVAL_BM25_WEIGHT": self.retrieval_bm25_weight,

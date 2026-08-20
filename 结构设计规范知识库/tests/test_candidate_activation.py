@@ -19,6 +19,7 @@ def _manifest(path: Path, *, chunks: int = 3) -> dict:
         "image_count": 2,
         "collection_name": "design_specs",
         "embedding_model": "embedding-2",
+        "embedding_dimensions": 1024,
         "artifact_status": {"missing_required_count": 0},
         "audit_status": {"high_risk_count": 0},
         "correction_status": {"applied_count": 1},
@@ -107,6 +108,48 @@ def test_candidate_gate_evaluates_injected_database_without_active_state(
     assert result.result["passed"] is True
     assert result.retrieval_state is fake_state
     assert result.result["answer_evaluation_included"] is False
+
+
+def test_candidate_gate_blocks_empty_vector_query(tmp_path: Path, monkeypatch):
+    manifest_path = tmp_path / "candidate" / "manifest.json"
+    _manifest(manifest_path)
+    regular_path = tmp_path / "regular.jsonl"
+    structured_path = tmp_path / "structured.jsonl"
+    regular_path.write_text("regular", encoding="utf-8")
+    structured_path.write_text("structured", encoding="utf-8")
+
+    class FakeEmbeddingClient:
+        class embeddings:
+            @staticmethod
+            def create(**_kwargs):
+                return SimpleNamespace(data=[SimpleNamespace(embedding=[0.1, 0.2])])
+
+    fake_state = SimpleNamespace(
+        ready=True,
+        chroma_count=lambda: 3,
+        zhipu_client=FakeEmbeddingClient(),
+        chroma_collection=SimpleNamespace(query=lambda **_kwargs: {"ids": [[]]}),
+        runtime_data={"documents": ["probe text"]},
+    )
+    monkeypatch.setattr(
+        "src.quality.candidate.RetrievalState.load_candidate",
+        lambda *_args, **_kwargs: fake_state,
+    )
+    monkeypatch.setattr(
+        "src.quality.candidate.run_evaluation",
+        lambda path, **_kwargs: _evaluation(path, structured=path == structured_path),
+    )
+
+    result = assess_candidate_activation(
+        manifest_path=manifest_path,
+        db_dir=tmp_path / "candidate" / "db",
+        config=Settings(zhipuai_api_key="test"),
+        regular_eval_path=regular_path,
+        structured_eval_path=structured_path,
+    )
+
+    assert result.result["passed"] is False
+    assert "vector_query" in result.result["failed_checks"]
 
 
 def test_candidate_gate_turns_evaluation_exceptions_into_blocking_evidence(

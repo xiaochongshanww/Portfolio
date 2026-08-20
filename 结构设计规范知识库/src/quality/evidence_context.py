@@ -76,6 +76,7 @@ def runtime_contract_payload(
             "app_version": config.app_version,
             "collection_name": config.collection_name,
             "embedding_model": config.embedding_model,
+            "embedding_dimensions": config.embedding_dimensions,
             "rag_top_k": config.rag_top_k,
             "rag_min_score": config.rag_min_score,
             "retrieval_dense_weight": config.retrieval_dense_weight,

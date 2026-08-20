@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from src.app.core.config import Settings, settings
+from src.app.core.embeddings import embedding_request_kwargs
 from src.app.retrieval.hybrid_search import RetrievalState
 from src.evaluation.runner import DEFAULT_EVAL_PATH, STRUCTURED_EVAL_PATH, run_evaluation
 from src.pipeline.manifest import read_manifest
@@ -85,10 +86,13 @@ def assess_candidate_activation(
     )
     check(
         "embedding_contract",
-        manifest.get("embedding_model") == config.embedding_model,
-        "候选向量模型与运行配置一致",
+        manifest.get("embedding_model") == config.embedding_model
+        and manifest.get("embedding_dimensions", 1024) == config.embedding_dimensions,
+        "候选向量模型与维度和运行配置一致",
         manifest_embedding=manifest.get("embedding_model"),
         runtime_embedding=config.embedding_model,
+        manifest_embedding_dimensions=manifest.get("embedding_dimensions", 1024),
+        runtime_embedding_dimensions=config.embedding_dimensions,
     )
     missing_required = int(manifest.get("artifact_status", {}).get("missing_required_count", 0))
     check("required_artifacts", missing_required == 0, f"缺失必需产物 {missing_required} 项")
@@ -121,7 +125,11 @@ def assess_candidate_activation(
     candidate_state: RetrievalState | None = None
     state_error = ""
     try:
-        candidate_state = RetrievalState.load_candidate(db_dir, config)
+        candidate_state = RetrievalState.load_candidate(
+            db_dir,
+            config,
+            processed_dir=processed_dir,
+        )
     except Exception as exc:
         state_error = str(exc)
     state_ready = bool(candidate_state and candidate_state.ready)
@@ -138,6 +146,34 @@ def assess_candidate_activation(
         runtime_count == chunk_count and chunk_count > 0,
         f"候选集合 {runtime_count} 条，manifest {chunk_count} 条",
     )
+    if (
+        candidate_state
+        and candidate_state.ready
+        and getattr(candidate_state, "chroma_collection", None)
+        and getattr(candidate_state, "zhipu_client", None)
+        and getattr(candidate_state, "runtime_data", {}).get("documents")
+    ):
+        try:
+            probe_text = next(
+                text for text in candidate_state.runtime_data["documents"] if str(text).strip()
+            )
+            response = candidate_state.zhipu_client.embeddings.create(
+                **embedding_request_kwargs(config, [probe_text])
+            )
+            probe_vector = response.data[0].embedding
+            probe_result = candidate_state.chroma_collection.query(
+                query_embeddings=[probe_vector], n_results=1
+            )
+            probe_ids = probe_result.get("ids", [[]])[0]
+            check(
+                "vector_query",
+                bool(probe_ids),
+                "候选向量索引可返回结果" if probe_ids else "候选向量索引未返回结果",
+                result_count=len(probe_ids),
+                vector_dimension=len(probe_vector),
+            )
+        except Exception as exc:
+            check("vector_query", False, f"候选向量探针失败: {exc}")
 
     try:
         regular = (

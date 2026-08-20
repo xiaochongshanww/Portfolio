@@ -17,6 +17,8 @@ CONFIG_ENV_NAMES = {
     "CORS_ORIGINS",
     "DATA_DIR",
     "DB_DIR",
+    "EMBEDDING_DIMENSIONS",
+    "EMBEDDING_MODEL",
     "IMG_DIR",
     "LLM_TIMEOUT_SECONDS",
     "LOG_LEVEL",
@@ -71,6 +73,7 @@ def settings_from_env(monkeypatch, **values: str) -> Settings:
         ("RAG_MIN_SCORE", "nan", "RAG_MIN_SCORE 必须是有限数字"),
         ("RATE_LIMIT_ENABLED", "sometimes", "RATE_LIMIT_ENABLED 必须是布尔值"),
         ("LOG_FORMAT", "xml", "LOG_FORMAT 必须是 json, text 之一"),
+        ("EMBEDDING_DIMENSIONS", "1000", "EMBEDDING_DIMENSIONS 必须是"),
     ],
 )
 def test_invalid_environment_value_has_actionable_error(monkeypatch, name, value, message):

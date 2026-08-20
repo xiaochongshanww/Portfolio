@@ -301,6 +301,7 @@ def build_repaired_manifest(
         {
             "documents": production_documents,
             "embedding_model": repaired.get("embedding_model", ""),
+            "embedding_dimensions": repaired.get("embedding_dimensions", 1024),
             "collection_name": repaired.get("collection_name", ""),
             "build_params": build_params,
         }
@@ -374,6 +375,7 @@ def repair_runtime_manifest(
             {
                 "documents": repaired_manifest["documents"],
                 "embedding_model": repaired_manifest.get("embedding_model", ""),
+                "embedding_dimensions": repaired_manifest.get("embedding_dimensions", 1024),
                 "collection_name": repaired_manifest.get("collection_name", ""),
                 "build_params": repaired_manifest["build_params"],
             }

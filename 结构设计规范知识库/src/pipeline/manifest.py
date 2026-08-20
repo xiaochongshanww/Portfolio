@@ -28,6 +28,7 @@ def build_manifest(
     image_count: int,
     embedding_model: str,
     collection_name: str,
+    embedding_dimensions: int = 1024,
     artifacts_by_file: dict[str, list[dict[str, Any]]] | None = None,
     parser_metadata_by_file: dict[str, dict[str, Any]] | None = None,
     audit_by_file: dict[str, dict[str, Any]] | None = None,
@@ -90,6 +91,7 @@ def build_manifest(
     version_payload = {
         "documents": documents,
         "embedding_model": embedding_model,
+        "embedding_dimensions": embedding_dimensions,
         "collection_name": collection_name,
         "build_params": build_params,
     }
@@ -101,6 +103,7 @@ def build_manifest(
         "chunk_count": sum(chunk_counts.values()),
         "image_count": image_count,
         "embedding_model": embedding_model,
+        "embedding_dimensions": embedding_dimensions,
         "collection_name": collection_name,
         "build_params": build_params,
         "metadata_status": "partial"

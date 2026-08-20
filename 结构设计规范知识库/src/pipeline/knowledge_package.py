@@ -437,6 +437,9 @@ def export_runtime_package(
             "machine": _normalize_machine(platform.machine()),
             "chromadb_version": _dependency_version("chromadb"),
             "embedding_model": str(manifest.get("embedding_model") or settings.embedding_model),
+            "embedding_dimensions": int(
+                manifest.get("embedding_dimensions", settings.embedding_dimensions)
+            ),
             "collection_name": str(manifest.get("collection_name") or settings.collection_name),
         },
         "capabilities": {
@@ -748,6 +751,14 @@ def validate_runtime_package(
         if compatibility.get("embedding_model") != settings.embedding_model:
             warnings.append(
                 f"Embedding 模型不同: package={compatibility.get('embedding_model')}, local={settings.embedding_model}"
+            )
+        package_embedding_dimensions = int(
+            compatibility.get("embedding_dimensions", 1024)
+        )
+        if package_embedding_dimensions != settings.embedding_dimensions:
+            warnings.append(
+                "Embedding 维度不同: "
+                f"package={package_embedding_dimensions}, local={settings.embedding_dimensions}"
             )
         local_platform = platform.system().lower()
         local_machine = _normalize_machine(platform.machine())

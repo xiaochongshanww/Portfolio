@@ -93,6 +93,7 @@ def _build_source_runtime(root: Path, *, variant: str = DEFAULT_VARIANT) -> dict
         "chunk_count": len(documents),
         "image_count": 1,
         "embedding_model": settings.embedding_model,
+        "embedding_dimensions": settings.embedding_dimensions,
         "collection_name": settings.collection_name,
         "data_version_hash": data_version_hash,
     }

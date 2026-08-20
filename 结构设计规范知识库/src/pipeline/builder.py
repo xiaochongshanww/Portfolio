@@ -183,6 +183,7 @@ def rebuild(
         image_count=image_count,
         embedding_model=settings.embedding_model,
         collection_name=settings.collection_name,
+        embedding_dimensions=settings.embedding_dimensions,
         artifacts_by_file={
             source_file: result.get("artifacts", [])
             for source_file, result in processed_by_file.items()

@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 from pathlib import Path
@@ -19,10 +20,12 @@ try:
 except ImportError:
     ZhipuAiClient = None
 
-from src.pipeline.active_db import active_db_dir
+from src.pipeline.active_db import active_db_dir, active_processed_dir
 from src.pipeline.chunks import extract_table_info
+from src.pipeline.load_to_db import _metadata_for_chroma
 
 from ..core.config import Settings, settings
+from ..core.embeddings import embedding_request_kwargs
 from ..rerank.base import BaseReranker
 from ..rerank.factory import get_reranker
 from .models import RetrievalCandidate, RetrievalResult
@@ -69,6 +72,42 @@ def tokenize_chinese(text: str) -> list[str]:
     chars = list("".join(words))
     trigrams = ["".join(chars[i : i + 3]) for i in range(len(chars) - 2)]
     return words + trigrams
+
+
+def _runtime_data_from_collection(collection: Any) -> dict[str, list[Any]]:
+    """Load the minimum BM25 corpus from a portable Chroma package."""
+    payload = collection.get(include=["documents", "metadatas"])
+    ids = [str(item or "") for item in payload.get("ids", [])]
+    documents = [str(item or "") for item in payload.get("documents", [])]
+    metadatas = [dict(item or {}) for item in payload.get("metadatas", [])]
+    if not ids or len(ids) != len(documents) or len(ids) != len(metadatas):
+        raise RuntimeError("Chroma 集合缺少可用于 BM25 的完整运行数据")
+    if len(ids) != len(set(ids)):
+        raise RuntimeError("Chroma 集合包含重复 chunk_id")
+    return {"ids": ids, "documents": documents, "metadatas": metadatas}
+
+
+def _load_runtime_data(processed_dir: Path) -> dict[str, list[Any]]:
+    if not processed_dir.is_dir():
+        raise FileNotFoundError(f"processed chunks 目录不存在: {processed_dir}")
+    chunks: list[dict[str, Any]] = []
+    for path in sorted(processed_dir.glob("*_chunks.json")):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise RuntimeError(f"processed chunks 无法读取: {path}") from exc
+        if not isinstance(payload, list) or not all(isinstance(item, dict) for item in payload):
+            raise RuntimeError(f"processed chunks 格式无效: {path}")
+        chunks.extend(item for item in payload if item.get("status") != "test")
+
+    ids = [str(chunk.get("chunk_id") or "") for chunk in chunks]
+    if not ids or any(not item for item in ids) or len(ids) != len(set(ids)):
+        raise RuntimeError("processed chunks 缺少唯一 chunk_id")
+    return {
+        "ids": ids,
+        "documents": [str(chunk.get("text") or "") for chunk in chunks],
+        "metadatas": [_metadata_for_chroma(chunk) for chunk in chunks],
+    }
 
 
 def text_contains_clause_heading(text: str, clause_num: str) -> bool:
@@ -161,6 +200,11 @@ class RetrievalState:
         self.chroma_collection: Any = None
         self.bm25_index: Any = None
         self.bm25_texts: list[str] = []
+        self.runtime_data: dict[str, list[Any]] = {
+            "ids": [],
+            "documents": [],
+            "metadatas": [],
+        }
         self.db_dir: Path | None = None
 
     def initialize(self) -> None:
@@ -186,11 +230,11 @@ class RetrievalState:
                 return
             db_dir = active_db_dir()
             db_dir.mkdir(parents=True, exist_ok=True)
-            self._load_chroma_from(db_dir)
+            self._load_chroma_from(db_dir, active_processed_dir())
         except Exception as exc:
             logging.error("ChromaDB/BM25 初始化失败: %s", exc)
 
-    def _load_chroma_from(self, db_dir: Path) -> None:
+    def _load_chroma_from(self, db_dir: Path, processed_dir: Path | None = None) -> None:
         if chromadb is None:
             logging.error("ChromaDB 未安装，无法初始化知识库")
             return
@@ -201,12 +245,24 @@ class RetrievalState:
 
         bm25_index = None
         bm25_texts: list[str] = []
+        runtime_data = {"ids": [], "documents": [], "metadatas": []}
         if count > 0:
+            runtime_path = processed_dir or active_processed_dir()
+            try:
+                runtime_data = _load_runtime_data(runtime_path)
+            except FileNotFoundError:
+                # Runtime packages created before processed chunks became a required
+                # build asset remain readable through their self-contained Chroma DB.
+                runtime_data = _runtime_data_from_collection(chroma_collection)
+            if len(runtime_data["ids"]) != count:
+                raise RuntimeError(
+                    f"processed chunks 与 Chroma 条目数不一致: "
+                    f"processed={len(runtime_data['ids'])}, chroma={count}"
+                )
             if BM25Okapi is None:
                 logging.error("rank-bm25 未安装，跳过 BM25 索引构建")
             else:
-                all_data = chroma_collection.get()
-                bm25_texts = [doc or "" for doc in all_data["documents"]]
+                bm25_texts = [doc or "" for doc in runtime_data["documents"]]
                 tokenized = [tokenize_chinese(text) for text in bm25_texts]
                 bm25_index = BM25Okapi(tokenized)
                 logging.info("BM25 索引构建完成: %s 条", len(bm25_texts))
@@ -216,22 +272,28 @@ class RetrievalState:
             self.chroma_collection = chroma_collection
             self.bm25_index = bm25_index
             self.bm25_texts = bm25_texts
+            self.runtime_data = runtime_data
             self.db_dir = db_dir
 
-    def reload(self, db_dir: Path | None = None) -> None:
+    def reload(self, db_dir: Path | None = None, processed_dir: Path | None = None) -> None:
         target = db_dir or active_db_dir()
         target.mkdir(parents=True, exist_ok=True)
         try:
-            self._load_chroma_from(target)
+            self._load_chroma_from(target, processed_dir)
         except Exception as exc:
             logging.error("ChromaDB/BM25 重载失败: %s", exc)
             raise
 
     @classmethod
-    def load_candidate(cls, db_dir: Path, config: Settings = settings) -> "RetrievalState":
+    def load_candidate(
+        cls,
+        db_dir: Path,
+        config: Settings = settings,
+        processed_dir: Path | None = None,
+    ) -> "RetrievalState":
         candidate = cls(config)
         candidate._initialize_embedding_client()
-        candidate.reload(db_dir)
+        candidate.reload(db_dir, processed_dir)
         return candidate
 
     def adopt(self, candidate: "RetrievalState") -> None:
@@ -245,6 +307,7 @@ class RetrievalState:
             self.chroma_collection = candidate.chroma_collection
             self.bm25_index = candidate.bm25_index
             self.bm25_texts = candidate.bm25_texts
+            self.runtime_data = candidate.runtime_data
             self.db_dir = candidate.db_dir
 
     @property
@@ -293,7 +356,7 @@ class RetrievalState:
         self, query: str, candidate_limit: int
     ) -> tuple[str, list[RetrievalResult]]:
         query_info = analyze_query(query)
-        all_data = self.chroma_collection.get()
+        all_data = self.runtime_data
         id_to_doc = dict(zip(all_data["ids"], all_data["documents"], strict=True))
         id_to_meta = dict(zip(all_data["ids"], all_data["metadatas"], strict=True))
         results_pool: dict[str, RetrievalCandidate] = {}
@@ -301,8 +364,7 @@ class RetrievalState:
         if self.zhipu_client and all_data["ids"]:
             try:
                 response = self.zhipu_client.embeddings.create(
-                    model=self.config.embedding_model,
-                    input=[query],
+                    **embedding_request_kwargs(self.config, [query])
                 )
                 embedding = response.data[0].embedding
                 dense_limit = min(candidate_limit * 5, len(all_data["ids"]))
