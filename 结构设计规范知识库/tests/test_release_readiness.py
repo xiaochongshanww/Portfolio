@@ -301,6 +301,8 @@ def test_completed_rerank_status_without_evidence_is_not_verified(tmp_path, monk
         roadmap_path=roadmap,
         decisions_path=decisions,
         trial_record=trial,
+        rerank_comparison_report=tmp_path / "missing-rerank-comparison.json",
+        rerank_answer_report=tmp_path / "missing-rerank-answer.json",
     )
 
     rerank = next(item for item in result["checks"] if item["id"] == "rerank_quality")
