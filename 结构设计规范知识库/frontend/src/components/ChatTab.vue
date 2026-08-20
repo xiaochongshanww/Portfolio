@@ -14,7 +14,9 @@
       </div>
       <form class="flex gap-2 border-t border-slate-200 p-4" @submit.prevent="send">
         <input v-model="question" class="field h-11 flex-1" placeholder="例如：抗震规范第 8.2.1 条是什么？">
-        <button class="btn btn-primary h-11 px-6" :disabled="busy || !question.trim()">发送</button>
+        <button class="btn btn-primary h-11 px-6" :disabled="busy">
+          {{ busy ? '发送中...' : '发送' }}
+        </button>
       </form>
     </section>
 
@@ -47,6 +49,11 @@ const model = ref('mimo-v2.5')
 const temperature = ref(0.2)
 
 async function send() {
+  if (!question.value.trim()) {
+    error.value = '请输入问题后再发送。'
+    return
+  }
+
   busy.value = true
   error.value = ''
   answer.value = ''
@@ -62,7 +69,7 @@ async function send() {
         model: model.value,
         temperature: temperature.value,
         stream: false,
-        messages: [{ role: 'user', content: question.value }],
+        messages: [{ role: 'user', content: question.value.trim() }],
       }),
     })
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`)
