@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from scripts.render_source_register_report import render_markdown as render_source_register_markdown
 from scripts.validate_source_register import SourceRegisterError, validate_source_register
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -23,6 +24,13 @@ def test_current_source_register_is_structurally_valid_but_not_release_eligible(
     assert not any(
         "test_only 来源仍位于活动运行 manifest" in item for item in result["release_blockers"]
     )
+    register = json.loads(
+        (PROJECT_ROOT / "docs" / "governance" / "来源登记台账.json").read_text(encoding="utf-8")
+    )
+    markdown = render_source_register_markdown(result, register["documents"])
+    assert "## 逐来源补证" in markdown
+    assert "取得日期或凭证索引缺失" in markdown
+    assert "授权原件" in markdown
 
 
 def test_current_source_register_is_eligible_for_internal_research():
@@ -65,7 +73,7 @@ def test_source_register_can_be_used_as_a_release_gate():
     assert result["release_eligible"] is False
 
 
-def test_source_register_release_gate_cli_fails_closed():
+def test_source_register_release_gate_cli_fails_closed(tmp_path):
     completed = subprocess.run(
         [sys.executable, "scripts/validate_source_register.py", "--require-release-eligible"],
         cwd=PROJECT_ROOT,
@@ -77,6 +85,23 @@ def test_source_register_release_gate_cli_fails_closed():
     assert completed.returncode == 1
     assert "source_release_not_eligible" in completed.stdout
     assert "ZHIPUAI_API_KEY" not in completed.stdout
+
+    report = tmp_path / "source-register.md"
+    rendered = subprocess.run(
+        [
+            sys.executable,
+            "scripts/render_source_register_report.py",
+            "--output",
+            str(report),
+        ],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    assert rendered.returncode == 0, rendered.stderr
+    assert "对外发布资格" in report.read_text(encoding="utf-8")
 
 
 def test_source_register_rejects_scope_mismatch(tmp_path):
