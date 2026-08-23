@@ -1,5 +1,6 @@
 <template>
-  <div class="home-public">
+  <!-- shell:1180px 页面容器(01 号规范第 4 节),与 Header/Footer 同轴 -->
+  <div class="home-public shell">
     <!-- Intro(02 号规范 2.3):不是 Hero,只建立页面状态 -->
     <section class="page-intro">
       <div>
@@ -60,6 +61,7 @@
       <section v-if="currentProject" class="section">
         <div class="section-head">
           <h2>正在进行</h2>
+          <a href="/projects" @click.prevent="$router.push('/projects')">全部项目 →</a>
         </div>
         <div class="project-grid">
           <a class="project-copy" href="/projects" @click.prevent="$router.push('/projects')">
@@ -106,6 +108,7 @@
       <section v-if="topics.length" class="section section-last">
         <div class="section-head">
           <h2>长期专题</h2>
+          <a href="/topics" @click.prevent="$router.push('/topics')">查看全部 →</a>
         </div>
         <div class="topic-grid">
           <a
@@ -506,15 +509,5 @@ onMounted(loadAll)
 @media (max-width: 650px) {
   .page-intro { flex-direction: column; align-items: flex-start; }
   .topic-grid { grid-template-columns: 1fr; }
-  .home-public { padding-left: 0; padding-right: 0; }
-}
-@media (max-width: 650px) {
-  .shell-padding { padding: 0; }
-}
-</style>
-
-<style>
-/* 公共页容器内边距:由壳提供,首页自身不重复 */
-.public-main > * {
 }
 </style>

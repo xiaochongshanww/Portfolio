@@ -1,21 +1,17 @@
 <template>
   <div class="article-detail-page">
     <!-- 加载状态 -->
-    <div v-if="loading" class="max-w-4xl mx-auto py-8">
-      <div class="bg-white rounded-3xl shadow-sm p-8">
-        <el-skeleton :rows="12" animated />
-      </div>
+    <div v-if="loading" class="shell state-shell">
+      <el-skeleton :rows="12" animated />
     </div>
-    
+
     <!-- 错误状态 -->
-    <div v-else-if="error" class="max-w-4xl mx-auto py-8">
-      <div class="bg-white rounded-3xl shadow-sm p-8">
-        <el-alert :title="error" type="error" show-icon :closable="false" />
-      </div>
+    <div v-else-if="error" class="shell state-shell">
+      <el-alert :title="error" type="error" show-icon :closable="false" />
     </div>
     
     <!-- 文章内容 -->
-    <div v-else-if="article" class="article-layout">
+    <div v-else-if="article" class="article-layout shell">
       <!-- 主要内容区 -->
       <main class="article-main">
         <article class="article-container">
@@ -28,6 +24,9 @@
               <span>{{ formatDate(article.published_at || article.created_at) }}</span>
               <span v-if="article.updated_at && article.updated_at !== article.published_at">·</span>
               <span v-if="article.updated_at && article.updated_at !== article.published_at">最后更新于 {{ formatDate(article.updated_at) }}</span>
+            </div>
+            <div v-if="articleTags.length" class="article-tags">
+              <span v-for="t in articleTags" :key="t.id ?? t.name" class="tag">{{ t.name }}</span>
             </div>
           </header>
 
@@ -62,7 +61,7 @@
           <footer class="article-end content-width-text">
             <div class="maintenance">
               <h3>这篇文章仍在持续维护</h3>
-              <p>如果内容存在错误或需要补充,欢迎通过评论区指出。</p>
+              <p>如果内容存在错误或需要补充,欢迎通过 GitHub Issue 指出。</p>
               <div class="maintenance-meta">
                 <span>最后更新:{{ formatDate(article.updated_at || article.published_at || article.created_at) }}</span>
               </div>
@@ -79,46 +78,12 @@
               </a>
             </nav>
           </footer>
-
-          <!-- 封面图片(置于正文后,保持新排版;无图时隐藏) -->
-          <div v-if="false && article.featured_image" class="featured-image-container">
-            <CoverImage
-              :src="article.featured_image"
-              :alt="article.title"
-              container-class="featured-image-wrapper"
-              image-class="featured-image"
-            />
-          </div>
-
-          <!-- 文章底部交互区 -->
-          <ArticleInteractions
-            :article="article"
-            :liked="liked"
-            :liking="liking"
-            :like-count="likeCount"
-            :bookmarked="bookmarked"
-            :bookmarking="bookmarking"
-            :bookmark-count="bookmarkCount"
-            @like="toggleLike"
-            @bookmark="toggleBookmark"
-            @share="shareArticle"
-          />
         </article>
       </main>
 
       <!-- 页面级阅读工具(fixed,不占布局) -->
       <ReadingRail :toc="railToc" />
     </div>
-    
-    <!-- 评论区 -->
-    <section v-if="article" class="comments-section">
-      <div class="max-w-4xl mx-auto">
-        <div class="comments-container">
-          <h2 class="comments-title">评论区</h2>
-          <CommentsThread :article-id="article.id" />
-        </div>
-      </div>
-    </section>
   </div>
 </template>
 
@@ -132,11 +97,8 @@ const props = withDefaults(defineProps<{
 }>(), { slug: '' })
 
 import { ElMessage, ElMessageBox } from 'element-plus';
-import CommentsThread from '../components/CommentsThread.vue';
-import CoverImage from '../components/CoverImage.vue';
 import ArticleContentRenderer from '../components/ArticleContentRenderer.vue';
 import ArticleActions from '../components/ArticleActions.vue';
-import ArticleInteractions from '../components/ArticleInteractions.vue';
 import ArticleRenderer from '../components/article/ArticleRenderer.vue';
 import ReadingRail from '../components/article/ReadingRail.vue';
 import { blocksFromMarkdown } from '../utils/blocksFromMarkdown';
@@ -157,8 +119,6 @@ const lowlight = createLowlight(common);
 const API = {
     ArticlesService: {
         getArticleBySlug: (slug: string) => UnifiedAPI.getArticleBySlug(slug),
-        likeArticle: (id: number) => UnifiedAPI.likeArticle(id),
-        bookmarkArticle: (id: number) => UnifiedAPI.bookmarkArticle(id),
         getVersions: (id: number) => UnifiedAPI.getArticleVersions(id),
         createVersion: (id: number) => UnifiedAPI.createArticleVersion(id),
         rollbackVersion: (id: number, vNo: number) => UnifiedAPI.rollbackVersion(id, vNo),
@@ -176,12 +136,6 @@ const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
 const article = ref<Article | null>(null);
-const liked = ref(false);
-const bookmarked = ref(false);
-const likeCount = ref(0);
-const bookmarkCount = ref(0);
-const liking = ref(false);
-const bookmarking = ref(false);
 const loading = ref(false);
 const acting = ref(false);
 const error = ref('');
@@ -209,6 +163,13 @@ const railToc = computed(() =>
     .filter((b): b is Extract<ArticleBlock, { type: 'heading' }> => b.type === 'heading' && b.level <= 3)
     .map((b) => ({ anchor: b.anchor, text: b.text })),
 );
+
+/** 文章头标签 chips(原型 Stage 1) */
+const articleTags = computed(() => {
+  const t = article.value?.tags;
+  if (!Array.isArray(t)) return [];
+  return t.filter((x): x is { id?: number; name: string } => !!x && !!x.name);
+});
 
 /** 上一篇/下一篇(E6):P0 用同列表相邻文章近似 */
 const prevNext = computed(() => {
@@ -335,24 +296,8 @@ async function load(){
       actualContentLength: (data.content_md || data.content_html)?.length || 0
     });
     
-    // 调试信息：检查API返回的数据
-    console.log('📡 API返回数据 - 点赞数:', data.likes_count, '收藏数:', data.bookmarks_count, '已点赞:', data.liked, '已收藏:', data.bookmarked);
-    
-    // 调试信息：检查作者数据
-    console.log('👤 作者数据调试:', {
-      hasAuthor: !!data.author,
-      authorData: data.author,
-      authorBio: data.author?.bio,
-      authorName: data.author?.name,
-      authorAvatar: data.author?.avatar
-    });
-    
     article.value = data;
-    likeCount.value = data.likes_count || 0;
-    bookmarkCount.value = data.bookmarks_count || 0;
-    liked.value = !!data.liked;
-    bookmarked.value = !!data.bookmarked;
-    
+
     // 确保主题初始化后再应用高亮
     initTheme();
     await nextTick();
@@ -402,181 +347,6 @@ async function unschedule(){
 }
 
 // 版本控制相关函数已移除，专注于基本文章显示功能
-
-async function toggleLike(){
-  if (!article.value || liking.value) return;
-  
-  // 记录原始状态用于错误回滚
-  const originalLiked = liked.value;
-  const originalCount = likeCount.value;
-  
-  // 立即更新UI，提供即时反馈
-  liked.value = !originalLiked;
-  likeCount.value = originalLiked ? originalCount - 1 : originalCount + 1;
-  
-  // 立即触发动画和反馈
-  if (liked.value) {
-    triggerLikeAnimation();
-    ElMessage({
-      message: '点赞成功！感谢您的支持 ❤️',
-      type: 'success',
-      duration: 2000,
-      showClose: false,
-      customClass: 'like-success-message'
-    });
-  } else {
-    ElMessage({
-      message: '已取消点赞',
-      type: 'info', 
-      duration: 1500,
-      showClose: false,
-      customClass: 'like-cancel-message'
-    });
-  }
-  
-  // 设置延迟加载状态 - 只有在API调用超过500ms时才显示加载状态
-  const loadingTimer = setTimeout(() => {
-    liking.value = true;
-  }, 500);
-  
-  try {
-    // 后台发送API请求，不阻塞UI
-    const response = await API.ArticlesService.likeArticle(article.value.id);
-    
-    // 清除加载定时器
-    clearTimeout(loadingTimer);
-    
-    // 如果API返回了新的点赞数据，使用服务器数据更正
-    if (response?.data?.data) {
-      const serverData = response.data.data;
-      if (typeof serverData.likes_count === 'number') {
-        likeCount.value = serverData.likes_count;
-      }
-      if (typeof serverData.liked === 'boolean') {
-        liked.value = serverData.liked;
-      }
-    }
-    
-  } catch (error) {
-    console.error('点赞操作失败:', error);
-    
-    // 清除加载定时器
-    clearTimeout(loadingTimer);
-    
-    // 回滚到原始状态
-    liked.value = originalLiked;
-    likeCount.value = originalCount;
-    
-    // 显示错误反馈
-    ElMessage({
-      message: '操作失败，请稍后重试',
-      type: 'error',
-      duration: 3000,
-      showClose: true,
-      customClass: 'like-error-message'
-    });
-  } finally {
-    liking.value = false;
-  }
-}
-
-// 点赞动画效果
-function triggerLikeAnimation() {
-  const likeButton = document.querySelector<HTMLElement>('.like-btn');
-  if (!likeButton) return;
-  
-  // 添加动画类
-  likeButton.classList.add('like-animation');
-  
-  // 创建飞出的爱心效果
-  createFloatingHearts(likeButton);
-  
-  // 移除动画类
-  setTimeout(() => {
-    likeButton.classList.remove('like-animation');
-  }, 600);
-}
-
-// 创建浮动爱心效果
-function createFloatingHearts(button: HTMLElement) {
-  const rect = button.getBoundingClientRect();
-  const heartCount = 3;
-  
-  for (let i = 0; i < heartCount; i++) {
-    const heart = document.createElement('div');
-    heart.innerHTML = '❤️';
-    heart.className = 'floating-heart';
-    heart.style.left = `${rect.left + rect.width/2 - 10 + (Math.random() - 0.5) * 40}px`;
-    heart.style.top = `${rect.top + rect.height/2 - 10}px`;
-    heart.style.animationDelay = `${i * 0.1}s`;
-    
-    document.body.appendChild(heart);
-    
-    // 3秒后移除元素
-    setTimeout(() => {
-      if (heart.parentNode) {
-        heart.parentNode.removeChild(heart);
-      }
-    }, 3000);
-  }
-}
-
-async function toggleBookmark(){
-  console.log("收藏数据：", article.value);
-  if (!article.value) return;
-  
-  // 先预测性更新UI，提升用户体验
-  const wasBookmarked = bookmarked.value;
-  bookmarked.value = !bookmarked.value;
-  bookmarkCount.value += wasBookmarked ? -1 : 1;
-  
-  // 设置加载状态
-  bookmarking.value = true;
-  
-  // 设置加载定时器，防止网络慢时用户看不到反馈
-  const loadingTimer = setTimeout(() => {
-    bookmarking.value = false;
-  }, 3000);
-  
-  try {
-    // 后台发送API请求，不阻塞UI
-    const response = await API.ArticlesService.bookmarkArticle(article.value.id);
-    
-    // 清除加载定时器
-    clearTimeout(loadingTimer);
-    
-    // 如果API返回了新的收藏数据，使用服务器数据更正
-    if (response?.data?.data) {
-      const serverData = response.data.data;
-      if (typeof serverData.bookmarks_count === 'number') {
-        bookmarkCount.value = serverData.bookmarks_count;
-      }
-      // 根据服务器返回的action确定收藏状态
-      if (serverData.action === 'bookmarked') {
-        bookmarked.value = true;
-      } else if (serverData.action === 'removed') {
-        bookmarked.value = false;
-      }
-    }
-    
-  } catch (error) {
-    console.error('收藏操作失败:', error);
-    
-    // 清除加载定时器
-    clearTimeout(loadingTimer);
-    
-    // 发生错误时回滚UI状态
-    bookmarked.value = wasBookmarked;
-    bookmarkCount.value += wasBookmarked ? 1 : -1;
-    
-    // 显示错误提示
-    setTimeout(() => {
-      console.log('收藏操作失败，请重试');
-    }, 100);
-  }
-  
-  bookmarking.value = false;
-}
 
 async function highlightLater(){
   await nextTick();
@@ -694,22 +464,6 @@ function copyCodeToClipboard(text: string, button: HTMLElement) {
 
 // 代码主题切换功能已移除
 
-function shareArticle() {
-  if (!article.value) return;
-  
-  if (navigator.share) {
-    navigator.share({
-      title: article.value.title,
-      text: article.value.summary || '推荐一篇文章',
-      url: window.location.href,
-    });
-  } else {
-    // 降级方案：复制链接到剪贴板
-    navigator.clipboard.writeText(window.location.href).then(() => {
-      ElMessage.success('链接已复制到剪贴板');
-    });
-  }
-}
 
 // 生成目录
 function generateTOC() {
@@ -852,19 +606,22 @@ const handleContentClick = (clickInfo: { event: Event; contentType: string; targ
 </script>
 
 <style scoped>
-/* ===== P0 新排版(E6/E7):暖纸底 + 单列内容轴,覆盖旧白卡样式 ===== */
+/* ===== P0 排版(E6/E7,原型 V5b clean-rail):暖纸底 + shell 单列内容轴 ===== */
 
 .article-detail-page {
   background: var(--bg);
   padding: 0 0 60px;
 }
 
-/* 不再双列:ReadingRail 是 fixed 浮层,不占 grid 位 */
+/* loading/error 态:与首页 state-block 同语言,边框优先于阴影 */
+.state-shell {
+  padding-top: 60px;
+  padding-bottom: 60px;
+}
+
+/* 不再双列:ReadingRail 是 fixed 浮层,不占 grid 位;宽度由 .shell(1180px)提供 */
 .article-layout {
-  max-width: none;
-  margin: 0;
   display: block;
-  gap: 0;
 }
 
 .article-container {
@@ -901,14 +658,28 @@ const handleContentClick = (clickInfo: { event: Event; contentType: string; targ
   font-size: 13px;
   color: var(--muted);
 }
+.article-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 17px;
+}
+.article-tags .tag {
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 12px;
+  color: var(--muted);
+}
 .article-head {
   padding-bottom: 28px;
   border-bottom: 1px solid var(--line);
 }
 
-/* Stage 3: 阅读画布 */
+/* Stage 3: 阅读画布(原型:38px 顶距,68px 底距) */
 .reading-canvas {
-  padding: 38px 0 30px;
+  padding: 38px 0 68px;
 }
 
 /* Stage 4: 结尾 */
@@ -968,877 +739,8 @@ const handleContentClick = (clickInfo: { event: Event; contentType: string; targ
   .article-nav { grid-template-columns: 1fr; }
 }
 
-/* ===== 以下为旧样式(部分仍被评论区/交互区使用)===== */
-/* ===== 文章详情页主体样式 ===== */
-
-.article-detail-page {
-  min-height: 100vh;
-  background: linear-gradient(135deg, rgb(248 250 252) 0%, rgb(255 255 255) 100%);
-  padding: 2rem 1rem;
-}
-
-/* 文章布局 */
-.article-layout {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: 1fr 320px;
-  gap: 3rem;
-  align-items: start;
-}
-
-@media (max-width: 1024px) {
-  .article-layout {
-    grid-template-columns: 1fr;
-    gap: 2rem;
-  }
-}
-
-/* ===== 主要内容区样式 ===== */
-
+/* 主列防护:防 grid/flex 子项溢出(旧布局遗留的唯一有效规则) */
 .article-main {
   min-width: 0;
-}
-
-.article-container {
-  background: white;
-  border-radius: 24px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-  transition: all 0.3s ease;
-}
-
-/* ===== 文章头部样式 ===== */
-
-.article-header {
-  padding: 3rem 3rem 2rem;
-  background: linear-gradient(135deg, rgb(255 255 255) 0%, rgb(248 250 252) 100%);
-}
-
-.admin-status-bar {
-  margin-bottom: 1rem;
-}
-
-/* 面包屑导航 */
-.breadcrumb-nav {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 2rem;
-  font-size: 0.875rem;
-  color: #6b7280;
-}
-
-.breadcrumb-link {
-  color: #3b82f6;
-  text-decoration: none;
-  transition: color 0.2s ease;
-}
-
-.breadcrumb-link:hover {
-  color: #2563eb;
-}
-
-.breadcrumb-separator {
-  color: #9ca3af;
-}
-
-.breadcrumb-current {
-  color: #374151;
-  font-weight: 500;
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* 文章标题 */
-.article-title {
-  font-size: 2.5rem;
-  font-weight: 800;
-  line-height: 1.2;
-  color: #111827;
-  margin-bottom: 1rem;
-  letter-spacing: -0.025em;
-}
-
-/* 作者编辑操作区 */
-.author-edit-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
-  padding: 0.75rem 1rem;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-  transition: all 0.2s ease;
-}
-
-.author-edit-actions:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-}
-
-.edit-btn {
-  font-size: 0.875rem;
-  border-radius: 0.375rem;
-  transition: all 0.2s ease;
-}
-
-.edit-hint {
-  font-size: 0.875rem;
-  color: #64748b;
-  font-weight: 500;
-}
-
-@media (max-width: 768px) {
-  .article-title {
-    font-size: 2rem;
-  }
-  
-  .author-edit-actions {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-  
-  .edit-hint {
-    font-size: 0.8125rem;
-  }
-}
-
-/* 文章元信息 */
-.article-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.meta-primary {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-/* 作者信息 */
-.author-info {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.author-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  overflow: hidden;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-}
-
-.avatar-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.avatar-fallback {
-  color: white;
-  font-size: 1.25rem;
-}
-
-.author-details {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.author-name {
-  font-weight: 600;
-  color: #111827;
-  font-size: 1rem;
-}
-
-.publish-date {
-  color: #6b7280;
-  font-size: 0.875rem;
-}
-
-/* 文章统计 */
-.article-stats {
-  display: flex;
-  gap: 1.5rem;
-  flex-wrap: wrap;
-}
-
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: #6b7280;
-  font-size: 0.875rem;
-}
-
-.stat-item i {
-  color: #9ca3af;
-  font-size: 0.875rem;
-}
-
-/* 分类和标签区域 */
-.article-taxonomy {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-/* 分类样式 */
-.article-category {
-  display: flex;
-  align-items: center;
-}
-
-.category-link {
-  text-decoration: none;
-  transition: all 0.2s ease;
-}
-
-.category-link:hover {
-  transform: translateY(-1px);
-}
-
-.category-tag {
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-.category-tag i {
-  margin-right: 0.375rem;
-}
-
-.category-tag:hover {
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
-}
-
-/* 标签样式 */
-.article-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
-
-.tag-item {
-  transition: all 0.2s ease;
-  cursor: pointer;
-  font-weight: 400;
-}
-
-.tag-item i {
-  margin-right: 0.25rem;
-  font-size: 0.75rem;
-}
-
-.tag-item:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-/* 响应式调整 */
-@media (min-width: 768px) {
-  .article-taxonomy {
-    flex-direction: row;
-    align-items: center;
-    gap: 2rem;
-  }
-}
-
-/* ===== 封面图片样式 ===== */
-
-.featured-image-container {
-  margin: 2rem 3rem;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
-}
-
-.featured-image-wrapper {
-  aspect-ratio: 16/9;
-  overflow: hidden;
-  border-radius: 16px;
-}
-
-.featured-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.5s ease;
-}
-
-.featured-image-container:hover .featured-image {
-  transform: scale(1.05);
-}
-
-/* ===== 文章正文样式 ===== */
-
-.article-content {
-  padding: 0 3rem 3rem;
-  font-size: 1.125rem;
-  line-height: 1.8;
-  color: #374151;
-  max-width: none;
-}
-
-.article-content :deep(h1),
-.article-content :deep(h2),
-.article-content :deep(h3),
-.article-content :deep(h4),
-.article-content :deep(h5),
-.article-content :deep(h6) {
-  margin: 2rem 0 1rem;
-  font-weight: 700;
-  line-height: 1.3;
-  color: #111827;
-  scroll-margin-top: 100px;
-}
-
-.article-content :deep(h1) { font-size: 2rem; }
-.article-content :deep(h2) { font-size: 1.75rem; }
-.article-content :deep(h3) { font-size: 1.5rem; }
-.article-content :deep(h4) { font-size: 1.25rem; }
-
-.article-content :deep(p) {
-  margin: 1.5rem 0;
-  text-align: justify;
-}
-
-.article-content :deep(ul),
-.article-content :deep(ol) {
-  margin: 1.5rem 0;
-  padding-left: 2rem;
-}
-
-.article-content :deep(li) {
-  margin: 0.5rem 0;
-}
-
-.article-content :deep(blockquote) {
-  margin: 2rem 0;
-  padding: 1rem 1.5rem;
-  border-left: 4px solid #3b82f6;
-  background: #f8fafc;
-  border-radius: 0 8px 8px 0;
-  font-style: italic;
-}
-
-/* ===== Shiki 代码块样式 ===== */
-
-.article-content :deep(.shiki) {
-  position: relative;
-  margin: 2rem 0;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.25);
-  border: 1px solid #3c4043;
-  transition: all 0.3s ease;
-}
-
-.article-content :deep(.shiki:hover) {
-  box-shadow: 0 12px 35px -5px rgba(0, 0, 0, 0.35);
-  transform: translateY(-2px);
-}
-
-.article-content :deep(.shiki pre) {
-  margin: 0;
-  padding: 1.5rem;
-  overflow-x: auto;
-  background: transparent !important;
-  white-space: pre !important;
-  word-wrap: normal !important;
-}
-
-.article-content :deep(.shiki code) {
-  font-family: 'Fira Code', 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace !important;
-  font-size: 0.875rem !important;
-  line-height: 1.6 !important;
-  font-weight: 400;
-  background: transparent !important;
-  padding: 0 !important;
-  border: none !important;
-  border-radius: 0 !important;
-  tab-size: 4;
-  -moz-tab-size: 4;
-  display: block !important;
-}
-
-/* 统一的语法高亮代码块样式 */
-.article-content :deep(pre) {
-  position: relative;
-  margin: 2rem 0;
-  padding: 1.5rem;
-  background: #0d1117 !important;
-  border-radius: 16px;
-  overflow-x: auto;
-  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.25);
-  border: 1px solid #30363d;
-  transition: all 0.3s ease;
-  white-space: pre !important;
-  word-wrap: normal !important;
-}
-
-.article-content :deep(pre:hover) {
-  box-shadow: 0 12px 35px -5px rgba(0, 0, 0, 0.35);
-  transform: translateY(-2px);
-}
-
-.article-content :deep(pre code) {
-  font-family: 'Fira Code', 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
-  font-size: 0.875rem;
-  line-height: 1.6;
-  color: #f0f6fc !important;
-  background: transparent !important;
-  padding: 0 !important;
-  border: none !important;
-  display: block !important;
-  font-weight: 400;
-}
-
-/* Lowlight 语法高亮样式 - 与编辑器保持一致 */
-.article-content :deep(.hljs) {
-  background: transparent !important;
-  color: #f0f6fc !important;
-}
-
-/* 语法高亮颜色配置 - GitHub Dark 主题 */
-.article-content :deep(.hljs-comment),
-.article-content :deep(.hljs-quote) {
-  color: #8b949e !important;
-  font-style: italic;
-}
-
-.article-content :deep(.hljs-keyword),
-.article-content :deep(.hljs-selector-tag),
-.article-content :deep(.hljs-literal),
-.article-content :deep(.hljs-type) {
-  color: #ff7b72 !important;
-}
-
-.article-content :deep(.hljs-string),
-.article-content :deep(.hljs-regexp) {
-  color: #a5d6ff !important;
-}
-
-.article-content :deep(.hljs-subst),
-.article-content :deep(.hljs-symbol) {
-  color: #f0f6fc !important;
-}
-
-.article-content :deep(.hljs-class),
-.article-content :deep(.hljs-function),
-.article-content :deep(.hljs-title) {
-  color: #d2a8ff !important;
-}
-
-.article-content :deep(.hljs-params),
-.article-content :deep(.hljs-built_in) {
-  color: #ffa657 !important;
-}
-
-.article-content :deep(.hljs-number),
-.article-content :deep(.hljs-literal) {
-  color: #79c0ff !important;
-}
-
-.article-content :deep(.hljs-variable),
-.article-content :deep(.hljs-template-variable) {
-  color: #ffa657 !important;
-}
-
-.article-content :deep(.hljs-attribute) {
-  color: #79c0ff !important;
-}
-
-/* 通用代码样式 */
-.article-content :deep(code) {
-  font-family: 'Fira Code', 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
-  font-size: 0.875rem;
-  line-height: 1.6;
-  font-weight: 400;
-}
-
-/* 优化后的行内代码样式 */
-.article-content :deep(p code),
-.article-content :deep(li code),
-.article-content :deep(td code) {
-  background: #f6f8fa;
-  color: #d73a49;
-  padding: 0.1875rem 0.375rem;
-  border-radius: 6px;
-  font-size: 0.85em;
-  font-weight: 500;
-  border: 1px solid #e1e4e8;
-  font-family: 'Fira Code', 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
-}
-
-/* 现代化代码复制按钮 */
-.article-content :deep(.code-copy-btn) {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #d1d5db;
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.25s ease;
-  backdrop-filter: blur(12px);
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 70px;
-  justify-content: center;
-}
-
-.article-content :deep(.code-copy-btn:hover) {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: rgba(59, 130, 246, 0.4);
-  color: #bfdbfe;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-}
-
-.article-content :deep(.code-copy-btn:active) {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
-}
-
-.article-content :deep(.code-copy-btn.copied) {
-  background: rgba(34, 197, 94, 0.2);
-  border-color: rgba(34, 197, 94, 0.4);
-  color: #86efac;
-}
-
-.article-content :deep(.code-copy-btn .copy-text) {
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
-.article-content :deep(.code-copy-btn i) {
-  font-size: 0.75rem;
-}
-
-/* 代码语言标签 */
-.article-content :deep(.code-language-label) {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-  color: white;
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  z-index: 2;
-}
-
-/* 代码块滚动条样式 */
-.article-content :deep(pre)::-webkit-scrollbar {
-  height: 8px;
-}
-
-.article-content :deep(pre)::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-}
-
-.article-content :deep(pre)::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
-}
-
-.article-content :deep(pre)::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.5);
-}
-
-.article-content :deep(img) {
-  max-width: 100%;
-  height: auto;
-  border-radius: 8px;
-  margin: 2rem auto;
-  display: block;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-
-
-/* ===== 评论区样式 ===== */
-
-.comments-section {
-  margin-top: 0rem;
-  padding: 1rem 1rem;
-  background: white;
-}
-
-.comments-container {
-  background: white;
-  border-radius: 24px;
-  padding: 1rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-.comments-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #111827;
-  margin: 0 0 2rem;
-  text-align: center;
-}
-
-/* ===== 响应式设计 ===== */
-
-@media (max-width: 768px) {
-  .article-detail-page {
-    padding: 1rem 0.5rem;
-  }
-  
-  .article-header,
-  .article-content,
-  .article-footer {
-    padding-left: 1.5rem;
-    padding-right: 1.5rem;
-  }
-  
-  .featured-image-container {
-    margin-left: 1.5rem;
-    margin-right: 1.5rem;
-  }
-  
-  .article-content {
-    font-size: 1rem;
-    line-height: 1.7;
-  }
-  
-  .meta-primary {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-  
-  .article-stats {
-    gap: 1rem;
-  }
-  
-  .interaction-buttons {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .interaction-btn {
-    min-width: auto;
-  }
-  
-  .comments-container {
-    padding: 2rem 1.5rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .article-title {
-    font-size: 1.75rem;
-  }
-  
-  .breadcrumb-current {
-    max-width: 150px;
-  }
-  
-  .author-card {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-  }
-}
-
-/* ===== 可访问性优化 ===== */
-
-@media (prefers-reduced-motion: reduce) {
-  .featured-image,
-  .interaction-btn,
-  .toc-link,
-  .progress-fill {
-    transition: none;
-  }
-}
-
-/* ===== 打印样式 ===== */
-
-@media print {
-  .article-sidebar,
-  .interaction-section,
-  .admin-actions,
-  .comments-section {
-    display: none;
-  }
-  
-  .article-layout {
-    grid-template-columns: 1fr;
-  }
-  
-  .article-container {
-    box-shadow: none;
-    border: 1px solid #e5e7eb;
-  }
-}
-
-/* ========== 现代化点赞反馈系统 ========== */
-
-/* 点赞按钮增强样式 */
-.like-btn {
-  position: relative;
-  overflow: visible;
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.like-btn-content {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  position: relative;
-  z-index: 1;
-}
-
-.like-icon-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.2rem;
-  height: 1.2rem;
-}
-
-/* 加载状态动画 */
-.like-btn.liking {
-  pointer-events: none;
-  background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
-  color: #6b7280;
-  border-color: #d1d5db;
-}
-
-.beating-heart {
-  animation: heartBeat 0.8s infinite ease-in-out;
-  color: #ef4444 !important;
-}
-
-@keyframes heartBeat {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.3); }
-}
-
-/* 点赞成功动画 */
-.like-btn.like-animation {
-  animation: likeSuccess 0.6s ease-out;
-}
-
-@keyframes likeSuccess {
-  0% { transform: scale(1); }
-  25% { transform: scale(1.15) rotate(-5deg); }
-  50% { transform: scale(1.1) rotate(5deg); }
-  75% { transform: scale(1.05) rotate(-2deg); }
-  100% { transform: scale(1) rotate(0deg); }
-}
-
-/* 已点赞状态增强 */
-.like-btn.liked {
-  background: linear-gradient(135deg, #fef2f2, #fecaca) !important;
-  border-color: #f87171 !important;
-  color: #dc2626 !important;
-  box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.2), 0 4px 12px rgba(220, 38, 38, 0.15);
-}
-
-.like-btn.liked .fa-heart {
-  color: #dc2626;
-  text-shadow: 0 0 8px rgba(220, 38, 38, 0.4);
-}
-
-.like-btn:not(.liked):hover {
-  background: linear-gradient(135deg, #f9fafb, #f3f4f6);
-  border-color: #f87171;
-  color: #ef4444;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-/* 浮动爱心效果 */
-.floating-heart {
-  position: fixed;
-  font-size: 1.5rem;
-  pointer-events: none;
-  z-index: 9999;
-  animation: floatUp 3s ease-out forwards;
-  user-select: none;
-}
-
-@keyframes floatUp {
-  0% {
-    opacity: 1;
-    transform: translateY(0) scale(0.8) rotate(0deg);
-  }
-  20% {
-    opacity: 1;
-    transform: translateY(-20px) scale(1.2) rotate(15deg);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-100px) scale(0.5) rotate(360deg);
-  }
-}
-
-/* Element Plus 消息框自定义样式 */
-:global(.like-success-message) {
-  background: linear-gradient(135deg, #dcfce7, #bbf7d0) !important;
-  border: 1px solid #86efac !important;
-  color: #15803d !important;
-  font-weight: 500;
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.15) !important;
-}
-
-:global(.like-cancel-message) {
-  background: linear-gradient(135deg, #f1f5f9, #e2e8f0) !important;
-  border: 1px solid #cbd5e1 !important;
-  color: #475569 !important;
-  font-weight: 500;
-}
-
-:global(.like-error-message) {
-  background: linear-gradient(135deg, #fef2f2, #fecaca) !important;
-  border: 1px solid #fca5a5 !important;
-  color: #dc2626 !important;
-  font-weight: 500;
-  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.15) !important;
-}
-
-/* 响应式优化 */
-@media (max-width: 768px) {
-  .floating-heart {
-    font-size: 1.2rem;
-  }
-  
-  .like-btn-content {
-    gap: 0.375rem;
-  }
-  
-  .like-text {
-    font-size: 0.875rem;
-  }
 }
 </style>

@@ -1,6 +1,7 @@
 <template>
   <BlockShell :block="block" :tag="`h${block.level}`" class="heading-block">
-    <span :id="block.anchor">{{ block.text }}</span>
+    <!-- data-toc-anchor:ReadingRail 的 IntersectionObserver 据此高亮当前章节 -->
+    <span :id="block.anchor" :data-toc-anchor="block.anchor">{{ block.text }}</span>
   </BlockShell>
 </template>
 
