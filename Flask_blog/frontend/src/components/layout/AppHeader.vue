@@ -6,16 +6,16 @@
   >
     <div class="px-6 py-4">
       <div class="flex justify-between items-center w-full">
-        <!-- Logo -->
+        <!-- Logo + 品牌文字 -->
         <div class="flex-shrink-0">
-          <a 
-            href="/" 
+          <a
+            href="/"
             class="flex items-center text-blue-600 hover:text-blue-700 transition-colors logo-container"
             title="小重山的博客"
             @click="handleLogoClick"
           >
-            <!-- Original SVG Logo - Larger size, no text -->
-            <svg class="w-14 h-14 logo-icon" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+            <!-- Original SVG Logo -->
+            <svg class="w-9 h-9 logo-icon" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
               <path d="M12 60 L32 44 L32 52 L18 60 L32 68 L32 76 Z" fill="#2563EB" opacity="0.32" />
               <path d="M108 60 L88 44 L88 52 L102 60 L88 68 L88 76 Z" fill="#2563EB" opacity="0.32" />
               <g stroke="#2563EB" stroke-width="3.25" fill="none" stroke-linecap="round">
@@ -35,6 +35,7 @@
                 <circle cx="90.5" cy="76.5" r="2.9" />
               </g>
             </svg>
+            <span class="logo-text">小重山的博客</span>
           </a>
         </div>
 
@@ -720,9 +721,24 @@ function handleMobileHomeClick(e) {
 .logo-icon {
   transition: transform 0.2s ease-in-out;
   display: block;
-  width: 3.5rem; /* 确保尺寸 */
-  height: 3.5rem;
+  width: 2.25rem; /* 缩小图标,为品牌文字留空间 */
+  height: 2.25rem;
   flex-shrink: 0;
+}
+
+/* 品牌文字 */
+.logo-text {
+  margin-left: 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: rgb(17 24 39);
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+  transition: color 0.2s ease;
+}
+
+.logo-container:hover .logo-text {
+  color: rgb(37 99 235);
 }
 
 /* 确保SVG内容可见 */

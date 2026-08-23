@@ -1,10 +1,22 @@
 <template>
-  <div class="min-h-screen bg-slate-50 text-gray-800">
+  <!-- 公共站壳:暖纸底 + PublicHeader/Footer(meta.public 路由) -->
+  <div v-if="isPublicShell" class="public-shell">
+    <PublicHeader />
+    <main class="public-main">
+      <router-view />
+    </main>
+    <PublicFooter />
+    <GlobalNotify />
+    <ScrollToTop />
+  </div>
+
+  <!-- 旧壳:/admin 与未迁移页面保持现状 -->
+  <div v-else class="min-h-screen bg-slate-50 text-gray-800">
     <!-- 固定在顶部的Header - 全屏渐变背景 -->
-    <header 
+    <header
       class="header-gradient-bg fixed top-0 left-0 right-0 z-50 transition-all duration-300 w-full"
       :class="{ 'header-scrolled': isScrolled }"
-      :style="{ 
+      :style="{
         paddingTop: '1rem',
         paddingBottom: '0.5rem'
       }"
@@ -14,7 +26,7 @@
         <AppHeader :is-scrolled="isScrolled" :sidebar-data="sidebarData" />
       </div>
     </header>
-    
+
     <!-- 主要内容区域 - 添加顶部边距避免被Header遮挡 -->
     <div class="container-content">
       <main class="bg-white rounded-lg shadow-sm">
@@ -22,24 +34,29 @@
           <router-view />
         </div>
       </main>
-      
+
       <AppFooter />
     </div>
     <GlobalNotify />
-    
+
     <!-- 回到顶部按钮 -->
     <ScrollToTop />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, provide } from 'vue';
+import { ref, computed, onMounted, onUnmounted, provide } from 'vue';
+import { useRoute } from 'vue-router';
 import GlobalNotify from './components/GlobalNotify.vue';
 import AppFooter from './components/layout/AppFooter.vue';
 import AppHeader from './components/layout/AppHeader.vue';
+import PublicHeader from './components/public/PublicHeader.vue';
+import PublicFooter from './components/public/PublicFooter.vue';
 import ScrollToTop from './components/ScrollToTop.vue';
 import { useUserStore } from './stores/user';
 
+const route = useRoute();
+const isPublicShell = computed(() => route.meta?.public === true);
 const isScrolled = ref(false);
 const sidebarData = ref({
   categories: [],
@@ -109,6 +126,20 @@ onUnmounted(() => {
 </script>
 
 <style>
+/* ===== 公共站壳(P0-B3)===== */
+.public-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+}
+.public-main {
+  flex: 1;
+}
+
+/* ===== 以下为旧壳样式(未迁移页面继续使用)===== */
 /* 页头渐变背景效果 */
 .header-gradient-bg {
   background: linear-gradient(
@@ -179,7 +210,7 @@ main {
 @media (min-width: 768px) { .container { max-width: 720px !important; } }
 @media (min-width: 992px) { .container { max-width: 960px !important; } }
 @media (min-width: 1200px) { .container { max-width: 1140px !important; } }
-@media (min-width: 1400px) { .container { max-width: 1320px !important; } }
+@media (min-width: 1400px) { .container { max-width: 1280px !important; } }
 
 /* 内容区域容器 - 与页头保持一致的阶梯式响应 */
 .container-content {
@@ -196,7 +227,7 @@ main {
 @media (min-width: 768px) { .container-content { max-width: 720px; } }
 @media (min-width: 992px) { .container-content { max-width: 960px; } }
 @media (min-width: 1200px) { .container-content { max-width: 1140px; } }
-@media (min-width: 1400px) { .container-content { max-width: 1320px; } }
+@media (min-width: 1400px) { .container-content { max-width: 1280px; } }
 
 /* 移动端响应式调整 */
 @media (max-width: 768px) {

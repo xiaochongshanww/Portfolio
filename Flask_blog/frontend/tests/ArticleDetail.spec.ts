@@ -82,10 +82,9 @@ function mountPage() {
         CommentsThread: { template: '<div class="c-stub" />' },
         CoverImage: { template: '<div class="cov-stub" />' },
         ArticleContentRenderer: { template: '<div class="render-stub" />' },
-        ArticleSidebar: { template: '<div class="side-stub" />' },
-        ArticleHeader: { template: '<div class="head-stub" />' },
         ArticleActions: { template: '<div class="act-stub" />' },
         ArticleInteractions: { template: '<div class="int-stub" />' },
+        ReadingRail: { template: '<div class="rail-stub" />' },
         'el-button': { template: '<button><slot /></button>' },
         'el-empty': { template: '<div class="empty" />' },
         'el-icon': true,
@@ -101,7 +100,7 @@ describe('ArticleDetail', () => {
     vi.mocked(API.getArticleBySlug).mockReset()
   })
 
-  it('loads and renders a published article', async () => {
+  it('loads and renders a published article via blocks pipeline', async () => {
     vi.mocked(API.getArticleBySlug).mockResolvedValue({
       data: { data: ARTICLE },
     } as any)
@@ -109,7 +108,15 @@ describe('ArticleDetail', () => {
     await flushPromises()
     await wrapper.vm.$nextTick()
     expect(vi.mocked(API.getArticleBySlug)).toHaveBeenCalledWith('test-article')
-    expect(wrapper.find('.render-stub').exists()).toBe(true)
+    // 新排版:文章身份区标题渲染
+    expect(wrapper.find('.article-title').text()).toBe('Test Article')
+    // Blocks 管线生效(content_md='# hello' → heading block),不再走旧渲染器
+    expect(wrapper.find('.article-renderer').exists()).toBe(true)
+    expect(wrapper.find('h1.heading-block, h2.heading-block, h3.heading-block').exists()).toBe(true)
+    // 结尾维护区(E6)
+    expect(wrapper.find('.maintenance').exists()).toBe(true)
+    // 阅读工具挂载
+    expect(wrapper.find('.rail-stub').exists()).toBe(true)
   })
 
   it('handles article not found without crashing', async () => {

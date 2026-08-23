@@ -1,0 +1,67 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>搜索 · 小重山</title><style>
+:root{
+  --bg:#f7f7f5;--surface:#fff;--surface-2:#f1f1ee;--text:#171717;--muted:#6b6b67;
+  --line:#e3e3df;--line-strong:#d4d4ce;--signal:#ff5c35;--signal-soft:#fff0ea;
+  --signal-ink:#a53b21;--blue-soft:#edf3ff;--blue-ink:#345a9c;
+  --green-soft:#edf6ef;--green-ink:#3c6b49;--sand:#f5efe3;--page:1180px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased
+}
+a{color:inherit;text-decoration:none}
+button,input{font:inherit}
+.shell{max-width:var(--page);margin:auto;padding:0 28px}
+.site-header{
+  position:sticky;top:0;z-index:30;background:rgba(247,247,245,.93);
+  backdrop-filter:blur(16px);border-bottom:1px solid rgba(227,227,223,.86)
+}
+.header-inner{height:66px;display:flex;align-items:center;justify-content:space-between;gap:24px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:760}
+.brand-mark{width:29px;height:29px;border-radius:9px;background:var(--text);color:var(--bg);display:grid;place-items:center;font-size:11px;font-weight:800}
+.nav{display:flex;gap:23px;color:var(--muted);font-size:14px}
+.nav a.active,.nav a:hover{color:var(--text)}
+.search-btn{height:34px;padding:0 11px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--muted)}
+.page-head{padding:46px 0 28px;border-bottom:1px solid var(--line)}
+.eyebrow{font-size:12px;color:var(--muted);margin-bottom:10px}
+.page-head h1{font-size:40px;line-height:1.12;letter-spacing:-.048em;margin:0 0 12px}
+.page-head p{font-size:16px;line-height:1.72;color:var(--muted);margin:0;max-width:700px}
+.section{padding:34px 0;border-bottom:1px solid var(--line)}
+.section-head{display:flex;align-items:end;justify-content:space-between;gap:20px;margin-bottom:18px}
+.section-head h2{font-size:15px;margin:0}
+.section-head a{font-size:13px;color:var(--muted)}
+.footer{padding:26px 0 32px;display:flex;justify-content:space-between;gap:20px;color:var(--muted);font-size:13px}
+.footer-links{display:flex;gap:18px}
+.tag{display:inline-flex;padding:5px 8px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:11px;color:var(--muted)}
+.meta{font-size:12px;color:var(--muted)}
+.arrow{color:var(--muted)}
+@media(max-width:720px){
+  .shell{padding:0 18px}.nav{display:none}.page-head{padding-top:36px}.page-head h1{font-size:34px}
+}
+
+.search-panel{padding:38px 0 28px;border-bottom:1px solid var(--line)}
+.search-box{position:relative}.search-box input{width:100%;height:58px;padding:0 52px 0 18px;border:1px solid var(--line);border-radius:15px;background:var(--surface);color:var(--text);font-size:18px;outline:none}
+.search-box input:focus{border-color:var(--line-strong);box-shadow:0 0 0 4px rgba(0,0,0,.03)}.key{position:absolute;right:15px;top:16px;padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:var(--surface-2);font-size:11px;color:var(--muted)}
+.search-meta{display:flex;justify-content:space-between;gap:20px;margin-top:12px;font-size:12px;color:var(--muted)}
+.result-list{display:grid;gap:5px}.result{display:grid;grid-template-columns:1fr 120px 24px;gap:20px;align-items:center;padding:19px 12px;border:1px solid transparent;border-radius:13px}
+.result:hover{background:var(--surface);border-color:var(--line)}.result h2{font-size:20px;margin:0 0 6px}.result p{font-size:13px;line-height:1.6;color:var(--muted);margin:0}.hit{background:var(--signal-soft);color:var(--signal-ink);padding:1px 3px;border-radius:3px}
+.filters{display:flex;gap:7px;flex-wrap:wrap}.filters button{padding:7px 10px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:12px;color:var(--muted)}.filters button.active{background:var(--text);color:var(--bg);border-color:var(--text)}
+@media(max-width:700px){.result{grid-template-columns:1fr 24px}.result>.meta{display:none}}
+</style></head><body><header class="site-header"><div class="shell header-inner">
+    <a class="brand" href="xiaochongshan-2026-home-v2.html"><span class="brand-mark">山</span><span>小重山</span></a>
+    <nav class="nav"><a class="" href="xiaochongshan-2026-home-v2.html">文章</a><a class="" href="xiaochongshan-2026-projects-v1.html">项目</a><a class="" href="xiaochongshan-2026-topics-v1.html">专题</a><a class="" href="xiaochongshan-2026-archive-v1.html">归档</a><a class="" href="xiaochongshan-2026-about-v1.html">关于</a></nav>
+    <a class="search-btn" href="xiaochongshan-2026-search-v1.html">搜索 ⌘K</a>
+    </div></header><main class="shell">
+<section class="search-panel"><div class="eyebrow">搜索</div><div class="search-box"><input value="RAG" aria-label="搜索文章、专题与项目"><span class="key">ESC</span></div><div class="search-meta"><span>找到 8 个与“RAG”相关的结果</span><span>支持标题、正文、专题和项目</span></div></section>
+<section class="section"><div class="archive-tools" style="display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:20px"><div class="filters"><button class="active">全部</button><button>文章 5</button><button>专题 1</button><button>项目 2</button></div><div class="meta">按相关度</div></div>
+<div class="result-list">
+<a class="result" href="xiaochongshan-2026-article-detail-v5b-clean-rail.html"><div><h2>深入理解 <span class="hit">RAG</span>：从检索到生成</h2><p>重新理解检索、召回、Embedding、上下文构造与生成模型之间到底如何协作。</p></div><div class="meta">文章 · AI 工程</div><div>→</div></a>
+<a class="result" href="xiaochongshan-2026-topic-detail-v1.html"><div><h2>AI 工程</h2><p>包含 <span class="hit">RAG</span>、Agent、模型应用、评测与工程落地等长期内容。</p></div><div class="meta">专题 · 12 篇</div><div>→</div></a>
+<a class="result"><div><h2><span class="hit">RAG</span> Playground</h2><p>用真实文档对比 Chunk、Embedding、Rerank 与上下文构造策略。</p></div><div class="meta">项目 · 实验</div><div>→</div></a>
+<a class="result"><div><h2><span class="hit">RAG</span> 的 Chunk 应该怎么切？</h2><p>Chunk 大小不是一个固定数字，而是信息结构、检索目标和上下文预算共同决定的结果。</p></div><div class="meta">文章 · AI 工程</div><div>→</div></a>
+<a class="result"><div><h2>什么时候需要 Rerank？</h2><p>当 <span class="hit">RAG</span> 召回已经不错，但最终上下文仍然混乱时，重新排序往往比换模型更有效。</p></div><div class="meta">文章 · AI 工程</div><div>→</div></a>
+</div></section><footer class="footer"><div>© 2026 小重山</div><div class="footer-links"><a>GitHub</a><a>RSS</a><a>关于</a></div></footer></main></body></html>

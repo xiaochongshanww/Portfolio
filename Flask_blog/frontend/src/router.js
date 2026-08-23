@@ -37,14 +37,42 @@ const RestoreManagement = () => import(/* webpackChunkName: 'admin' */ './views/
 const MediaManagement = () => import(/* webpackChunkName: 'admin' */ './views/admin/MediaManagement.vue');
 
 const routes = [
-  { path: '/', component: Home },
+  // ===== 公共站路由(P0 起 meta.public 走新壳)=====
+  { path: '/', component: Home, meta: { public: true } },
+  { path: '/article/:slug', component: ArticleDetail, props: true, meta: { public: true } },
+  // 占位路由:P1/P2 替换为正式页面
+  {
+    path: '/topics',
+    component: () => import('./views/UnderConstruction.vue'),
+    props: { title: '专题' },
+    meta: { public: true },
+  },
+  {
+    path: '/topics/:slug',
+    component: () => import('./views/UnderConstruction.vue'),
+    props: (route) => ({ title: `专题 · ${route.params.slug}` }),
+    meta: { public: true },
+  },
+  {
+    path: '/projects',
+    component: () => import('./views/UnderConstruction.vue'),
+    props: { title: '项目' },
+    meta: { public: true },
+  },
+  {
+    path: '/projects/:slug',
+    component: () => import('./views/UnderConstruction.vue'),
+    props: (route) => ({ title: `项目 · ${route.params.slug}` }),
+    meta: { public: true },
+  },
+
+  // ===== 未迁移页面(暂走旧壳)=====
   { path: '/login', component: Login },
   { path: '/register', component: Register },
   { path: '/me/profile', component: Profile },
   { path: '/articles/new', component: NewArticle },
   { path: '/articles/:id/edit', component: NewArticle, props: true, meta: { editMode: true, requiresAuth: true } },
   { path: '/new-article', redirect: '/articles/new' }, // 兼容重定向
-  { path: '/article/:slug', component: ArticleDetail, props: true },
   { path: '/author/:id', component: AuthorProfile, props: true },
   { path: '/category/:id', component: CategoryPage, props: true },
   { path: '/tag/:slug', component: TagPage, props: true },

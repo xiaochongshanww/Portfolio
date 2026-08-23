@@ -1,0 +1,71 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>专题 · 小重山</title><style>
+:root{
+  --bg:#f7f7f5;--surface:#fff;--surface-2:#f1f1ee;--text:#171717;--muted:#6b6b67;
+  --line:#e3e3df;--line-strong:#d4d4ce;--signal:#ff5c35;--signal-soft:#fff0ea;
+  --signal-ink:#a53b21;--blue-soft:#edf3ff;--blue-ink:#345a9c;
+  --green-soft:#edf6ef;--green-ink:#3c6b49;--sand:#f5efe3;--page:1180px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased
+}
+a{color:inherit;text-decoration:none}
+button,input{font:inherit}
+.shell{max-width:var(--page);margin:auto;padding:0 28px}
+.site-header{
+  position:sticky;top:0;z-index:30;background:rgba(247,247,245,.93);
+  backdrop-filter:blur(16px);border-bottom:1px solid rgba(227,227,223,.86)
+}
+.header-inner{height:66px;display:flex;align-items:center;justify-content:space-between;gap:24px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:760}
+.brand-mark{width:29px;height:29px;border-radius:9px;background:var(--text);color:var(--bg);display:grid;place-items:center;font-size:11px;font-weight:800}
+.nav{display:flex;gap:23px;color:var(--muted);font-size:14px}
+.nav a.active,.nav a:hover{color:var(--text)}
+.search-btn{height:34px;padding:0 11px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--muted)}
+.page-head{padding:46px 0 28px;border-bottom:1px solid var(--line)}
+.eyebrow{font-size:12px;color:var(--muted);margin-bottom:10px}
+.page-head h1{font-size:40px;line-height:1.12;letter-spacing:-.048em;margin:0 0 12px}
+.page-head p{font-size:16px;line-height:1.72;color:var(--muted);margin:0;max-width:700px}
+.section{padding:34px 0;border-bottom:1px solid var(--line)}
+.section-head{display:flex;align-items:end;justify-content:space-between;gap:20px;margin-bottom:18px}
+.section-head h2{font-size:15px;margin:0}
+.section-head a{font-size:13px;color:var(--muted)}
+.footer{padding:26px 0 32px;display:flex;justify-content:space-between;gap:20px;color:var(--muted);font-size:13px}
+.footer-links{display:flex;gap:18px}
+.tag{display:inline-flex;padding:5px 8px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:11px;color:var(--muted)}
+.meta{font-size:12px;color:var(--muted)}
+.arrow{color:var(--muted)}
+@media(max-width:720px){
+  .shell{padding:0 18px}.nav{display:none}.page-head{padding-top:36px}.page-head h1{font-size:34px}
+}
+
+.topic-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.topic-card{
+  min-height:210px;padding:22px;border:1px solid var(--line);border-radius:18px;background:var(--surface);
+  display:flex;flex-direction:column;justify-content:space-between;transition:transform .16s ease,border-color .16s ease
+}
+.topic-card:hover{transform:translateY(-2px);border-color:var(--line-strong)}
+.topic-card:nth-child(1){background:var(--green-soft)}.topic-card:nth-child(2){background:var(--blue-soft)}
+.topic-card:nth-child(3){background:var(--signal-soft)}.topic-card:nth-child(4){background:var(--sand)}
+.topic-top{display:flex;justify-content:space-between;gap:20px}.topic-card h2{font-size:27px;letter-spacing:-.035em;margin:0 0 8px}
+.topic-card p{font-size:14px;line-height:1.65;color:var(--muted);margin:0;max-width:430px}
+.topic-bottom{display:flex;align-items:end;justify-content:space-between;gap:20px;margin-top:28px}
+.topic-count{font-size:12px;color:var(--muted)}.topic-latest{font-size:13px;font-weight:650}
+@media(max-width:760px){.topic-grid{grid-template-columns:1fr}}
+</style></head><body><header class="site-header"><div class="shell header-inner">
+    <a class="brand" href="xiaochongshan-2026-home-v2.html"><span class="brand-mark">山</span><span>小重山</span></a>
+    <nav class="nav"><a class="" href="xiaochongshan-2026-home-v2.html">文章</a><a class="" href="xiaochongshan-2026-projects-v1.html">项目</a><a class="active" href="xiaochongshan-2026-topics-v1.html">专题</a><a class="" href="xiaochongshan-2026-archive-v1.html">归档</a><a class="" href="xiaochongshan-2026-about-v1.html">关于</a></nav>
+    <a class="search-btn" href="xiaochongshan-2026-search-v1.html">搜索 ⌘K</a>
+    </div></header>
+<main class="shell">
+<section class="page-head"><div class="eyebrow">长期专题</div><h1>把零散文章，沉淀成持续生长的主题。</h1><p>专题不是标签集合，而是长期维护的知识入口。同一主题下的文章会随着理解和项目实践继续增加。</p></section>
+<section class="section"><div class="topic-grid">
+<a class="topic-card" href="xiaochongshan-2026-topic-detail-v1.html"><div class="topic-top"><div><h2>AI 工程</h2><p>RAG、Agent、模型应用、评测与工程落地。</p></div><span class="arrow">↗</span></div><div class="topic-bottom"><div class="topic-count">12 篇文章 · 持续更新</div><div class="topic-latest">最新：深入理解 RAG</div></div></a>
+<a class="topic-card"><div class="topic-top"><div><h2>软件设计</h2><p>架构、权限、数据边界、生命周期与长期维护。</p></div><span class="arrow">↗</span></div><div class="topic-bottom"><div class="topic-count">9 篇文章</div><div class="topic-latest">最新：资源归属与 Scope</div></div></a>
+<a class="topic-card"><div class="topic-top"><div><h2>产品实践</h2><p>从需求、原型、UI 到工程实现，记录真实项目决策。</p></div><span class="arrow">↗</span></div><div class="topic-bottom"><div class="topic-count">8 篇文章</div><div class="topic-latest">最新：AI 前端开发</div></div></a>
+<a class="topic-card"><div class="topic-top"><div><h2>Python</h2><p>后端、自动化、脚本与日常工程实践。</p></div><span class="arrow">↗</span></div><div class="topic-bottom"><div class="topic-count">18 篇文章</div><div class="topic-latest">最新：JWT 校验链路</div></div></a>
+</div></section><footer class="footer"><div>© 2026 小重山</div><div class="footer-links"><a>GitHub</a><a>RSS</a><a>关于</a></div></footer></main></body></html>

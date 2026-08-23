@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>深入理解 RAG：从检索到生成 · 小重山</title>
+<style>
+:root{
+  --bg:#f7f7f5;
+  --surface:#ffffff;
+  --surface-2:#f1f1ee;
+  --text:#171717;
+  --muted:#6b6b67;
+  --line:#e3e3df;
+  --line-strong:#d3d3cd;
+  --signal:#ff5c35;
+  --signal-soft:#fff0ea;
+  --signal-ink:#a53b21;
+  --blue-soft:#edf3ff;
+  --blue-ink:#345a9c;
+  --green-soft:#edf6ef;
+  --green-ink:#3c6b49;
+  --code:#151614;
+
+  --w-text:760px;
+  --w-code:820px;
+  --w-wide:960px;
+  --w-xwide:1040px;
+  --max:1180px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit;text-decoration:none}
+button{font:inherit}
+.shell{max-width:var(--max);margin:0 auto;padding:0 28px}
+
+.read-progress{
+  position:fixed;left:0;top:0;height:2px;width:0;
+  background:var(--signal);z-index:100;
+}
+.site-header{
+  position:sticky;top:0;z-index:40;
+  background:rgba(247,247,245,.93);
+  backdrop-filter:blur(16px);
+  border-bottom:1px solid rgba(227,227,223,.85)
+}
+.header-inner{
+  height:66px;display:flex;align-items:center;justify-content:space-between;gap:24px
+}
+.brand{display:flex;align-items:center;gap:10px;font-weight:760}
+.brand-mark{
+  width:29px;height:29px;border-radius:9px;background:var(--text);color:var(--bg);
+  display:grid;place-items:center;font-size:11px;font-weight:800
+}
+.nav{display:flex;gap:23px;color:var(--muted);font-size:14px}
+.nav a.active,.nav a:hover{color:var(--text)}
+.actions{display:flex;gap:8px}
+.btn{
+  height:34px;border:1px solid var(--line);background:var(--surface);border-radius:10px;
+  padding:0 11px;color:var(--muted);cursor:pointer
+}
+
+/* one center axis */
+.axis-text{width:min(100%,var(--w-text));margin-left:auto;margin-right:auto}
+.axis-code{width:min(100%,var(--w-code));margin-left:auto;margin-right:auto}
+.axis-wide{width:min(100%,var(--w-wide));margin-left:auto;margin-right:auto}
+.axis-xwide{width:min(100%,var(--w-xwide));margin-left:auto;margin-right:auto}
+
+/* Stage 1: article identity */
+.article-head{
+  padding:54px 0 28px;border-bottom:1px solid var(--line)
+}
+.crumb{font-size:13px;color:var(--muted)}
+.article-head h1{
+  font-size:48px;line-height:1.1;letter-spacing:-.052em;
+  margin:17px 0 15px
+}
+.deck{
+  font-size:18px;line-height:1.72;color:var(--muted);
+  margin:0
+}
+.article-meta{
+  display:flex;gap:10px;flex-wrap:wrap;
+  margin-top:21px;font-size:13px;color:var(--muted)
+}
+.article-tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:17px}
+.tag{
+  padding:6px 9px;border:1px solid var(--line);border-radius:999px;
+  background:var(--surface);font-size:12px;color:var(--muted)
+}
+
+/* Stage 2: opening visual */
+.lead-visual-wrap{padding:28px 0 12px}
+.lead-visual{
+  border:1px solid var(--line);border-radius:20px;
+  background:var(--surface);padding:32px;
+  box-shadow:0 12px 34px rgba(18,18,16,.04)
+}
+.flow{
+  display:grid;grid-template-columns:1fr 30px 1fr 30px 1fr 30px 1fr;
+  align-items:center;gap:6px
+}
+.flow-node{
+  background:var(--surface-2);border:1px solid var(--line);
+  border-radius:13px;padding:18px 12px;text-align:center
+}
+.flow-node b{display:block;font-size:14px}
+.flow-node small{display:block;font-size:11px;color:var(--muted);margin-top:5px}
+.flow-arrow{color:var(--signal);font-size:18px;text-align:center}
+.visual-caption{
+  margin-top:12px;color:var(--muted);font-size:12px;line-height:1.6
+}
+
+/* Stage 3: reading canvas */
+.reading-canvas{
+  position:relative;
+  padding:38px 0 68px
+}
+.article-body{
+  font-size:17px;line-height:1.9
+}
+.article-body p{margin:0 0 24px}
+.article-body h2{
+  font-size:29px;line-height:1.25;letter-spacing:-.036em;
+  margin:50px 0 18px
+}
+.article-body h3{font-size:21px;line-height:1.35;margin:34px 0 14px}
+.article-body ul{padding-left:23px;margin:0 0 24px}
+.article-body li{margin:7px 0}
+.article-body strong{font-weight:720}
+
+.callout{
+  margin:30px auto;
+  border:1px solid color-mix(in srgb,var(--signal) 25%,var(--line));
+  background:var(--signal-soft);border-radius:14px;padding:18px 20px
+}
+.callout .label{font-size:12px;font-weight:720;color:var(--signal-ink);margin-bottom:6px}
+.callout p{font-size:15px;line-height:1.7;margin:0;color:#64483e}
+
+.quote{
+  margin:34px auto;
+  border-left:3px solid var(--signal);
+  padding:3px 0 3px 20px;
+  font-size:20px;line-height:1.65;color:#444
+}
+.quote cite{
+  display:block;font-size:12px;color:var(--muted);
+  margin-top:10px;font-style:normal
+}
+
+.code{
+  margin:30px auto;
+  border-radius:15px;background:var(--code);color:#e9e9e2;overflow:hidden
+}
+.code-head{
+  height:42px;border-bottom:1px solid #30332e;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 15px;color:#a8ada4;font-size:11px
+}
+.code pre{
+  margin:0;padding:20px 22px;overflow:auto;
+  font:13px/1.75 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace
+}
+.copy{
+  border:1px solid #3b3e39;background:#20221f;color:#adb1aa;
+  border-radius:7px;padding:5px 8px;font-size:10px
+}
+
+.figure{margin:34px auto}
+.figure-box{
+  aspect-ratio:16/9;border:1px solid var(--line);border-radius:16px;
+  background:var(--surface);display:grid;place-items:center;overflow:hidden
+}
+.figure-box svg{width:88%;height:88%}
+.caption{
+  width:min(100%,var(--w-text));
+  margin:10px auto 0;color:var(--muted);
+  font-size:12px;line-height:1.6
+}
+
+.gallery{
+  display:grid;grid-template-columns:1.25fr .75fr;gap:10px;
+  margin:34px auto
+}
+.shot{
+  border:1px solid var(--line);background:var(--surface);
+  border-radius:14px;min-height:220px;padding:18px;
+  display:flex;flex-direction:column;justify-content:space-between
+}
+.shot:nth-child(2){background:var(--blue-soft)}
+.mock-title{font-size:12px;color:var(--muted)}
+.mock-chart{height:120px;display:flex;align-items:end;gap:8px;padding-top:18px}
+.mock-chart i{
+  display:block;width:14%;background:var(--signal);
+  border-radius:6px 6px 2px 2px;opacity:.85
+}
+.mock-chart i:nth-child(1){height:32%}
+.mock-chart i:nth-child(2){height:56%}
+.mock-chart i:nth-child(3){height:82%}
+.mock-chart i:nth-child(4){height:38%}
+.mock-chart i:nth-child(5){height:70%}
+
+.table-wrap{
+  margin:34px auto;overflow:auto;
+  border:1px solid var(--line);border-radius:14px;background:var(--surface)
+}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:13px 15px;border-bottom:1px solid var(--line)}
+th{font-size:12px;color:var(--muted);background:var(--surface-2)}
+tr:last-child td{border-bottom:0}
+
+.diagram{
+  margin:34px auto;border:1px solid var(--line);
+  background:var(--surface);border-radius:16px;padding:22px
+}
+.diagram-row{
+  display:grid;grid-template-columns:1fr 28px 1fr 28px 1fr;
+  gap:5px;align-items:center
+}
+.diagram-row span{
+  border:1px solid var(--line);border-radius:11px;
+  padding:14px;text-align:center;font-size:13px;background:var(--surface-2)
+}
+.diagram-row i{font-style:normal;color:var(--signal);text-align:center}
+
+.embed{
+  margin:34px auto;border:1px solid var(--line);
+  border-radius:16px;overflow:hidden;background:var(--surface)
+}
+.embed-top{
+  height:42px;background:var(--surface-2);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 14px;font-size:11px;color:var(--muted)
+}
+.demo{min-height:300px;display:grid;grid-template-columns:190px 1fr}
+.demo-panel{border-right:1px solid var(--line);padding:17px}
+.demo-panel b{font-size:12px}
+.demo-panel p{font-size:11px;line-height:1.5;color:var(--muted);margin-top:8px}
+.demo-stage{
+  position:relative;
+  background:
+    linear-gradient(var(--line) 1px,transparent 1px),
+    linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:30px 30px
+}
+.demo-stage svg{position:absolute;inset:0;width:100%;height:100%}
+
+.media-card{
+  margin:34px auto;display:grid;grid-template-columns:180px 1fr;
+  border:1px solid var(--line);border-radius:15px;
+  overflow:hidden;background:var(--surface)
+}
+.media-thumb{
+  min-height:130px;background:#1b1c1a;color:white;
+  display:grid;place-items:center;font-size:30px
+}
+.media-copy{padding:18px}
+.media-copy b{font-size:15px}
+.media-copy p{font-size:13px;line-height:1.6;color:var(--muted);margin:8px 0 0}
+
+.attachment{
+  margin:34px auto;display:flex;align-items:center;
+  justify-content:space-between;gap:20px;
+  border:1px solid var(--line);border-radius:14px;
+  background:var(--surface);padding:16px 18px
+}
+.file-left{display:flex;align-items:center;gap:12px}
+.file-icon{
+  width:42px;height:42px;border-radius:10px;background:var(--blue-soft);
+  color:var(--blue-ink);display:grid;place-items:center;
+  font-size:11px;font-weight:800
+}
+.file-name{font-size:14px;font-weight:680}
+.file-meta{font-size:11px;color:var(--muted);margin-top:3px}
+.file-action{font-size:12px;color:var(--blue-ink);font-weight:680}
+
+.tabs{
+  margin:34px auto;border:1px solid var(--line);
+  border-radius:15px;background:var(--surface);overflow:hidden
+}
+.tab-head{
+  display:flex;border-bottom:1px solid var(--line);background:var(--surface-2)
+}
+.tab-head button{
+  border:0;background:transparent;padding:12px 16px;
+  font-size:12px;color:var(--muted);cursor:pointer
+}
+.tab-head button.active{
+  background:var(--surface);color:var(--text);font-weight:680
+}
+.tab-body{padding:18px;font-size:14px;line-height:1.7}
+
+/* page-level reading rail: independent from article layout */
+.reading-rail{
+  position:fixed;top:94px;right:26px;width:188px;z-index:30;
+  opacity:0;transform:translateY(8px);pointer-events:none;
+  transition:opacity .18s ease,transform .18s ease
+}
+.reading-rail.visible{opacity:1;transform:translateY(0);pointer-events:auto}
+.rail{padding:14px 12px 12px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.94);backdrop-filter:blur(12px);box-shadow:0 14px 36px rgba(18,18,16,.07)}
+.rail-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;font-size:12px;color:var(--muted)}
+.rail a{display:block;padding:7px 8px;border-radius:8px;font-size:13px;color:var(--muted)}
+.rail a:hover{background:var(--surface-2);color:var(--text)}
+.rail a.active{background:var(--signal-soft);color:var(--signal-ink);font-weight:650}
+.rail-sep{height:1px;background:var(--line);margin:10px 0}
+.rail-actions{display:flex;gap:8px}
+.rail-actions button{flex:1;height:32px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--muted);font-size:11px;cursor:pointer}
+.toc-fab{position:fixed;right:18px;bottom:20px;z-index:50;height:40px;padding:0 13px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--text);box-shadow:0 10px 28px rgba(18,18,16,.12);display:none;align-items:center;gap:7px;font-size:13px}
+.toc-backdrop{position:fixed;inset:0;z-index:60;background:rgba(10,10,9,.32);backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:opacity .18s ease}
+.toc-backdrop.open{opacity:1;pointer-events:auto}
+.toc-sheet{position:absolute;right:16px;bottom:16px;width:min(360px,calc(100vw - 32px));max-height:70vh;overflow:auto;padding:16px;border:1px solid var(--line);border-radius:18px;background:var(--surface);box-shadow:0 26px 70px rgba(0,0,0,.2)}
+.sheet-head{padding-bottom:12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
+.sheet-head b{font-size:15px}.sheet-head span{font-size:12px;color:var(--muted)}
+.sheet-close{width:32px;height:32px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--muted)}
+.sheet-list{padding-top:8px}.sheet-list a{padding:10px 8px;border-radius:9px;display:flex;justify-content:space-between;gap:14px;color:var(--muted);font-size:14px}.sheet-list a.active,.sheet-list a:hover{background:var(--surface-2);color:var(--text)}.sheet-list small{font-size:11px;color:var(--muted)}
+@media(max-width:1280px){.reading-rail{display:none}.toc-fab{display:flex}}
+
+/* Stage 4: closing */
+.article-end{
+  padding:10px 0 0
+}
+.maintenance{
+  border-top:1px solid var(--line);
+  padding-top:28px;margin-top:48px
+}
+.maintenance h3{
+  font-size:18px;margin:0 0 8px
+}
+.maintenance p{
+  font-size:14px;color:var(--muted);
+  line-height:1.7;margin:0
+}
+.maintenance-meta{
+  display:flex;gap:10px;flex-wrap:wrap;
+  margin-top:15px;font-size:12px;color:var(--muted)
+}
+.article-nav{
+  display:grid;grid-template-columns:1fr 1fr;gap:12px;
+  margin-top:28px
+}
+.article-nav a{
+  border:1px solid var(--line);border-radius:14px;
+  background:var(--surface);padding:16px
+}
+.article-nav small{font-size:11px;color:var(--muted)}
+.article-nav b{display:block;font-size:14px;margin-top:6px}
+
+.footer{
+  border-top:1px solid var(--line);
+  padding:25px 0 32px;
+  display:flex;justify-content:space-between;gap:20px;
+  color:var(--muted);font-size:13px
+}
+.footer-links{display:flex;gap:18px}
+
+@media(max-width:900px){
+  .shell{padding:0 22px}
+}
+@media(max-width:650px){
+  .shell{padding:0 18px}
+  .nav{display:none}
+  .article-head{padding-top:38px}
+  .article-head h1{font-size:36px}
+  .deck{font-size:16px}
+  .article-body{font-size:16px}
+  .flow{grid-template-columns:1fr}
+  .flow-arrow{transform:rotate(90deg)}
+  .gallery{grid-template-columns:1fr}
+  .demo{grid-template-columns:1fr}
+  .demo-panel{border-right:0;border-bottom:1px solid var(--line)}
+  .media-card{grid-template-columns:1fr}
+  .article-nav{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="read-progress" id="progress"></div>
+
+<header class="site-header">
+  <div class="shell header-inner">
+    <a class="brand" href="#">
+      <span class="brand-mark">山</span>
+      <span>小重山</span>
+    </a>
+    <nav class="nav">
+      <a class="active">文章</a>
+      <a>项目</a>
+      <a>专题</a>
+      <a>归档</a>
+      <a>关于</a>
+    </nav>
+    <div class="actions">
+      <button class="btn">搜索 ⌘K</button>
+    </div>
+  </div>
+</header>
+
+<main class="shell">
+
+  <!-- Stage 1 -->
+  <header class="article-head">
+    <div class="axis-text">
+      <div class="crumb">AI 工程 / RAG</div>
+      <h1>深入理解 RAG：从检索到生成</h1>
+      <p class="deck">从真实项目出发，重新理解检索、召回、Embedding、上下文构造与生成模型之间到底如何协作。</p>
+      <div class="article-meta">
+        <span>2026 年 8 月 12 日</span><span>·</span>
+        <span>约 18 分钟</span><span>·</span>
+        <span>最后更新于 8 月 20 日</span>
+      </div>
+      <div class="article-tags">
+        <span class="tag">RAG</span>
+        <span class="tag">AI 工程</span>
+        <span class="tag">Python</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Stage 2 -->
+  <section class="lead-visual-wrap" id="leadVisual">
+    <div class="axis-wide">
+      <div class="lead-visual">
+        <div class="flow">
+          <div class="flow-node"><b>问题</b><small>用户输入</small></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-node"><b>检索</b><small>召回相关资料</small></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-node"><b>上下文</b><small>组织有效信息</small></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-node"><b>生成</b><small>模型回答</small></div>
+        </div>
+        <div class="visual-caption">RAG 的最小工作链路。复杂内容可以突破正文宽度，但仍然围绕同一条中心轴展开。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stage 3 -->
+  <section class="reading-canvas" id="readingStart">
+    <article class="article-body">
+
+      <div class="axis-text">
+        <p>文章详情页不应该假设所有内容都来自 Markdown。Markdown 很适合文字、标题、列表和基础代码块，但真实技术内容通常会继续长出图表、交互实验、视频、附件和结构化数据。</p>
+      </div>
+
+      <div class="axis-text callout">
+        <div class="label">设计原则</div>
+        <p>所有 Block 共享同一条内容轴。差别只在宽度级别，而不是每种内容重新发明一套版式。</p>
+      </div>
+
+      <div class="axis-text">
+        <h2 id="text">基础富文本</h2>
+        <p>普通段落仍然是阅读体验的中心。正文宽度控制在约 760px，中文正文保持 17px 左右、较宽行距。<strong>重点信息可以加粗</strong>，但不建议通过大量彩色文本制造层级。</p>
+        <ul>
+          <li>Markdown 正文</li>
+          <li>富文本编辑器输出</li>
+          <li>服务端生成 HTML</li>
+          <li>结构化 Block 内容</li>
+        </ul>
+      </div>
+
+      <div class="axis-text quote">
+        技术文章真正难的往往不是“写出来”，而是把不同类型的信息组织成读者能够顺着理解下去的路径。
+        <cite>— 页面设计备注</cite>
+      </div>
+
+      <div class="axis-text">
+        <h2 id="code">代码块</h2>
+        <p>代码块可以略宽于正文，但仍然以正文中心线为中心。它支持语言标识、复制、横向滚动，也为未来 diff、高亮行预留空间。</p>
+      </div>
+
+      <div class="axis-code code">
+        <div class="code-head">
+          <span>Python · rag_pipeline.py</span>
+          <button class="copy">复制</button>
+        </div>
+        <pre>query = embed(user_question)
+
+candidates = vector_store.search(
+    query=query,
+    top_k=20,
+)
+
+results = rerank(
+    question=user_question,
+    documents=candidates,
+)[:5]</pre>
+      </div>
+
+      <div class="axis-text">
+        <h2 id="image">大图与图注</h2>
+        <p>架构图、产品截图和复杂示意图允许扩展到 960px 左右。视觉上应该像正文“向外展开”，而不是突然换到另一套页面网格。</p>
+      </div>
+
+      <figure class="axis-wide figure">
+        <div class="figure-box">
+          <svg viewBox="0 0 900 420" fill="none">
+            <rect x="60" y="145" width="150" height="105" rx="18" stroke="currentColor"/>
+            <rect x="300" y="70" width="180" height="105" rx="18" stroke="currentColor"/>
+            <rect x="300" y="250" width="180" height="105" rx="18" stroke="currentColor"/>
+            <rect x="580" y="145" width="180" height="105" rx="18" stroke="currentColor"/>
+            <path d="M210 198H280M480 122H540C558 122 558 198 580 198M480 302H540C558 302 558 198 580 198" stroke="#ff5c35" stroke-width="3"/>
+            <text x="105" y="203" fill="currentColor" font-size="22">Query</text>
+            <text x="345" y="130" fill="currentColor" font-size="22">Vector Search</text>
+            <text x="346" y="310" fill="currentColor" font-size="22">Keyword Search</text>
+            <text x="637" y="203" fill="currentColor" font-size="22">Rerank</text>
+          </svg>
+        </div>
+        <figcaption class="caption">图 1：混合检索示意。大图向左右对称扩展，图注仍然回到正文宽度。</figcaption>
+      </figure>
+
+      <div class="axis-text">
+        <h2 id="gallery">图片组 / 对比截图</h2>
+        <p>多图内容比单图更适合使用独立图库 Block，并允许达到 1040px 的最大内容宽度。</p>
+      </div>
+
+      <div class="axis-xwide gallery">
+        <div class="shot">
+          <div class="mock-title">优化前 · 检索命中率</div>
+          <div class="mock-chart"><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+        <div class="shot">
+          <div class="mock-title">优化后</div>
+          <div style="font-size:42px;font-weight:800;color:var(--blue-ink)">+18.7%</div>
+          <div style="font-size:12px;color:var(--muted)">Top-5 Recall</div>
+        </div>
+      </div>
+
+      <div class="axis-text">
+        <h2 id="table">结构化表格</h2>
+        <p>参数对比、实验结果和 API 字段通常比正文更宽，因此表格进入 960px 宽度级别。</p>
+      </div>
+
+      <div class="axis-wide table-wrap">
+        <table>
+          <thead>
+            <tr><th>方案</th><th>召回率</th><th>延迟</th><th>适用场景</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>向量检索</td><td>82.4%</td><td>42ms</td><td>语义相似</td></tr>
+            <tr><td>关键词检索</td><td>76.1%</td><td>18ms</td><td>精确术语</td></tr>
+            <tr><td>混合检索</td><td>91.3%</td><td>61ms</td><td>生产环境</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="axis-text">
+        <h2 id="diagram">架构图 / Mermaid 类内容</h2>
+        <p>流程图、时序图、状态机本质上也是宽内容 Block，不应嵌在 760px 正文里挤成一团。</p>
+      </div>
+
+      <div class="axis-wide diagram">
+        <div class="diagram-row">
+          <span>用户问题</span><i>→</i><span>检索服务</span><i>→</i><span>上下文构造</span>
+        </div>
+      </div>
+
+      <div class="axis-text">
+        <h2 id="interactive">交互内容</h2>
+        <p>交互式内容是最大一级 Block。它仍然围绕文章中心线展开，但可以达到 1040px，并拥有自己的局部工具栏。</p>
+      </div>
+
+      <div class="axis-xwide embed">
+        <div class="embed-top">
+          <span>交互实验 · Structure Lab</span>
+          <span>在新窗口打开 ↗</span>
+        </div>
+        <div class="demo">
+          <div class="demo-panel">
+            <b>四边形稳定性</b>
+            <p>拖动橙色节点，观察没有对角支撑时结构如何发生几何变形。</p>
+          </div>
+          <div class="demo-stage">
+            <svg viewBox="0 0 520 260" fill="none">
+              <path d="M90 200L170 65L390 80L450 200L90 200Z" stroke="currentColor" stroke-width="3"/>
+              <circle cx="90" cy="200" r="7" fill="currentColor"/>
+              <circle cx="170" cy="65" r="7" fill="currentColor"/>
+              <circle cx="390" cy="80" r="8" fill="#ff5c35"/>
+              <circle cx="450" cy="200" r="7" fill="currentColor"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="axis-text">
+        <h2 id="media">视频 / 音频 / 外部媒体</h2>
+        <p>媒体内容使用与正文一致的 760px 主轴，避免所有东西都为了“丰富”而不断扩大。</p>
+      </div>
+
+      <div class="axis-text media-card">
+        <div class="media-thumb">▶</div>
+        <div class="media-copy">
+          <b>RAG 检索链路演示</b>
+          <p>6 分 42 秒 · 展示一次真实请求从 Query 到最终生成结果的全过程。</p>
+        </div>
+      </div>
+
+      <div class="axis-text">
+        <h2 id="attachment">附件 / 可下载资源</h2>
+        <p>附件属于正文内容的一部分，保持普通内容宽度即可。</p>
+      </div>
+
+      <div class="axis-text attachment">
+        <div class="file-left">
+          <div class="file-icon">PDF</div>
+          <div>
+            <div class="file-name">RAG 评测方法与指标.pdf</div>
+            <div class="file-meta">2.4 MB · 更新于 2026 年 8 月 20 日</div>
+          </div>
+        </div>
+        <div class="file-action">下载附件 ↓</div>
+      </div>
+
+      <div class="axis-text">
+        <h2 id="tabs">复杂内容 / Tab</h2>
+        <p>同一个概念有多种表示时，用局部 Tab 保持信息密度，而不是让整个页面变宽。</p>
+      </div>
+
+      <div class="axis-text tabs">
+        <div class="tab-head">
+          <button class="active">Python</button>
+          <button>curl</button>
+          <button>JSON</button>
+        </div>
+        <div class="tab-body">
+          <code>client.search(query="什么是 RAG", top_k=5)</code>
+        </div>
+      </div>
+
+      <!-- Stage 4 -->
+      <div class="axis-text article-end">
+        <div class="maintenance">
+          <h3>这篇文章仍在持续维护</h3>
+          <p>后续会继续补充 Chunk 切分、混合检索、Rerank 和评测方法。如果内容存在错误，可以通过 GitHub 提交 Issue。</p>
+          <div class="maintenance-meta">
+            <span>最后更新：2026 年 8 月 20 日</span>
+            <span>·</span>
+            <span>RAG</span>
+            <span>·</span>
+            <span>AI 工程</span>
+            <span>·</span>
+            <span>Python</span>
+          </div>
+        </div>
+
+        <div class="article-nav">
+          <a>
+            <small>上一篇</small>
+            <b>Agent 到底比普通 LLM 调用多了什么？</b>
+          </a>
+          <a>
+            <small>下一篇</small>
+            <b>RAG 的 Chunk 应该怎么切？</b>
+          </a>
+        </div>
+      </div>
+
+    </article>
+  </section>
+
+  <footer class="footer">
+    <div>© 2026 小重山</div>
+    <div class="footer-links">
+      <a>GitHub</a><a>RSS</a><a>关于</a>
+    </div>
+  </footer>
+</main>
+
+<aside class="reading-rail" id="readingRail">
+  <div class="rail">
+    <div class="rail-head"><span>本文目录</span><span id="railPct">0%</span></div>
+    <a class="active" href="#text">基础富文本</a>
+    <a href="#code">代码块</a><a href="#image">大图与图注</a><a href="#gallery">图片组</a><a href="#table">表格</a><a href="#diagram">架构图</a><a href="#interactive">交互内容</a><a href="#media">媒体</a><a href="#attachment">附件</a><a href="#tabs">复杂内容</a>
+    <div class="rail-sep"></div>
+    <div class="rail-actions"><button id="copyLink">复制链接</button><button id="toTop">回到顶部</button></div>
+  </div>
+</aside>
+<button class="toc-fab" id="tocFab">目录 <span id="fabPct">0%</span></button>
+<div class="toc-backdrop" id="tocBackdrop">
+  <div class="toc-sheet">
+    <div class="sheet-head"><div><b>本文目录</b><br><span id="sheetPct">已阅读 0%</span></div><button class="sheet-close" id="sheetClose">×</button></div>
+    <div class="sheet-list">
+      <a class="active" href="#text"><span>基础富文本</span><small>01</small></a><a href="#code"><span>代码块</span><small>02</small></a><a href="#image"><span>大图与图注</span><small>03</small></a><a href="#gallery"><span>图片组</span><small>04</small></a><a href="#table"><span>表格</span><small>05</small></a><a href="#diagram"><span>架构图</span><small>06</small></a><a href="#interactive"><span>交互内容</span><small>07</small></a><a href="#media"><span>媒体</span><small>08</small></a><a href="#attachment"><span>附件</span><small>09</small></a><a href="#tabs"><span>复杂内容</span><small>10</small></a>
+    </div>
+  </div>
+</div>
+<script>
+const progress=document.getElementById('progress');
+const lead=document.getElementById('leadVisual');
+const rail=document.getElementById('readingRail');
+const railPct=document.getElementById('railPct');
+const fabPct=document.getElementById('fabPct');
+const sheetPct=document.getElementById('sheetPct');
+const tocFab=document.getElementById('tocFab');
+const backdrop=document.getElementById('tocBackdrop');
+const closeBtn=document.getElementById('sheetClose');
+const ids=['text','code','image','gallery','table','diagram','interactive','media','attachment','tabs'];
+const sections=ids.map(id=>document.getElementById(id)).filter(Boolean);
+const links=[...document.querySelectorAll('.reading-rail a[href^="#"],.sheet-list a[href^="#"]')];
+function update(){
+  const d=document.documentElement;const max=Math.max(1,d.scrollHeight-d.clientHeight);const pct=Math.max(0,Math.min(100,window.scrollY/max*100));const n=Math.round(pct);
+  progress.style.width=pct+'%';railPct.textContent=n+'%';fabPct.textContent=n+'%';sheetPct.textContent='已阅读 '+n+'%';
+  rail.classList.toggle('visible',lead.getBoundingClientRect().bottom<90);
+  let current=ids[0];for(const s of sections){if(s.getBoundingClientRect().top<=150) current=s.id;}
+  links.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+current));
+}
+tocFab.addEventListener('click',()=>backdrop.classList.add('open'));
+closeBtn.addEventListener('click',()=>backdrop.classList.remove('open'));
+backdrop.addEventListener('click',e=>{if(e.target===backdrop)backdrop.classList.remove('open')});
+document.querySelectorAll('.sheet-list a').forEach(a=>a.addEventListener('click',()=>backdrop.classList.remove('open')));
+document.getElementById('toTop').addEventListener('click',()=>window.scrollTo({top:0,behavior:'smooth'}));
+document.getElementById('copyLink').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(location.href)}catch(e){}});
+window.addEventListener('scroll',update,{passive:true});window.addEventListener('resize',update);update();
+</script>
+</body>
+</html>

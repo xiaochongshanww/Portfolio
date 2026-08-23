@@ -2,13 +2,96 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =========================================================
+   小重山 2026 公开站 Design Tokens
+   来源: docs/design/blog-redesign-2026-08/01_公开站设计规范.md
+   命名与原型 :root 保持一致;组件只消费变量,不直写色值
+   ========================================================= */
+:root {
+  /* 颜色 */
+  --bg: #f7f7f5;
+  --surface: #ffffff;
+  --surface-2: #f1f1ee;
+  --text: #171717;
+  --muted: #6b6b67;
+  --line: #e3e3df;
+  --line-strong: #d4d4ce;
+
+  --signal: #ff5c35;
+  --signal-soft: #fff0ea;
+  --signal-ink: #a53b21;
+
+  --blue-soft: #edf3ff;
+  --blue-ink: #345a9c;
+  --green-soft: #edf6ef;
+  --green-ink: #3c6b49;
+  --sand: #f5efe3;
+
+  /* 字体 */
+  --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+
+  /* 页面与内容轴宽度(所有 Block 围绕同一中心轴) */
+  --page: 1180px;
+  --w-text: 760px;
+  --w-code: 820px;
+  --w-wide: 960px;
+  --w-xwide: 1040px;
+
+  /* 圆角阶梯 */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 20px;
+  --r-pill: 999px;
+
+  /* 动效 */
+  --transition: 180ms ease;
+}
+
 body, html, #app {
   margin: 0;
   padding: 0;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
-/* Styles for v-html rendered content (plain CSS equivalent of previous Tailwind @apply rules) */
+/* 全局链接重置:颜色由各组件显式控制 */
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* 全局动效基线:160-200ms,服务状态反馈 */
+a, button {
+  transition: color var(--transition), background-color var(--transition),
+    border-color var(--transition), opacity var(--transition);
+}
+
+/* 动效可访问性:用户偏好减少动画时关闭过渡 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* 公共站页面容器 */
+.shell {
+  max-width: var(--page);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 28px;
+  padding-right: 28px;
+}
+
+/* 内容轴工具类:四级宽度围绕同一中心轴对称展开 */
+.content-width-text { width: min(100%, var(--w-text)); margin-left: auto; margin-right: auto; }
+.content-width-code { width: min(100%, var(--w-code)); margin-left: auto; margin-right: auto; }
+.content-width-wide { width: min(100%, var(--w-wide)); margin-left: auto; margin-right: auto; }
+.content-width-xwide { width: min(100%, var(--w-xwide)); margin-left: auto; margin-right: auto; }
+
+/* Styles for v-html rendered content (legacy renderer; new ArticleRenderer uses its own block styles) */
 .article-body h1, .article-body h2, .article-body h3, .article-body h4, .article-body h5, .article-body h6 {
   font-weight: 700; /* font-bold */
   margin-top: 1rem;
@@ -26,13 +109,13 @@ body, html, #app {
 .article-body blockquote { border-left: 4px solid #d1d5db; padding-left: 1rem; font-style: italic; margin-top: 1rem; margin-bottom: 1rem; }
 .article-body pre:not([data-theme]):not([class*="shiki"]) { background-color: #1f2937; color: #fff; border-radius: 0.375rem; padding: 1rem; margin-top: 1rem; margin-bottom: 1rem; overflow-x: auto; }
 /* Shiki代码块样式 - 优先级更高 */
-.article-body pre[data-theme], .article-body pre[class*="shiki"] { 
-  background-color: #f6f8fa !important; 
-  border-radius: 0.375rem; 
-  padding: 1rem; 
-  margin-top: 1rem; 
-  margin-bottom: 1rem; 
-  overflow-x: auto; 
+.article-body pre[data-theme], .article-body pre[class*="shiki"] {
+  background-color: #f6f8fa !important;
+  border-radius: 0.375rem;
+  padding: 1rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  overflow-x: auto;
 }
 .article-body code { background-color: #f3f4f6; color: #dc2626; border-radius: 0.25rem; padding: 0.125rem 0.25rem; }
 .article-body pre code { background: transparent; color: inherit; padding: 0; }

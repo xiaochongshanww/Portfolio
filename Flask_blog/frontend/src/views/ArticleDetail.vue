@@ -19,24 +19,17 @@
       <!-- 主要内容区 -->
       <main class="article-main">
         <article class="article-container">
-          <!-- 文章头部 -->
-          <ArticleHeader
-            :article="article"
-            :can-edit="!!canEdit"
-            :is-author="!!isAuthor"
-            :is-moderator="!!userStore.hasRole(['editor', 'admin'])"
-            @edit="editArticle"
-          />
-
-          <!-- 封面图片 -->
-          <div v-if="article.featured_image" class="featured-image-container">
-            <CoverImage 
-              :src="article.featured_image" 
-              :alt="article.title" 
-              container-class="featured-image-wrapper"
-              image-class="featured-image"
-            />
-          </div>
+          <!-- Stage 1: 文章身份(03 号规范第 5 节,text 轴) -->
+          <header class="article-head content-width-text">
+            <div class="crumb">{{ article.category || '文章' }}</div>
+            <h1 class="article-title">{{ article.title }}</h1>
+            <p v-if="article.summary" class="deck">{{ article.summary }}</p>
+            <div class="article-meta">
+              <span>{{ formatDate(article.published_at || article.created_at) }}</span>
+              <span v-if="article.updated_at && article.updated_at !== article.published_at">·</span>
+              <span v-if="article.updated_at && article.updated_at !== article.published_at">最后更新于 {{ formatDate(article.updated_at) }}</span>
+            </div>
+          </header>
 
           <!-- 管理操作区（仅管理员可见） -->
           <ArticleActions
@@ -53,15 +46,47 @@
             @unpublish="unpublish"
           />
 
-          <!-- 文章正文 -->
-          <div class="article-content">
-            <ArticleContentRenderer 
+          <!-- 正文渲染区(Stage 3):Blocks 统一渲染 -->
+          <section class="reading-canvas">
+            <ArticleRenderer v-if="blocks.length" :blocks="blocks" />
+            <!-- Blocks 为空时回退旧渲染器(防御:转换异常不至于白屏) -->
+            <ArticleContentRenderer
+              v-else
               :content="article.content_md || article.content_html"
               :show-debug-info="false"
-              @content-type-detected="handleContentTypeDetected"
-              @content-rendered="handleContentRendered"
               @content-error="handleContentError"
-              @content-click="handleContentClick"
+            />
+          </section>
+
+          <!-- Stage 4: 结尾(E6) -->
+          <footer class="article-end content-width-text">
+            <div class="maintenance">
+              <h3>这篇文章仍在持续维护</h3>
+              <p>如果内容存在错误或需要补充,欢迎通过评论区指出。</p>
+              <div class="maintenance-meta">
+                <span>最后更新:{{ formatDate(article.updated_at || article.published_at || article.created_at) }}</span>
+              </div>
+            </div>
+
+            <nav v-if="prevNext.prev || prevNext.next" class="article-nav">
+              <a v-if="prevNext.prev" :href="'/article/' + prevNext.prev.slug" @click.prevent="goArticle(prevNext.prev.slug)">
+                <small>上一篇</small>
+                <b>{{ prevNext.prev.title }}</b>
+              </a>
+              <a v-if="prevNext.next" :href="'/article/' + prevNext.next.slug" @click.prevent="goArticle(prevNext.next.slug)">
+                <small>下一篇</small>
+                <b>{{ prevNext.next.title }}</b>
+              </a>
+            </nav>
+          </footer>
+
+          <!-- 封面图片(置于正文后,保持新排版;无图时隐藏) -->
+          <div v-if="false && article.featured_image" class="featured-image-container">
+            <CoverImage
+              :src="article.featured_image"
+              :alt="article.title"
+              container-class="featured-image-wrapper"
+              image-class="featured-image"
             />
           </div>
 
@@ -80,14 +105,9 @@
           />
         </article>
       </main>
-      
-      <!-- 侧边栏 -->
-      <ArticleSidebar
-        :toc-items="tocItems"
-        :active-heading="activeHeading"
-        :reading-progress="readingProgress"
-        @scroll-to="scrollToHeading"
-      />
+
+      <!-- 页面级阅读工具(fixed,不占布局) -->
+      <ReadingRail :toc="railToc" />
     </div>
     
     <!-- 评论区 -->
@@ -115,10 +135,12 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import CommentsThread from '../components/CommentsThread.vue';
 import CoverImage from '../components/CoverImage.vue';
 import ArticleContentRenderer from '../components/ArticleContentRenderer.vue';
-import ArticleSidebar from '../components/ArticleSidebar.vue';
-import ArticleHeader from '../components/ArticleHeader.vue';
 import ArticleActions from '../components/ArticleActions.vue';
 import ArticleInteractions from '../components/ArticleInteractions.vue';
+import ArticleRenderer from '../components/article/ArticleRenderer.vue';
+import ReadingRail from '../components/article/ReadingRail.vue';
+import { blocksFromMarkdown } from '../utils/blocksFromMarkdown';
+import type { ArticleBlock } from '../types/articleBlocks';
 import { common, createLowlight } from 'lowlight';
 import hljs from 'highlight.js';
 import { 
@@ -168,6 +190,47 @@ const error = ref('');
 const tocItems = ref<{ id?: string; text?: string; level?: number }[]>([]);
 const activeHeading = ref('');
 const readingProgress = ref(0);
+
+// Blocks 渲染管线(E7):content_md → ArticleBlock[]
+const blocks = computed<ArticleBlock[]>(() => {
+  const md = article.value?.content_md
+  if (!md) return []
+  try {
+    return blocksFromMarkdown(md)
+  } catch (e) {
+    console.warn('[ArticleDetail] blocks 转换失败,回退旧渲染器:', e)
+    return []
+  }
+});
+
+/** ReadingRail 目录:由 heading blocks 生成(H2) */
+const railToc = computed(() =>
+  blocks.value
+    .filter((b): b is Extract<ArticleBlock, { type: 'heading' }> => b.type === 'heading' && b.level <= 3)
+    .map((b) => ({ anchor: b.anchor, text: b.text })),
+);
+
+/** 上一篇/下一篇(E6):P0 用同列表相邻文章近似 */
+const prevNext = computed(() => {
+  // 相邻文章需要列表上下文,P0 先留空——单篇文章时导航隐藏
+  return { prev: null as null | { slug: string; title: string }, next: null as null | { slug: string; title: string } };
+});
+
+function formatDate(s?: string | null) {
+  if (!s) return '';
+  try {
+    let str = s;
+    if (!str.endsWith('Z') && !str.includes('+') && !str.includes('-', 10)) str += 'Z';
+    const d = new Date(str);
+    return `${d.getFullYear()} 年 ${d.getMonth() + 1} 月 ${d.getDate()} 日`;
+  } catch (e) {
+    return '';
+  }
+}
+
+function goArticle(slug: string) {
+  router.push(`/article/${slug}`);
+}
 
 // 内容渲染器状态
 const contentTypeInfo = ref<{ type: string; features?: { estimatedPreservationNeeded?: boolean } } | null>(null);
@@ -789,6 +852,123 @@ const handleContentClick = (clickInfo: { event: Event; contentType: string; targ
 </script>
 
 <style scoped>
+/* ===== P0 新排版(E6/E7):暖纸底 + 单列内容轴,覆盖旧白卡样式 ===== */
+
+.article-detail-page {
+  background: var(--bg);
+  padding: 0 0 60px;
+}
+
+/* 不再双列:ReadingRail 是 fixed 浮层,不占 grid 位 */
+.article-layout {
+  max-width: none;
+  margin: 0;
+  display: block;
+  gap: 0;
+}
+
+.article-container {
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+  padding-top: 54px;
+}
+
+/* Stage 1: 文章身份 */
+.crumb {
+  font-size: 13px;
+  color: var(--muted);
+}
+.article-title {
+  font-size: clamp(36px, 5vw, 48px);
+  line-height: 1.1;
+  letter-spacing: -0.052em;
+  margin: 17px 0 15px;
+  color: var(--text);
+}
+.deck {
+  font-size: 18px;
+  line-height: 1.72;
+  color: var(--muted);
+  margin: 0;
+}
+.article-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 21px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.article-head {
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--line);
+}
+
+/* Stage 3: 阅读画布 */
+.reading-canvas {
+  padding: 38px 0 30px;
+}
+
+/* Stage 4: 结尾 */
+.article-end {
+  padding-top: 10px;
+}
+.maintenance {
+  border-top: 1px solid var(--line);
+  padding-top: 28px;
+  margin-top: 20px;
+}
+.maintenance h3 {
+  font-size: 18px;
+  margin: 0 0 8px;
+  color: var(--text);
+}
+.maintenance p {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.7;
+  margin: 0;
+}
+.maintenance-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 15px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.article-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 28px;
+}
+.article-nav a {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  padding: 16px;
+}
+.article-nav a:hover {
+  border-color: var(--line-strong);
+}
+.article-nav small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.article-nav b {
+  display: block;
+  font-size: 14px;
+  margin-top: 6px;
+  color: var(--text);
+}
+@media (max-width: 650px) {
+  .article-nav { grid-template-columns: 1fr; }
+}
+
+/* ===== 以下为旧样式(部分仍被评论区/交互区使用)===== */
 /* ===== 文章详情页主体样式 ===== */
 
 .article-detail-page {
