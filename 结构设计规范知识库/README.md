@@ -448,6 +448,19 @@ npm ci
 npm run dev
 ```
 
+### VS Code 调试
+
+仓库已提供共享调试配置，位于 `.vscode/launch.json`。首次使用时，在项目根目录创建本地 `.env`（可由 `.env.example` 复制后填写），不要把真实密钥提交到 Git；VS Code 的 Python 解释器选择项目 `.venv`。
+
+按 `F5` 可选择以下入口：
+
+- `后端：FastAPI`：启动 `src.app.main:app`，支持 Python 断点。
+- `测试：当前文件`：使用 pytest 调试当前打开的测试文件。
+- `前端：Vite`：启动 Vue 开发服务器。
+- `全栈：API + 前端`：同时启动后端和前端。
+
+后端调试默认监听 `127.0.0.1:8000`，前端开发服务器默认地址为 `http://localhost:5173/static/`。如需真实问答或 Harness 联调，仍需在 `.env` 中配置有效的模型 Key、API 鉴权 Key 和签名 Key。
+
 生产构建：
 
 ```bash
@@ -492,7 +505,7 @@ API 镜像使用 `/opt/venv` 中的只读运行依赖，并以专用 `app` 用�
 控制台主要页面：
 
 - 概览：查看服务就绪、chunk、图片、文档清单和运行指标。
-- 构建任务：从网页触发 Dry Run、重建、规则审计、AI 校对候选生成和评估任务，并查看任务日志。
+- 构建任务：从网页预检新增/变化/复用/删除文档，触发默认增量候选重建或强制全量重建、规则审计、AI 校对候选和评估任务，并查看任务日志。
 - 版本管理：查看活动/历史版本、空间占用和保护原因，人工固定回退点，先生成清理计划再二次确认执行。
 - 校对工作台：全屏三栏布局，左侧选择文档和候选，中间查看原 PDF 页面，右侧对比解析文本、AI 证据并编辑最终修正文。
 - 评估：查看评估集分布和最近评估报告。
@@ -512,6 +525,7 @@ GET /admin/jobs
 GET /admin/jobs/{job_id}
 GET /admin/jobs/{job_id}/logs
 POST /admin/jobs/dry-run
+POST /admin/rebuild-plan
 POST /admin/jobs/rebuild
 POST /admin/jobs/audit
 POST /admin/jobs/evaluate

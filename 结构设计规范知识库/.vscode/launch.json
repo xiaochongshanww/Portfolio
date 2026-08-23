@@ -1,0 +1,59 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "后端：FastAPI",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "src.app.main:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8000"
+      ],
+      "cwd": "${workspaceFolder}",
+      "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+      "envFile": "${workspaceFolder}\\.env",
+      "env": {
+        "PYTHONUNBUFFERED": "1",
+        "LOG_FORMAT": "text"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "测试：当前文件",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "${file}",
+        "-q"
+      ],
+      "cwd": "${workspaceFolder}",
+      "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+      "envFile": "${workspaceFolder}\\.env",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "前端：Vite",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/frontend"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "全栈：API + 前端",
+      "configurations": [
+        "后端：FastAPI",
+        "前端：Vite"
+      ],
+      "stopAll": true
+    }
+  ]
+}
