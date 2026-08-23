@@ -102,8 +102,15 @@ def rebuild_workflow(job: Job, store: JobStore) -> dict[str, Any]:
     source = Path(job.params.get("source", RAW_DIR))
     parser_backend = str(job.params.get("parser_backend", builder.DEFAULT_PARSER_BACKEND))
     apply_corrections = bool(job.params.get("apply_corrections", True))
+    rebuild_mode = str(job.params.get("mode", "full"))
     _set_step(
-        job, store, "rebuild", "开始重建知识库", source=str(source), parser_backend=parser_backend
+        job,
+        store,
+        "rebuild",
+        "开始重建知识库",
+        source=str(source),
+        parser_backend=parser_backend,
+        mode=rebuild_mode,
     )
     version_dir = DB_VERSIONS_DIR / job.job_id
     db_dir = version_dir / "db"
@@ -114,17 +121,24 @@ def rebuild_workflow(job: Job, store: JobStore) -> dict[str, Any]:
     quality_dir = version_dir / "quality"
     manifest_path = version_dir / "manifest.json"
     _set_step(job, store, "build_version", "构建到临时版本目录", db_dir=str(db_dir))
-    manifest = builder.rebuild(
-        source,
-        parser_backend=parser_backend,
-        apply_corrections=apply_corrections,
-        db_dir=db_dir,
-        manifest_path=manifest_path,
-        processed_dir=processed_dir,
-        images_dir=images_dir,
-        mineru_output_dir=mineru_dir,
-        audit_dir=audit_dir,
-    )
+    build_kwargs = {
+        "parser_backend": parser_backend,
+        "apply_corrections": apply_corrections,
+        "db_dir": db_dir,
+        "manifest_path": manifest_path,
+        "processed_dir": processed_dir,
+        "images_dir": images_dir,
+        "mineru_output_dir": mineru_dir,
+        "audit_dir": audit_dir,
+    }
+    if rebuild_mode == "incremental":
+        manifest = builder.incremental_rebuild(
+            source,
+            requested_mode=rebuild_mode,
+            **build_kwargs,
+        )
+    else:
+        manifest = builder.rebuild(source, build_mode="full", **build_kwargs)
     _set_step(
         job,
         store,
@@ -176,6 +190,21 @@ def rebuild_workflow(job: Job, store: JobStore) -> dict[str, Any]:
         _restore_file(MANIFEST_PATH, old_manifest)
         raise
 
+    cache_index = ""
+    try:
+        from src.pipeline.incremental import publish_cache_index
+
+        cache_index = str(
+            publish_cache_index(manifest, manifest.get("incremental_plan", {}))
+        )
+    except Exception as exc:
+        store.append_log(
+            job.job_id,
+            "warning",
+            "活动版本已切换，但增量缓存索引发布失败；下次将安全回退或重新处理",
+            error=str(exc),
+        )
+
     reports_dir = AUDIT_DIR / "reports"
     latest_reports_published = True
     try:
@@ -214,6 +243,9 @@ def rebuild_workflow(job: Job, store: JobStore) -> dict[str, Any]:
         "candidate_gate_report": gate_artifacts["gate_report"],
         "answer_evaluation_required": True,
         "latest_reports_published": latest_reports_published,
+        "rebuild_mode": manifest.get("build_params", {}).get("mode", rebuild_mode),
+        "incremental_plan": manifest.get("incremental_plan", {}),
+        "cache_index": cache_index,
     }
 
 

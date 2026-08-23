@@ -64,6 +64,21 @@ class JobLogsResponse(AdminResponse):
     logs: list[JsonObject]
 
 
+class RebuildPlanResponse(AdminResponse):
+    schema_version: int
+    mode: Literal["incremental", "full"]
+    requested_mode: Literal["incremental", "full"]
+    fallback_to_full: bool
+    fallback_reasons: list[str]
+    active_data_version_hash: str
+    contract: JsonObject
+    counts: dict[str, int]
+    documents: list[JsonObject]
+    source_dir: str
+    parser_backend: str
+    excluded_test_sources: list[str]
+
+
 class AdminStatusResponse(AdminResponse):
     built: bool
     manifest: JsonObject
@@ -199,6 +214,35 @@ class EvaluationStatusResponse(AdminResponse):
     answer_case_count: int
     answer_latest: JsonObject | None
     quality_evidence_errors: dict[str, str]
+
+
+class EvaluationCaseResponse(AdminResponse):
+    id: str
+    query: str
+    type: str
+    expected_sources: list[str] = Field(default_factory=list)
+    expected_clause: str = ""
+    expected_keywords: list[str] = Field(default_factory=list)
+    expected_authority_type: str = ""
+    top1_source_required: bool = True
+    keyword_required: bool = True
+    expected_table_id: str = ""
+    expected_all: list[str] = Field(default_factory=list)
+    expected_any_groups: list[list[str]] = Field(default_factory=list)
+    forbidden_terms: list[str] = Field(default_factory=list)
+    expected_citations: list[str] = Field(default_factory=list)
+    expected_unit_groups: list[list[str]] = Field(default_factory=list)
+    requires_refusal: bool = False
+    requires_image: bool = True
+
+
+class EvaluationCasesResponse(AdminResponse):
+    evaluation_set: Literal["regular", "structured", "answer"]
+    total: int
+    offset: int
+    limit: int
+    type_counts: dict[str, int]
+    cases: list[EvaluationCaseResponse]
 
 
 class CandidateActivationSummary(AdminResponse):

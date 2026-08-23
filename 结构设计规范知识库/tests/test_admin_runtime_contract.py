@@ -71,6 +71,13 @@ RUNTIME_CASES = (
         "/admin/retrieval/reload",
     ),
     RuntimeCase(
+        "admin_rebuild_plan_admin_rebuild_plan_post",
+        "post",
+        "/admin/rebuild-plan",
+        "/admin/rebuild-plan",
+        {},
+    ),
+    RuntimeCase(
         "start_dry_run_admin_jobs_dry_run_post",
         "post",
         "/admin/jobs/dry-run",
@@ -147,6 +154,12 @@ RUNTIME_CASES = (
         "get",
         "/admin/evaluation/status",
         "/admin/evaluation/status",
+    ),
+    RuntimeCase(
+        "admin_evaluation_cases_admin_evaluation_cases_get",
+        "get",
+        "/admin/evaluation/cases",
+        "/admin/evaluation/cases?evaluation_set=regular&limit=10",
     ),
     RuntimeCase(
         "admin_quality_status_admin_quality_status_get",
@@ -498,6 +511,24 @@ def runtime_client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> TestClien
     monkeypatch.setattr(admin, "job_manager", FakeJobManager())
     monkeypatch.setattr(admin, "retrieval_state", fake_state)
     monkeypatch.setattr(admin, "probe_model_providers", _provider_probes)
+    monkeypatch.setattr(
+        admin.builder,
+        "incremental_plan",
+        lambda *args, **kwargs: {
+            "schema_version": 1,
+            "mode": "incremental",
+            "requested_mode": "incremental",
+            "fallback_to_full": False,
+            "fallback_reasons": [],
+            "active_data_version_hash": "contract",
+            "contract": {},
+            "counts": {"added": 0, "changed": 0, "reused": 1, "removed": 0},
+            "documents": [],
+            "source_dir": "data/raw",
+            "parser_backend": "mineru",
+            "excluded_test_sources": [],
+        },
+    )
     monkeypatch.setattr(admin, "diagnose_jobs", lambda jobs, **kwargs: jobs)
     monkeypatch.setattr(admin, "diagnose_job", lambda job, **kwargs: job)
     monkeypatch.setattr(
@@ -533,7 +564,11 @@ def runtime_client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> TestClien
         },
     )
     monkeypatch.setattr(admin, "create_cleanup_plan", lambda **kwargs: _cleanup_plan())
-    monkeypatch.setattr(admin, "load_cases", lambda path: [SimpleNamespace(type="clause")])
+    monkeypatch.setattr(
+        admin,
+        "load_cases",
+        lambda path: [SimpleNamespace(id="contract-case", query="contract query", type="clause")],
+    )
     monkeypatch.setattr(admin, "load_answer_cases", lambda path: [SimpleNamespace()])
     monkeypatch.setattr(admin, "_read_latest_quality_reports", _quality_reports)
     monkeypatch.setattr(
@@ -739,7 +774,7 @@ def _assert_complete_runtime_coverage(
 
 def test_runtime_case_inventory_covers_every_admin_operation_exactly_once() -> None:
     _assert_complete_runtime_coverage(RUNTIME_CASES, export_openapi.build_openapi_document())
-    assert len(RUNTIME_CASES) == 45
+    assert len(RUNTIME_CASES) == 47
 
 
 @pytest.mark.parametrize("case", RUNTIME_CASES, ids=lambda case: case.operation_id)

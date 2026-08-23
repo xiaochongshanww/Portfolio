@@ -730,6 +730,170 @@
         "title": "EvaluateRequest",
         "type": "object"
       },
+      "EvaluationCaseResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_all": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Expected All",
+            "type": "array"
+          },
+          "expected_any_groups": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Expected Any Groups",
+            "type": "array"
+          },
+          "expected_authority_type": {
+            "default": "",
+            "title": "Expected Authority Type",
+            "type": "string"
+          },
+          "expected_citations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Expected Citations",
+            "type": "array"
+          },
+          "expected_clause": {
+            "default": "",
+            "title": "Expected Clause",
+            "type": "string"
+          },
+          "expected_keywords": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Expected Keywords",
+            "type": "array"
+          },
+          "expected_sources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Expected Sources",
+            "type": "array"
+          },
+          "expected_table_id": {
+            "default": "",
+            "title": "Expected Table Id",
+            "type": "string"
+          },
+          "expected_unit_groups": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Expected Unit Groups",
+            "type": "array"
+          },
+          "forbidden_terms": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Forbidden Terms",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "keyword_required": {
+            "default": true,
+            "title": "Keyword Required",
+            "type": "boolean"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "requires_image": {
+            "default": true,
+            "title": "Requires Image",
+            "type": "boolean"
+          },
+          "requires_refusal": {
+            "default": false,
+            "title": "Requires Refusal",
+            "type": "boolean"
+          },
+          "top1_source_required": {
+            "default": true,
+            "title": "Top1 Source Required",
+            "type": "boolean"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "query",
+          "type"
+        ],
+        "title": "EvaluationCaseResponse",
+        "type": "object"
+      },
+      "EvaluationCasesResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "cases": {
+            "items": {
+              "$ref": "#/components/schemas/EvaluationCaseResponse"
+            },
+            "title": "Cases",
+            "type": "array"
+          },
+          "evaluation_set": {
+            "enum": [
+              "regular",
+              "structured",
+              "answer"
+            ],
+            "title": "Evaluation Set",
+            "type": "string"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "type_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Type Counts",
+            "type": "object"
+          }
+        },
+        "required": [
+          "evaluation_set",
+          "total",
+          "offset",
+          "limit",
+          "type_counts",
+          "cases"
+        ],
+        "title": "EvaluationCasesResponse",
+        "type": "object"
+      },
       "EvaluationStatusResponse": {
         "additionalProperties": false,
         "properties": {
@@ -905,6 +1069,272 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "HarnessAsset": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "page_image",
+              "image"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "source_file": {
+            "title": "Source File",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "path",
+          "url",
+          "source_file"
+        ],
+        "title": "HarnessAsset",
+        "type": "object"
+      },
+      "HarnessSearchRequest": {
+        "additionalProperties": false,
+        "description": "Read-only search contract consumed by external agent adapters.",
+        "properties": {
+          "document": {
+            "default": "",
+            "maxLength": 240,
+            "title": "Document",
+            "type": "string"
+          },
+          "include_assets": {
+            "default": false,
+            "title": "Include Assets",
+            "type": "boolean"
+          },
+          "mode": {
+            "default": "auto",
+            "enum": [
+              "auto",
+              "table",
+              "clause",
+              "definition",
+              "general"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "query": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Query",
+            "type": "string"
+          },
+          "top_k": {
+            "default": 5,
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Top K",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "HarnessSearchRequest",
+        "type": "object"
+      },
+      "HarnessSearchResponse": {
+        "properties": {
+          "data_version_hash": {
+            "title": "Data Version Hash",
+            "type": "string"
+          },
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "normalized_query": {
+            "title": "Normalized Query",
+            "type": "string"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "result_count": {
+            "title": "Result Count",
+            "type": "integer"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/HarnessSearchResult"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "query",
+          "normalized_query",
+          "mode",
+          "data_version_hash",
+          "result_count",
+          "results"
+        ],
+        "title": "HarnessSearchResponse",
+        "type": "object"
+      },
+      "HarnessSearchResult": {
+        "properties": {
+          "assets": {
+            "items": {
+              "$ref": "#/components/schemas/HarnessAsset"
+            },
+            "title": "Assets",
+            "type": "array"
+          },
+          "authority_level": {
+            "title": "Authority Level",
+            "type": "integer"
+          },
+          "clause_number": {
+            "title": "Clause Number",
+            "type": "string"
+          },
+          "excerpt": {
+            "title": "Excerpt",
+            "type": "string"
+          },
+          "is_table": {
+            "title": "Is Table",
+            "type": "boolean"
+          },
+          "matched_terms": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Matched Terms",
+            "type": "array"
+          },
+          "pages": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Pages",
+            "type": "array"
+          },
+          "rank": {
+            "title": "Rank",
+            "type": "integer"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "retrieval_sources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Retrieval Sources",
+            "type": "array"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "section_type": {
+            "title": "Section Type",
+            "type": "string"
+          },
+          "source_file": {
+            "title": "Source File",
+            "type": "string"
+          },
+          "source_kind": {
+            "enum": [
+              "retrieval",
+              "structured_table"
+            ],
+            "title": "Source Kind",
+            "type": "string"
+          },
+          "standard_code": {
+            "title": "Standard Code",
+            "type": "string"
+          },
+          "standard_name": {
+            "title": "Standard Name",
+            "type": "string"
+          },
+          "structured_row": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Structured Row"
+          },
+          "table_id": {
+            "title": "Table Id",
+            "type": "string"
+          },
+          "table_name": {
+            "title": "Table Name",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rank",
+          "source_kind",
+          "source_file",
+          "standard_code",
+          "standard_name",
+          "version",
+          "section_type",
+          "authority_level",
+          "is_table",
+          "clause_number",
+          "table_id",
+          "table_name",
+          "pages",
+          "excerpt",
+          "score",
+          "reason"
+        ],
+        "title": "HarnessSearchResult",
+        "type": "object"
+      },
       "JobDiagnostics": {
         "additionalProperties": false,
         "properties": {
@@ -983,11 +1413,21 @@
         "type": "object"
       },
       "JobRequest": {
+        "additionalProperties": false,
         "properties": {
           "apply_corrections": {
             "default": true,
             "title": "Apply Corrections",
             "type": "boolean"
+          },
+          "mode": {
+            "default": "incremental",
+            "enum": [
+              "incremental",
+              "full"
+            ],
+            "title": "Mode",
+            "type": "string"
           },
           "parser_backend": {
             "default": "mineru",
@@ -1976,6 +2416,97 @@
           "checks"
         ],
         "title": "ReadinessResponse",
+        "type": "object"
+      },
+      "RebuildPlanResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "active_data_version_hash": {
+            "title": "Active Data Version Hash",
+            "type": "string"
+          },
+          "contract": {
+            "additionalProperties": true,
+            "title": "Contract",
+            "type": "object"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "documents": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Documents",
+            "type": "array"
+          },
+          "excluded_test_sources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Excluded Test Sources",
+            "type": "array"
+          },
+          "fallback_reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Fallback Reasons",
+            "type": "array"
+          },
+          "fallback_to_full": {
+            "title": "Fallback To Full",
+            "type": "boolean"
+          },
+          "mode": {
+            "enum": [
+              "incremental",
+              "full"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "parser_backend": {
+            "title": "Parser Backend",
+            "type": "string"
+          },
+          "requested_mode": {
+            "enum": [
+              "incremental",
+              "full"
+            ],
+            "title": "Requested Mode",
+            "type": "string"
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "source_dir": {
+            "title": "Source Dir",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "mode",
+          "requested_mode",
+          "fallback_to_full",
+          "fallback_reasons",
+          "active_data_version_hash",
+          "contract",
+          "counts",
+          "documents",
+          "source_dir",
+          "parser_backend",
+          "excluded_test_sources"
+        ],
+        "title": "RebuildPlanResponse",
         "type": "object"
       },
       "RetrievalReloadResponse": {
@@ -3008,6 +3539,99 @@
           }
         },
         "summary": "Admin Element",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/evaluation/cases": {
+      "get": {
+        "operationId": "admin_evaluation_cases_admin_evaluation_cases_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "evaluation_set",
+            "required": false,
+            "schema": {
+              "default": "regular",
+              "enum": [
+                "regular",
+                "structured",
+                "answer"
+              ],
+              "title": "Evaluation Set",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 200,
+              "title": "Search",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "case_type",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 64,
+              "title": "Case Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationCasesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Evaluation Cases",
         "tags": [
           "admin"
         ]
@@ -4175,6 +4799,47 @@
         ]
       }
     },
+    "/admin/rebuild-plan": {
+      "post": {
+        "operationId": "admin_rebuild_plan_admin_rebuild_plan_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RebuildPlanResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Rebuild Plan",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/admin/retrieval/reload": {
       "post": {
         "operationId": "admin_retrieval_reload_admin_retrieval_reload_post",
@@ -4560,6 +5225,123 @@
           }
         },
         "summary": "Serve Image"
+      }
+    },
+    "/integrations/deepseek-harness/page": {
+      "get": {
+        "operationId": "harness_page_integrations_deepseek_harness_page_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "source_file",
+            "required": true,
+            "schema": {
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "Source File",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": true,
+            "schema": {
+              "maximum": 100000,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Harness Page Integrations Deepseek Harness Page Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Harness Page",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/integrations/deepseek-harness/ready": {
+      "get": {
+        "operationId": "harness_ready_integrations_deepseek_harness_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Harness Ready Integrations Deepseek Harness Ready Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Harness Ready",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/integrations/deepseek-harness/search": {
+      "post": {
+        "operationId": "harness_search_integrations_deepseek_harness_search_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HarnessSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HarnessSearchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Harness Search",
+        "tags": [
+          "integrations"
+        ]
       }
     },
     "/knowledge/documents": {

@@ -1,5 +1,7 @@
 <template>
-  <div class="grid h-full min-h-[680px] grid-cols-[360px_minmax(0,1fr)] gap-5">
+  <div class="space-y-5">
+    <EvaluationSetBrowser />
+    <div class="grid h-full min-h-[680px] grid-cols-[360px_minmax(0,1fr)] gap-5">
     <section class="panel p-5">
       <h2 class="panel-title">评估集</h2>
       <div class="mt-4 grid grid-cols-2 gap-3">
@@ -130,6 +132,7 @@
         <div class="py-20 text-center text-slate-500">暂无评估报告。</div>
       </div>
     </section>
+    </div>
   </div>
 </template>
 
@@ -138,6 +141,7 @@ import { computed, ref } from 'vue'
 import { startAdminAnswerEvaluation, startAdminEvaluation } from '../admin-api'
 import { errorMessage } from '../api'
 import type { EvaluationStatusView, JobResponse } from '../contracts'
+import EvaluationSetBrowser from './EvaluationSetBrowser.vue'
 import KeyValueList from './shared/KeyValueList.vue'
 import MetricCard from './shared/MetricCard.vue'
 

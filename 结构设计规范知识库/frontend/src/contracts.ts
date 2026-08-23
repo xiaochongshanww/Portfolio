@@ -15,6 +15,7 @@ export type {
   ProviderProbesResponse,
   QualityStatusResponse,
   ReadinessResponse,
+  RebuildPlanResponse,
   StructuringSuggestionResponse,
   VersionCleanupPlanResponse,
   VersionInventoryResponse,
@@ -88,6 +89,37 @@ export type EvaluationStatusView = {
   answer_case_count?: number
   answer_latest?: EvaluationReportView | null
   quality_evidence_errors?: Record<string, string>
+}
+
+export type EvaluationSetName = 'regular' | 'structured' | 'answer'
+
+export type EvaluationCaseView = {
+  id: string
+  query: string
+  type: string
+  expected_sources: string[]
+  expected_clause: string
+  expected_keywords: string[]
+  expected_authority_type: string
+  top1_source_required: boolean
+  keyword_required: boolean
+  expected_table_id: string
+  expected_all: string[]
+  expected_any_groups: string[][]
+  forbidden_terms: string[]
+  expected_citations: string[]
+  expected_unit_groups: string[][]
+  requires_refusal: boolean
+  requires_image: boolean
+}
+
+export type EvaluationCasesView = {
+  evaluation_set: EvaluationSetName
+  total: number
+  offset: number
+  limit: number
+  type_counts: Record<string, number>
+  cases: EvaluationCaseView[]
 }
 
 export type QualityStatusView = {

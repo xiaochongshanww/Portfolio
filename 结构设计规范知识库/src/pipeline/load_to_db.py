@@ -57,6 +57,16 @@ def _metadata_for_chroma(chunk: dict[str, Any]) -> dict[str, Any]:
 
 
 def load_chunks_to_db(chunks_by_file: dict[str, list[dict[str, Any]]], db_dir: Path) -> int:
+    result = load_chunks_to_db_incremental(chunks_by_file, db_dir, reusable_embeddings={})
+    return int(result["loaded_chunks"])
+
+
+def load_chunks_to_db_incremental(
+    chunks_by_file: dict[str, list[dict[str, Any]]],
+    db_dir: Path,
+    *,
+    reusable_embeddings: dict[str, list[float]],
+) -> dict[str, int]:
     try:
         import chromadb
         from zai import ZhipuAiClient
@@ -79,7 +89,11 @@ def load_chunks_to_db(chunks_by_file: dict[str, list[dict[str, Any]]], db_dir: P
         metadata=CHROMA_HNSW_METADATA,
     )
 
-    pending_additions = _embed_chunks(zhipu, chunks_by_file)
+    pending_additions, embedding_stats = _embed_chunks_with_reuse(
+        zhipu,
+        chunks_by_file,
+        reusable_embeddings=reusable_embeddings,
+    )
     total = sum(len(item[0]) for item in pending_additions)
     ids = [item for batch in pending_additions for item in batch[0]]
     documents = [item for batch in pending_additions for item in batch[1]]
@@ -109,7 +123,7 @@ def load_chunks_to_db(chunks_by_file: dict[str, list[dict[str, Any]]], db_dir: P
         db_dir,
         expected_count=total,
     )
-    return total
+    return {"loaded_chunks": total, **embedding_stats}
 
 
 def migrate_collection_embeddings(
@@ -178,33 +192,82 @@ def _embed_chunks(
     zhipu: Any,
     chunks_by_file: dict[str, list[dict[str, Any]]],
 ) -> list[tuple[list[str], list[str], list[dict[str, Any]], list[list[float]]]]:
+    pending_additions, _stats = _embed_chunks_with_reuse(
+        zhipu,
+        chunks_by_file,
+        reusable_embeddings={},
+    )
+    return pending_additions
+
+
+def _valid_reusable_embedding(vector: Any) -> bool:
+    return (
+        isinstance(vector, list)
+        and len(vector) == settings.embedding_dimensions
+        and all(math.isfinite(float(value)) for value in vector)
+        and any(float(value) != 0 for value in vector)
+    )
+
+
+def _embed_chunks_with_reuse(
+    zhipu: Any,
+    chunks_by_file: dict[str, list[dict[str, Any]]],
+    *,
+    reusable_embeddings: dict[str, list[float]],
+) -> tuple[
+    list[tuple[list[str], list[str], list[dict[str, Any]], list[list[float]]]],
+    dict[str, int],
+]:
     pending_additions: list[tuple[list[str], list[str], list[dict[str, Any]], list[list[float]]]] = []
+    reused_count = 0
+    generated_count = 0
     for source_file, chunks in chunks_by_file.items():
         logging.info("入库 %s: %s 个 chunk", source_file, len(chunks))
         for index in range(0, len(chunks), 10):
             batch = chunks[index : index + 10]
-            texts = [chunk["text"] for chunk in batch]
+            generated_batch = [
+                chunk
+                for chunk in batch
+                if not _valid_reusable_embedding(reusable_embeddings.get(str(chunk["chunk_id"])))
+            ]
+            generated_vectors: dict[str, list[float]] = {}
             try:
-                response = zhipu.embeddings.create(
-                    **embedding_request_kwargs(settings, texts)
-                )
-                embeddings = [item.embedding for item in response.data]
-                if len(embeddings) != len(batch) or any(
-                    len(vector) != settings.embedding_dimensions
-                    or any(not math.isfinite(float(value)) for value in vector)
-                    for vector in embeddings
-                ):
-                    raise PipelineError(
-                        f"{source_file} 批次 {index // 10 + 1} 返回了无效 embedding"
+                if generated_batch:
+                    response = zhipu.embeddings.create(
+                        **embedding_request_kwargs(
+                            settings, [str(chunk["text"]) for chunk in generated_batch]
+                        )
                     )
+                    vectors = [item.embedding for item in response.data]
+                    if len(vectors) != len(generated_batch) or any(
+                        not _valid_reusable_embedding(vector) for vector in vectors
+                    ):
+                        raise PipelineError(
+                            f"{source_file} 批次 {index // 10 + 1} 返回了无效 embedding"
+                        )
+                    generated_vectors = {
+                        str(chunk["chunk_id"]): vector
+                        for chunk, vector in zip(generated_batch, vectors, strict=True)
+                    }
+                texts = [str(chunk["text"]) for chunk in batch]
                 ids = [chunk["chunk_id"] for chunk in batch]
                 metadatas = [_metadata_for_chroma(chunk) for chunk in batch]
+                embeddings = [
+                    reusable_embeddings.get(str(chunk["chunk_id"]))
+                    or generated_vectors[str(chunk["chunk_id"])]
+                    for chunk in batch
+                ]
                 pending_additions.append((ids, texts, metadatas, embeddings))
+                generated_count += len(generated_batch)
+                reused_count += len(batch) - len(generated_batch)
             except Exception as exc:
                 raise PipelineError(
                     f"{source_file} 批次 {index // 10 + 1} 入库失败: {exc}"
                 ) from exc
-    return pending_additions
+    return pending_additions, {
+        "reused_embedding_count": reused_count,
+        "generated_embedding_count": generated_count,
+    }
 
 
 def _verify_persisted_chroma_index(

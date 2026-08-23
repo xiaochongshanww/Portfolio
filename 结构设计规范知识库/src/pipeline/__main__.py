@@ -8,6 +8,8 @@ from .builder import (
     BuildPreflightError,
     audit,
     build,
+    incremental_plan,
+    incremental_rebuild,
     parser_status,
     print_json,
     promote_corrections,
@@ -53,8 +55,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="结构设计规范知识库构建工具")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    build_parsers = {}
     for command in ("build", "rebuild"):
         command_parser = subparsers.add_parser(command)
+        build_parsers[command] = command_parser
         command_parser.add_argument(
             "--source", default=str(RAW_DIR), help="PDF 源目录，默认 data/raw"
         )
@@ -70,6 +74,19 @@ def main() -> None:
             choices=["mineru", "pymupdf"],
             help="PDF 解析后端，默认 mineru",
         )
+    build_parsers["rebuild"].add_argument(
+        "--mode",
+        default="incremental",
+        choices=["incremental", "full"],
+        help="重建策略，默认增量候选重建；不兼容时自动全量回退",
+    )
+    plan_parser = subparsers.add_parser("rebuild-plan", help="预览增量候选重建的变更分类")
+    plan_parser.add_argument("--source", default=str(RAW_DIR), help="PDF 源目录")
+    plan_parser.add_argument(
+        "--parser-backend", default="mineru", choices=["mineru", "pymupdf"]
+    )
+    plan_parser.add_argument("--no-corrections", action="store_true")
+    plan_parser.add_argument("--mode", default="incremental", choices=["incremental", "full"])
 
     subparsers.add_parser("status")
     parser_status_parser = subparsers.add_parser(
@@ -200,12 +217,33 @@ def main() -> None:
                 )
             )
         elif args.command == "rebuild":
+            rebuild_function = incremental_rebuild if args.mode == "incremental" else rebuild
+            kwargs = {
+                "parser_backend": args.parser_backend,
+                "apply_corrections": not args.no_corrections,
+            }
+            if args.mode == "incremental":
+                kwargs["requested_mode"] = args.mode
             print_json(
-                rebuild(
+                rebuild_function(
                     Path(args.source),
-                    dry_run_only=args.dry_run,
+                    **kwargs,
+                )
+                if not args.dry_run
+                else incremental_plan(
+                    Path(args.source),
                     parser_backend=args.parser_backend,
                     apply_corrections=not args.no_corrections,
+                    requested_mode=args.mode,
+                )
+            )
+        elif args.command == "rebuild-plan":
+            print_json(
+                incremental_plan(
+                    Path(args.source),
+                    parser_backend=args.parser_backend,
+                    apply_corrections=not args.no_corrections,
+                    requested_mode=args.mode,
                 )
             )
         elif args.command == "audit":

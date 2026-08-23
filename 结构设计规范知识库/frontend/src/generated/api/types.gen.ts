@@ -458,6 +458,112 @@ export type EvaluateRequest = {
 };
 
 /**
+ * EvaluationCaseResponse
+ */
+export type EvaluationCaseResponse = {
+    /**
+     * Expected All
+     */
+    expected_all?: Array<string>;
+    /**
+     * Expected Any Groups
+     */
+    expected_any_groups?: Array<Array<string>>;
+    /**
+     * Expected Authority Type
+     */
+    expected_authority_type?: string;
+    /**
+     * Expected Citations
+     */
+    expected_citations?: Array<string>;
+    /**
+     * Expected Clause
+     */
+    expected_clause?: string;
+    /**
+     * Expected Keywords
+     */
+    expected_keywords?: Array<string>;
+    /**
+     * Expected Sources
+     */
+    expected_sources?: Array<string>;
+    /**
+     * Expected Table Id
+     */
+    expected_table_id?: string;
+    /**
+     * Expected Unit Groups
+     */
+    expected_unit_groups?: Array<Array<string>>;
+    /**
+     * Forbidden Terms
+     */
+    forbidden_terms?: Array<string>;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Keyword Required
+     */
+    keyword_required?: boolean;
+    /**
+     * Query
+     */
+    query: string;
+    /**
+     * Requires Image
+     */
+    requires_image?: boolean;
+    /**
+     * Requires Refusal
+     */
+    requires_refusal?: boolean;
+    /**
+     * Top1 Source Required
+     */
+    top1_source_required?: boolean;
+    /**
+     * Type
+     */
+    type: string;
+};
+
+/**
+ * EvaluationCasesResponse
+ */
+export type EvaluationCasesResponse = {
+    /**
+     * Cases
+     */
+    cases: Array<EvaluationCaseResponse>;
+    /**
+     * Evaluation Set
+     */
+    evaluation_set: 'regular' | 'structured' | 'answer';
+    /**
+     * Limit
+     */
+    limit: number;
+    /**
+     * Offset
+     */
+    offset: number;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Type Counts
+     */
+    type_counts: {
+        [key: string]: number;
+    };
+};
+
+/**
  * EvaluationStatusResponse
  */
 export type EvaluationStatusResponse = {
@@ -554,6 +660,182 @@ export type HttpValidationError = {
 };
 
 /**
+ * HarnessAsset
+ */
+export type HarnessAsset = {
+    /**
+     * Kind
+     */
+    kind: 'page_image' | 'image';
+    /**
+     * Page
+     */
+    page?: number | null;
+    /**
+     * Path
+     */
+    path: string;
+    /**
+     * Source File
+     */
+    source_file: string;
+    /**
+     * Url
+     */
+    url: string;
+};
+
+/**
+ * HarnessSearchRequest
+ *
+ * Read-only search contract consumed by external agent adapters.
+ */
+export type HarnessSearchRequest = {
+    /**
+     * Document
+     */
+    document?: string;
+    /**
+     * Include Assets
+     */
+    include_assets?: boolean;
+    /**
+     * Mode
+     */
+    mode?: 'auto' | 'table' | 'clause' | 'definition' | 'general';
+    /**
+     * Query
+     */
+    query: string;
+    /**
+     * Top K
+     */
+    top_k?: number;
+};
+
+/**
+ * HarnessSearchResponse
+ */
+export type HarnessSearchResponse = {
+    /**
+     * Data Version Hash
+     */
+    data_version_hash: string;
+    /**
+     * Mode
+     */
+    mode: string;
+    /**
+     * Normalized Query
+     */
+    normalized_query: string;
+    /**
+     * Query
+     */
+    query: string;
+    /**
+     * Result Count
+     */
+    result_count: number;
+    /**
+     * Results
+     */
+    results: Array<HarnessSearchResult>;
+    /**
+     * Warnings
+     */
+    warnings?: Array<string>;
+};
+
+/**
+ * HarnessSearchResult
+ */
+export type HarnessSearchResult = {
+    /**
+     * Assets
+     */
+    assets?: Array<HarnessAsset>;
+    /**
+     * Authority Level
+     */
+    authority_level: number;
+    /**
+     * Clause Number
+     */
+    clause_number: string;
+    /**
+     * Excerpt
+     */
+    excerpt: string;
+    /**
+     * Is Table
+     */
+    is_table: boolean;
+    /**
+     * Matched Terms
+     */
+    matched_terms?: Array<string>;
+    /**
+     * Pages
+     */
+    pages: Array<number>;
+    /**
+     * Rank
+     */
+    rank: number;
+    /**
+     * Reason
+     */
+    reason: string;
+    /**
+     * Retrieval Sources
+     */
+    retrieval_sources?: Array<string>;
+    /**
+     * Score
+     */
+    score: number;
+    /**
+     * Section Type
+     */
+    section_type: string;
+    /**
+     * Source File
+     */
+    source_file: string;
+    /**
+     * Source Kind
+     */
+    source_kind: 'retrieval' | 'structured_table';
+    /**
+     * Standard Code
+     */
+    standard_code: string;
+    /**
+     * Standard Name
+     */
+    standard_name: string;
+    /**
+     * Structured Row
+     */
+    structured_row?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Table Id
+     */
+    table_id: string;
+    /**
+     * Table Name
+     */
+    table_name: string;
+    /**
+     * Version
+     */
+    version: string;
+};
+
+/**
  * JobDiagnostics
  */
 export type JobDiagnostics = {
@@ -611,6 +893,10 @@ export type JobRequest = {
      * Apply Corrections
      */
     apply_corrections?: boolean;
+    /**
+     * Mode
+     */
+    mode?: 'incremental' | 'full';
     /**
      * Parser Backend
      */
@@ -1279,6 +1565,66 @@ export type ReadinessResponse = {
      * Version
      */
     version: string;
+};
+
+/**
+ * RebuildPlanResponse
+ */
+export type RebuildPlanResponse = {
+    /**
+     * Active Data Version Hash
+     */
+    active_data_version_hash: string;
+    /**
+     * Contract
+     */
+    contract: {
+        [key: string]: unknown;
+    };
+    /**
+     * Counts
+     */
+    counts: {
+        [key: string]: number;
+    };
+    /**
+     * Documents
+     */
+    documents: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Excluded Test Sources
+     */
+    excluded_test_sources: Array<string>;
+    /**
+     * Fallback Reasons
+     */
+    fallback_reasons: Array<string>;
+    /**
+     * Fallback To Full
+     */
+    fallback_to_full: boolean;
+    /**
+     * Mode
+     */
+    mode: 'incremental' | 'full';
+    /**
+     * Parser Backend
+     */
+    parser_backend: string;
+    /**
+     * Requested Mode
+     */
+    requested_mode: 'incremental' | 'full';
+    /**
+     * Schema Version
+     */
+    schema_version: number;
+    /**
+     * Source Dir
+     */
+    source_dir: string;
 };
 
 /**
@@ -1984,6 +2330,52 @@ export type AdminElementAdminElementsDocElementIndexGetResponses = {
 };
 
 export type AdminElementAdminElementsDocElementIndexGetResponse = AdminElementAdminElementsDocElementIndexGetResponses[keyof AdminElementAdminElementsDocElementIndexGetResponses];
+
+export type AdminEvaluationCasesAdminEvaluationCasesGetData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Evaluation Set
+         */
+        evaluation_set?: 'regular' | 'structured' | 'answer';
+        /**
+         * Search
+         */
+        search?: string;
+        /**
+         * Case Type
+         */
+        case_type?: string;
+        /**
+         * Offset
+         */
+        offset?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/admin/evaluation/cases';
+};
+
+export type AdminEvaluationCasesAdminEvaluationCasesGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AdminEvaluationCasesAdminEvaluationCasesGetError = AdminEvaluationCasesAdminEvaluationCasesGetErrors[keyof AdminEvaluationCasesAdminEvaluationCasesGetErrors];
+
+export type AdminEvaluationCasesAdminEvaluationCasesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: EvaluationCasesResponse;
+};
+
+export type AdminEvaluationCasesAdminEvaluationCasesGetResponse = AdminEvaluationCasesAdminEvaluationCasesGetResponses[keyof AdminEvaluationCasesAdminEvaluationCasesGetResponses];
 
 export type AdminEvaluationStatusAdminEvaluationStatusGetData = {
     body?: never;
@@ -2755,6 +3147,31 @@ export type AdminQualityStatusAdminQualityStatusGetResponses = {
 
 export type AdminQualityStatusAdminQualityStatusGetResponse = AdminQualityStatusAdminQualityStatusGetResponses[keyof AdminQualityStatusAdminQualityStatusGetResponses];
 
+export type AdminRebuildPlanAdminRebuildPlanPostData = {
+    body: JobRequest;
+    path?: never;
+    query?: never;
+    url: '/admin/rebuild-plan';
+};
+
+export type AdminRebuildPlanAdminRebuildPlanPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AdminRebuildPlanAdminRebuildPlanPostError = AdminRebuildPlanAdminRebuildPlanPostErrors[keyof AdminRebuildPlanAdminRebuildPlanPostErrors];
+
+export type AdminRebuildPlanAdminRebuildPlanPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: RebuildPlanResponse;
+};
+
+export type AdminRebuildPlanAdminRebuildPlanPostResponse = AdminRebuildPlanAdminRebuildPlanPostResponses[keyof AdminRebuildPlanAdminRebuildPlanPostResponses];
+
 export type AdminRetrievalReloadAdminRetrievalReloadPostData = {
     body?: never;
     path?: never;
@@ -3029,6 +3446,81 @@ export type ServeImageImagesFilenameGetResponses = {
      */
     200: unknown;
 };
+
+export type HarnessPageIntegrationsDeepseekHarnessPageGetData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Source File
+         */
+        source_file: string;
+        /**
+         * Page
+         */
+        page: number;
+    };
+    url: '/integrations/deepseek-harness/page';
+};
+
+export type HarnessPageIntegrationsDeepseekHarnessPageGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type HarnessPageIntegrationsDeepseekHarnessPageGetError = HarnessPageIntegrationsDeepseekHarnessPageGetErrors[keyof HarnessPageIntegrationsDeepseekHarnessPageGetErrors];
+
+export type HarnessPageIntegrationsDeepseekHarnessPageGetResponses = {
+    /**
+     * Response Harness Page Integrations Deepseek Harness Page Get
+     *
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type HarnessReadyIntegrationsDeepseekHarnessReadyGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/integrations/deepseek-harness/ready';
+};
+
+export type HarnessReadyIntegrationsDeepseekHarnessReadyGetResponses = {
+    /**
+     * Response Harness Ready Integrations Deepseek Harness Ready Get
+     *
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type HarnessSearchIntegrationsDeepseekHarnessSearchPostData = {
+    body: HarnessSearchRequest;
+    path?: never;
+    query?: never;
+    url: '/integrations/deepseek-harness/search';
+};
+
+export type HarnessSearchIntegrationsDeepseekHarnessSearchPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type HarnessSearchIntegrationsDeepseekHarnessSearchPostError = HarnessSearchIntegrationsDeepseekHarnessSearchPostErrors[keyof HarnessSearchIntegrationsDeepseekHarnessSearchPostErrors];
+
+export type HarnessSearchIntegrationsDeepseekHarnessSearchPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: HarnessSearchResponse;
+};
+
+export type HarnessSearchIntegrationsDeepseekHarnessSearchPostResponse = HarnessSearchIntegrationsDeepseekHarnessSearchPostResponses[keyof HarnessSearchIntegrationsDeepseekHarnessSearchPostResponses];
 
 export type KnowledgeDocumentsKnowledgeDocumentsGetData = {
     body?: never;

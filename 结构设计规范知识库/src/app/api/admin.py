@@ -3,12 +3,13 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.evaluation.answer_runner import ANSWER_EVAL_PATH, load_answer_cases
 from src.evaluation.runner import DEFAULT_EVAL_PATH, STRUCTURED_EVAL_PATH, load_cases
+from src.pipeline import builder
 from src.pipeline.active_db import (
     active_processed_dir,
     read_active_db,
@@ -112,9 +113,12 @@ def _diagnosed_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 class JobRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     source: str = "data/raw"
     parser_backend: str = "mineru"
     apply_corrections: bool = True
+    mode: Literal["incremental", "full"] = "incremental"
 
 
 class ReviewRequest(BaseModel):
@@ -247,6 +251,19 @@ async def start_dry_run(request: JobRequest):
     return job_manager.submit("dry_run", request.model_dump(), dry_run_workflow).to_dict()
 
 
+@router.post("/rebuild-plan", response_model=admin_schemas.RebuildPlanResponse)
+async def admin_rebuild_plan(request: JobRequest):
+    try:
+        return builder.incremental_plan(
+            Path(request.source),
+            parser_backend=request.parser_backend,
+            apply_corrections=request.apply_corrections,
+            requested_mode=request.mode,
+        )
+    except (FileNotFoundError, ValueError, builder.BuildPreflightError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @router.post("/jobs/rebuild", response_model=admin_schemas.JobResponse)
 async def start_rebuild(request: JobRequest):
     return job_manager.submit("rebuild", request.model_dump(), rebuild_workflow).to_dict()
@@ -373,6 +390,86 @@ async def admin_evaluation_status():
             }.items()
             if key in report_errors
         },
+    }
+
+
+def _load_evaluation_cases(
+    evaluation_set: Literal["regular", "structured", "answer"],
+):
+    if evaluation_set == "structured":
+        return load_cases(STRUCTURED_EVAL_PATH)
+    if evaluation_set == "answer":
+        return load_answer_cases(ANSWER_EVAL_PATH)
+    return load_cases(DEFAULT_EVAL_PATH)
+
+
+def _evaluation_case_search_text(case: Any) -> str:
+    values: list[str] = [str(getattr(case, field, "")) for field in ("id", "query", "type")]
+    for field in (
+        "expected_sources",
+        "expected_keywords",
+        "expected_all",
+        "forbidden_terms",
+        "expected_citations",
+        "expected_unit_groups",
+    ):
+        value = getattr(case, field, [])
+        values.extend(str(item) for item in value)
+    values.extend(
+        str(getattr(case, field, ""))
+        for field in ("expected_clause", "expected_authority_type", "expected_table_id")
+    )
+    return " ".join(values).casefold()
+
+
+def _serialize_evaluation_case(case: Any) -> dict[str, Any]:
+    return {
+        "id": case.id,
+        "query": case.query,
+        "type": case.type,
+        "expected_sources": list(getattr(case, "expected_sources", [])),
+        "expected_clause": getattr(case, "expected_clause", ""),
+        "expected_keywords": list(getattr(case, "expected_keywords", None) or []),
+        "expected_authority_type": getattr(case, "expected_authority_type", ""),
+        "top1_source_required": bool(getattr(case, "top1_source_required", True)),
+        "keyword_required": bool(getattr(case, "keyword_required", True)),
+        "expected_table_id": getattr(case, "expected_table_id", ""),
+        "expected_all": list(getattr(case, "expected_all", [])),
+        "expected_any_groups": [list(group) for group in getattr(case, "expected_any_groups", [])],
+        "forbidden_terms": list(getattr(case, "forbidden_terms", [])),
+        "expected_citations": list(getattr(case, "expected_citations", [])),
+        "expected_unit_groups": [list(group) for group in getattr(case, "expected_unit_groups", [])],
+        "requires_refusal": bool(getattr(case, "requires_refusal", False)),
+        "requires_image": bool(getattr(case, "requires_image", True)),
+    }
+
+
+@router.get("/evaluation/cases", response_model=admin_schemas.EvaluationCasesResponse)
+async def admin_evaluation_cases(
+    evaluation_set: Literal["regular", "structured", "answer"] = "regular",
+    search: str = Query(default="", max_length=200),
+    case_type: str = Query(default="", max_length=64),
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=500),
+):
+    cases = _load_evaluation_cases(evaluation_set)
+    normalized_search = search.strip().casefold()
+    filtered = [
+        case
+        for case in cases
+        if (not case_type or case.type == case_type)
+        and (not normalized_search or normalized_search in _evaluation_case_search_text(case))
+    ]
+    type_counts: dict[str, int] = {}
+    for case in cases:
+        type_counts[case.type] = type_counts.get(case.type, 0) + 1
+    return {
+        "evaluation_set": evaluation_set,
+        "total": len(filtered),
+        "offset": offset,
+        "limit": limit,
+        "type_counts": dict(sorted(type_counts.items())),
+        "cases": [_serialize_evaluation_case(case) for case in filtered[offset : offset + limit]],
     }
 
 

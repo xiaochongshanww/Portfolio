@@ -8,7 +8,7 @@
 
       <div class="space-y-4 overflow-auto p-4">
         <div class="grid grid-cols-2 gap-2">
-          <button class="btn" :disabled="busy" @click="startDryRun">Dry Run</button>
+          <button class="btn" :disabled="busy" @click="analyzeChanges">分析变更</button>
           <button class="btn btn-primary" :disabled="busy" @click="startRebuild">重建知识库</button>
           <button class="btn" :disabled="busy" @click="startAudit">规则审计</button>
           <button class="btn" :disabled="busy" @click="startEvaluation">运行评估</button>
@@ -21,6 +21,11 @@
           <select v-model="jobRequest.parser_backend" class="field">
             <option value="mineru">mineru</option>
             <option value="pymupdf">pymupdf</option>
+          </select>
+          <label class="block text-xs font-medium text-slate-500">重建策略</label>
+          <select v-model="jobRequest.mode" class="field">
+            <option value="incremental">增量候选重建</option>
+            <option value="full">强制全量重建</option>
           </select>
           <label class="flex items-center gap-2 text-sm text-slate-700">
             <input v-model="jobRequest.apply_corrections" type="checkbox" class="h-4 w-4 rounded border-slate-300">
@@ -96,6 +101,24 @@
             {{ diagnosticLabel(selectedJob) }}。系统不会强制终止线程，请结合日志和进程状态处理。
           </div>
         </div>
+
+        <div v-if="rebuildPlan" class="space-y-2 rounded-md border border-slate-200 bg-white p-3 text-sm">
+          <div class="flex items-center justify-between gap-3">
+            <span class="font-semibold">变更预检</span>
+            <span :class="rebuildPlan.fallback_to_full ? 'text-amber-700' : 'text-emerald-700'">
+              {{ rebuildPlan.fallback_to_full ? '将全量回退' : '可增量执行' }}
+            </span>
+          </div>
+          <div class="grid grid-cols-4 gap-1 text-center text-xs">
+            <div class="rounded bg-emerald-50 p-2"><strong>{{ planCount('reused') }}</strong><br>复用</div>
+            <div class="rounded bg-blue-50 p-2"><strong>{{ planCount('added') }}</strong><br>新增</div>
+            <div class="rounded bg-amber-50 p-2"><strong>{{ planCount('changed') }}</strong><br>变化</div>
+            <div class="rounded bg-red-50 p-2"><strong>{{ planCount('removed') }}</strong><br>删除</div>
+          </div>
+          <p v-if="rebuildPlan.fallback_reasons.length" class="break-words text-xs text-amber-700">
+            {{ rebuildPlan.fallback_reasons.join('、') }}
+          </p>
+        </div>
         <pre class="flex-1 overflow-auto whitespace-pre-wrap p-4 text-xs leading-5 text-slate-200">{{ logsText }}</pre>
       </aside>
     </section>
@@ -106,14 +129,14 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   getAdminJobLogs,
+  getAdminRebuildPlan,
   startAdminAudit,
-  startAdminDryRun,
   startAdminEvaluation,
   startAdminRebuild,
   startAdminReview,
 } from '../admin-api'
 import { errorMessage } from '../api'
-import type { JobRequest, JobResponse } from '../contracts'
+import type { JobRequest, JobResponse, RebuildPlanResponse } from '../contracts'
 
 const props = defineProps<{ jobs: JobResponse[] }>()
 const emit = defineEmits<{ refresh: [] }>()
@@ -121,6 +144,7 @@ const emit = defineEmits<{ refresh: [] }>()
 const busy = ref(false)
 const error = ref('')
 const message = ref('')
+const rebuildPlan = ref<RebuildPlanResponse | null>(null)
 const selectedJob = ref<JobResponse | null>(null)
 const logs = ref<Record<string, unknown>[]>([])
 const logsLoading = ref(false)
@@ -131,6 +155,7 @@ const jobRequest = ref<JobRequest>({
   source: 'data/raw',
   parser_backend: 'mineru',
   apply_corrections: true,
+  mode: 'incremental',
 })
 
 const logsText = computed(() => logs.value.length ? logs.value.map(formatLogEntry).join('\n') : selectedJob.value?.error || '暂无任务日志')
@@ -152,8 +177,24 @@ async function startJob(task: () => Promise<JobResponse>) {
   }
 }
 
-async function startDryRun() {
-  await startJob(() => startAdminDryRun({ body: jobRequest.value }))
+async function analyzeChanges() {
+  busy.value = true
+  error.value = ''
+  message.value = ''
+  try {
+    rebuildPlan.value = await getAdminRebuildPlan({ body: jobRequest.value })
+    message.value = rebuildPlan.value.fallback_to_full
+      ? '预检完成：当前将安全回退为全量重建'
+      : '预检完成：可执行增量候选重建'
+  } catch (err: unknown) {
+    error.value = errorMessage(err)
+  } finally {
+    busy.value = false
+  }
+}
+
+function planCount(action: string) {
+  return rebuildPlan.value?.counts?.[action] || 0
 }
 
 async function startRebuild() {

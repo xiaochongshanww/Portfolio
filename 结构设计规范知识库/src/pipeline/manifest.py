@@ -34,6 +34,8 @@ def build_manifest(
     audit_by_file: dict[str, dict[str, Any]] | None = None,
     corrections_by_file: dict[str, dict[str, Any]] | None = None,
     chunk_hashes_by_file: dict[str, list[str]] | None = None,
+    document_fingerprints_by_file: dict[str, dict[str, Any]] | None = None,
+    build_contract: dict[str, Any] | None = None,
     build_params: dict[str, Any],
 ) -> dict[str, Any]:
     artifacts_by_file = artifacts_by_file or {}
@@ -41,6 +43,8 @@ def build_manifest(
     audit_by_file = audit_by_file or {}
     corrections_by_file = corrections_by_file or {}
     chunk_hashes_by_file = chunk_hashes_by_file or {}
+    document_fingerprints_by_file = document_fingerprints_by_file or {}
+    build_contract = build_contract or {}
     documents = []
     for pdf in pdf_files:
         spec = metadata[pdf.name]
@@ -56,6 +60,7 @@ def build_manifest(
                 "parser_metadata": parser_metadata_by_file.get(pdf.name, {}),
                 "audit": audit_by_file.get(pdf.name, {}),
                 "corrections": corrections_by_file.get(pdf.name, {}),
+                "build_fingerprint": document_fingerprints_by_file.get(pdf.name, {}),
                 "missing_artifacts": [
                     item["kind"] for item in artifacts if item.get("status") != "ok"
                 ],
@@ -94,6 +99,7 @@ def build_manifest(
         "embedding_dimensions": embedding_dimensions,
         "collection_name": collection_name,
         "build_params": build_params,
+        "build_contract": build_contract,
     }
     return {
         "schema_version": 1,
@@ -106,6 +112,7 @@ def build_manifest(
         "embedding_dimensions": embedding_dimensions,
         "collection_name": collection_name,
         "build_params": build_params,
+        "build_contract": build_contract,
         "metadata_status": "partial"
         if any(doc["metadata_status"] == "partial" for doc in documents)
         else "complete",

@@ -22,6 +22,9 @@ def test_expected_routes_exist():
     assert "/chat/completions" in paths
     assert "/images/{filename}" in paths
     assert "/page-images/{doc}/{page}" in paths
+    assert "/integrations/deepseek-harness/ready" in paths
+    assert "/integrations/deepseek-harness/search" in paths
+    assert "/integrations/deepseek-harness/page" in paths
     assert "/knowledge/documents" in paths
     assert "/evaluation/status" in paths
     assert "/corrections/candidates" in paths
@@ -33,6 +36,7 @@ def test_expected_routes_exist():
     assert "/admin/jobs/audit" in paths
     assert "/admin/jobs/evaluate" in paths
     assert "/admin/jobs/evaluate-answers" in paths
+    assert "/admin/evaluation/cases" in paths
     assert "/admin/corrections/approved/{doc}" in paths
     assert "/admin/manual-structuring" in paths
     assert "/admin/manual-structuring/scan" in paths
