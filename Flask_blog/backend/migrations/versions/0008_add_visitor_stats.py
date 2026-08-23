@@ -31,10 +31,11 @@ def upgrade():
         sa.Column('page_views', sa.Integer(), default=1),
     )
     
-    # 创建唯一约束和索引
-    op.create_unique_constraint('unique_visitor_per_day', 'visitor_stats', ['ip_address', 'user_agent_hash', 'visited_date'])
-    op.create_index('idx_visitor_date', 'visitor_stats', ['visited_date'])
-    op.create_index('idx_visitor_ip', 'visitor_stats', ['ip_address'])
+    # 创建唯一约束和索引(SQLite 需 batch 模式:copy-and-move 重建表)
+    with op.batch_alter_table('visitor_stats') as batch_op:
+        batch_op.create_unique_constraint('unique_visitor_per_day', ['ip_address', 'user_agent_hash', 'visited_date'])
+        batch_op.create_index('idx_visitor_date', ['visited_date'])
+        batch_op.create_index('idx_visitor_ip', ['ip_address'])
     
     # 创建每日统计汇总表
     op.create_table('daily_stats',

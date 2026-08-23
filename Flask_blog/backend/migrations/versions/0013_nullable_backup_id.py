@@ -18,18 +18,20 @@ depends_on = None
 
 def upgrade():
     """修改 backup_record_id 字段为可空，支持物理恢复"""
-    # 修改 backup_record_id 字段允许为空
-    op.alter_column('restore_records', 'backup_record_id',
-                    existing_type=sa.Integer(),
-                    nullable=True)
+    # SQLite 不支持 ALTER COLUMN, 需 batch 模式重建表
+    with op.batch_alter_table('restore_records') as batch_op:
+        batch_op.alter_column('backup_record_id',
+                              existing_type=sa.Integer(),
+                              nullable=True)
 
 
 def downgrade():
     """回滚：将 backup_record_id 字段改回不可空"""
     # 首先清理 NULL 值（如果有的话）
     op.execute("UPDATE restore_records SET backup_record_id = 0 WHERE backup_record_id IS NULL")
-    
-    # 然后修改字段为不可空
-    op.alter_column('restore_records', 'backup_record_id',
-                    existing_type=sa.Integer(),
-                    nullable=False)
+
+    # 然后修改字段为不可空（SQLite 需 batch 模式）
+    with op.batch_alter_table('restore_records') as batch_op:
+        batch_op.alter_column('backup_record_id',
+                              existing_type=sa.Integer(),
+                              nullable=False)

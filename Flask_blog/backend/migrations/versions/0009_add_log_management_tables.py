@@ -66,14 +66,15 @@ def upgrade():
     op.create_index(op.f('ix_log_configs_config_key'), 'log_configs', ['config_key'])
     
     # Insert default log configurations
+    # 注: 用 SQL 标准 CURRENT_TIMESTAMP 而非 MySQL 的 NOW(), 兼容 SQLite 开发库
     op.execute("""
         INSERT INTO log_configs (config_key, config_value, description, created_at, updated_at)
-        VALUES 
-        ('log_level', 'INFO', '系统日志级别', NOW(), NOW()),
-        ('max_log_days', '30', '日志保留天数', NOW(), NOW()),
-        ('enable_user_logs', 'true', '启用用户行为日志', NOW(), NOW()),
-        ('enable_api_logs', 'true', '启用API访问日志', NOW(), NOW()),
-        ('enable_error_logs', 'true', '启用错误日志', NOW(), NOW())
+        VALUES
+        ('log_level', 'INFO', '系统日志级别', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+        ('max_log_days', '30', '日志保留天数', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+        ('enable_user_logs', 'true', '启用用户行为日志', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+        ('enable_api_logs', 'true', '启用API访问日志', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+        ('enable_error_logs', 'true', '启用错误日志', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     """)
 
 
