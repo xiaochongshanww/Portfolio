@@ -1,0 +1,25 @@
+{
+  "name": "dsh-structural-kb",
+  "version": "0.1.0",
+  "description": "DeepSeek Harness read-only tools for the structural design specification knowledge base",
+  "license": "MIT",
+  "type": "module",
+  "main": "index.mjs",
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "files": [
+    "index.mjs",
+    "src/",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

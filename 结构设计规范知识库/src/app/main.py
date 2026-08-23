@@ -7,7 +7,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from .admin.jobs import job_manager
-from .api import admin, chat, health, images, knowledge
+from .api import admin, chat, health, images, integrations, knowledge
 from .core.config import settings
 from .core.logging import configure_logging
 from .core.middleware import ServiceMiddleware
@@ -42,6 +42,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(images.router)
+    app.include_router(integrations.router)
     app.include_router(knowledge.router)
     app.include_router(admin.router)
     app.include_router(chat.router)

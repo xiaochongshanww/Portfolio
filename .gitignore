@@ -11,3 +11,6 @@ __pycache__/
 .pytest_cache/
 .coverage
 Flask_blog/nul
+
+/deepseek-harness/
+/deepseek-harness-test-home/

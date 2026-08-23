@@ -15,6 +15,7 @@ PUBLIC_PATHS = {"/", "/health", "/ready", "/metrics", "/models", "/v1/models"}
 def is_protected_path(path: str) -> bool:
     return (
         path.endswith("/chat/completions")
+        or path.startswith("/integrations/")
         or path.startswith("/corrections/")
         or path.startswith("/admin/")
         or path.startswith("/images/")
