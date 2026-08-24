@@ -95,3 +95,46 @@ describe('blocksFromMarkdown', () => {
     expect(slugifyHeading('!!!')).toBe('section')
   })
 })
+
+describe('blocksFromMarkdown callout 容器(补齐 :::note 解析)', () => {
+  beforeEach(() => {
+    _resetBlockIds()
+  })
+
+  it(':::note title 容器解析为 callout block,内部 markdown 正常渲染', () => {
+    const md = [':::note 设计原则', '所有 Block 共享同一条**内容轴**。', ':::', '', '后续段落。'].join('\n')
+    const blocks = blocksFromMarkdown(md)
+    const callout = blocks.find((b) => b.type === 'callout')
+    expect(callout).toBeTruthy()
+    expect(callout).toMatchObject({ tone: 'note', title: '设计原则', width: 'text' })
+    expect(String(callout?.html)).toContain('<strong>内容轴</strong>')
+    // 容器外的段落不受影响
+    expect(blocks.filter((b) => b.type === 'paragraph')).toHaveLength(1)
+  })
+
+  it('tone 别名映射:tip→success,danger→warning;无标题用默认', () => {
+    const md = [
+      ':::tip', '小技巧。', ':::', '',
+      ':::danger 危险操作', '别在生产库执行。', ':::',
+    ].join('\n')
+    const blocks = blocksFromMarkdown(md)
+    const callouts = blocks.filter((b) => b.type === 'callout')
+    expect(callouts).toHaveLength(2)
+    expect(callouts[0]).toMatchObject({ tone: 'success', title: '提示' })
+    expect(callouts[1]).toMatchObject({ tone: 'warning', title: '危险操作' })
+  })
+
+  it('未闭合容器按原文回落,不吞内容', () => {
+    const md = [':::note', '这段会保留为普通段落。'].join('\n')
+    const blocks = blocksFromMarkdown(md)
+    expect(blocks.some((b) => b.type === 'callout')).toBe(false)
+    expect(blocks.some((b) => String((b as any).html ?? '').includes('普通段落'))).toBe(true)
+  })
+
+  it('callout 内嵌脚本被消毒(XSS 红线)', () => {
+    const md = [':::note', '内容 <img src=x onerror=alert(1)> 结束', ':::'].join('\n')
+    const blocks = blocksFromMarkdown(md)
+    const callout: any = blocks.find((b) => b.type === 'callout')
+    expect(callout.html).not.toContain('onerror')
+  })
+})

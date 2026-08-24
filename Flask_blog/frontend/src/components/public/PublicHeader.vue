@@ -33,8 +33,38 @@
         >
           {{ themeIcon }}
         </button>
+        <!-- 移动端导航入口(<720px 显示;桌面由 nav 承担) -->
+        <button
+          type="button"
+          class="menu-toggle"
+          aria-label="打开导航"
+          :aria-expanded="menuOpen"
+          @click="menuOpen = true"
+        >
+          <i /><i /><i />
+        </button>
       </div>
     </div>
+
+    <!-- 移动端导航抽屉 -->
+    <Teleport to="body">
+      <div v-if="menuOpen" class="menu-backdrop" @click.self="menuOpen = false">
+        <nav class="menu-sheet" aria-label="移动端主导航">
+          <div class="menu-head">
+            <span>导航</span>
+            <button type="button" class="menu-close" aria-label="关闭导航" @click="menuOpen = false">×</button>
+          </div>
+          <a
+            v-for="item in navItems"
+            :key="item.path"
+            :href="item.path"
+            class="menu-link"
+            :class="{ active: isActive(item.path) }"
+            @click.prevent="goMenu(item.path)"
+          >{{ item.label }}</a>
+        </nav>
+      </div>
+    </Teleport>
   </header>
 </template>
 
@@ -44,7 +74,7 @@
  * sticky + 轻毛玻璃;当前导航仅文字变色;登录/注册不入导航。
  * P2-D2:搜索按钮触发全局 SearchOverlay;P2-E2:◐ 主题切换。
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSearchOverlay } from '../../composables/useSearchOverlay'
 import { useTheme } from '../../composables/useTheme'
@@ -83,6 +113,15 @@ export default {
       openOverlay(e.currentTarget instanceof HTMLElement ? e.currentTarget : null)
     }
 
+    // 移动端导航抽屉
+    const menuOpen = ref(false)
+
+    /** @param {string} path */
+    function goMenu(path) {
+      menuOpen.value = false
+      go(path)
+    }
+
     const THEME_META = {
       light: { icon: '☀', label: '亮色' },
       dark: { icon: '☾', label: '暗色' },
@@ -91,7 +130,7 @@ export default {
     const themeIcon = computed(() => THEME_META[mode.value].icon)
     const themeLabel = computed(() => THEME_META[mode.value].label)
 
-    return { navItems, isActive, go, openSearch, themeIcon, themeLabel, cycleTheme: cycleMode }
+    return { navItems, isActive, go, openSearch, themeIcon, themeLabel, cycleTheme: cycleMode, menuOpen, goMenu }
   },
 }
 </script>
@@ -198,6 +237,86 @@ export default {
   .header-inner { height: 60px; }
   .search-trigger kbd { display: none; }
   .search-trigger { padding: 0 12px; }
+}
+
+/* 移动端导航入口:桌面隐藏 */
+.menu-toggle {
+  display: none;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.menu-toggle i {
+  width: 14px;
+  height: 1.5px;
+  background: var(--muted);
+  border-radius: 1px;
+}
+.menu-toggle:hover i { background: var(--text); }
+
+@media (max-width: 719.98px) {
+  .menu-toggle { display: inline-flex; }
+}
+
+/* 移动端导航抽屉 */
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 250;
+  background: rgba(10, 10, 9, 0.32);
+  backdrop-filter: blur(3px);
+}
+.menu-sheet {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: min(300px, calc(100vw - 48px));
+  height: 100%;
+  padding: 14px;
+  border-left: 1px solid var(--line);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+}
+.menu-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--muted);
+}
+.menu-close {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 16px;
+  cursor: pointer;
+}
+.menu-link {
+  padding: 14px 10px;
+  border-bottom: 1px solid var(--line);
+  font-size: 16px;
+  color: var(--muted);
+}
+.menu-link.active,
+.menu-link:hover {
+  color: var(--text);
+}
+.menu-link.active {
+  font-weight: 650;
 }
 @media (max-width: 480px) {
   .shell { padding-left: 18px; padding-right: 18px; }

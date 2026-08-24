@@ -280,3 +280,6 @@ package-lock.json
 
 # Committed dev environment (template is .env.example)
 .env.dev
+
+# Backend runtime settings file (written by settings service at runtime)
+config/system_settings.json

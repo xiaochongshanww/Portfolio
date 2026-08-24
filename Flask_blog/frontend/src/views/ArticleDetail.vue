@@ -176,10 +176,16 @@ const articleTags = computed(() => {
     .filter((name): name is string => !!name);
 });
 
-/** 上一篇/下一篇(E6):P0 用同列表相邻文章近似 */
+/** 上一篇/下一篇(E6 降级补充):公开列表(按发布时间倒序)内的相邻文章 */
+const neighborList = ref<Array<{ slug: string; title: string }>>([]);
 const prevNext = computed(() => {
-  // 相邻文章需要列表上下文,P0 先留空——单篇文章时导航隐藏
-  return { prev: null as null | { slug: string; title: string }, next: null as null | { slug: string; title: string } };
+  const slug = article.value?.slug;
+  const idx = slug ? neighborList.value.findIndex((n) => n.slug === slug) : -1;
+  if (idx < 0) return { prev: null as null | { slug: string; title: string }, next: null as null | { slug: string; title: string } };
+  return {
+    prev: idx > 0 ? neighborList.value[idx - 1] : null, // 更新的一篇
+    next: idx < neighborList.value.length - 1 ? neighborList.value[idx + 1] : null, // 更早的一篇
+  };
 });
 
 function formatDate(s?: string | null) {
@@ -313,6 +319,16 @@ async function load(){
       publishedTime: data.published_at || data.created_at || undefined,
       modifiedTime: data.updated_at || data.published_at || undefined,
     });
+
+    // E6 补充:拉取相邻文章列表(失败不阻塞阅读)
+    try {
+      const listResp = await UnifiedAPI.getPublicArticles({ page: 1, page_size: 50 });
+      neighborList.value = (listResp?.data?.data?.list || [])
+        .filter((a: { slug?: string; title?: string }) => a?.slug && a?.title)
+        .map((a: { slug: string; title: string }) => ({ slug: a.slug, title: a.title }));
+    } catch (listErr) {
+      neighborList.value = [];
+    }
 
     // 确保主题初始化后再应用高亮
     initTheme();

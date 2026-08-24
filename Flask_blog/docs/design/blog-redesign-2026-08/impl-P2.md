@@ -185,6 +185,19 @@
 
 ---
 
+## 追加决策与补齐记录(2026-08-24 第二轮)
+
+**Block 组件七件套(gallery/diagram/embed/media/attachment/tabs/custom)→ 明确降级 P3**
+- 依据:blocksFromMarkdown 转换器只产出 heading/paragraph/image/quote/callout/code/list/table 八种类型;其余七种在 Markdown 管线中**没有数据来源**,实现组件也不会被触发。它们属于结构化编辑器(富内容 Blocks 编辑)范畴,与 03 号规范第 2 节"Mixed Content"的完整愿景一致,但依赖编辑端先行。P3 立项条件:编辑器支持插入结构化 Block 并落库。
+
+**验收前补齐(非人工项)**
+- 移动端主导航:PublicHeader <720px 增加汉堡入口 + 右侧抽屉(此前手机无法到达项目/专题/归档/关于)。
+- prev/next:ArticleDetail 依公开列表(发布时间倒序)计算相邻文章,列表失败时导航隐藏不阻塞阅读;补齐 P0-E6 的降级欠账。
+- :::note 容器语法:blocksFromMarkdown 实现占位符两段式解析(tone 别名映射 note/info/tip/success/warning/danger,未闭合回落原文,内嵌脚本消毒);补齐 P0-D2 欠账;转换器 spec 增至 13 用例。
+- P0-E8 详情页测试补齐(见 impl-P0 完成记录)。
+
+---
+
 ## 依赖关系
 
 ```text

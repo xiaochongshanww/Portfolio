@@ -239,14 +239,16 @@
   - [x] 页面四态齐备(loading/error 含 404 态)。
 - 完成记录: 2026-08-22 正文区替换为 ArticleRenderer(blocks 为空时回退旧渲染器防御);ReadingRail 挂载;旧 ArticleSidebar/ArticleHeader 移除;IntersectionObserver 环境守卫(jsdom 兼容);spec 2/2 通过(blocks 管线断言+maintenance+rail)。dev.db 双文实测待 F3 手工验收一并执行(浏览器实测)。
 
-### E8 ⬜ 详情页测试
+### E8 ✅ 详情页测试
 - 内容:新增 Renderer/ReadingRail/useReadingProgress/blocksFromMarkdown spec;更新 ArticleDetail.spec。
 - 验收标准:
-  - [ ] vitest 全绿,coverage 不低于阈值;
-  - [ ] E1 兼容性红线有自动化测试(固定 MD 样本快照)。
+  - [x] vitest 全绿,coverage 不低于阈值;
+  - [x] E1 兼容性红线有自动化测试(固定 MD 样本快照)。
 - 完成记录:
 
 ---
+
+- 完成记录: 2026-08-24 补齐——tests/ArticleDetail.spec.ts 扩至 6 用例:存量 Markdown 全类型兼容快照(标题/加粗/行内码/:::note callout/列表/引用/代码/表格)、SEO 元素注入(og:title/article:published_time/modified_time/canonical)、prev/next 相邻导航与列表失败降级。
 
 ## 分组 F — 阶段收尾
 

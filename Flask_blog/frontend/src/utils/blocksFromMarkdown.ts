@@ -6,7 +6,7 @@
  * 旧文章(content_md)无需修改即可进入统一 Renderer。
  */
 import MarkdownIt from 'markdown-it'
-import type { ArticleBlock, BlockWidth } from '../types/articleBlocks'
+import type { ArticleBlock, BlockWidth, CalloutTone } from '../types/articleBlocks'
 import { DEFAULT_BLOCK_WIDTH } from '../types/articleBlocks'
 import { sanitizeBlockHtml } from './sanitizeBlocks'
 
@@ -63,10 +63,70 @@ function inlineChildren(token: any[]): any[] {
 
 /**
  * :::note / :::warning title 形式的 callout 容器解析。
- * 未注册 container 插件时按普通段落处理,此处扫描原始 markdown 行实现轻量识别。
+ * 未注册 container 插件,采用"占位符预处理 + 后置还原"两段式:
+ * 1) 扫描原始行,把 :::tone title … ::: 容器摘出并替换为唯一占位段落;
+ * 2) markdown 正常解析后,把占位段落还原为 callout block。
  */
+const CALLOUT_OPEN_RE = /^:::\s*(note|info|tip|success|warning|danger)\s*(.*)$/
+const CALLOUT_TONE_MAP: Record<string, string> = {
+  note: 'note',
+  info: 'info',
+  tip: 'success',
+  success: 'success',
+  warning: 'warning',
+  danger: 'warning',
+}
+const CALLOUT_TITLES: Record<string, string> = {
+  note: '备注',
+  info: '说明',
+  tip: '提示',
+  success: '经验',
+  warning: '注意',
+  danger: '警告',
+}
+const CALLOUT_PLACEHOLDER = (i: number) => `XcScAlLoUt-${i}-PlAcEhOlDeR`
+const CALLOUT_PLACEHOLDER_RE = /^XcScAlLoUt-(\d+)-PlAcEhOlDeR$/
+
+const pendingCallouts: Array<{ tone: CalloutTone; title: string; body: string }> = []
+
 function extractCallouts(source: string): string {
-  return source
+  pendingCallouts.length = 0
+  const lines = source.split('\n')
+  /** @type {string[]} */
+  const out: string[] = []
+  let i = 0
+  while (i < lines.length) {
+    const m = lines[i].match(CALLOUT_OPEN_RE)
+    if (!m) {
+      out.push(lines[i])
+      i += 1
+      continue
+    }
+    const tone = (CALLOUT_TONE_MAP[m[1]] ?? 'note') as CalloutTone
+    const title = m[2].trim() || CALLOUT_TITLES[m[1]] || '备注'
+    const body: string[] = []
+    let closed = false
+    i += 1
+    while (i < lines.length) {
+      if (/^:::\s*$/.test(lines[i])) {
+        closed = true
+        i += 1
+        break
+      }
+      body.push(lines[i])
+      i += 1
+    }
+    if (!closed) {
+      // 未闭合容器按原文回落,不吞内容
+      out.push(lines[i - body.length - 1] ?? lines[i])
+      out.push(...body)
+      continue
+    }
+    pendingCallouts.push({ tone, title, body: body.join('\n') })
+    // 占位符独立成段,markdown-it 会产出一个纯文本 inline
+    out.push('', CALLOUT_PLACEHOLDER(pendingCallouts.length - 1), '')
+  }
+  return out.join('\n')
 }
 
 /** 主入口:markdown 文本 → ArticleBlock[] */
@@ -275,6 +335,24 @@ export function blocksFromMarkdown(source: string): ArticleBlock[] {
     }
 
     // hr / math_block / 其他未识别类型:P0 静默降级为空(不渲染),不阻塞
+  }
+
+  // callout 还原:占位段落 → callout block(内部 markdown 正常渲染后统一消毒)
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i]
+    if (b.type !== 'paragraph') continue
+    const m = String(b.html ?? '').match(CALLOUT_PLACEHOLDER_RE)
+    if (!m) continue
+    const c = pendingCallouts[Number(m[1])]
+    if (!c) continue
+    blocks[i] = {
+      id: b.id,
+      type: 'callout',
+      width: DEFAULT_BLOCK_WIDTH.callout,
+      tone: c.tone,
+      title: c.title,
+      html: c.body.trim() ? sanitizeBlockHtml(md.render(c.body)) : '',
+    }
   }
 
   return blocks
