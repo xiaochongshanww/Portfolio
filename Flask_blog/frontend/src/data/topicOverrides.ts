@@ -23,8 +23,15 @@ export interface TopicOverride {
 
 /** @type {Record<number, TopicOverride>} */
 export const TOPIC_OVERRIDES: Record<number, TopicOverride> = {
-  // 示例(dev.db 分类 id 落定后填入):
-  // 1: { tone: 'green', description: 'RAG、Agent、模型应用、评测与工程落地。', startArticleSlug: 'deep-dive-rag' },
+  // dev.db 分类(id 落定于 2026-08-24 种子数据;生产库需按实际 id 复核)
+  2: {
+    tone: 'green',
+    description: 'RAG、Agent、模型应用、评测与工程落地。',
+    startArticleSlug: 'shou-gong-yan-zheng-wen-zhang',
+  },
+  3: { tone: 'blue', description: '架构、权限、数据边界、生命周期与长期维护。' },
+  4: { tone: 'signal', description: '从需求、原型、UI 到工程实现,记录真实项目决策。' },
+  5: { tone: 'sand', description: '后端、自动化、脚本与日常工程实践。' },
 }
 
 export function topicOverrideFor(categoryId: number | null | undefined): TopicOverride | null {
