@@ -27,7 +27,7 @@ export const TOPIC_OVERRIDES: Record<number, TopicOverride> = {
   2: {
     tone: 'green',
     description: 'RAG、Agent、模型应用、评测与工程落地。',
-    startArticleSlug: 'shou-gong-yan-zheng-wen-zhang',
+    startArticleSlug: 'deep-understanding-rag',
   },
   3: { tone: 'blue', description: '架构、权限、数据边界、生命周期与长期维护。' },
   4: { tone: 'signal', description: '从需求、原型、UI 到工程实现,记录真实项目决策。' },
