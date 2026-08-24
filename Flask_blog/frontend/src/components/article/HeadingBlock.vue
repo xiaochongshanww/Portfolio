@@ -26,17 +26,17 @@ export default {
 h2.heading-block {
   font-size: 29px;
   line-height: 1.25;
-  margin: 50px 0 18px;
+  margin: 50px auto 18px;
 }
 h3.heading-block {
   font-size: 21px;
   line-height: 1.35;
-  margin: 34px 0 14px;
+  margin: 34px auto 14px;
 }
 h4.heading-block,
 h5.heading-block,
 h6.heading-block {
   font-size: 18px;
-  margin: 28px 0 12px;
+  margin: 28px auto 12px;
 }
 </style>

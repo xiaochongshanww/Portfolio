@@ -21,7 +21,7 @@ export default {
   font-size: 17px;
   line-height: 1.85;
   color: var(--text);
-  margin: 0 0 24px;
+  margin: 0 auto 24px;
   padding-left: 23px;
 }
 .list-block li {

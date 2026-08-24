@@ -19,7 +19,7 @@ export default {
   font-size: 17px;
   line-height: 1.9;
   color: var(--text);
-  margin: 0 0 24px;
+  margin: 0 auto 24px;
   overflow-wrap: break-word;
 }
 </style>
