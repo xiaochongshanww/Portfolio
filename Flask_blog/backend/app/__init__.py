@@ -297,6 +297,7 @@ def _register_blueprints(app):
     from .logs.routes import logs_bp
     from .media.routes import media_bp
     from .metrics.routes import metrics_bp
+    from .projects.routes import projects_bp
     from .public_api import public_bp
     from .search.routes import search_bp
     from .search.synonyms import synonyms_bp
@@ -314,6 +315,7 @@ def _register_blueprints(app):
     app.register_blueprint(search_bp, url_prefix="/api/v1/search")
     app.register_blueprint(synonyms_bp, url_prefix="/api/v1/search/synonyms")
     app.register_blueprint(users_bp, url_prefix="/api/v1/users")
+    app.register_blueprint(projects_bp, url_prefix="/api/v1/projects")
     app.register_blueprint(taxonomy_bp, url_prefix="/api/v1/taxonomy")
     app.register_blueprint(uploads_bp, url_prefix="/api/v1/uploads")
     app.register_blueprint(metrics_bp, url_prefix="/api/v1/metrics")

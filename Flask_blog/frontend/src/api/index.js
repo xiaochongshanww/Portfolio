@@ -419,6 +419,30 @@ const HandwrittenAPI = {
   getPublicTaxonomy() {
     return apiClient.get('/taxonomy', { baseURL: '/public/v1' })
   },
+  // ── 项目(impl-P2 分组 A)─────────────────────────
+  getPublicProjects() {
+    return apiClient.get('/projects/')
+  },
+  /** @param {string} slug */
+  getPublicProjectBySlug(slug) {
+    return apiClient.get(`/projects/${encodeURIComponent(slug)}`)
+  },
+  // 管理端(需 editor/admin)
+  adminListProjects() {
+    return apiClient.get('/projects/admin/list')
+  },
+  /** @param {any} data */
+  createProject(data) {
+    return apiClient.post('/projects/', data)
+  },
+  /** @param {number} id @param {any} data */
+  updateProject(id, data) {
+    return apiClient.put(`/projects/${id}`, data)
+  },
+  /** @param {number} id */
+  deleteProject(id) {
+    return apiClient.delete(`/projects/${id}`)
+  },
   /** @param {FormData} formData */
   uploadImage(formData) {
     return apiClient.post('/uploads/image', formData, {

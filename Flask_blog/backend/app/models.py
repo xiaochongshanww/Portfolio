@@ -992,3 +992,55 @@ class MediaUsage(db.Model):
             "user_name": self.user.nickname or self.user.email if self.user else None,
             "created_at": convert_to_shanghai(self.created_at),
         }
+
+
+class Project(db.Model):
+    """P2 新增:项目实体(impl-P2 分组 A)。
+
+    is_current 标记当前重点项目(视觉大区独占);唯一性由 service 层保证
+    (置一个时清其他),数据库不加大范围部分唯一索引以兼容 SQLite。
+    """
+
+    __tablename__ = "projects"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    slug = db.Column(db.String(150), unique=True, index=True, nullable=False)
+    description = db.Column(db.String(500))
+    # 项目分类标签,如「内部工具 / 实验 / 工具」
+    tag = db.Column(db.String(50))
+    tech_stack = db.Column(
+        Text().with_variant(mysql.LONGTEXT(), "mysql")
+    )  # JSON 数组,如 ["Python","Vue"]
+    status = db.Column(db.String(16), nullable=False, default="active", index=True)
+    is_current = db.Column(db.Boolean, nullable=False, default=False, index=True)
+    preview_type = db.Column(db.String(16), nullable=False, default="none")
+    preview_data = db.Column(
+        Text().with_variant(mysql.LONGTEXT(), "mysql")
+    )  # JSON:image 类型为 {url, alt};svg 类型为 {svg}
+    link_url = db.Column(db.String(255))
+    repo_url = db.Column(db.String(255))
+    # 详情页正文:为什么做 / 现在做到哪里 / 关键设计决策
+    motivation = db.Column(Text().with_variant(mysql.LONGTEXT(), "mysql"))
+    progress = db.Column(Text().with_variant(mysql.LONGTEXT(), "mysql"))
+    design_notes = db.Column(Text().with_variant(mysql.LONGTEXT(), "mysql"))
+    related_article_slugs = db.Column(
+        Text().with_variant(mysql.LONGTEXT(), "mysql")
+    )  # JSON 数组;slug 失效时前端整体隐藏该区块
+    changelog = db.Column(
+        Text().with_variant(mysql.LONGTEXT(), "mysql")
+    )  # JSON 数组:[{date, text}]
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    STATUS_ACTIVE = "active"
+    STATUS_PAUSED = "paused"
+    STATUS_ARCHIVED = "archived"
+    PREVIEW_NONE = "none"
+    PREVIEW_IMAGE = "image"
+    PREVIEW_SVG = "svg"

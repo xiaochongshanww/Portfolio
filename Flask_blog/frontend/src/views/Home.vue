@@ -37,7 +37,7 @@
           <h2>最近更新</h2>
           <a href="/archive" @click.prevent="$router.push('/archive')">全部文章 →</a>
         </div>
-        <a class="latest-card" :href="'/article/' + featured.slug" @click.prevent="goArticle(featured.slug)">
+        <a class="latest-card" :href="'/article/' + (featured.slug || '')" @click.prevent="goArticle(featured.slug || '')">
           <div class="latest-copy">
             <span class="badge">新文章</span>
             <h3>{{ featured.title }}</h3>
@@ -91,7 +91,7 @@
             :key="a.id"
             :title="a.title"
             :summary="excerptOf(a)"
-            :published-at="a.published_at || a.created_at"
+            :published-at="a.published_at || a.created_at || ''"
             :href="'/article/' + a.slug"
           >
             <template #visual>
@@ -142,18 +142,43 @@ import ArticleFeedRow from '../components/public/ArticleFeedRow.vue'
 import TechnicalVisual from '../components/public/TechnicalVisual.vue'
 import { visualTypeFor } from '../utils/visualMapping'
 
+/**
+ * @typedef {Object} PubArticle
+ * @property {number} id
+ * @property {string} title
+ * @property {string} [slug]
+ * @property {string} [summary]
+ * @property {string} [content_excerpt]
+ * @property {string} [category]
+ * @property {string[]} [tags]
+ * @property {string} [published_at]
+ * @property {string} [created_at]
+ */
+
+/**
+ * @typedef {Object} TopicLite
+ * @property {number} id
+ * @property {string} slug
+ * @property {string} name
+ * @property {string} [description]
+ * @property {number | null} [count]
+ */
+
 const router = useRouter()
 const loading = ref(true)
 const error = ref(false)
+/** @type {import('vue').Ref<PubArticle[]>} */
 const articles = ref([])
+/** @type {import('vue').Ref<TopicLite[]>} */
 const topics = ref([])
 
-// C3 占位数据:P2 接入后端 Project API 后替换
-const currentProject = {
-  name: 'Structure Lab',
-  statusLabel: '开发中',
-  description: '把结构稳定性变成可以拖动、观察和验证的互动实验。',
-}
+/** @type {import('vue').Ref<{name:string, statusLabel:string, description:string} | null>} */
+const currentProject = ref(null)
+
+/** 项目状态 → 中文标签
+ * @type {Record<string,string>}
+ */
+const PROJECT_STATUS_LABEL = { active: '开发中', paused: '暂停', archived: '已归档' }
 
 const featured = computed(() => articles.value[0] || null)
 
@@ -166,14 +191,16 @@ const featuredVisualType = computed(() =>
 /** C4:跳过 featured 的剩余文章 */
 const feedArticles = computed(() => articles.value.slice(1, 8))
 
+/** @param {PubArticle} a */
 function excerptOf(a) {
   const raw = a.summary || a.content_excerpt || ''
   return String(raw).replace(/[#*`>\[\]]/g, '').slice(0, 90)
 }
 
+/** @param {string | undefined} s */
 function formatDate(s) {
   try {
-    let str = s
+    let str = String(s ?? '')
     if (str && !str.endsWith('Z') && !str.includes('+') && !str.includes('-', 10)) str += 'Z'
     const d = new Date(str)
     return `${d.getFullYear()} 年 ${d.getMonth() + 1} 月 ${d.getDate()} 日`
@@ -182,6 +209,7 @@ function formatDate(s) {
   }
 }
 
+/** @param {string} slug */
 function goArticle(slug) {
   router.push(`/article/${slug}`)
 }
@@ -190,9 +218,10 @@ async function loadAll() {
   loading.value = true
   error.value = false
   try {
-    const [artRes, taxRes] = await Promise.allSettled([
+    const [artRes, taxRes, projRes] = await Promise.allSettled([
       API.getPublicArticles({ page: 1, page_size: 10 }),
       API.getPublicTaxonomy(),
+      API.getPublicProjects(),
     ])
     if (artRes.status === 'fulfilled') {
       const data = artRes.value?.data?.data
@@ -201,6 +230,7 @@ async function loadAll() {
       error.value = true
     }
     if (taxRes.status === 'fulfilled') {
+      /** @type {any[]} */
       const cats = taxRes.value?.data?.data?.categories || []
       // C6:最多取 4 个分类作为专题卡;slug 兜底用 id
       topics.value = cats.slice(0, 4).map((c) => ({
@@ -210,6 +240,19 @@ async function loadAll() {
         description: c.description || '',
         count: c.article_count ?? c.count ?? null,
       }))
+    }
+    // C3:当前重点项目来自 Project API(P2),无则隐藏该区
+    if (projRes.status === 'fulfilled') {
+      /** @type {any[]} */
+      const items = projRes.value?.data?.data?.list || []
+      const cur = items.find((p) => p.is_current) || null
+      currentProject.value = cur
+        ? {
+            name: cur.name || '',
+            statusLabel: PROJECT_STATUS_LABEL[cur.status] || cur.status || '开发中',
+            description: cur.description || '',
+          }
+        : null
     }
   } catch (e) {
     error.value = true
@@ -378,7 +421,7 @@ onMounted(loadAll)
 }
 .project-copy .status {
   font-size: 12px;
-  color: #bbbbbb;
+  color: var(--on-inverse-soft);
   display: flex;
   gap: 7px;
   align-items: center;
@@ -391,7 +434,7 @@ onMounted(loadAll)
 .project-copy p {
   font-size: 14px;
   line-height: 1.7;
-  color: #bbbbbb;
+  color: var(--on-inverse-soft);
   margin: 0;
 }
 .project-preview {

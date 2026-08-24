@@ -15,7 +15,7 @@ describe('useMeta', () => {
       prevUrl: 'https://x.com/p',
       nextUrl: 'https://x.com/n',
     });
-    expect(document.title).toBe('Hello - Flask Blog');
+    expect(document.title).toBe('Hello - 小重山');
     expect(document.querySelector('meta[property="og:title"]')?.getAttribute('content')).toBe('Hello');
     expect(document.querySelector('meta[name="twitter:title"]')?.getAttribute('content')).toBe('Hello');
     expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe('desc');
@@ -41,7 +41,7 @@ describe('useMeta', () => {
 
   it('resetMeta sets homepage defaults', () => {
     resetMeta();
-    expect(document.title).toBe('首页 - Flask Blog');
+    expect(document.title).toBe('小重山 · 技术主页 - 小重山');
     expect(document.querySelector('meta[property="og:type"]')?.getAttribute('content')).toBe('website');
   });
 });

@@ -10,6 +10,7 @@
 <script>
 import BlockShell from './BlockShell.vue'
 
+/** @type {Record<string, string>} */
 const LABELS = {
   gallery: '图片组',
   diagram: '架构图',
@@ -26,7 +27,7 @@ export default {
   props: { block: { type: Object, required: true } },
   computed: {
     label() {
-      return LABELS[this.block.type] || '该内容类型即将支持'
+      return LABELS[String(this.block.type)] || '该内容类型即将支持'
     },
   },
 }

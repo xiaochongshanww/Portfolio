@@ -24,6 +24,7 @@ function updateProgress() {
  * 组件卸载时自动清理监听(引用计数)。
  */
 export function useReadingProgress() {
+  /** @type {null | (() => void)} */
   let localDetach = null
 
   onMounted(() => {

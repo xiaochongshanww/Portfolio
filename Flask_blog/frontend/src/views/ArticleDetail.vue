@@ -26,7 +26,7 @@
               <span v-if="article.updated_at && article.updated_at !== article.published_at">最后更新于 {{ formatDate(article.updated_at) }}</span>
             </div>
             <div v-if="articleTags.length" class="article-tags">
-              <span v-for="t in articleTags" :key="t.id ?? t.name" class="tag">{{ t.name }}</span>
+              <span v-for="t in articleTags" :key="t" class="tag">{{ t }}</span>
             </div>
           </header>
 
@@ -102,6 +102,8 @@ import ArticleActions from '../components/ArticleActions.vue';
 import ArticleRenderer from '../components/article/ArticleRenderer.vue';
 import ReadingRail from '../components/article/ReadingRail.vue';
 import { blocksFromMarkdown } from '../utils/blocksFromMarkdown';
+import { recordRecentArticle } from '../composables/useSearchOverlay';
+import { setMeta } from '../composables/useMeta';
 import type { ArticleBlock } from '../types/articleBlocks';
 import { common, createLowlight } from 'lowlight';
 import hljs from 'highlight.js';
@@ -157,18 +159,21 @@ const blocks = computed<ArticleBlock[]>(() => {
   }
 });
 
-/** ReadingRail 目录:由 heading blocks 生成(H2) */
+/** ReadingRail 目录:由 heading blocks 生成(≤H3) */
 const railToc = computed(() =>
-  blocks.value
-    .filter((b): b is Extract<ArticleBlock, { type: 'heading' }> => b.type === 'heading' && b.level <= 3)
-    .map((b) => ({ anchor: b.anchor, text: b.text })),
+  blocks.value.flatMap((b) =>
+    b.type === 'heading' && b.level <= 3 ? [{ anchor: b.anchor, text: b.text }] : [],
+  ),
 );
 
-/** 文章头标签 chips(原型 Stage 1) */
+/** 文章头标签 chips(原型 Stage 1);兼容 tags 为 slug 字符串数组或 {name} 对象数组 */
 const articleTags = computed(() => {
   const t = article.value?.tags;
   if (!Array.isArray(t)) return [];
-  return t.filter((x): x is { id?: number; name: string } => !!x && !!x.name);
+  const list = t as Array<string | { name?: string }>;
+  return list
+    .map((x) => (typeof x === 'string' ? x : x?.name))
+    .filter((name): name is string => !!name);
 });
 
 /** 上一篇/下一篇(E6):P0 用同列表相邻文章近似 */
@@ -297,6 +302,17 @@ async function load(){
     });
     
     article.value = data;
+    // D1:记录最近浏览(SearchOverlay 默认态数据源)
+    if (data?.slug) recordRecentArticle(String(data.slug), String(data.title || ''));
+    // F2:SEO 元素(title/description/canonical/OG/时间)
+    setMeta({
+      title: data.seo_title || data.title || '',
+      description: data.seo_desc || data.summary || '',
+      image: data.featured_image || undefined,
+      type: 'article',
+      publishedTime: data.published_at || data.created_at || undefined,
+      modifiedTime: data.updated_at || data.published_at || undefined,
+    });
 
     // 确保主题初始化后再应用高亮
     initTheme();

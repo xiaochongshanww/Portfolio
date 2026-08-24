@@ -26,6 +26,7 @@ import ImageBlock from './ImageBlock.vue'
 import TableBlock from './TableBlock.vue'
 import FallbackBlock from './FallbackBlock.vue'
 
+/** @type {Record<string, import('vue').Component>} */
 const blockComponentMap = {
   paragraph: ParagraphBlock,
   heading: HeadingBlock,
@@ -47,6 +48,10 @@ export default {
     },
   },
   methods: {
+    /**
+     * @param {import('../../types/articleBlocks').ArticleBlock} block
+     * @returns {import('vue').Component | string}
+     */
     componentFor(block) {
       const comp = blockComponentMap[block.type]
       if (!comp) {

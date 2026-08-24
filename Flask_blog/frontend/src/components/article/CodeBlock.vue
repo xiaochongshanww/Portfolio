@@ -52,17 +52,17 @@ export default {
 .code-block {
   margin: 30px auto;
   border-radius: 15px;
-  background: #151614;
+  background: var(--code);
   overflow: hidden;
 }
 .code-head {
   height: 42px;
-  border-bottom: 1px solid #30332e;
+  border-bottom: 1px solid var(--code-line);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 15px;
-  color: #a8ada4;
+  color: var(--code-head);
   font-size: 11px;
 }
 .code-title {
@@ -72,15 +72,15 @@ export default {
   text-overflow: ellipsis;
 }
 .copy-btn {
-  border: 1px solid #3b3e39;
-  background: #20221f;
-  color: #adb1aa;
+  border: 1px solid var(--code-btn-border);
+  background: var(--code-btn-bg);
+  color: var(--code-btn-text);
   border-radius: 7px;
   padding: 5px 8px;
   font-size: 10px;
   cursor: pointer;
 }
-.copy-btn:hover { color: #e9e9e2; }
+.copy-btn:hover { color: var(--code-text); }
 .code-body {
   font-size: 13px;
   line-height: 1.75;

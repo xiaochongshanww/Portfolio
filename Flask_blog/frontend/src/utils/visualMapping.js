@@ -13,7 +13,7 @@ const RULES = [
 ]
 
 /**
- * @param {string} categoryName
+ * @param {string | undefined} [categoryName]
  * @param {string[]} [tags]
  * @returns {string} visual type 或 ''(不渲染)
  */

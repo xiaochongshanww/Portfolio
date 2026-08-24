@@ -40,29 +40,31 @@ const routes = [
   // ===== 公共站路由(P0 起 meta.public 走新壳)=====
   { path: '/', component: Home, meta: { public: true } },
   { path: '/article/:slug', component: ArticleDetail, props: true, meta: { public: true } },
-  // 占位路由:P1/P2 替换为正式页面
+  // P1:专题列表/详情
   {
     path: '/topics',
-    component: () => import('./views/UnderConstruction.vue'),
-    props: { title: '专题' },
+    component: () => import('./views/TopicsPage.vue'),
     meta: { public: true },
   },
   {
     path: '/topics/:slug',
-    component: () => import('./views/UnderConstruction.vue'),
-    props: (route) => ({ title: `专题 · ${route.params.slug}` }),
+    component: () => import('./views/TopicDetailPage.vue'),
+    props: true,
     meta: { public: true },
   },
+  // P1:归档/搜索迁入公共壳
+  { path: '/archive', component: () => import('./views/ArchivePage.vue'), meta: { public: true } },
+  { path: '/search', component: SearchPage, meta: { public: true } },
+  // P2:项目列表/详情(Project API)
   {
     path: '/projects',
-    component: () => import('./views/UnderConstruction.vue'),
-    props: { title: '项目' },
+    component: () => import('./views/ProjectsPage.vue'),
     meta: { public: true },
   },
   {
     path: '/projects/:slug',
-    component: () => import('./views/UnderConstruction.vue'),
-    props: (route) => ({ title: `项目 · ${route.params.slug}` }),
+    component: () => import('./views/ProjectDetailPage.vue'),
+    props: true,
     meta: { public: true },
   },
 
@@ -76,12 +78,8 @@ const routes = [
   { path: '/author/:id', component: AuthorProfile, props: true },
   { path: '/category/:id', component: CategoryPage, props: true },
   { path: '/tag/:slug', component: TagPage, props: true },
-  { path: '/search', component: SearchPage },
   { path: '/categories', component: () => import('./views/CategoriesPage.vue') },
-  { path: '/tags', component: () => import('./views/TagsPage.vue') },
-  { path: '/archive', component: () => import('./views/ArchivePage.vue') },
-  { path: '/hot', component: () => import('./views/HotArticles.vue') },
-  { path: '/about', component: () => import('./views/About.vue') },
+  { path: '/about', component: () => import('./views/About.vue'), meta: { public: true } },
   { path: '/media', component: () => import('./views/MediaGallery.vue') },
   
   // CMS后台路由
@@ -96,6 +94,7 @@ const routes = [
       { path: 'articles/review', component: ArticleReview, meta: { requiresRole: ['editor', 'admin'] } },
       { path: 'comments', component: CommentManagement, meta: { requiresRole: ['editor', 'admin'] } },
       { path: 'categories', component: CategoryManagement, meta: { requiresRole: ['editor', 'admin'] } },
+      { path: 'projects', component: () => import('./views/admin/ProjectManagement.vue'), meta: { requiresRole: ['editor', 'admin'] } },
       { path: 'tags', component: TagManagement, meta: { requiresRole: ['editor', 'admin'] } },
       { path: 'users', component: UserManagement, meta: { requiresRole: ['admin'] } },
       { path: 'security', component: SecurityMonitoring, meta: { requiresRole: ['editor', 'admin'] } },

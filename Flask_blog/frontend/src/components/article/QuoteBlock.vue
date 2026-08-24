@@ -25,7 +25,7 @@ export default {
 .quote-text {
   font-size: 20px;
   line-height: 1.65;
-  color: #444444;
+  color: var(--text-2);
   margin: 0;
 }
 cite {

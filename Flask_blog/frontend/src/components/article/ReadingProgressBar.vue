@@ -7,7 +7,7 @@
 </template>
 
 <script>
-import { useReadingProgress } from '../composables/useReadingProgress'
+import { useReadingProgress } from '../../composables/useReadingProgress'
 
 export default {
   name: 'ReadingProgressBar',

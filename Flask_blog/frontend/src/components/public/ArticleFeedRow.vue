@@ -13,6 +13,10 @@
     <div v-if="$slots.visual" class="feed-visual">
       <slot name="visual" />
     </div>
+    <!-- P1:行尾 meta(所属 tag 等),无 visual 时占用第三列 -->
+    <div v-else-if="$slots.meta" class="feed-meta">
+      <slot name="meta" />
+    </div>
     <div class="feed-arrow" aria-hidden="true">→</div>
   </component>
 </template>
@@ -87,6 +91,13 @@ export default {
 }
 .feed-visual {
   min-width: 0;
+}
+.feed-meta {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .feed-arrow {
   color: var(--muted);

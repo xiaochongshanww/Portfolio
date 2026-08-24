@@ -50,9 +50,9 @@ export default {
 .callout-body {
   font-size: 15px;
   line-height: 1.7;
-  color: #64483e;
+  color: var(--callout-note-text);
   margin: 0;
 }
-.tone-info .callout-body { color: #3d4d6b; }
-.tone-success .callout-body { color: #3f5c49; }
+.tone-info .callout-body { color: var(--callout-info-text); }
+.tone-success .callout-body { color: var(--callout-success-text); }
 </style>

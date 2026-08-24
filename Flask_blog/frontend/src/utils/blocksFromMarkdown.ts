@@ -11,7 +11,7 @@ import { DEFAULT_BLOCK_WIDTH } from '../types/articleBlocks'
 import { sanitizeBlockHtml } from './sanitizeBlocks'
 
 // 与 markdownProcessor.reliable.js 保持一致的基础配置(不含 shiki——高亮在 CodeBlock 组件内做)
-const md: MarkdownIt = new MarkdownIt({ html: true, linkify: true, typographer: true, breaks: false })
+const md = new MarkdownIt({ html: true, linkify: true, typographer: true, breaks: false })
 
 let blockSeq = 0
 

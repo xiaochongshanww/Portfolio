@@ -6,6 +6,7 @@
       <router-view />
     </main>
     <PublicFooter />
+    <SearchOverlay />
     <GlobalNotify />
     <ScrollToTop />
   </div>
@@ -52,6 +53,7 @@ import AppFooter from './components/layout/AppFooter.vue';
 import AppHeader from './components/layout/AppHeader.vue';
 import PublicHeader from './components/public/PublicHeader.vue';
 import PublicFooter from './components/public/PublicFooter.vue';
+import SearchOverlay from './components/public/SearchOverlay.vue';
 import ScrollToTop from './components/ScrollToTop.vue';
 import { useUserStore } from './stores/user';
 

@@ -8,6 +8,10 @@ import 'katex/dist/katex.min.css';
 // 导入Element Plus样式
 import 'element-plus/dist/index.css';
 import './style/tailwind.css';
+// P2-E2:挂载前应用记忆的主题,防暗色用户首屏白闪
+import { applyThemeFromStorage } from './composables/useTheme';
+
+applyThemeFromStorage();
 
 // 全局注册Element Plus图标
 import * as ElementPlusIconsVue from '@element-plus/icons-vue';

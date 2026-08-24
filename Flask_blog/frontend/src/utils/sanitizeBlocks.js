@@ -60,7 +60,8 @@ export function sanitizeBlockHtml(html) {
   })
 }
 
-/** embed/media 外部来源白名单:P0 为空 = 全部禁止,渲染 fallback */
+/** embed/media 外部来源白名单:P0 为空 = 全部禁止,渲染 fallback
+ * @type {string[]} */
 const EMBED_HOST_WHITELIST = []
 
 /** @param {string} url */
@@ -75,7 +76,9 @@ export function isEmbedAllowed(url) {
   }
 }
 
-/** attachment 仅允许站内相对路径 */
+/** attachment 仅允许站内相对路径
+ * @param {string} url
+ */
 export function isAttachmentUrlSafe(url) {
   if (!url) return false
   return url.startsWith('/') && !url.startsWith('//')

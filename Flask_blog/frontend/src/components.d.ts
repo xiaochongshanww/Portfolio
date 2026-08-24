@@ -102,6 +102,7 @@ declare module 'vue' {
     RouterView: typeof import('vue-router')['RouterView']
     SchedulePicker: typeof import('./components/SchedulePicker.vue')['default']
     ScrollToTop: typeof import('./components/ScrollToTop.vue')['default']
+    SearchOverlay: typeof import('./components/public/SearchOverlay.vue')['default']
     SecurityThreatChart: typeof import('./components/SecurityThreatChart.vue')['default']
     SEOFields: typeof import('./components/SEOFields.vue')['default']
     TableBlock: typeof import('./components/article/TableBlock.vue')['default']

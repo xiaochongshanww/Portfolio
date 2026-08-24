@@ -12,6 +12,9 @@ vi.mock('../src/api', () => ({
     getPublicTaxonomy: vi.fn(() =>
       Promise.resolve({ data: { data: { categories: [], tags: [] } } }),
     ),
+    getPublicProjects: vi.fn(() =>
+      Promise.resolve({ data: { data: { list: [] } } }),
+    ),
   },
 }))
 vi.mock('vue-router', () => ({

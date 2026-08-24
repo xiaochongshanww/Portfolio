@@ -25,6 +25,8 @@ const ensureTag = (selector, create) => {
  * @property {string} [siteName]
  * @property {string} [prevUrl]
  * @property {string} [nextUrl]
+ * @property {string} [publishedTime] og:article:published_time(ISO)
+ * @property {string} [modifiedTime] og:article:modified_time(ISO)
  */
 
 /**
@@ -36,9 +38,11 @@ export function setMeta({
   image,
   url = window.location.href,
   type = 'article',
-  siteName = 'Flask Blog',
+  siteName = '小重山',
   prevUrl,
-  nextUrl
+  nextUrl,
+  publishedTime,
+  modifiedTime
 }={}){
   try {
     if(title){
@@ -78,6 +82,13 @@ export function setMeta({
     };
     setRel('prev', prevUrl);
     setRel('next', nextUrl);
+    // 文章时间元数据(03 号规范第 30 节)
+    if(publishedTime){
+      ensureTag('meta[property="article:published_time"]', ()=>{ const m=document.createElement('meta'); m.setAttribute('property','article:published_time'); return m; }).setAttribute('content', publishedTime);
+    }
+    if(modifiedTime){
+      ensureTag('meta[property="article:modified_time"]', ()=>{ const m=document.createElement('meta'); m.setAttribute('property','article:modified_time'); return m; }).setAttribute('content', modifiedTime);
+    }
   } catch(_e){ /* ignore */ }
 }
 
@@ -94,5 +105,5 @@ export function injectJsonLd(obj){
 }
 
 export function resetMeta(){
-  setMeta({ title: '首页', description: '现代化内容平台', type: 'website' });
+  setMeta({ title: '小重山 · 技术主页', description: 'Python · AI · 软件工程 · 产品实践', type: 'website' });
 }

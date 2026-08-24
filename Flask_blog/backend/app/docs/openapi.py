@@ -1251,6 +1251,145 @@ PATHS = {
             "security": [],
         }
     },
+    "/api/v1/projects/": {
+        "get": {
+            "summary": "Public project list (current first, archived hidden)",
+            "responses": {
+                "200": {
+                    "description": "OK",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProjectListResponse"
+                            }
+                        }
+                    },
+                },
+                "304": {"description": "Not Modified (ETag)"},
+            },
+            "security": [],
+        },
+        "post": {
+            "summary": "Create project (editor/admin)",
+            "requestBody": {
+                "required": True,
+                "content": {
+                    "application/json": {
+                        "schema": {"$ref": "#/components/schemas/ProjectCreate"}
+                    }
+                },
+            },
+            "responses": {
+                "201": {
+                    "description": "Created",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProjectDetailResponse"
+                            }
+                        }
+                    },
+                },
+                "400": {"$ref": "#/components/responses/BadRequest"},
+                "401": {"$ref": "#/components/responses/Unauthorized"},
+            },
+        },
+    },
+    "/api/v1/projects/{slug}": {
+        "get": {
+            "summary": "Public project detail by slug",
+            "parameters": [
+                {
+                    "name": "slug",
+                    "in": "path",
+                    "required": True,
+                    "schema": {"type": "string"},
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "OK",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProjectDetailResponse"
+                            }
+                        }
+                    },
+                },
+                "404": {"$ref": "#/components/responses/NotFound"},
+            },
+            "security": [],
+        },
+    },
+    "/api/v1/projects/admin/list": {
+        "get": {
+            "summary": "Admin project list (includes archived)",
+            "responses": {
+                "200": {
+                    "description": "OK",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProjectListResponse"
+                            }
+                        }
+                    },
+                },
+                "401": {"$ref": "#/components/responses/Unauthorized"},
+            },
+        },
+    },
+    "/api/v1/projects/{id}": {
+        "put": {
+            "summary": "Update project (editor/admin)",
+            "parameters": [
+                {
+                    "name": "id",
+                    "in": "path",
+                    "required": True,
+                    "schema": {"type": "integer"},
+                }
+            ],
+            "requestBody": {
+                "content": {
+                    "application/json": {
+                        "schema": {"$ref": "#/components/schemas/ProjectCreate"}
+                    }
+                },
+            },
+            "responses": {
+                "200": {
+                    "description": "OK",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProjectDetailResponse"
+                            }
+                        }
+                    },
+                },
+                "400": {"$ref": "#/components/responses/BadRequest"},
+                "404": {"$ref": "#/components/responses/NotFound"},
+            },
+        },
+        "delete": {
+            "summary": "Delete project (admin only)",
+            "parameters": [
+                {
+                    "name": "id",
+                    "in": "path",
+                    "required": True,
+                    "schema": {"type": "integer"},
+                }
+            ],
+            "responses": {
+                "200": {"description": "OK"},
+                "403": {"$ref": "#/components/responses/Forbidden"},
+                "404": {"$ref": "#/components/responses/NotFound"},
+            },
+        },
+    },
 }
 
 # ================= RESPONSES =================
@@ -1315,6 +1454,81 @@ RESPONSES = {
 
 # ================= SCHEMAS =================
 SCHEMAS = {
+
+    # ── Project(impl-P2)──────────────────────────────
+    "Project": {
+        "type": "object",
+        "properties": {
+            "id": {"type": "integer"},
+            "name": {"type": "string"},
+            "slug": {"type": "string"},
+            "description": {"type": "string", "nullable": True},
+            "tag": {"type": "string", "nullable": True},
+            "tech_stack": {"type": "array", "items": {"type": "string"}},
+            "status": {"type": "string", "enum": ["active", "paused", "archived"]},
+            "is_current": {"type": "boolean"},
+            "preview_type": {"type": "string", "enum": ["none", "image", "svg"]},
+            "preview_data": {"nullable": True},
+            "link_url": {"type": "string", "nullable": True},
+            "repo_url": {"type": "string", "nullable": True},
+            "motivation": {"type": "string", "nullable": True},
+            "progress": {"type": "string", "nullable": True},
+            "design_notes": {"type": "string", "nullable": True},
+            "related_article_slugs": {"type": "array", "items": {"type": "string"}},
+            "changelog": {"type": "array", "items": {"type": "object"}},
+            "sort_order": {"type": "integer"},
+            "created_at": {"type": "string", "format": "date-time", "nullable": True},
+            "updated_at": {"type": "string", "format": "date-time", "nullable": True},
+        },
+    },
+    "ProjectListResponse": {
+        "type": "object",
+        "properties": {
+            "code": {"type": "integer"},
+            "message": {"type": "string"},
+            "data": {
+                "type": "object",
+                "properties": {
+                    "total": {"type": "integer"},
+                    "list": {
+                        "type": "array",
+                        "items": {"$ref": "#/components/schemas/Project"},
+                    },
+                },
+            },
+        },
+    },
+    "ProjectDetailResponse": {
+        "type": "object",
+        "properties": {
+            "code": {"type": "integer"},
+            "message": {"type": "string"},
+            "data": {"$ref": "#/components/schemas/Project"},
+        },
+    },
+    "ProjectCreate": {
+        "type": "object",
+        "required": ["name", "slug"],
+        "properties": {
+            "name": {"type": "string"},
+            "slug": {"type": "string"},
+            "description": {"type": "string"},
+            "tag": {"type": "string"},
+            "tech_stack": {"type": "array", "items": {"type": "string"}},
+            "status": {"type": "string", "enum": ["active", "paused", "archived"]},
+            "is_current": {"type": "boolean"},
+            "preview_type": {"type": "string", "enum": ["none", "image", "svg"]},
+            "preview_data": {},
+            "link_url": {"type": "string"},
+            "repo_url": {"type": "string"},
+            "motivation": {"type": "string"},
+            "progress": {"type": "string"},
+            "design_notes": {"type": "string"},
+            "related_article_slugs": {"type": "array", "items": {"type": "string"}},
+            "changelog": {"type": "array", "items": {"type": "object"}},
+            "sort_order": {"type": "integer"},
+        },
+    },
     # Generic
     "StandardSuccess": {
         "type": "object",

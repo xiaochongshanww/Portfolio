@@ -1,185 +1,379 @@
 <template>
-  <div class="search-page">
-    <form class="search-bar" @submit.prevent="doSearch">
-      <el-input v-model="q" placeholder="搜索文章..." class="flex1" clearable @keyup.enter="doSearch">
-        <template #append>
-          <el-button type="primary" :loading="loading" @click="doSearch">搜索</el-button>
-        </template>
-      </el-input>
-      <el-select v-model="sort" class="w160">
-        <el-option label="相关度" value="relevance" />
-        <el-option label="最新" value="-published_at" />
-        <el-option label="最多阅读" value="-views_count" />
-        <el-option label="最多点赞" value="-likes_count" />
-      </el-select>
-      <el-input v-model="tagsRaw" placeholder="标签(逗号)" class="w160" clearable />
-      <el-select v-model="matchMode" class="w120">
-        <el-option label="标签并且" value="and" />
-        <el-option label="标签或" value="or" />
-      </el-select>
-      <el-date-picker v-model="dateFrom" type="date" placeholder="起始日期" class="w160" />
-      <el-date-picker v-model="dateTo" type="date" placeholder="结束日期" class="w160" />
-    </form>
-    <aside v-if="Object.keys(facets).length" class="facets">
-      <div v-if="facets.tags" class="facet">
-        <h4>标签</h4>
-        <ul>
-          <li v-for="(count, slug) in limitedFacet(facets.tags)" :key="slug">
-            <label><input v-model="selectedFacetTags" type="checkbox" :value="slug" @change="applyFacetTags"> {{ slug }} ({{ count }})</label>
-          </li>
-        </ul>
+  <div class="search-page shell">
+    <section class="search-panel">
+      <div class="eyebrow">搜索</div>
+      <div class="search-box">
+        <input
+          ref="inputRef"
+          v-model="q"
+          type="text"
+          placeholder="搜索文章、专题与项目"
+          aria-label="搜索文章、专题与项目"
+          @keydown.enter="searchNow"
+          @keydown.esc.prevent="clearSearch"
+        >
+        <span class="key">ESC</span>
       </div>
-      <div v-if="facets.category_id" class="facet">
-        <h4>分类</h4>
-        <ul>
-          <li v-for="(count, cid) in facets.category_id" :key="cid">
-            <button type="button" :class="{active: categoryId===cid}" @click="toggleCategory(cid)">#{{ cid }} ({{ count }})</button>
-          </li>
-        </ul>
+      <div class="search-meta">
+        <span v-if="searched && !loading">找到 {{ filteredResults.length }} 个与“{{ lastKeyword }}”相关的结果</span>
+        <span>支持标题、正文、专题和项目</span>
       </div>
-      <div v-if="facets.author_id" class="facet">
-        <h4>作者</h4>
-        <ul>
-          <li v-for="(count, aid) in facets.author_id" :key="aid">
-            <button type="button" :class="{active: authorId===aid}" @click="toggleAuthor(aid)">@{{ aid }} ({{ count }})</button>
-          </li>
-        </ul>
-      </div>
-    </aside>
+    </section>
 
-    <div v-if="results.length" class="results">
-      <p class="hint">共 {{ total }} 条结果</p>
-      <ul>
-        <li v-for="r in results" :key="r.id">
-          <router-link :to="'/article/' + r.slug">
-            <strong v-html="sanitize(r.title)" />
-            <small class="meta">{{ r.views_count || 0 }} 阅读 · {{ formatDate(r.published_at || r.created_at) }}</small>
-            <p class="excerpt" v-html="sanitize(r.excerpt)" />
-            <span v-for="t in r.tags || []" :key="t" class="tag">#{{ t }}</span>
-          </router-link>
-        </li>
-      </ul>
-      <div v-if="total > pageSize" class="pager">
-        <el-button :disabled="page===1" @click="page-- && doSearch()">上一页</el-button>
-        <span>{{ page }} / {{ Math.ceil(total / pageSize) }}</span>
-        <el-button :disabled="page>= total/pageSize" @click="page++ && doSearch()">下一页</el-button>
+    <!-- loading -->
+    <section v-if="loading" class="section section-last">
+      <el-skeleton :rows="6" animated />
+    </section>
+
+    <!-- error -->
+    <section v-else-if="error" class="section section-last">
+      <div class="state-block">
+        <p>搜索失败,请稍后重试。</p>
+        <button type="button" class="retry-btn" @click="searchNow">重试</button>
       </div>
-    </div>
-    <div v-else-if="searched && !loading" class="empty">无结果</div>
-    <div v-if="loading" class="loading">搜索中...</div>
+    </section>
+
+    <!-- empty -->
+    <section v-else-if="searched && !filteredResults.length" class="section section-last">
+      <div class="state-block">
+        <p>没有找到与“{{ lastKeyword }}”相关的内容。</p>
+        <p class="hint">可以换个关键词,或减少关键词字数再试。</p>
+      </div>
+    </section>
+
+    <!-- ready -->
+    <section v-else-if="filteredResults.length" class="section section-last">
+      <div class="search-tools">
+        <div class="filters">
+          <button
+            type="button"
+            :class="{ active: typeFilter === 'all' }"
+            @click="typeFilter = 'all'"
+          >全部</button>
+          <button
+            v-for="f in typeFilters"
+            :key="f.value"
+            type="button"
+            :class="{ active: typeFilter === f.value }"
+            @click="typeFilter = f.value"
+          >{{ f.label }} {{ counts[f.value] || 0 }}</button>
+        </div>
+        <div class="meta">按相关度</div>
+      </div>
+
+      <div class="result-list">
+        <a
+          v-for="r in filteredResults"
+          :key="r.type + r.href + r.title"
+          class="result"
+          :href="r.href"
+          @click.prevent="go(r.href)"
+        >
+          <div>
+            <h2>
+              <template v-for="(seg, i) in splitHighlight(r.title, lastKeyword)" :key="i">
+                <mark v-if="seg.hit" class="hit">{{ seg.text }}</mark>
+                <template v-else>{{ seg.text }}</template>
+              </template>
+            </h2>
+            <p v-if="r.snippet">
+              <template v-for="(seg, i) in splitHighlight(r.snippet, lastKeyword)" :key="i">
+                <mark v-if="seg.hit" class="hit">{{ seg.text }}</mark>
+                <template v-else>{{ seg.text }}</template>
+              </template>
+            </p>
+          </div>
+          <div class="meta">{{ r.meta }}</div>
+          <div class="arrow">→</div>
+        </a>
+      </div>
+    </section>
+
+    <!-- 初始态:未搜索 -->
+    <section v-else class="section section-last">
+      <div class="state-block">输入关键词开始搜索。</div>
+    </section>
   </div>
 </template>
-<script setup lang="ts">
-import { ref } from 'vue';
-import type { Article, Category, User } from '@/types';
-import { setMeta, injectJsonLd } from '../composables/useMeta';
-import { API } from '../api';
-import { useNotify } from '../composables/useNotify';
-import DOMPurify from 'dompurify';
 
-interface SearchFacets {
-  tags?: Record<string, number>;
-  category_id?: Record<string, number>;
-  author_id?: Record<string, number>;
+<script setup>
+/**
+ * 搜索页(P1 分组 B,原型 xiaochongshan-2026-search-v1)
+ * 高亮走 splitHighlight 结构化渲染,禁止对搜索结果 v-html(XSS 红线)。
+ */
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { unifiedSearch } from '../composables/useUnifiedSearch'
+import { splitHighlight } from '../utils/highlight'
+import { setMeta } from '../composables/useMeta'
+
+const route = useRoute()
+const router = useRouter()
+
+/** @type {import('vue').Ref<HTMLInputElement | null>} */
+const inputRef = ref(null)
+const q = ref('')
+const lastKeyword = ref('')
+const loading = ref(false)
+const error = ref(false)
+const searched = ref(false)
+
+/** @typedef {import('../composables/useUnifiedSearch').UnifiedResult} UnifiedResult */
+/** @typedef {{all:number, article:number, topic:number, project:number}} SearchCounts */
+/** @typedef {'all'|'article'|'topic'|'project'} SearchTypeFilter */
+
+/** @type {import('vue').Ref<Array<UnifiedResult>>} */
+const results = ref([])
+/** @type {import('vue').Ref<SearchCounts>} */
+const counts = ref({ all: 0, article: 0, topic: 0, project: 0 })
+/** @type {import('vue').Ref<SearchTypeFilter>} */
+const typeFilter = ref('all')
+
+/** @type {Record<'article'|'topic'|'project', string>} */
+const TYPE_LABELS = { article: '文章', topic: '专题', project: '项目' }
+/** @type {Array<'article'|'topic'|'project'>} */
+const TYPE_KEYS = ['article', 'topic', 'project']
+const typeFilters = computed(() => TYPE_KEYS.map((v) => ({ value: v, label: TYPE_LABELS[v] })))
+
+const filteredResults = computed(() =>
+  typeFilter.value === 'all'
+    ? results.value
+    : results.value.filter((r) => r.type === typeFilter.value),
+)
+
+/** @type {ReturnType<typeof setTimeout> | null} */
+let debounceTimer = null
+
+function scheduleSearch() {
+  if (debounceTimer !== null) clearTimeout(debounceTimer)
+  const kw = q.value.trim()
+  if (!kw) return
+  debounceTimer = setTimeout(() => searchNow(), 300)
 }
 
-const { pushError } = useNotify();
-const q = ref('');
-const sort = ref('relevance');
-const tagsRaw = ref('');
-const matchMode = ref('and');
-const results = ref<Article[]>([]);
-const total = ref(0);
-const page = ref(1);
-const pageSize = 10;
-const loading = ref(false);
-const searched = ref(false);
-const dateFrom = ref('');
-const dateTo = ref('');
-const facets = ref<SearchFacets>({});
-const categoryMap = ref<Record<string, string | undefined>>({});
-const authorMap = ref<Record<string, string>>({});
-const selectedFacetTags = ref<string[]>([]);
-
-function sanitize(html: string | null | undefined): string {
-  return DOMPurify.sanitize(html || '', { ALLOWED_TAGS: ['mark', 'strong', 'em'], ALLOWED_ATTR: [] });
-}
-const categoryId = ref<string | undefined>(undefined);
-const authorId = ref<string | undefined>(undefined);
-
-function limitedFacet(obj: Record<string, number>) {
-  // 排序后截取前 20
-  return Object.fromEntries(Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,20));
-}
-function applyFacetTags(){
-  tagsRaw.value = selectedFacetTags.value.join(',');
-  page.value = 1; doSearch();
-}
-function toggleCategory(cid: string){
-  categoryId.value = categoryId.value===cid? undefined : cid; page.value=1; doSearch();
-}
-function toggleAuthor(aid: string){
-  authorId.value = authorId.value===aid? undefined : aid; page.value=1; doSearch();
-}
-
-async function loadMaps(){
+async function searchNow() {
+  if (debounceTimer !== null) clearTimeout(debounceTimer)
+  const kw = q.value.trim()
+  if (!kw) {
+    // 空关键词:清空结果,不发请求
+    searched.value = false
+    results.value = []
+    syncQuery('')
+    return
+  }
+  loading.value = true
+  error.value = false
   try {
-    const cats = ((await API.TaxonomyService.listCategories()).data || []) as Category[];
-    categoryMap.value = Object.fromEntries(cats.map(c=>[String(c.id), c.name]));
-  } catch(e){}
-  try {
-    const users = (((await API.UsersService.getApiV1Users(1,100)).data?.list) || []) as User[];
-    authorMap.value = Object.fromEntries(users.map(u=>[String(u.id), u.nickname || ('用户'+u.id)]));
-  } catch(e){}
-}
-loadMaps();
-
-async function doSearch() {
-  if (!q.value.trim()) return;
-  loading.value = true;
-  try {
-  const resp = await API.SearchService.search({ q: q.value, page: page.value, page_size: pageSize, tags: tagsRaw.value || undefined, match: matchMode.value, category_id: categoryId.value? Number(categoryId.value): undefined, author_id: authorId.value? Number(authorId.value): undefined, sort: sort.value, date_from: dateFrom.value || undefined, date_to: dateTo.value || undefined, facets: 'tags,category_id,author_id' });
-  const data = resp.data || resp; // 生成器可能已包装
-  const list = data?.data?.list || data.list || [];
-  results.value = list;
-  results.value = results.value.map(r=>({ ...r, excerpt: r.highlight?.content || r.excerpt || '' }));
-    total.value = data?.data?.total || resp.total || results.value.length; // 兜底
-    facets.value = data?.data?.facets || {};
-    searched.value = true;
-    const totalPages = Math.max(1, Math.ceil(total.value / pageSize));
-    const prevUrl = page.value>1 ? buildPageUrl(page.value-1) : undefined;
-    const nextUrl = page.value< totalPages ? buildPageUrl(page.value+1) : undefined;
-    setMeta({ title: `搜索: ${q.value}`, description: `关于 ${q.value} 的搜索结果，共 ${total.value} 条`, prevUrl, nextUrl, url: buildPageUrl(page.value) });
-    injectJsonLd({ '@context':'https://schema.org', '@type':'SearchResultsPage', name:`搜索: ${q.value}`, query:q.value, totalResults: total.value, itemListElement: results.value.map((r,i)=>({ '@type':'ListItem', position:i+1, url: window.location.origin + '/article/' + r.slug, name:r.title })) });
-  } catch(e) {
-    pushError('搜索失败');
+    const { results: list, counts: c } = await unifiedSearch(kw)
+    results.value = list
+    counts.value = c
+    lastKeyword.value = kw
+    searched.value = true
+    typeFilter.value = 'all'
+    syncQuery(kw)
+  } catch (e) {
+    error.value = true
   } finally {
-    loading.value = false;
+    loading.value = false
   }
 }
 
-function formatDate(dt: string | null | undefined) { if(!dt) return ''; return new Date(dt).toLocaleDateString(); }
-function buildPageUrl(p: number){ const u=new URL(window.location.href); u.searchParams.set('q', q.value); u.searchParams.set('page', String(p)); return u.toString(); }
-function clearFilters(){ selectedFacetTags.value=[]; tagsRaw.value=''; categoryId.value=undefined; authorId.value=undefined; dateFrom.value=''; dateTo.value=''; page.value=1; doSearch(); }
+/** ESC:清空并失焦,不离开页面 */
+function clearSearch() {
+  q.value = ''
+  if (debounceTimer !== null) clearTimeout(debounceTimer)
+  inputRef.value?.blur?.()
+}
+
+/** ?q= 同步(replace 避免防抖刷历史;刷新后由 query 恢复)
+ * @param {string} kw
+ */
+function syncQuery(kw) {
+  const query = { ...route.query }
+  if (kw) query.q = kw
+  else delete query.q
+  router.replace({ query })
+}
+
+/** @param {string} href */
+function go(href) {
+  if (href) router.push(href)
+}
+
+watch(q, scheduleSearch)
+
+onMounted(async () => {
+  setMeta({ title: '搜索 · 小重山', description: '统一搜索文章、专题与项目。' })
+  inputRef.value?.focus?.()
+  // 直链 ?q= 时恢复搜索
+  const initial = String(route.query.q || '').trim()
+  if (initial) {
+    q.value = initial
+    await searchNow()
+  }
+})
+
+onUnmounted(() => { if (debounceTimer !== null) clearTimeout(debounceTimer) })
 </script>
+
 <style scoped>
-.search-bar { display:flex; gap:.5rem; margin-bottom:1rem; flex-wrap:wrap; }
-.flex1 { flex:1; min-width: 240px; }
-.w160 { width: 160px; }
-.w140 { width: 140px; }
-.w120 { width: 120px; }
-.facets { margin:1rem 0; display:flex; gap:2rem; flex-wrap:wrap; }
-.facets h4 { margin:.25rem 0; font-size:.9rem; }
-.facets ul { list-style:none; padding:0; margin:0; max-width:200px; }
-.facets li { font-size:.75rem; margin:.25rem 0; }
-.facet button { background:#f5f5f5; border:1px solid #ddd; padding:2px 6px; cursor:pointer; border-radius:3px; }
-.facet button.active { background:#409eff; color:#fff; border-color:#409eff; }
-.results ul { list-style:none; padding:0; }
-.results li { margin:.75rem 0; }
-.meta { margin-left:.5rem; color:#666; }
-.excerpt { color:#444; font-size:.85rem; margin:.25rem 0; }
-.excerpt mark { background:#ffe58f; }
-.tag { display:inline-block; font-size:12px; margin-right:6px; color:#555; }
-.pager { display:flex; align-items:center; gap:.75rem; margin-top:1rem; }
-.empty, .loading { padding:2rem; text-align:center; color:#666; }
+.search-panel {
+  padding: 38px 0 28px;
+  border-bottom: 1px solid var(--line);
+}
+.eyebrow {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.search-box {
+  position: relative;
+}
+.search-box input {
+  width: 100%;
+  height: 58px;
+  padding: 0 52px 0 18px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 18px;
+  outline: none;
+}
+.search-box input:focus {
+  border-color: var(--line-strong);
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.03);
+}
+.key {
+  position: absolute;
+  right: 15px;
+  top: 16px;
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-2);
+  font-size: 11px;
+  color: var(--muted);
+}
+.search-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.section {
+  padding: 34px 0;
+}
+.section-last {
+  border-bottom: 0;
+}
+.meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+.arrow {
+  color: var(--muted);
+}
+
+.search-tools {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.filters {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.filters button {
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.filters button.active {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+
+.result-list {
+  display: grid;
+  gap: 5px;
+}
+.result {
+  display: grid;
+  grid-template-columns: 1fr 120px 24px;
+  gap: 20px;
+  align-items: center;
+  padding: 19px 12px;
+  border: 1px solid transparent;
+  border-radius: 13px;
+}
+.result:hover {
+  background: var(--surface);
+  border-color: var(--line);
+}
+.result h2 {
+  font-size: 20px;
+  margin: 0 0 6px;
+}
+.result p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+  margin: 0;
+}
+.hit {
+  background: var(--signal-soft);
+  color: var(--signal-ink);
+  padding: 1px 3px;
+  border-radius: 3px;
+}
+
+.state-block {
+  border: 1px dashed var(--line-strong);
+  border-radius: 16px;
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+.state-block .hint {
+  margin-top: 8px;
+  font-size: 13px;
+}
+.retry-btn {
+  margin-top: 14px;
+  height: 36px;
+  padding: 0 20px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+}
+.retry-btn:hover {
+  border-color: var(--text);
+}
+
+@media (max-width: 700px) {
+  .result {
+    grid-template-columns: 1fr 24px;
+  }
+  .result > .meta {
+    display: none;
+  }
+}
 </style>

@@ -76,6 +76,7 @@ export default {
     const currentAnchor = ref('')
     const drawerOpen = ref(false)
 
+    /** @type {IntersectionObserver | null} */
     let observer = null
 
     /** @param {KeyboardEvent} e */
@@ -156,7 +157,7 @@ export default {
   padding: 14px 12px 12px;
   border: 1px solid var(--line);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.94);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
   backdrop-filter: blur(12px);
   box-shadow: 0 14px 36px rgba(18, 18, 16, 0.07);
 }
