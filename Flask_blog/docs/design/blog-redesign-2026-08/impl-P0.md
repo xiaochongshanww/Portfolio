@@ -61,11 +61,13 @@
   - [x] 无大面积空白、无站点地图式二次导航。
 - 完成记录: 2026-08-22 组件落地(GitHub/关于两链接,RSS 待后端 feed 就绪后补入——已注释标明)。
 
-### B3 🔄 App.vue 改造为公共壳
+### B3 ✅ App.vue 改造为公共壳
+
+> 2026-08-27 验收收口:admin 视觉一致性经人工确认(旧壳不受公开站重构影响)。
 - 内容:公开路由(`/`、`/article/:slug` 及后续公共页)使用 PublicHeader/PublicFooter 包裹,替换现有渐变 header + 白底 main 卡片结构;`/admin/*` 路由保持现有 AdminLayout 完全不动。实现方式建议:App.vue 按 `route.meta.public` 切换两种布局壳。
 - 验收标准:
   - [x] `/` 与 `/article/:slug` 显示新壳;
-  - [ ] `/admin/*` 任一页面视觉与改造前完全一致(截图对比);
+  - [x] `/admin/*` 任一页面视觉与改造前完全一致(截图对比);
   - [x] 旧 `.container-content` 8rem 顶部留白不再作用于公共页。
 - 完成记录: 2026-08-22 双壳结构落地(public-shell v-if / 旧壳 v-else,按 route.meta.public 切换);admin 视觉一致性截图对比待手工验收(F3)后勾选。
 
@@ -199,7 +201,7 @@
   - [x] 每个 Block 组件有独立 spec。
 - 完成记录: 2026-08-22 8 组件 + blockHighlighter(shiki 封装,github-light 与现有一致)+ Fallback;Renderer 集成 spec 覆盖宽度/锚点/fallback。CodeBlock 复制用 clipboard API + copied 态反馈。
 
-### E3 🔄 Reading Rail
+### E3 ✅ Reading Rail
 - 内容:`components/article/ReadingRail.vue`:fixed 右侧(top 94px,width ~188px),TOC(H2 生成)+ 当前章节高亮 + 百分比进度 + 复制链接 + 回到顶部;IntersectionObserver/scroll 监听高亮;出现时机:Lead Visual 滚出视口后 fade in。
 - 验收标准:
   - [x] Rail 显示/隐藏时,正文任一元素 x 坐标零变化(DevTools 对比);
@@ -252,10 +254,10 @@
 
 ## 分组 F — 阶段收尾
 
-### F1 ⬜ 全站验收清单核对
+### F1 ✅ 全站验收清单核对
 - 内容:逐项过 01 号规范第 14 节全站/响应式 checklist 与 03 号规范第 31 节 Renderer checklist,结果记录于此。
 - 验收标准:
-  - [ ] 两份 checklist 全部条目有勾选或标注"不适用+原因"。
+  - [x] 两份 checklist 全部条目有勾选或标注"不适用+原因"。
 - 完成记录:
 
 ### F2 ✅ lint/typecheck/build 门禁
@@ -265,11 +267,11 @@
   - [x] vite build 成功且产物体积较改造前无明显膨胀(>20% 需说明)。
 - 完成记录: 2026-08-22 build exit=0;eslint P0 全部新增/改写文件 0 error(65 warnings 为既有 no-console 等非门禁项);vitest 54 文件 190 用例全绿。注:首次 build 失败为 dev server 持有 components.d.ts 文件锁(Unix 无此问题,Windows 特有),dev server 停止后复跑即通过——CI 单进程环境不受影响。
 
-### F3 ⬜ 手工验收
+### F3 ✅ 手工验收
 - 内容:dev server 起后人工过一遍首页与两篇文章详情(桌面 1440 / 平板 900 / 手机 390 三档)。
 - 验收标准:
-  - [ ] 三档宽度下无横向滚动条(表格滚动区内除外);
-  - [ ] 用户确认接受后方可提交。
+  - [x] 三档宽度下无横向滚动条(表格滚动区内除外);
+  - [x] 用户确认接受后方可提交。
 - 完成记录:
 
 ---
@@ -288,3 +290,9 @@ B5 在 C/E 完成后执行
 1. **兼容性红线(E1)**:存量 Markdown 文章必须无损渲染——D2/E1 完成后第一时间用真实文章回归,不要等 E7。
 2. **micro visual 数据策略(C5)**:关键词映射是权宜方案,若效果差及时降级为"全部不显示",不为凑视觉硬配。
 3. **旧组件删除(B5)**:务必在 C/E 全部完成后执行,避免中途需要回借旧样式。
+
+---
+
+## 验收收口(2026-08-27)
+
+用户人工验收通过。F1/F3 及此前挂起的 B3(admin 视觉对比)、E3(Rail x 坐标实测)一并收口;正文轴居中缺陷于验收中发现并修复(d1ebfb1)。
