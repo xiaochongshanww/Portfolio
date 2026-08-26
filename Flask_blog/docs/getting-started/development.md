@@ -18,6 +18,25 @@
 - **Redis**: localhost:6379
 - **Meilisearch**: http://localhost:7700
 
+### 4. 本地测试账号（instance/dev.db）
+
+本地 SQLite 开发库（`backend/instance/dev.db`）的后台管理员账号：
+
+| 项 | 值 |
+|------|------|
+| 登录邮箱 | `manual@verify.com` |
+| 密码 | `verify-admin-2026` |
+| 角色 | admin |
+
+> 该账号仅用于本地测试环境;生产环境凭据不在此记录。
+> 密码遗忘时可直接重置(重置后更新本表):
+
+```powershell
+cd backend
+$env:DATABASE_URL="sqlite:///…/backend/instance/dev.db"
+python -c "from app import create_app, db, bcrypt; from app.models import User; app=create_app(); ctx=app.app_context(); ctx.push(); u=User.query.filter_by(email='manual@verify.com').first(); u.password_hash=bcrypt.generate_password_hash('新密码').decode(); db.session.commit()"
+```
+
 ## 🐛 VS Code调试
 
 ### 方法1: 完整栈调试
