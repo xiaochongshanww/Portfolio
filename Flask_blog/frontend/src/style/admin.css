@@ -1,0 +1,109 @@
+/* =========================================================
+   小重山 CMS 管理后台 Design Tokens(04 号规范 §9)
+   仅在 .admin-scope 内生效,与公开站 tokens(tailwind.css :root)完全隔离
+   Element Plus 变量覆盖(05 号规范 §42):EP = 行为,Admin Tokens = 视觉
+   ========================================================= */
+.admin-scope {
+  /* 颜色(04 §9.1) */
+  --adm-bg: #f6f7f8;
+  --adm-surface: #ffffff;
+  --adm-surface-subtle: #fafafa;
+
+  --adm-text: #18181b;
+  --adm-text-2: #3f3f46;
+  --adm-muted: #71717a;
+  --adm-muted-light: #a1a1aa;
+
+  --adm-border: #e4e4e7;
+  --adm-border-strong: #d4d4d8;
+
+  --adm-primary: #2563eb;
+  --adm-primary-soft: #eff6ff;
+
+  --adm-success: #15803d;
+  --adm-success-soft: #f0fdf4;
+  --adm-warning: #b45309;
+  --adm-warning-soft: #fffbeb;
+  --adm-danger: #b91c1c;
+  --adm-danger-soft: #fef2f2;
+
+  /* 状态点色(05 §11:dot 比 badge 适合表格) */
+  --adm-dot-success: #22c55e;
+  --adm-dot-warning: #f59e0b;
+  --adm-dot-neutral: #a1a1aa;
+  --adm-dot-danger: #ef4444;
+
+  /* 尺寸(04 §5/§6/§7/§10/§11) */
+  --adm-sidebar-w: 224px;
+  --adm-header-h: 58px;
+  --adm-content-max: 1280px;
+
+  /* 圆角(04 §12) */
+  --adm-r-control: 8px;
+  --adm-r-container: 12px;
+
+  /* Element Plus 视觉统一(仅本 scope 内) */
+  --el-color-primary: #2563eb;
+  --el-border-radius-base: 8px;
+  --el-font-size-base: 12px;
+}
+
+/* ── Element Plus 组件视觉统一(.admin-scope 内)────────── */
+/* 按钮:单一高度体系 36/34(04 §11) */
+.admin-scope .el-button {
+  --el-button-height: 34px;
+  border-radius: var(--adm-r-control);
+  font-size: 12px;
+  font-weight: 500;
+}
+.admin-scope .el-button--large {
+  --el-button-size: 36px;
+  height: 36px;
+}
+.admin-scope .el-button--small {
+  height: 28px;
+  border-radius: 7px;
+}
+/* 输入/选择:34px */
+.admin-scope .el-input__wrapper,
+.admin-scope .el-select__wrapper {
+  border-radius: var(--adm-r-control);
+  min-height: 34px;
+}
+.admin-scope .el-input__inner {
+  font-size: 12px;
+}
+/* 表格:42px 表头、12px 正文、无重阴影(04 §16) */
+.admin-scope .el-table {
+  --el-table-header-bg-color: var(--adm-surface-subtle);
+  --el-table-header-text-color: var(--adm-muted);
+  --el-table-text-color: var(--adm-text-2);
+  --el-table-border-color: var(--adm-border);
+  --el-table-row-hover-bg-color: #fcfcfd;
+  font-size: 12px;
+}
+.admin-scope .el-table th.el-table__cell {
+  height: 42px;
+  font-size: 11px;
+  font-weight: 650;
+  background: var(--adm-surface-subtle);
+}
+.admin-scope .el-table td.el-table__cell {
+  padding: 8px 0;
+}
+/* 分页(04 §11:28px) */
+.admin-scope .el-pagination {
+  --el-pagination-button-height: 28px;
+  font-size: 11px;
+  color: var(--adm-muted);
+}
+/* Dialog/Drawer:允许阴影(04 §13),圆角 12-16(04 §12) */
+.admin-scope .el-dialog,
+.admin-scope .el-drawer {
+  border-radius: 14px;
+}
+/* Tooltip/Popper 跟随 token */
+.admin-scope .el-popper.is-light {
+  border-color: var(--adm-border);
+  border-radius: 10px;
+}

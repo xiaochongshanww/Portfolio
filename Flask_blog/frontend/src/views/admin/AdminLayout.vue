@@ -1,211 +1,93 @@
 <template>
-  <div class="admin-layout">
-    <!-- 侧边栏 -->
-    <aside class="admin-sidebar">
-      <div class="sidebar-header">
-        <RouterLink to="/" class="logo-link">
-          <div class="logo-container">
-            <div class="logo-icon">
-              <el-icon size="28"><EditPen /></el-icon>
-            </div>
-            <h2 class="logo">Blog CMS</h2>
-          </div>
-        </RouterLink>
-        <div class="user-profile">
-          <div class="user-avatar">
-            <el-icon size="20"><User /></el-icon>
-          </div>
-          <div class="user-details">
-            <p class="user-info">{{ userStore.user?.nickname || userStore.user?.email }}</p>
-            <div class="role-badge" :class="`role-${userStore.user?.role}`">
-              <span class="role-text">{{ getRoleText(userStore.user?.role) }}</span>
-            </div>
-          </div>
+  <div class="admin-scope app-shell">
+    <!-- Sidebar(04 §5:224px,五分组,底部账号) -->
+    <aside class="sidebar" :class="{ open: mobileOpen }">
+      <div class="side-brand">
+        <span class="brand-mark">山</span>
+        <span class="brand-name">小重山 CMS</span>
+      </div>
+
+      <div class="side-scroll">
+        <div v-for="group in visibleGroups" :key="group.label" class="nav-group">
+          <div class="nav-label">{{ group.label }}</div>
+          <RouterLink
+            v-for="item in group.items"
+            :key="item.path"
+            :to="item.path"
+            class="nav-item"
+            :class="{ active: isActive(item.path) }"
+            @click="mobileOpen = false"
+          >
+            <el-icon class="nav-icon" :size="15"><component :is="item.icon" /></el-icon>
+            <span>{{ item.label }}</span>
+            <span v-if="item.count != null" class="nav-count">{{ item.count }}</span>
+          </RouterLink>
         </div>
       </div>
 
-      <nav class="sidebar-nav">
-        <el-menu 
-          :default-active="activeMenuKey" 
-          class="admin-menu"
-          router
-          background-color="#f8f9fa"
-          text-color="#495057"
-          active-text-color="#007bff"
-        >
-          <!-- 仪表盘 -->
-          <el-menu-item index="/admin" route="/admin">
-            <el-icon><DataBoard /></el-icon>
-            <span>仪表盘</span>
-          </el-menu-item>
-
-          <!-- 内容管理 -->
-          <el-sub-menu index="content">
-            <template #title>
-              <el-icon><Document /></el-icon>
-              <span>内容管理</span>
-            </template>
-            
-            <el-menu-item index="/admin/articles" route="/admin/articles">
-              <el-icon><Edit /></el-icon>
-              <span>文章管理</span>
-            </el-menu-item>
-            
-            <el-menu-item 
-              v-if="hasRole(['editor', 'admin'])" 
-              index="/admin/articles/review" 
-              route="/admin/articles/review"
-            >
-              <el-icon><View /></el-icon>
-              <span>文章审核</span>
-            </el-menu-item>
-            
-            <el-menu-item 
-              v-if="hasRole(['editor', 'admin'])" 
-              index="/admin/comments" 
-              route="/admin/comments"
-            >
-              <el-icon><ChatLineRound /></el-icon>
-              <span>评论管理</span>
-            </el-menu-item>
-          </el-sub-menu>
-
-          <!-- 分类标签 -->
-          <el-sub-menu v-if="hasRole(['editor', 'admin'])" index="taxonomy">
-            <template #title>
-              <el-icon><Collection /></el-icon>
-              <span>分类标签</span>
-            </template>
-            
-            <el-menu-item index="/admin/categories" route="/admin/categories">
-              <el-icon><FolderOpened /></el-icon>
-              <span>分类管理</span>
-            </el-menu-item>
-            
-            <el-menu-item index="/admin/tags" route="/admin/tags">
-              <el-icon><PriceTag /></el-icon>
-              <span>标签管理</span>
-            </el-menu-item>
-
-            <el-menu-item index="/admin/projects" route="/admin/projects">
-              <el-icon><Box /></el-icon>
-              <span>项目管理</span>
-            </el-menu-item>
-          </el-sub-menu>
-
-          <!-- 媒体库 -->
-          <el-menu-item index="/admin/media" route="/admin/media">
-            <el-icon><Picture /></el-icon>
-            <span>媒体库</span>
-          </el-menu-item>
-
-          <!-- 用户管理 -->
-          <el-menu-item 
-            v-if="hasRole(['admin'])" 
-            index="/admin/users" 
-            route="/admin/users"
-          >
-            <el-icon><User /></el-icon>
-            <span>用户管理</span>
-          </el-menu-item>
-
-          <!-- 安全监控 -->
-          <el-menu-item 
-            v-if="hasRole(['admin', 'editor'])" 
-            index="/admin/security" 
-            route="/admin/security"
-          >
-            <el-icon><Lock /></el-icon>
-            <span>安全监控</span>
-          </el-menu-item>
-
-          <!-- 日志管理 -->
-          <el-menu-item 
-            v-if="hasRole(['admin', 'editor'])" 
-            index="/admin/logs" 
-            route="/admin/logs"
-          >
-            <el-icon><Document /></el-icon>
-            <span>日志管理</span>
-          </el-menu-item>
-
-          <!-- 系统设置 -->
-          <el-sub-menu v-if="hasRole(['admin'])" index="settings">
-            <template #title>
-              <el-icon><Setting /></el-icon>
-              <span>系统设置</span>
-            </template>
-            
-            <el-menu-item index="/admin/settings/general" route="/admin/settings/general">
-              <el-icon><Tools /></el-icon>
-              <span>基本设置</span>
-            </el-menu-item>
-            
-            <el-menu-item index="/admin/backup" route="/admin/backup">
-              <el-icon><FolderOpened /></el-icon>
-              <span>备份管理</span>
-            </el-menu-item>
-            
-            <el-menu-item index="/admin/restore" route="/admin/restore">
-              <el-icon><RefreshLeft /></el-icon>
-              <span>恢复任务</span>
-            </el-menu-item>
-          </el-sub-menu>
-        </el-menu>
-      </nav>
-
-      <div class="sidebar-footer">
-        <button class="logout-btn" @click="logout">
-          <el-icon size="16"><SwitchButton /></el-icon>
-          <span>退出登录</span>
-        </button>
+      <div class="side-footer">
+        <el-dropdown trigger="click" placement="top-start" width="200">
+          <button type="button" class="account">
+            <span class="avatar">{{ accountInitial }}</span>
+            <span class="account-copy">
+              <span class="account-name">{{ accountName }}</span>
+              <span class="account-role">{{ roleText }}</span>
+            </span>
+            <span class="account-caret">⌄</span>
+          </button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item data-testid="admin-logout" @click="logout">退出登录</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </aside>
 
-    <!-- 主内容区域 -->
-    <main class="admin-main">
-      <!-- 顶部导航栏 -->
-      <header class="admin-header">
-        <div class="header-decoration" />
-        <div class="header-content">
-          <div class="header-left">
-            <div class="breadcrumb-container">
-              <el-icon class="breadcrumb-icon" size="18"><Location /></el-icon>
-              <el-breadcrumb separator=">" class="modern-breadcrumb">
-                <el-breadcrumb-item :to="{ path: '/admin' }">控制台</el-breadcrumb-item>
-                <el-breadcrumb-item v-for="item in breadcrumbs" :key="item.text" :to="item.to">
-                  {{ item.text }}
-                </el-breadcrumb-item>
-              </el-breadcrumb>
-            </div>
-          </div>
-          
-          <div class="header-right">
-            <div class="header-actions">
-              <button class="home-btn" @click="$router.push('/')">
-                <el-icon size="16"><HomeFilled /></el-icon>
-                <span>返回网站</span>
-              </button>
-            </div>
-          </div>
+    <!-- 移动端遮罩 -->
+    <div v-if="mobileOpen" class="mobile-backdrop" @click="mobileOpen = false" />
+
+    <!-- Main -->
+    <div class="main">
+      <!-- Topbar(04 §6:面包屑 + 返回网站,不放业务动作) -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <button type="button" class="menu-btn" aria-label="打开导航" @click="mobileOpen = true">
+            <i /><i /><i />
+          </button>
+          <nav class="breadcrumb" aria-label="面包屑">
+            <template v-for="(c, i) in breadcrumbs" :key="i">
+              <span v-if="i > 0" class="crumb-sep">/</span>
+              <RouterLink v-if="c.to" :to="c.to" class="crumb-link">{{ c.text }}</RouterLink>
+              <b v-else>{{ c.text }}</b>
+            </template>
+          </nav>
+        </div>
+        <div class="top-actions">
+          <RouterLink to="/" class="top-btn">↗ 返回网站</RouterLink>
         </div>
       </header>
 
-      <!-- 页面内容 -->
-      <div class="admin-content">
+      <!-- 页面内容(04 §7:max 1280px) -->
+      <main class="content">
         <RouterView />
-      </div>
-    </main>
+      </main>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+/**
+ * Admin Shell(04 号规范 §4-§7 / 05 号规范 §2)
+ * - Sidebar:224px 五分组 IA(工作台/内容/组织/资源/系统),账号在底部;
+ * - Topbar:面包屑 + 返回网站,不放业务动作(业务动作属于 PageHeader);
+ * - 视觉全部来自 style/admin.css 的 --adm-* tokens,无渐变无 Glow。
+ */
+import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { 
-  DataBoard, Document, Edit, View, ChatLineRound, Collection, 
-  FolderOpened, PriceTag, User, Lock, Setting, Tools, SwitchButton, 
-  HomeFilled, EditPen, Location, RefreshLeft 
+import {
+  DataBoard, Document, ChatLineRound, Collection, PriceTag, Box,
+  Picture, User, Lock, Memo, Setting,
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useUserStore } from '../../stores/user';
@@ -214,77 +96,110 @@ const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
 
-// 当前激活的菜单项
-const activeMenuKey = computed(() => route.path);
+/** 新 IA(04 §5.3);旧页面(备份/恢复/性能)归入系统分组,URL 不变 */
+interface NavItem {
+  label: string
+  path: string
+  icon: unknown
+  roles?: string[]
+  count?: number
+}
+interface NavGroup {
+  label: string
+  items: NavItem[]
+}
 
-// 面包屑导航
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: '工作台',
+    items: [{ label: '仪表盘', path: '/admin', icon: DataBoard }],
+  },
+  {
+    label: '内容',
+    items: [
+      { label: '文章', path: '/admin/articles', icon: Document, roles: ['author', 'editor', 'admin'] },
+      { label: '评论', path: '/admin/comments', icon: ChatLineRound, roles: ['editor', 'admin'] },
+    ],
+  },
+  {
+    label: '组织',
+    items: [
+      { label: '专题', path: '/admin/categories', icon: Collection, roles: ['editor', 'admin'] },
+      { label: '标签', path: '/admin/tags', icon: PriceTag, roles: ['editor', 'admin'] },
+      { label: '项目', path: '/admin/projects', icon: Box, roles: ['editor', 'admin'] },
+    ],
+  },
+  {
+    label: '资源',
+    items: [{ label: '媒体', path: '/admin/media', icon: Picture, roles: ['author', 'editor', 'admin'] }],
+  },
+  {
+    label: '系统',
+    items: [
+      { label: '用户', path: '/admin/users', icon: User, roles: ['admin'] },
+      { label: '安全', path: '/admin/security', icon: Lock, roles: ['editor', 'admin'] },
+      { label: '日志', path: '/admin/logs', icon: Memo, roles: ['editor', 'admin'] },
+      { label: '设置', path: '/admin/settings/general', icon: Setting, roles: ['admin'] },
+    ],
+  },
+];
+
+const role = computed(() => userStore.user?.role || '');
+
+const visibleGroups = computed(() =>
+  NAV_GROUPS.map((g) => ({
+    label: g.label,
+    items: g.items.filter(
+      (item) => !item.roles || item.roles.includes(role.value),
+    ),
+  })).filter((g) => g.items.length > 0),
+);
+
+/** 命中规则:精确路径,或 /admin/articles/* 命中 /admin/articles */
+function isActive(path: string): boolean {
+  if (path === '/admin') return route.path === '/admin';
+  return route.path === path || route.path.startsWith(path + '/');
+}
+
+/** 面包屑:分组名 / 页面名(当前路由命中的 nav item) */
 const breadcrumbs = computed(() => {
-  const path = route.path;
-  const crumbs: Array<{text: string, to?: string}> = [];
-  
-  if (path.includes('/articles/review')) {
-    crumbs.push({ text: '内容管理' });
-    crumbs.push({ text: '文章审核' });
-  } else if (path.includes('/articles')) {
-    crumbs.push({ text: '内容管理' });
-    crumbs.push({ text: '文章管理' });
-  } else if (path.includes('/comments')) {
-    crumbs.push({ text: '内容管理' });
-    crumbs.push({ text: '评论管理' });
-  } else if (path.includes('/categories')) {
-    crumbs.push({ text: '分类标签' });
-    crumbs.push({ text: '分类管理' });
-  } else if (path.includes('/tags')) {
-    crumbs.push({ text: '分类标签' });
-    crumbs.push({ text: '标签管理' });
-  } else if (path.includes('/users')) {
-    crumbs.push({ text: '用户管理' });
-  } else if (path.includes('/security')) {
-    crumbs.push({ text: '安全监控' });
-  } else if (path.includes('/logs')) {
-    crumbs.push({ text: '日志管理' });
-  } else if (path.includes('/settings')) {
-    crumbs.push({ text: '系统设置' });
-    if (path.includes('/general')) {
-      crumbs.push({ text: '基本设置' });
+  for (const g of NAV_GROUPS) {
+    for (const item of g.items) {
+      if (isActive(item.path)) {
+        return g.label === item.label
+          ? [{ text: item.label }]
+          : [{ text: g.label }, { text: item.label }];
+      }
     }
   }
-  
-  return crumbs;
+  // 编辑/审核等子页:前缀命中父级后补当前路径段
+  if (route.path.includes('/articles/review')) {
+    return [{ text: '内容' }, { text: '文章', to: '/admin/articles' }, { text: '文章审核' }];
+  }
+  if (route.path.includes('/articles/') && route.path !== '/admin/articles') {
+    return [{ text: '内容' }, { text: '文章', to: '/admin/articles' }, { text: '编辑文章' }];
+  }
+  return [{ text: '工作台' }, { text: '仪表盘', to: '/admin' }];
 });
 
-// 权限检查
-function hasRole(roles: string[]): boolean {
-  return roles.includes(userStore.user?.role || '');
-}
-
-function getRoleType(role?: string): string {
-  switch (role) {
-    case 'admin': return 'danger';
-    case 'editor': return 'warning';  
-    case 'author': return 'info';
-    default: return '';
-  }
-}
-
-function getRoleText(role?: string): string {
-  switch (role) {
+const accountName = computed(() => userStore.user?.email || userStore.user?.nickname || '');
+const accountInitial = computed(() => (accountName.value || 'U').slice(0, 1).toUpperCase());
+const roleText = computed(() => {
+  switch (role.value) {
     case 'admin': return '管理员';
     case 'editor': return '编辑';
     case 'author': return '作者';
     default: return '用户';
   }
-}
+});
 
-// 退出登录
 async function logout() {
   try {
     await ElMessageBox.confirm('确定要退出登录吗？', '提示', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
-      type: 'warning'
+      type: 'warning',
     });
-    
     await userStore.logout();
     ElMessage.success('已退出登录');
     router.push('/login');
@@ -292,632 +207,306 @@ async function logout() {
     // 用户取消
   }
 }
+
+// <720px Sidebar 抽屉(04 §27)
+const mobileOpen = ref(false);
+let mq: MediaQueryList | null = null;
+function onMqChange(e: MediaQueryListEvent) {
+  if (e.matches) mobileOpen.value = false;
+}
+onMounted(() => {
+  mq = window.matchMedia('(max-width: 719.98px)');
+  mq.addEventListener('change', onMqChange);
+});
+onUnmounted(() => mq?.removeEventListener('change', onMqChange));
 </script>
 
 <style scoped>
-/* ===== 现代化控制台样式 ===== */
-.admin-layout {
-  display: flex;
-  height: 100vh;
-  background: 
-    radial-gradient(circle at 20% 80%, rgba(59, 130, 246, 0.03) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.03) 0%, transparent 50%),
-    radial-gradient(circle at 40% 40%, rgba(6, 182, 212, 0.03) 0%, transparent 50%),
-    linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  position: relative;
-  overflow: hidden;
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: var(--adm-sidebar-w) minmax(0, 1fr);
+  background: var(--adm-bg);
+  color: var(--adm-text);
 }
 
-.admin-layout::before {
-  content: '';
-  position: absolute;
+/* ── Sidebar ─────────────────────────────── */
+.sidebar {
+  position: sticky;
   top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-image: 
-    radial-gradient(circle at 2px 2px, rgba(59, 130, 246, 0.08) 1px, transparent 0);
-  background-size: 40px 40px;
-  opacity: 0.3;
-  pointer-events: none;
-  z-index: 1;
-}
-
-/* 侧边栏样式 */
-.admin-sidebar {
-  width: 280px;
-  background: 
-    linear-gradient(135deg, 
-      rgba(255, 255, 255, 0.95) 0%, 
-      rgba(248, 250, 252, 0.9) 100%
-    );
-  backdrop-filter: blur(20px);
-  border-right: 1px solid rgba(255, 255, 255, 0.3);
+  height: 100vh;
+  background: var(--adm-surface);
+  border-right: 1px solid var(--adm-border);
   display: flex;
   flex-direction: column;
+}
+.side-brand {
+  height: var(--adm-header-h);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--adm-border);
+  font-weight: 760;
+  letter-spacing: -0.02em;
+  font-size: 14px;
   flex-shrink: 0;
-  position: relative;
-  z-index: 10;
-  box-shadow: 
-    0 0 0 1px rgba(255, 255, 255, 0.1),
-    4px 0 20px -2px rgba(0, 0, 0, 0.05),
-    8px 0 40px -4px rgba(0, 0, 0, 0.03);
 }
-
-.sidebar-header {
-  padding: 2rem 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  position: relative;
-}
-
-.sidebar-header::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 1.5rem;
-  right: 1.5rem;
-  height: 1px;
-  background: linear-gradient(
-    90deg, 
-    transparent 0%, 
-    rgba(59, 130, 246, 0.3) 25%, 
-    rgba(139, 92, 246, 0.3) 75%, 
-    transparent 100%
-  );
-}
-
-.logo-link {
-  text-decoration: none;
-  color: inherit;
-  display: block;
-  margin-bottom: 1.5rem;
-}
-
-.logo-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-}
-
-.logo-icon {
-  width: 48px;
-  height: 48px;
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.25);
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-.logo-icon::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: linear-gradient(45deg, transparent 40%, rgba(255, 255, 255, 0.2) 50%, transparent 60%);
-  transform: rotate(45deg) translateX(-100%);
-  transition: transform 0.6s ease;
-}
-
-.logo-icon:hover {
-  transform: scale(1.05) rotate(-2deg);
-  box-shadow: 0 8px 30px rgba(59, 130, 246, 0.3);
-}
-
-.logo-icon:hover::before {
-  transform: rotate(45deg) translateX(100%);
-}
-
-.logo {
-  margin: 0;
-  font-size: 1.375rem;
+.brand-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--adm-text);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
   font-weight: 800;
-  background: linear-gradient(135deg, #1e293b 0%, #3b82f6 100%);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  letter-spacing: -0.025em;
 }
-
-/* 用户信息区域 */
-.user-profile {
+.side-scroll {
+  padding: 14px 10px 16px;
+  overflow: auto;
+  flex: 1;
+}
+.nav-group {
+  margin-bottom: 18px;
+}
+.nav-label {
+  padding: 0 9px 7px;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--adm-muted-light);
+  letter-spacing: 0.02em;
+}
+.nav-item {
+  height: 36px;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 1rem;
-  background: rgba(59, 130, 246, 0.05);
-  border-radius: 12px;
-  border: 1px solid rgba(59, 130, 246, 0.1);
-  transition: all 0.3s ease;
+  gap: 10px;
+  padding: 0 10px;
+  margin: 2px 0;
+  border-radius: 8px;
+  color: var(--adm-text-2);
+  font-size: 13px;
 }
-
-.user-profile:hover {
-  background: rgba(59, 130, 246, 0.08);
-  border-color: rgba(59, 130, 246, 0.2);
-  transform: scale(1.02);
+.nav-item:hover {
+  background: #f7f7f8;
 }
-
-.user-avatar {
-  width: 40px;
-  height: 40px;
-  background: linear-gradient(135deg, #64748b, #475569);
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
+.nav-item.active {
+  background: var(--adm-primary-soft);
+  color: var(--adm-primary);
+  font-weight: 650;
+}
+.nav-icon {
+  width: 17px;
+  display: inline-flex;
   justify-content: center;
-  color: white;
+}
+.nav-count {
+  margin-left: auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #f4f4f5;
+  color: var(--adm-muted);
+  font-size: 10px;
+}
+.nav-item.active .nav-count {
+  background: #fff;
+  color: var(--adm-primary);
+}
+.side-footer {
+  border-top: 1px solid var(--adm-border);
+  padding: 10px;
+}
+.account {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 9px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+.account:hover {
+  background: #f7f7f8;
+}
+.avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: #eef2f7;
+  color: #475569;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
   flex-shrink: 0;
 }
-
-.user-details {
-  flex: 1;
+.account-copy {
   min-width: 0;
+  flex: 1;
 }
-
-.user-info {
-  margin: 0 0 0.375rem 0;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #1e293b;
+.account-name {
+  display: block;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+}
+.account-role {
+  display: block;
+  font-size: 10px;
+  color: var(--adm-muted);
+  margin-top: 2px;
+}
+.account-caret {
+  color: var(--adm-muted-light);
+  font-size: 11px;
 }
 
-.role-badge {
-  display: inline-block;
-  padding: 0.25rem 0.5rem;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  transition: all 0.3s ease;
-}
-
-.role-admin {
-  background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
-  border: 1px solid rgba(239, 68, 68, 0.2);
-}
-
-.role-editor {
-  background: rgba(245, 158, 11, 0.1);
-  color: #d97706;
-  border: 1px solid rgba(245, 158, 11, 0.2);
-}
-
-.role-author {
-  background: rgba(59, 130, 246, 0.1);
-  color: #2563eb;
-  border: 1px solid rgba(59, 130, 246, 0.2);
-}
-
-.role-text {
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-/* 导航菜单样式 */
-.sidebar-nav {
-  flex: 1;
-  overflow-y: auto;
-  padding: 1rem 0;
-}
-
-.admin-menu {
-  border-right: none;
-  background: transparent !important;
-}
-
-.admin-menu :deep(.el-menu-item),
-.admin-menu :deep(.el-sub-menu__title) {
-  height: 48px;
-  line-height: 48px;
-  padding-left: 1.5rem !important;
-  margin: 0.25rem 1rem;
-  border-radius: 12px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-  font-weight: 500;
-}
-
-.admin-menu :deep(.el-menu-item) {
-  background: rgba(255, 255, 255, 0.4);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.admin-menu :deep(.el-menu-item::before) {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.05));
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.admin-menu :deep(.el-menu-item:hover) {
-  background: rgba(255, 255, 255, 0.6);
-  border-color: rgba(59, 130, 246, 0.3);
-  transform: translateX(4px) scale(1.02);
-  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.15);
-}
-
-.admin-menu :deep(.el-menu-item:hover::before) {
-  opacity: 1;
-}
-
-.admin-menu :deep(.el-menu-item.is-active) {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(139, 92, 246, 0.1)) !important;
-  color: #3b82f6 !important;
-  border-color: rgba(59, 130, 246, 0.3);
-  box-shadow: 
-    0 4px 20px rgba(59, 130, 246, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  transform: translateX(8px) scale(1.05);
-}
-
-.admin-menu :deep(.el-menu-item.is-active::before) {
-  opacity: 1;
-}
-
-.admin-menu :deep(.el-sub-menu__title) {
-  background: rgba(255, 255, 255, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  font-weight: 600;
-}
-
-.admin-menu :deep(.el-sub-menu__title:hover) {
-  background: rgba(255, 255, 255, 0.5);
-  border-color: rgba(139, 92, 246, 0.3);
-  transform: translateX(4px) scale(1.02);
-  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.15);
-}
-
-.admin-menu :deep(.el-sub-menu.is-active > .el-sub-menu__title) {
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(59, 130, 246, 0.1)) !important;
-  color: #8b5cf6 !important;
-  border-color: rgba(139, 92, 246, 0.3);
-}
-
-.admin-menu :deep(.el-menu-item .el-icon) {
-  margin-right: 0.5rem;
-  width: 18px;
-  transition: all 0.3s ease;
-}
-
-.admin-menu :deep(.el-menu-item:hover .el-icon),
-.admin-menu :deep(.el-menu-item.is-active .el-icon) {
-  transform: scale(1.1);
-}
-
-/* 侧边栏底部 */
-.sidebar-footer {
-  padding: 1.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
-  position: relative;
-}
-
-.sidebar-footer::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 1.5rem;
-  right: 1.5rem;
-  height: 1px;
-  background: linear-gradient(
-    90deg, 
-    transparent 0%, 
-    rgba(139, 92, 246, 0.3) 25%, 
-    rgba(59, 130, 246, 0.3) 75%, 
-    transparent 100%
-  );
-}
-
-.logout-btn {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.05));
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  border-radius: 12px;
-  color: #dc2626;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-}
-
-.logout-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.05));
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.logout-btn:hover {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.1));
-  border-color: rgba(239, 68, 68, 0.3);
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 8px 25px rgba(239, 68, 68, 0.2);
-}
-
-.logout-btn:hover::before {
-  opacity: 1;
-}
-
-.logout-btn:active {
-  transform: translateY(0) scale(0.98);
-}
-
-/* 主内容区域 */
-.admin-main {
-  flex: 1;
+/* ── Main / Topbar ───────────────────────── */
+.main {
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  position: relative;
-  z-index: 2;
 }
-
-/* 顶部导航栏 */
-.admin-header {
-  height: 70px;
-  background: 
-    linear-gradient(135deg, 
-      rgba(255, 255, 255, 0.95) 0%, 
-      rgba(248, 250, 252, 0.9) 100%
-    );
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-  position: relative;
-  box-shadow: 
-    0 1px 3px rgba(0, 0, 0, 0.05),
-    0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.header-decoration {
-  position: absolute;
+.topbar {
+  height: var(--adm-header-h);
+  position: sticky;
   top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(
-    90deg,
-    rgba(59, 130, 246, 0.02) 0%,
-    rgba(139, 92, 246, 0.02) 50%,
-    rgba(6, 182, 212, 0.02) 100%
-  );
-  pointer-events: none;
-}
-
-.header-content {
+  z-index: 30;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
-  padding: 0 2rem;
-  position: relative;
-  z-index: 2;
+  gap: 14px;
+  padding: 0 24px;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--adm-border);
 }
-
-.header-left {
-  flex: 1;
-}
-
-.breadcrumb-container {
+.topbar-left {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 10px;
+  min-width: 0;
 }
-
-.breadcrumb-icon {
-  color: #64748b;
-  opacity: 0.7;
-}
-
-.modern-breadcrumb :deep(.el-breadcrumb__item) {
-  font-weight: 500;
-}
-
-.modern-breadcrumb :deep(.el-breadcrumb__inner) {
-  color: #64748b;
-  transition: color 0.3s ease;
-}
-
-.modern-breadcrumb :deep(.el-breadcrumb__inner:hover) {
-  color: #3b82f6;
-}
-
-.modern-breadcrumb :deep(.el-breadcrumb__inner.is-link) {
-  color: #3b82f6;
-  font-weight: 600;
-}
-
-.header-right {
-  flex-shrink: 0;
-}
-
-.header-actions {
-  display: flex;
-  gap: 0.75rem;
-}
-
-.home-btn {
-  padding: 0.5rem 1rem;
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.05));
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  border-radius: 8px;
-  color: #3b82f6;
-  font-weight: 600;
+.breadcrumb {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
+  gap: 7px;
+  color: var(--adm-muted);
+  font-size: 12px;
+  white-space: nowrap;
   overflow: hidden;
 }
-
-.home-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.05));
-  opacity: 0;
-  transition: opacity 0.3s ease;
+.breadcrumb b {
+  color: var(--adm-text-2);
+  font-weight: 600;
+}
+.crumb-link:hover {
+  color: var(--adm-text-2);
+}
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.top-btn {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--adm-border);
+  border-radius: 8px;
+  background: var(--adm-surface);
+  color: var(--adm-text-2);
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+.top-btn:hover {
+  border-color: var(--adm-border-strong);
+  color: var(--adm-text);
 }
 
-.home-btn:hover {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(139, 92, 246, 0.1));
-  border-color: rgba(59, 130, 246, 0.3);
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.2);
+/* 移动端菜单按钮:桌面隐藏 */
+.menu-btn {
+  display: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--adm-border);
+  border-radius: 8px;
+  background: var(--adm-surface);
+  cursor: pointer;
+}
+.menu-btn i {
+  width: 14px;
+  height: 1.5px;
+  background: var(--adm-muted);
+  border-radius: 1px;
+}
+.mobile-backdrop {
+  display: none;
 }
 
-.home-btn:hover::before {
-  opacity: 1;
-}
-
-.home-btn:active {
-  transform: translateY(0) scale(0.98);
-}
-
-/* 内容区域 */
-.admin-content {
+.content {
+  width: min(var(--adm-content-max), calc(100% - 40px));
+  margin: 0 auto;
+  padding: 28px 0 44px;
   flex: 1;
-  padding: 2rem;
-  overflow-y: auto;
-  background: transparent;
-  position: relative;
 }
 
-/* 响应式设计 */
-@media (max-width: 1024px) {
-  .admin-sidebar {
-    width: 260px;
-  }
-  
-  .sidebar-header {
-    padding: 1.5rem 1rem;
-  }
-  
-  .admin-menu :deep(.el-menu-item),
-  .admin-menu :deep(.el-sub-menu__title) {
-    margin: 0.25rem 0.75rem;
+/* ── 响应式(04 §27)──────────────────────── */
+@media (max-width: 1050px) {
+  .app-shell {
+    grid-template-columns: 196px minmax(0, 1fr);
   }
 }
-
-@media (max-width: 768px) {
-  .admin-layout {
-    flex-direction: column;
+@media (max-width: 719.98px) {
+  .app-shell {
+    grid-template-columns: 1fr;
   }
-  
-  .admin-sidebar {
-    width: 100%;
-    height: auto;
-    max-height: 50vh;
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 260;
+    transform: translateX(-100%);
+    transition: transform 0.18s ease;
+    width: min(280px, 84vw);
   }
-  
-  .sidebar-header {
-    padding: 1rem;
+  .sidebar.open {
+    transform: translateX(0);
   }
-  
-  .logo-container {
-    flex-direction: row;
-    gap: 0.5rem;
+  .mobile-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 250;
+    background: rgba(10, 10, 9, 0.32);
   }
-  
-  .logo {
-    font-size: 1.125rem;
+  .menu-btn {
+    display: inline-flex;
   }
-  
-  .user-profile {
-    padding: 0.75rem;
+  .topbar {
+    padding: 0 16px;
   }
-  
-  .sidebar-nav {
-    max-height: 200px;
-    padding: 0.5rem 0;
-  }
-  
-  .admin-menu :deep(.el-menu-item),
-  .admin-menu :deep(.el-sub-menu__title) {
-    height: 44px;
-    line-height: 44px;
-    margin: 0.25rem 0.5rem;
-    padding-left: 1rem !important;
-  }
-  
-  .sidebar-footer {
-    padding: 1rem;
-  }
-  
-  .admin-header {
-    height: 60px;
-  }
-  
-  .header-content {
-    padding: 0 1rem;
-  }
-  
-  .admin-content {
-    padding: 1rem;
-  }
-  
-  .breadcrumb-container {
-    gap: 0.5rem;
-  }
-  
-  .modern-breadcrumb :deep(.el-breadcrumb__item) {
-    font-size: 0.875rem;
-  }
-}
-
-@media (max-width: 640px) {
-  .header-content {
-    flex-direction: column;
-    gap: 0.75rem;
-    align-items: flex-start;
-  }
-  
-  .breadcrumb-container {
-    width: 100%;
-  }
-  
-  .header-actions {
-    align-self: flex-end;
-  }
-  
-  .home-btn {
-    padding: 0.375rem 0.75rem;
-    font-size: 0.875rem;
+  .content {
+    width: calc(100% - 28px);
+    padding-top: 20px;
   }
 }
 </style>

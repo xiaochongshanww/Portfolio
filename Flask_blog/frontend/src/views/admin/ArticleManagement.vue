@@ -1,219 +1,191 @@
 <template>
   <div class="article-management">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <div class="header-decoration" />
-      <div class="header-pattern" />
-      <div class="header-content">
-        <div class="title-container">
-          <div class="title-icon">
-            <el-icon size="32"><Document /></el-icon>
-          </div>
-          <div class="title-text">
-            <h1 class="page-title">文章管理</h1>
-            <p class="page-description">管理所有文章，包括草稿、待审核和已发布的内容</p>
-          </div>
-        </div>
-      </div>
-      <div class="header-actions">
-        <RouterLink to="/articles/new" class="modern-action-btn primary">
-          <el-icon size="18"><EditPen /></el-icon>
-          <span>创建文章</span>
-        </RouterLink>
-      </div>
+    <AdminPageHeader
+      title="文章管理"
+      description="管理、发布和维护站点文章内容。"
+    >
+      <RouterLink to="/articles/new" class="primary-btn">＋ 新建文章</RouterLink>
+    </AdminPageHeader>
+
+    <!-- Summary Strip(04 §14):数据可得的项;加载中显示占位 -->
+    <AdminSummaryStrip :items="summaryItems" />
+
+    <!-- Toolbar(05 §5):搜索 + 高频筛选(状态/专题) + 低频(作者)折叠 + 结果数/刷新 -->
+    <AdminToolbar
+      v-model:search="filters.search"
+      search-placeholder="搜索文章标题或摘要"
+      :result-count="error ? null : meta.total"
+      refreshable
+      @update:search="onSearchInput"
+      @refresh="loadArticles"
+    >
+      <template #filters>
+        <select v-model="filters.status" class="adm-select" aria-label="按状态筛选" @change="handleFilterChange">
+          <option value="">全部状态</option>
+          <option value="published">已发布</option>
+          <option value="draft">草稿</option>
+          <option value="pending">待审核</option>
+          <option value="rejected">已拒绝</option>
+        </select>
+        <select v-model="filters.category_id" class="adm-select" aria-label="按专题筛选" @change="handleFilterChange">
+          <option value="">全部专题</option>
+          <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+        </select>
+        <select
+          v-if="userStore.isAdmin"
+          v-model="filters.author_id"
+          class="adm-select"
+          aria-label="按作者筛选"
+          @change="handleFilterChange"
+        >
+          <option value="">全部作者</option>
+          <option v-for="a in authors" :key="a.id" :value="a.id">
+            {{ a.nickname || a.email }}
+          </option>
+        </select>
+      </template>
+    </AdminToolbar>
+
+    <!-- 批量操作栏(05 §10):选中后出现 -->
+    <div v-if="selectedArticles.length" class="bulk-bar">
+      <span>已选择 {{ selectedArticles.length }} 项</span>
+      <button
+        v-if="canBulkApprove && userStore.canModerateContent"
+        type="button"
+        class="bulk-btn success"
+        @click="handleBulkApprove"
+      >批量通过</button>
+      <button
+        v-if="canBulkReject && userStore.canModerateContent"
+        type="button"
+        class="bulk-btn danger"
+        @click="handleBulkReject"
+      >批量拒绝</button>
+      <button type="button" class="bulk-btn" @click="selectedArticles = []">取消选择</button>
     </div>
 
-    <!-- 筛选控制栏 -->
-    <ArticleFilterBar
-      v-model:status="filters.status"
-      v-model:category-id="filters.category_id"
-      v-model:author-id="filters.author_id"
-      v-model:search="filters.search"
-      :categories="categories"
-      :authors="authors"
-      :is-admin="userStore.isAdmin"
-      :loading="loading"
-      @change="handleFilterChange"
-      @refresh="handleRefresh"
-    />
-
-    <!-- 批量操作栏 -->
-    <ArticleBulkActionsPanel
-      :selected-count="selectedArticles.length"
-      :can-moderate-content="userStore.canModerateContent"
-      :can-bulk-approve="canBulkApprove"
-      :can-bulk-reject="canBulkReject"
-      @approve="handleBulkApprove"
-      @reject="handleBulkReject"
-      @clear="selectedArticles = []"
-    />
-
-    <!-- 文章列表 -->
-    <div class="modern-article-list">
-      <el-table
-        v-loading="loading"
-        :data="articles"
-        row-key="id"
-        class="modern-table"
-        @selection-change="handleSelectionChange"
+    <!-- 表格卡片(与 Toolbar 拼合) -->
+    <section class="table-card">
+      <!-- error 态(05 §31:靠近发生位置) -->
+      <AdminStateBlock
+        v-if="error"
+        kind="error"
+        title="文章列表加载失败"
+        description="请检查网络后重试。"
+        compact
+        @reload="loadArticles"
+      />
+      <!-- empty 态(05 §29) -->
+      <AdminStateBlock
+        v-else-if="!loading && !articles.length"
+        kind="empty"
+        title="暂无文章"
+        description="当前筛选条件下没有文章。"
+        compact
       >
-        <el-table-column type="selection" width="55" />
-        
-        <el-table-column label="文章信息" min-width="300">
-          <template #default="{ row }">
-            <div class="article-info">
+        <RouterLink to="/articles/new" class="primary-btn">＋ 新建文章</RouterLink>
+      </AdminStateBlock>
+
+      <div v-else class="table-wrap">
+        <el-table
+          :data="articles"
+          row-key="id"
+          class="adm-table"
+          @selection-change="handleSelectionChange"
+        >
+          <el-table-column type="selection" width="42" />
+          <el-table-column label="文章" min-width="300">
+            <template #default="{ row }">
               <div class="article-title">
-                <RouterLink 
-                  :to="`/article/${row.slug}`" 
-                  class="title-link"
-                  target="_blank"
-                >
+                <RouterLink :to="`/article/${row.slug}`" class="title-link" target="_blank">
                   {{ row.title }}
                 </RouterLink>
               </div>
-              <div class="article-meta">
-                <span class="meta-item">
-                  <el-icon><User /></el-icon>
-                  {{ row.author?.nickname || row.author?.email }}
-                </span>
-                <span class="meta-item">
-                  <el-icon><Calendar /></el-icon>
-                  {{ formatDate(row.created_at) }}
-                </span>
-                <span v-if="row.category" class="meta-item">
-                  <el-icon><Collection /></el-icon>
-                  {{ row.category.name }}
-                </span>
+              <div v-if="row.summary" class="article-summary">{{ row.summary }}</div>
+              <div v-if="row.category" class="badges">
+                <span class="pill topic">{{ row.category.name || row.category }}</span>
               </div>
-              <div v-if="row.summary" class="article-summary">
-                {{ row.summary }}
+            </template>
+          </el-table-column>
+          <el-table-column label="状态" width="96">
+            <template #default="{ row }">
+              <AdminStatus :kind="statusKind(row.status)" :label="statusText(row.status)" />
+            </template>
+          </el-table-column>
+          <el-table-column label="浏览" width="76">
+            <template #default="{ row }">
+              <span class="num">{{ row.views_count || 0 }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="发布时间" width="110">
+            <template #default="{ row }">
+              <div v-if="row.published_at" class="date-main">{{ formatDate(row.published_at) }}</div>
+              <span v-else class="date-sub">未发布</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="最近更新" width="110">
+            <template #default="{ row }">
+              <div class="date-main">{{ formatDate(row.updated_at || row.created_at) }}</div>
+              <div v-if="relativeDays(row.updated_at || row.created_at)" class="date-sub">
+                {{ relativeDays(row.updated_at || row.created_at) }}
               </div>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="状态" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)" size="small">
-              {{ getStatusText(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="统计" width="120" align="center">
-          <template #default="{ row }">
-            <div class="article-stats">
-              <div class="stat-item">
-                <el-icon><View /></el-icon>
-                <span>{{ row.views_count || 0 }}</span>
-              </div>
-              <div class="stat-item">
-                <el-icon><Star /></el-icon>
-                <span>{{ row.likes_count || 0 }}</span>
-              </div>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="发布时间" width="120" align="center">
-          <template #default="{ row }">
-            <div v-if="row.published_at" class="publish-time">
-              {{ formatDate(row.published_at) }}
-            </div>
-            <div v-else-if="row.scheduled_at" class="schedule-time">
-              <el-icon><Clock /></el-icon>
-              {{ formatDate(row.scheduled_at) }}
-            </div>
-            <span v-else class="no-time">-</span>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="操作" width="200" align="center" fixed="right">
-          <template #default="{ row }">
-            <div class="action-buttons">
-              <el-button 
-                size="small" 
-                :disabled="!canEdit(row)"
-                @click="handleEdit(row)"
-              >
-                <el-icon><Edit /></el-icon>
-                编辑
-              </el-button>
-              
-              <!-- 状态操作按钮 -->
-              <el-dropdown @command="(command) => handleStatusAction(row, command)">
-                <el-button size="small" type="primary">
-                  状态操作
-                  <el-icon><ArrowDown /></el-icon>
-                </el-button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item 
-                      v-if="row.status === 'draft'" 
-                      command="submit"
-                      :disabled="!canSubmit(row)"
-                    >
-                      <el-icon><Upload /></el-icon>
-                      提交审核
-                    </el-dropdown-item>
-                    
-                    <el-dropdown-item 
-                      v-if="row.status === 'pending' && userStore.canModerateContent" 
-                      command="approve"
-                    >
-                      <el-icon><Check /></el-icon>
-                      审核通过
-                    </el-dropdown-item>
-                    
-                    <el-dropdown-item 
-                      v-if="row.status === 'pending' && userStore.canModerateContent" 
-                      command="reject"
-                    >
-                      <el-icon><Close /></el-icon>
-                      拒绝发布
-                    </el-dropdown-item>
-                    
-                    <el-dropdown-item 
-                      v-if="row.status === 'published' && userStore.canModerateContent" 
-                      command="unpublish"
-                    >
-                      <el-icon><Hide /></el-icon>
-                      取消发布
-                    </el-dropdown-item>
-                    
-                    <el-dropdown-item 
-                      command="delete"
-                      :disabled="!canDelete(row)"
-                      divided
-                    >
-                      <el-icon><Delete /></el-icon>
-                      删除文章
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
+            </template>
+          </el-table-column>
+          <el-table-column width="110" fixed="right" align="right">
+            <template #default="{ row }">
+              <AdminActionMenu :test-id="`article-${row.id}`">
+                <button
+                  type="button"
+                  class="edit-btn"
+                  :disabled="!canEdit(row)"
+                  @click="handleEdit(row)"
+                >编辑</button>
+                <template #menu>
+                  <el-dropdown-item
+                    v-if="row.status === 'draft'"
+                    :disabled="!canSubmit(row)"
+                    @click="submitArticle(row)"
+                  >提交审核</el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="row.status === 'pending' && userStore.canModerateContent"
+                    @click="approveArticle(row)"
+                  >审核通过</el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="row.status === 'pending' && userStore.canModerateContent"
+                    @click="showRejectDialog(row)"
+                  >拒绝发布</el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="row.status === 'published' && userStore.canModerateContent"
+                    @click="unpublishArticle(row)"
+                  >取消发布</el-dropdown-item>
+                  <el-dropdown-item divided danger :disabled="!canDelete(row)" @click="deleteArticle(row)">
+                    删除文章
+                  </el-dropdown-item>
                 </template>
-              </el-dropdown>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
+              </AdminActionMenu>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
 
-      <!-- 分页 -->
-      <div class="modern-pagination">
+      <!-- Table Footer(04 §21):选中态 + 分页 -->
+      <div class="table-footer">
+        <span>共 {{ meta.total }} 条</span>
         <el-pagination
-          background
-          layout="total, sizes, prev, pager, next, jumper"
+          layout="prev, pager, next, sizes"
           :total="meta.total"
           :current-page="meta.page"
           :page-size="meta.page_size"
           :page-sizes="[10, 20, 50, 100]"
-          class="modern-pagination-component"
+          :pager-count="5"
+          small
           @current-change="handlePageChange"
           @size-change="handleSizeChange"
         />
       </div>
-    </div>
+    </section>
 
-    <!-- 拒绝原因对话框 -->
+    <!-- 拒绝原因对话框(05 §26) -->
     <ArticleRejectDialog
       :visible="rejectDialog.visible"
       :loading="rejectDialog.loading"
@@ -226,22 +198,22 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { 
-  EditPen, User, Calendar, Collection, View, Star, 
-  Clock, Edit, ArrowDown, Upload, Check, Close, Hide, Delete, Document
-} from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useUserStore } from '../../stores/user';
 import { API } from '../../api';
-import ArticleFilterBar from '../../components/admin/ArticleFilterBar.vue';
-import ArticleBulkActionsPanel from '../../components/admin/ArticleBulkActionsPanel.vue';
 import ArticleRejectDialog from '../../components/admin/ArticleRejectDialog.vue';
+import AdminPageHeader from '../../components/admin/AdminPageHeader.vue';
+import AdminSummaryStrip from '../../components/admin/AdminSummaryStrip.vue';
+import AdminToolbar from '../../components/admin/AdminToolbar.vue';
+import AdminStatus from '../../components/admin/AdminStatus.vue';
+import AdminActionMenu from '../../components/admin/AdminActionMenu.vue';
+import AdminStateBlock from '../../components/admin/AdminStateBlock.vue';
 
 const router = useRouter();
 const userStore = useUserStore();
 
-// 响应式数据
 const loading = ref(false);
+const error = ref(false);
 /** @type {import('vue').Ref<any[]>} */
 const articles = ref([]);
 /** @type {import('vue').Ref<any[]>} */
@@ -251,39 +223,46 @@ const authors = ref([]);
 /** @type {import('vue').Ref<any[]>} */
 const selectedArticles = ref([]);
 
-// 筛选条件
 const filters = reactive({
   status: '',
   category_id: '',
   author_id: '',
-  search: ''
+  search: '',
 });
 
-// 分页信息
 const meta = reactive({
   total: 0,
   page: 1,
-  page_size: 20
+  page_size: 20,
 });
 
-// 拒绝对话框
 const rejectDialog = reactive({
   visible: false,
   loading: false,
   /** @type {any} */
-  article: null
+  article: null,
 });
 
-// 计算属性
-const canBulkApprove = computed(() => {
-  return selectedArticles.value.some(article => article.status === 'pending');
-});
+const canBulkApprove = computed(() =>
+  selectedArticles.value.some((a) => a.status === 'pending'),
+);
+const canBulkReject = computed(() =>
+  selectedArticles.value.some((a) => a.status === 'pending'),
+);
 
-const canBulkReject = computed(() => {
-  return selectedArticles.value.some(article => article.status === 'pending');
-});
+/** Summary Strip 数据:由当前列表与筛选推导(全量计数来自 total) */
+const summaryItems = computed(() => [
+  { label: '全部文章', value: meta.total, note: '当前站点内容' },
+  { label: '已发布', value: countByStatus('published'), note: '公开可访问' },
+  { label: '草稿', value: countByStatus('draft'), note: '仅后台可见' },
+  { label: '待审核', value: countByStatus('pending'), note: '等待处理' },
+]);
 
-// 权限检查函数
+/** @param {string} status */
+function countByStatus(status) {
+  return articles.value.filter((a) => a.status === status).length;
+}
+
 /** @param {any} article */
 function canEdit(article) {
   return userStore.canModerateContent || article.author_id === userStore.user?.id;
@@ -299,93 +278,81 @@ function canDelete(article) {
   return userStore.canModerateContent || article.author_id === userStore.user?.id;
 }
 
-// 状态相关函数
-/**
- * @param {string | undefined} status
- * @returns {'info' | 'success' | 'primary' | 'warning' | 'danger'}
- */
-function getStatusType(status) {
+/** @param {string | undefined} status @returns {'success'|'warning'|'neutral'|'danger'} */
+function statusKind(status) {
   switch (status) {
     case 'published': return 'success';
     case 'pending': return 'warning';
-    case 'draft': return 'info';
+    case 'draft': return 'neutral';
     case 'rejected': return 'danger';
-    default: return 'info';
+    default: return 'neutral';
   }
 }
 
 /** @param {string | undefined} status */
-function getStatusText(status) {
+function statusText(status) {
   switch (status) {
     case 'published': return '已发布';
     case 'pending': return '待审核';
     case 'draft': return '草稿';
     case 'rejected': return '已拒绝';
-    default: return status;
+    default: return status || '未知';
   }
 }
 
 /** @param {string | number | Date} dateStr */
 function formatDate(dateStr) {
-  return new Date(dateStr).toLocaleDateString('zh-CN');
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (/** @type {number} */ n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())}`;
 }
 
-// 数据加载
+/** @param {string | number | Date} dateStr @returns {string} 相对天数文案,当天为空 */
+function relativeDays(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return '';
+  const days = Math.floor((Date.now() - d.getTime()) / 86400000);
+  if (days <= 0) return '今天';
+  if (days === 1) return '昨天';
+  return `${days} 天前`;
+}
+
+/** @type {ReturnType<typeof setTimeout> | undefined} */
+let searchTimer = undefined;
+function onSearchInput() {
+  if (searchTimer !== undefined) clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => handleFilterChange(), 300);
+}
+
 async function loadArticles() {
   loading.value = true;
-  
+  error.value = false;
   try {
     /** @type {Record<string, any>} */
     const params = {
       page: meta.page,
-      page_size: meta.page_size
+      page_size: meta.page_size,
     };
-
-    // 添加筛选条件
     if (filters.status) params.status = filters.status;
     if (filters.category_id) params.category_id = filters.category_id;
     if (filters.author_id) params.author_id = filters.author_id;
     if (filters.search) params.search = filters.search;
-
     // 非管理员只能看自己的文章
     if (!userStore.canModerateContent) {
       params.author_id = userStore.user?.id;
     }
 
-    // 调试信息
-    console.log('🔍 文章加载调试信息:', {
-      userRole: userStore.user?.role,
-      canModerateContent: userStore.canModerateContent,
-      requestParams: params,
-      requestUrl: '/articles/'
-    });
-
     const response = await API.getArticles(params);
     const data = response.data.data;
-    
-    // 更多调试信息
-    console.log('📊 API响应调试:', {
-      status: response.status,
-      responseData: data,
-      articlesCount: data?.list?.length,
-      articleStatuses: data?.list?.map(/** @param {any} a */ a => ({ id: a.id, title: a.title, status: a.status }))
-    });
-    
     articles.value = data?.list || [];
     meta.total = data?.total || 0;
     meta.page = data?.page || 1;
     meta.page_size = data?.page_size || 20;
-  } catch (error) {
-    const err = /** @type {{ response?: { status?: number, data?: any, headers?: any } }} */ (error);
-    console.error('❌ 加载文章列表失败:', error);
-    if (err.response) {
-      console.error('错误详情:', {
-        status: err.response.status,
-        data: err.response.data,
-        headers: err.response.headers
-      });
-    }
-    ElMessage.error('加载文章列表失败');
+  } catch (e) {
+    error.value = true;
   } finally {
     loading.value = false;
   }
@@ -395,113 +362,24 @@ async function loadCategories() {
   try {
     const response = await API.getCategories();
     categories.value = response.data.data || [];
-  } catch (error) {
-    console.error('加载分类失败:', error);
+  } catch (e) {
+    /* 筛选项失败不阻塞列表 */
   }
 }
 
 async function loadAuthors() {
   if (!userStore.isAdmin) return;
-  
   try {
     const response = await API.getUsers();
     authors.value = response.data.data?.list || [];
-  } catch (error) {
-    console.error('加载作者列表失败:', error);
+  } catch (e) {
+    /* 同上 */
   }
 }
 
-// 事件处理
 function handleFilterChange() {
   meta.page = 1;
   loadArticles();
-}
-
-function handleRefresh() {
-  loadArticles();
-}
-
-// 刷新用户权限并重新加载
-async function refreshUserAndReload() {
-  try {
-    await userStore.refreshUserInfo();
-    ElMessage.success('用户权限已刷新');
-    loadArticles();
-  } catch (error) {
-    ElMessage.error('刷新用户信息失败');
-  }
-}
-
-// 强制重新登录
-function forceRelogin() {
-  ElMessageBox.confirm(
-    '这将清除当前登录状态并跳转到登录页面，确定继续吗？',
-    '重新登录',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  ).then(() => {
-    localStorage.clear();
-    window.location.href = '/login';
-  }).catch(() => {
-    // 用户取消
-  });
-}
-
-// 测试待审核文章
-async function testPendingArticles() {
-  try {
-    console.log('🧪 开始测试待审核文章...');
-    
-    // 1. 检查用户信息和Token
-    const token = localStorage.getItem('access_token');
-    console.log('👤 当前用户信息:', {
-      user: userStore.user,
-      role: userStore.user?.role,
-      canModerateContent: userStore.canModerateContent,
-      isAdmin: userStore.isAdmin,
-      token: token ? token.substring(0, 20) + '...' : 'null'
-    });
-    
-    // 2. 检查JWT Token内容
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        console.log('🔑 JWT Token内容:', payload);
-      } catch (e) {
-        console.warn('JWT解析失败:', e);
-      }
-    }
-    
-    // 3. 测试用户信息API
-    const userResponse = await API.getCurrentUser();
-    console.log('👤 用户信息API响应:', userResponse.data);
-    
-    // 4. 直接请求pending状态的文章
-    const pendingResponse = await API.getArticles({ status: 'pending', page: 1, page_size: 50 });
-    
-    console.log('📋 待审核文章API响应:', pendingResponse.data);
-    console.log('📋 待审核文章详细数据:', pendingResponse.data.data);
-    
-    // 5. 请求所有文章（不指定状态）
-    const allResponse = await API.getArticles({ page: 1, page_size: 50 });
-    
-    console.log('📋 所有文章API响应:', allResponse.data);
-    console.log('📋 所有文章详细数据:', allResponse.data.data);
-    
-    // 6. 显示结果
-    const pendingCount = pendingResponse.data.data?.total || 0;
-    const allCount = allResponse.data.data?.total || 0;
-    
-    ElMessage.info(`找到 ${pendingCount} 篇待审核文章，总共 ${allCount} 篇文章`);
-    
-  } catch (error) {
-    const err = /** @type {{ response?: { data?: { message?: string } }, message?: string }} */ (error);
-    console.error('❌ 测试失败:', error);
-    ElMessage.error('测试失败：' + (err.response?.data?.message || err.message));
-  }
 }
 
 /** @param {any[]} selection */
@@ -527,35 +405,13 @@ function handleEdit(article) {
   router.push(`/articles/edit/${article.id}`);
 }
 
-// 状态操作
-/** @param {any} article @param {string} action */
-async function handleStatusAction(article, action) {
-  switch (action) {
-    case 'submit':
-      await submitArticle(article);
-      break;
-    case 'approve':
-      await approveArticle(article);
-      break;
-    case 'reject':
-      showRejectDialog(article);
-      break;
-    case 'unpublish':
-      await unpublishArticle(article);
-      break;
-    case 'delete':
-      await deleteArticle(article);
-      break;
-  }
-}
-
 /** @param {any} article */
 async function submitArticle(article) {
   try {
     await API.submitArticle(article.id);
     ElMessage.success('文章已提交审核');
     loadArticles();
-  } catch (error) {
+  } catch (e) {
     ElMessage.error('提交失败');
   }
 }
@@ -566,7 +422,7 @@ async function approveArticle(article) {
     await API.approveArticle(article.id);
     ElMessage.success('文章审核通过');
     loadArticles();
-  } catch (error) {
+  } catch (e) {
     ElMessage.error('审核失败');
   }
 }
@@ -580,15 +436,12 @@ function showRejectDialog(article) {
 /** @param {string} reason */
 async function confirmReject(reason) {
   rejectDialog.loading = true;
-  
   try {
-    await API.rejectArticle(rejectDialog.article.id, {
-      reason
-    });
+    await API.rejectArticle(rejectDialog.article.id, { reason });
     ElMessage.success('文章已拒绝');
     rejectDialog.visible = false;
     loadArticles();
-  } catch (error) {
+  } catch (e) {
     ElMessage.error('操作失败');
   } finally {
     rejectDialog.loading = false;
@@ -599,18 +452,15 @@ async function confirmReject(reason) {
 async function unpublishArticle(article) {
   try {
     await ElMessageBox.confirm(
-      '确定要取消发布这篇文章吗？',
-      '确认操作',
-      { type: 'warning' }
+      `确定要取消发布「${article.title}」吗？`,
+      '取消发布',
+      { type: 'warning', confirmButtonText: '取消发布', cancelButtonText: '取消' },
     );
-    
     await API.unpublishArticle(article.id);
     ElMessage.success('已取消发布');
     loadArticles();
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('操作失败');
-    }
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('操作失败');
   }
 }
 
@@ -618,84 +468,66 @@ async function unpublishArticle(article) {
 async function deleteArticle(article) {
   try {
     await ElMessageBox.confirm(
-      '确定要删除这篇文章吗？此操作不可恢复。',
-      '确认删除',
-      { type: 'warning' }
+      `删除文章「${article.title}」？删除后文章将不再出现在公开站。`,
+      '删除文章',
+      { type: 'warning', confirmButtonText: '删除文章', cancelButtonText: '取消' },
     );
-    
     await API.deleteArticle(article.id);
     ElMessage.success('文章已删除');
     loadArticles();
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('删除失败');
-    }
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('删除失败');
   }
 }
 
 // 批量操作
 async function handleBulkApprove() {
-  const pendingArticles = selectedArticles.value.filter(a => a.status === 'pending');
-  if (pendingArticles.length === 0) {
+  const pending = selectedArticles.value.filter((a) => a.status === 'pending');
+  if (!pending.length) {
     ElMessage.warning('没有可审核的文章');
     return;
   }
-
   try {
     await ElMessageBox.confirm(
-      `确定要批量审核通过 ${pendingArticles.length} 篇文章吗？`,
+      `确定要批量审核通过 ${pending.length} 篇文章吗？`,
       '批量审核',
-      { type: 'info' }
+      { type: 'info' },
     );
-
-    for (const article of pendingArticles) {
-    await API.approveArticle(article.id);
+    for (const article of pending) {
+      await API.approveArticle(article.id);
     }
-
-    ElMessage.success(`已批量审核通过 ${pendingArticles.length} 篇文章`);
+    ElMessage.success(`已批量审核通过 ${pending.length} 篇文章`);
     selectedArticles.value = [];
     loadArticles();
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('批量操作失败');
-    }
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('批量操作失败');
   }
 }
 
 async function handleBulkReject() {
-  const pendingArticles = selectedArticles.value.filter(a => a.status === 'pending');
-  if (pendingArticles.length === 0) {
+  const pending = selectedArticles.value.filter((a) => a.status === 'pending');
+  if (!pending.length) {
     ElMessage.warning('没有可拒绝的文章');
     return;
   }
-
   try {
-    const { value: reason } = await ElMessageBox.prompt(
-      '请输入拒绝原因',
-      '批量拒绝',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        inputPattern: /.+/,
-        inputErrorMessage: '拒绝原因不能为空'
-      }
-    );
-
-    for (const article of pendingArticles) {
+    const { value: reason } = await ElMessageBox.prompt('请输入拒绝原因', '批量拒绝', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      inputPattern: /.+/,
+      inputErrorMessage: '拒绝原因不能为空',
+    });
+    for (const article of pending) {
       await API.rejectArticle(article.id, { reason });
     }
-
-    ElMessage.success(`已批量拒绝 ${pendingArticles.length} 篇文章`);
+    ElMessage.success(`已批量拒绝 ${pending.length} 篇文章`);
     selectedArticles.value = [];
     loadArticles();
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('批量操作失败');
-    }
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('批量操作失败');
   }
 }
 
-// 生命周期
 onMounted(() => {
   loadArticles();
   loadCategories();
@@ -704,467 +536,175 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* ===== 现代化文章管理样式 ===== */
 .article-management {
-  max-width: 1400px;
-  margin: 0 auto;
-  position: relative;
-}
-
-/* 页面头部 */
-.page-header {
-  position: relative;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  padding: 2rem;
-  background: 
-    linear-gradient(135deg, 
-      rgba(59, 130, 246, 0.05) 0%, 
-      rgba(139, 92, 246, 0.03) 100%
-    );
-  backdrop-filter: blur(20px);
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  overflow: hidden;
-  box-shadow: 
-    0 4px 20px rgba(59, 130, 246, 0.1),
-    0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.header-decoration {
-  position: absolute;
-  top: -50px;
-  left: -50px;
-  width: 100px;
-  height: 100px;
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.05));
-  border-radius: 50%;
-  filter: blur(30px);
-  animation: float-decoration 8s ease-in-out infinite;
-}
-
-.header-pattern {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-image: 
-    radial-gradient(circle at 2px 2px, rgba(59, 130, 246, 0.1) 1px, transparent 0);
-  background-size: 30px 30px;
-  opacity: 0.3;
-  pointer-events: none;
-}
-
-@keyframes float-decoration {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  50% { transform: translateY(-10px) rotate(180deg); }
-}
-
-.header-content {
-  flex: 1;
-  position: relative;
-  z-index: 2;
-}
-
-.title-container {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.title-icon {
-  width: 60px;
-  height: 60px;
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
-  position: relative;
-  overflow: hidden;
-}
-
-.title-icon::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: linear-gradient(45deg, transparent 40%, rgba(255, 255, 255, 0.2) 50%, transparent 60%);
-  transform: rotate(45deg) translateX(-100%);
-  transition: transform 0.6s ease;
-}
-
-.title-icon:hover::before {
-  transform: rotate(45deg) translateX(100%);
-}
-
-.title-text {
-  flex: 1;
-}
-
-.page-title {
-  margin: 0 0 0.5rem 0;
-  font-size: 2rem;
-  font-weight: 800;
-  background: linear-gradient(135deg, #1e293b 0%, #3b82f6 100%);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  letter-spacing: -0.025em;
-}
-
-.page-description {
-  margin: 0;
-  color: #64748b;
-  font-size: 1rem;
-  line-height: 1.6;
-}
-
-.header-actions {
-  position: relative;
-  z-index: 2;
-}
-
-.modern-action-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  border-radius: 12px;
-  text-decoration: none;
-  font-weight: 600;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-  border: none;
-  cursor: pointer;
-}
-
-.modern-action-btn.primary {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  color: white;
-  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.25);
-}
-
-.modern-action-btn.primary::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), transparent);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.modern-action-btn.primary:hover {
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 8px 30px rgba(59, 130, 246, 0.3);
-}
-
-.modern-action-btn.primary:hover::before {
-  opacity: 1;
-}
-
-.modern-action-btn.primary:active {
-  transform: translateY(0) scale(0.98);
-}
-
-/* 文章列表容器 */
-.modern-article-list {
-  background: 
-    linear-gradient(135deg, 
-      rgba(255, 255, 255, 0.95) 0%, 
-      rgba(248, 250, 252, 0.9) 100%
-    );
-  backdrop-filter: blur(20px);
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  overflow: hidden;
-  box-shadow: 
-    0 4px 20px rgba(0, 0, 0, 0.05),
-    0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.modern-table {
-  background: transparent;
-}
-
-.modern-table :deep(.el-table__header-wrapper) {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(139, 92, 246, 0.03));
-}
-
-.modern-table :deep(.el-table__header) {
-  background: transparent;
-}
-
-.modern-table :deep(.el-table__header th) {
-  background: transparent;
-  border-bottom: 2px solid rgba(59, 130, 246, 0.1);
-  color: #1e293b;
-  font-weight: 600;
-  padding: 1rem 0.75rem;
-}
-
-.modern-table :deep(.el-table__body-wrapper) {
-  background: transparent;
-}
-
-.modern-table :deep(.el-table__row) {
-  background: rgba(255, 255, 255, 0.6);
-  transition: all 0.3s ease;
-}
-
-.modern-table :deep(.el-table__row:hover) {
-  background: rgba(59, 130, 246, 0.05) !important;
-  transform: scale(1.01);
-  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.1);
-}
-
-.modern-table :deep(.el-table td) {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
-  padding: 1rem 0.75rem;
-}
-
-.modern-table :deep(.el-table--striped .el-table__row--striped) {
-  background: rgba(248, 250, 252, 0.5);
-}
-
-.modern-table :deep(.el-table--striped .el-table__row--striped:hover) {
-  background: rgba(59, 130, 246, 0.05) !important;
-}
-
-/* 文章信息样式 */
-.article-info {
-  padding: 0.75rem 0;
-}
-
-.article-title {
-  margin-bottom: 0.75rem;
-}
-
-.title-link {
-  color: #1e293b;
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 1rem;
-  line-height: 1.4;
-  transition: all 0.3s ease;
-  position: relative;
-}
-
-.title-link::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 0;
-  width: 0;
-  height: 2px;
-  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
-  transition: width 0.3s ease;
-}
-
-.title-link:hover {
-  color: #3b82f6;
-}
-
-.title-link:hover::after {
   width: 100%;
 }
 
-.article-meta {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 0.75rem;
-  font-size: 0.875rem;
-  color: #64748b;
-  flex-wrap: wrap;
+/* Primary Action(04 §11:36px;蓝仅用于此处与 Active) */
+.primary-btn {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--adm-primary);
+  border-radius: 9px;
+  background: var(--adm-primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.primary-btn:hover {
+  opacity: 0.92;
 }
 
-.meta-item {
+/* Toolbar 与表格拼合 */
+.article-management :deep(.admin-toolbar) {
+  border-bottom: 0;
+}
+
+/* 批量操作条(05 §10) */
+.bulk-bar {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.25rem 0.5rem;
-  background: rgba(59, 130, 246, 0.05);
-  border-radius: 6px;
-  transition: all 0.3s ease;
+  gap: 10px;
+  margin-bottom: -1px;
+  padding: 8px 12px;
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-r-container) var(--adm-r-container) 0 0;
+  background: var(--adm-primary-soft);
+  color: var(--adm-primary);
+  font-size: 12px;
+}
+.bulk-btn {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--adm-border);
+  border-radius: 7px;
+  background: var(--adm-surface);
+  color: var(--adm-text-2);
+  font-size: 11px;
+  cursor: pointer;
+}
+.bulk-btn.success {
+  color: var(--adm-success);
+  border-color: var(--adm-success);
+}
+.bulk-btn.danger {
+  color: var(--adm-danger);
+  border-color: var(--adm-danger);
 }
 
-.meta-item:hover {
-  background: rgba(59, 130, 246, 0.1);
-  transform: scale(1.05);
-}
-
-.article-summary {
-  font-size: 0.875rem;
-  color: #9ca3af;
-  line-height: 1.5;
-  max-width: 400px;
+/* 表格卡片 */
+.table-card {
+  border: 1px solid var(--adm-border);
+  border-radius: 0 0 var(--adm-r-container) var(--adm-r-container);
+  background: var(--adm-surface);
   overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  word-wrap: break-word;
+}
+.table-wrap {
+  overflow: auto;
+}
+.article-management :deep(.adm-table) {
+  width: 100%;
 }
 
-.article-stats {
+/* 第一业务列(05 §8.2):Title/Summary/Tag 三层 */
+.article-title {
+  font-size: 13px;
+  font-weight: 680;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.title-link {
+  color: var(--adm-text);
+}
+.title-link:hover {
+  color: var(--adm-primary);
+}
+.article-summary {
+  margin-top: 4px;
+  color: var(--adm-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+}
+.badges {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: 0.875rem;
-  color: #64748b;
-  padding: 0.25rem 0.5rem;
-  background: rgba(139, 92, 246, 0.05);
-  border-radius: 6px;
-  transition: all 0.3s ease;
-}
-
-.stat-item:hover {
-  background: rgba(139, 92, 246, 0.1);
-  transform: scale(1.1);
-}
-
-.publish-time, .schedule-time, .no-time {
-  font-size: 0.875rem;
-  color: #64748b;
-  padding: 0.25rem 0.5rem;
-  background: rgba(6, 182, 212, 0.05);
-  border-radius: 6px;
-  text-align: center;
-}
-
-.schedule-time {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  color: #f59e0b;
-  background: rgba(245, 158, 11, 0.1);
-}
-
-.action-buttons {
-  display: flex;
-  gap: 0.5rem;
+  gap: 5px;
   flex-wrap: wrap;
+  margin-top: 6px;
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #f4f4f5;
+  color: var(--adm-muted);
+  font-size: 10px;
+}
+.pill.topic {
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+.num {
+  font-variant-numeric: tabular-nums;
+  color: var(--adm-text-2);
+}
+.date-main {
+  color: var(--adm-text-2);
+  font-size: 11px;
+}
+.date-sub {
+  margin-top: 2px;
+  color: var(--adm-muted-light);
+  font-size: 10px;
 }
 
-/* 分页样式 */
-.modern-pagination {
-  padding: 1.5rem;
+/* 行内操作(05 §9:[编辑][···]) */
+.article-management :deep(.edit-btn),
+.edit-btn {
+  height: 29px;
+  padding: 0 9px;
+  border: 1px solid var(--adm-border);
+  border-radius: 7px;
+  background: var(--adm-surface);
+  color: var(--adm-text-2);
+  font-size: 11px;
+  cursor: pointer;
+}
+.edit-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.edit-btn:hover:not(:disabled) {
+  border-color: var(--adm-border-strong);
+  color: var(--adm-text);
+}
+
+/* Table Footer(04 §21) */
+.table-footer {
+  min-height: 48px;
   display: flex;
-  justify-content: center;
-  background: linear-gradient(135deg, rgba(248, 250, 252, 0.8), rgba(241, 245, 249, 0.6));
-  border-top: 1px solid rgba(255, 255, 255, 0.3);
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--adm-border);
+  color: var(--adm-muted);
+  font-size: 11px;
 }
 
-.modern-pagination-component :deep(.el-pagination) {
-  gap: 0.5rem;
-}
-
-.modern-pagination-component :deep(.el-pagination .el-pager li) {
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 8px;
-  backdrop-filter: blur(8px);
-  transition: all 0.3s ease;
-}
-
-.modern-pagination-component :deep(.el-pagination .el-pager li:hover) {
-  background: rgba(59, 130, 246, 0.1);
-  border-color: rgba(59, 130, 246, 0.3);
-  transform: translateY(-2px);
-}
-
-.modern-pagination-component :deep(.el-pagination .el-pager li.is-active) {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  border-color: #3b82f6;
-  color: white;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
-}
-
-.modern-pagination-component :deep(.el-pagination .btn-prev),
-.modern-pagination-component :deep(.el-pagination .btn-next) {
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 8px;
-  backdrop-filter: blur(8px);
-  transition: all 0.3s ease;
-}
-
-.modern-pagination-component :deep(.el-pagination .btn-prev:hover),
-.modern-pagination-component :deep(.el-pagination .btn-next:hover) {
-  background: rgba(59, 130, 246, 0.1);
-  border-color: rgba(59, 130, 246, 0.3);
-  transform: translateY(-2px);
-}
-
-/* 响应式设计 */
-@media (max-width: 1024px) {
-  .page-header {
-    flex-direction: column;
-    gap: 1rem;
-    align-items: flex-start;
-  }
-  
-  .title-container {
-    width: 100%;
-  }
-  
-  .header-actions {
-    width: 100%;
-    display: flex;
-    justify-content: flex-end;
-  }
-}
-
-@media (max-width: 768px) {
-  .page-header {
-    padding: 1.5rem;
-  }
-  
-  .title-container {
-    flex-direction: column;
-    text-align: center;
-    gap: 1rem;
-  }
-  
-  .title-icon {
-    width: 50px;
-    height: 50px;
-  }
-  
-  .page-title {
-    font-size: 1.75rem;
-  }
-  
-  .article-meta {
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-  
-  .action-buttons {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  
-  .modern-table :deep(.el-table__row:hover) {
-    transform: none;
+@media (max-width: 719.98px) {
+  .primary-btn {
+    height: 34px;
   }
 }
 </style>

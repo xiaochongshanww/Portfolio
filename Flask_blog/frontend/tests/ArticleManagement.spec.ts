@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import ArticleManagement from '../src/views/admin/ArticleManagement.vue'
@@ -17,10 +17,17 @@ vi.mock('../src/api', () => ({
   },
 }))
 vi.mock('vue-router', () => ({
+  useRoute: () => ({ path: '/admin/articles' }),
   useRouter: () => ({ push: vi.fn() }),
+  RouterLink: { template: '<a><slot /></a>' },
 }))
 vi.mock('../stores/user', () => ({
-  useUserStore: () => ({ user: { role: 'admin' }, isAuthenticated: true }),
+  useUserStore: () => ({
+    user: { id: 1, role: 'admin', email: 'a@b.c' },
+    isAuthenticated: true,
+    isAdmin: true,
+    canModerateContent: true,
+  }),
 }))
 
 import { API } from '../src/api'
@@ -30,29 +37,40 @@ function mountPage() {
     global: {
       plugins: [createPinia()],
       stubs: {
-        'el-button': { template: '<button><slot /></button>' },
-        'el-card': { template: '<div class="card"><slot /></div>' },
-        'el-dialog': { template: '<div class="dlg"><slot /></div>' },
-        'el-empty': { template: '<div class="empty" />' },
-        'el-form': { template: '<form><slot /></form>' },
-        'el-form-item': { template: '<div><slot /></div>' },
-        'el-icon': true,
-        'el-input': { template: '<input />' },
-        'el-option': { template: '<option />' },
-        'el-pagination': { template: '<div class="pager" />' },
-        'el-select': { template: '<select><slot /></select>' },
+        // 新表格结构(2026):真渲染 el-table 默认插槽内的列模板
         'el-table': { template: '<table><slot /></table>' },
         'el-table-column': {
           template:
-            '<td><slot :row="{ id: 1, title: \'a\', status: \'draft\', author_id: 1 }" /></td>',
+            '<td><slot :row="{ id: 1, title: \'a\', slug: \'a\', status: \'draft\', author_id: 1, views_count: 0 }" /></td>',
         },
-        'el-tag': { template: '<span class="tag"><slot /></span>' },
+        'el-pagination': { template: '<div class="pager" />' },
+        'el-dropdown': { template: '<div class="dd"><slot /><slot name="dropdown" /></div>' },
+        'el-dropdown-menu': { template: '<div class="ddm"><slot /></div>' },
+        'el-dropdown-item': { template: '<div class="ddi"><slot /></div>' },
+        'el-dialog': { template: '<div class="dlg"><slot /></div>' },
+        'el-icon': true,
+        RouterLink: { template: '<a><slot /></a>' },
       },
     },
   })
 }
 
 describe('ArticleManagement', () => {
+  beforeAll(() => {
+    if (typeof window.matchMedia === 'undefined') {
+      window.matchMedia = ((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })) as unknown as typeof window.matchMedia
+    }
+  })
+
   beforeEach(() => {
     vi.mocked(API.getArticles).mockReset()
     vi.mocked(API.getCategories).mockReset()
