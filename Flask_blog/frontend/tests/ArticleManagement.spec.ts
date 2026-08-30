@@ -21,7 +21,7 @@ vi.mock('vue-router', () => ({
   useRouter: () => ({ push: vi.fn() }),
   RouterLink: { template: '<a><slot /></a>' },
 }))
-vi.mock('../stores/user', () => ({
+vi.mock('../src/stores/user', () => ({
   useUserStore: () => ({
     user: { id: 1, role: 'admin', email: 'a@b.c' },
     isAuthenticated: true,
