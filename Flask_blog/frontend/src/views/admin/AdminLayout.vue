@@ -275,7 +275,7 @@ onUnmounted(() => mq?.removeEventListener('change', onMqChange));
   color: #fff;
   display: grid;
   place-items: center;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
 }
 .side-scroll {
@@ -286,9 +286,10 @@ onUnmounted(() => mq?.removeEventListener('change', onMqChange));
 .nav-group {
   margin-bottom: 18px;
 }
+/* 字号基线(修订):分组标题 12 / 菜单文字 14 */
 .nav-label {
   padding: 0 9px 7px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 650;
   color: var(--adm-muted-light);
   letter-spacing: 0.02em;
@@ -302,7 +303,7 @@ onUnmounted(() => mq?.removeEventListener('change', onMqChange));
   margin: 2px 0;
   border-radius: 8px;
   color: var(--adm-text-2);
-  font-size: 13px;
+  font-size: 14px;
 }
 .nav-item:hover {
   background: #f7f7f8;
@@ -327,7 +328,7 @@ onUnmounted(() => mq?.removeEventListener('change', onMqChange));
   border-radius: 999px;
   background: #f4f4f5;
   color: var(--adm-muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 .nav-item.active .nav-count {
   background: #fff;
@@ -371,7 +372,7 @@ onUnmounted(() => mq?.removeEventListener('change', onMqChange));
 }
 .account-name {
   display: block;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 650;
   white-space: nowrap;
   overflow: hidden;
@@ -379,13 +380,13 @@ onUnmounted(() => mq?.removeEventListener('change', onMqChange));
 }
 .account-role {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--adm-muted);
   margin-top: 2px;
 }
 .account-caret {
   color: var(--adm-muted-light);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 /* ── Main / Topbar ───────────────────────── */
@@ -414,12 +415,14 @@ onUnmounted(() => mq?.removeEventListener('change', onMqChange));
   gap: 10px;
   min-width: 0;
 }
+/* 面包屑 12px 保持,字重略稳 */
 .breadcrumb {
   display: flex;
   align-items: center;
   gap: 7px;
   color: var(--adm-muted);
   font-size: 12px;
+  font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
 }
@@ -442,7 +445,7 @@ onUnmounted(() => mq?.removeEventListener('change', onMqChange));
   border-radius: 8px;
   background: var(--adm-surface);
   color: var(--adm-text-2);
-  font-size: 12px;
+  font-size: 13px;
   display: inline-flex;
   align-items: center;
   cursor: pointer;

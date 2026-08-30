@@ -322,7 +322,7 @@ onMounted(() => {
   border-radius: var(--adm-r-control);
   background: var(--adm-surface);
   color: var(--adm-text-2);
-  font-size: 12px;
+  font-size: 13px;
   outline: none;
 }
 .adm-select:focus {
@@ -357,7 +357,7 @@ onMounted(() => {
 
 .slug-code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--adm-muted);
 }
 .num {
@@ -372,7 +372,7 @@ onMounted(() => {
   border-radius: 7px;
   background: var(--adm-surface);
   color: var(--adm-text-2);
-  font-size: 11px;
+  font-size: 13px;
   cursor: pointer;
 }
 .edit-btn:hover:not(:disabled) {
@@ -389,10 +389,10 @@ onMounted(() => {
   padding: 8px 12px;
   border-top: 1px solid var(--adm-border);
   color: var(--adm-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .foot-note {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--adm-muted-light);
 }
 </style>

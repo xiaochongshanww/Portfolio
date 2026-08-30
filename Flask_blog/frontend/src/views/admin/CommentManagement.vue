@@ -356,7 +356,7 @@ onMounted(() => {
   border-radius: var(--adm-r-control);
   background: var(--adm-surface);
   color: var(--adm-text-2);
-  font-size: 12px;
+  font-size: 13px;
   outline: none;
 }
 .adm-select:focus,
@@ -385,7 +385,7 @@ onMounted(() => {
   border-radius: 7px;
   background: var(--adm-surface);
   color: var(--adm-text-2);
-  font-size: 11px;
+  font-size: 13px;
   cursor: pointer;
 }
 .bulk-btn.success {
@@ -409,7 +409,7 @@ onMounted(() => {
 
 /* 评论列:内容 + 弱化副行(05 §17) */
 .comment-body {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--adm-text);
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -418,11 +418,11 @@ onMounted(() => {
 }
 .comment-sub {
   margin-top: 4px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--adm-muted);
 }
 .cell-text {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--adm-text-2);
   font-variant-numeric: tabular-nums;
 }
@@ -441,7 +441,7 @@ onMounted(() => {
   border-radius: 7px;
   background: var(--adm-surface);
   color: var(--adm-text-2);
-  font-size: 11px;
+  font-size: 13px;
   cursor: pointer;
 }
 .act-btn.success {
@@ -477,6 +477,6 @@ onMounted(() => {
   padding: 8px 12px;
   border-top: 1px solid var(--adm-border);
   color: var(--adm-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 </style>

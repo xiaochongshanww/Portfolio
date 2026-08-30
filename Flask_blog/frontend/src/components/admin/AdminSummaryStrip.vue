@@ -39,12 +39,12 @@ defineProps<{
   border-right: 0;
 }
 .summary-label {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--adm-muted);
 }
 .summary-value {
   margin-top: 5px;
-  font-size: 21px;
+  font-size: 24px;
   font-weight: 740;
   letter-spacing: -0.03em;
   color: var(--adm-text);
@@ -52,7 +52,7 @@ defineProps<{
 }
 .summary-note {
   margin-top: 2px;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--adm-muted-light);
 }
 @media (max-width: 1050px) {

@@ -331,7 +331,7 @@ onUnmounted(() => {
   gap: 16px;
 }
 .card-head h2 {
-  font-size: 13px;
+  font-size: 14px;
   margin: 0;
   color: var(--adm-text);
 }
@@ -382,7 +382,7 @@ onUnmounted(() => {
   overflow: auto;
 }
 .cell-text {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--adm-text-2);
 }
 
@@ -399,7 +399,7 @@ onUnmounted(() => {
   border-radius: 7px;
   background: var(--adm-surface);
   color: var(--adm-text-2);
-  font-size: 11px;
+  font-size: 13px;
   cursor: pointer;
 }
 .more-btn {
@@ -423,7 +423,7 @@ onUnmounted(() => {
   gap: 14px;
   padding: 12px 0;
   border-top: 1px solid var(--adm-border);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--adm-text-2);
 }
 .detail-body .kv-row:first-child {

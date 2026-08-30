@@ -53,7 +53,7 @@
   /* Element Plus 视觉统一(仅本 scope 内) */
   --el-color-primary: #2563eb;
   --el-border-radius-base: 8px;
-  --el-font-size-base: 12px;
+  --el-font-size-base: 13px;
 }
 
 /* ── Element Plus 组件视觉统一(.admin-scope 内)────────── */
@@ -66,7 +66,7 @@
 .admin-scope .el-button {
   --el-button-height: 34px;
   border-radius: var(--adm-r-control);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
 }
 .admin-scope .el-button--large {
@@ -84,20 +84,21 @@
   min-height: 34px;
 }
 .admin-scope .el-input__inner {
-  font-size: 12px;
+  font-size: 13px;
 }
 /* 表格:42px 表头、12px 正文、无重阴影(04 §16) */
+/* 字号基线(修订):Table Header 12 / Table Body 13 */
 .admin-scope .el-table {
   --el-table-header-bg-color: var(--adm-surface-subtle);
   --el-table-header-text-color: var(--adm-muted);
   --el-table-text-color: var(--adm-text-2);
   --el-table-border-color: var(--adm-border);
   --el-table-row-hover-bg-color: #fcfcfd;
-  font-size: 12px;
+  font-size: 13px;
 }
 .admin-scope .el-table th.el-table__cell {
   height: 42px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 650;
   background: var(--adm-surface-subtle);
 }
@@ -107,7 +108,7 @@
 /* 分页(04 §11:28px) */
 .admin-scope .el-pagination {
   --el-pagination-button-height: 28px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--adm-muted);
 }
 /* Dialog/Drawer:允许阴影(04 §13),圆角 12-16(04 §12) */

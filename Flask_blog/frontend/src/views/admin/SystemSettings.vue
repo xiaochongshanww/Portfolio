@@ -353,12 +353,12 @@ onMounted(() => {
   gap: 16px;
 }
 .card-head h2 {
-  font-size: 13px;
+  font-size: 14px;
   margin: 0;
   color: var(--adm-text);
 }
 .head-note {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--adm-muted-light);
 }
 .card-body {

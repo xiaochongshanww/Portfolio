@@ -25,7 +25,7 @@ withDefaults(
   height: 20px;
   padding: 0 7px;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: 12px;
   white-space: nowrap;
   background: #f4f4f5;
   color: var(--adm-muted);

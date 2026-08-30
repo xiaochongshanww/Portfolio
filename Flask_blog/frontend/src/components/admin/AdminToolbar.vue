@@ -78,7 +78,7 @@ defineEmits<{
   background: var(--adm-surface);
   outline: none;
   color: var(--adm-text);
-  font-size: 12px;
+  font-size: 13px;
 }
 .search-box input:focus {
   border-color: #93c5fd;
@@ -89,7 +89,7 @@ defineEmits<{
   align-items: center;
   gap: 8px;
   color: var(--adm-muted);
-  font-size: 11px;
+  font-size: 12px;
   flex-shrink: 0;
 }
 .result-count {
@@ -102,7 +102,7 @@ defineEmits<{
   border-radius: var(--adm-r-control);
   background: var(--adm-surface);
   color: var(--adm-text-2);
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
 }
 .ghost-btn:hover {

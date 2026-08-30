@@ -411,7 +411,7 @@ onUnmounted(() => {
   border-radius: var(--adm-r-control);
   background: var(--adm-surface);
   color: var(--adm-text-2);
-  font-size: 12px;
+  font-size: 13px;
   outline: none;
 }
 .adm-select:focus {
@@ -457,7 +457,7 @@ onUnmounted(() => {
   overflow: auto;
 }
 .cell-text {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--adm-text-2);
   font-variant-numeric: tabular-nums;
 }
@@ -469,7 +469,7 @@ onUnmounted(() => {
   border-radius: 7px;
   background: var(--adm-surface);
   color: var(--adm-text-2);
-  font-size: 11px;
+  font-size: 13px;
   cursor: pointer;
 }
 .edit-btn:hover {
@@ -486,7 +486,7 @@ onUnmounted(() => {
   padding: 8px 12px;
   border-top: 1px solid var(--adm-border);
   color: var(--adm-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 /* Drawer 详情(05 §27) */
@@ -499,7 +499,7 @@ onUnmounted(() => {
   gap: 14px;
   padding: 12px 0;
   border-top: 1px solid var(--adm-border);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--adm-text-2);
 }
 .detail-body .kv-row:first-child {
@@ -515,7 +515,7 @@ onUnmounted(() => {
   border-radius: 8px;
   background: var(--adm-surface-subtle);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px;
+  font-size: 12px;
   overflow: auto;
   max-height: 300px;
 }

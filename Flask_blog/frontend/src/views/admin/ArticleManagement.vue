@@ -585,7 +585,7 @@ onMounted(() => {
   border-radius: 7px;
   background: var(--adm-surface);
   color: var(--adm-text-2);
-  font-size: 11px;
+  font-size: 13px;
   cursor: pointer;
 }
 .bulk-btn.success {
@@ -631,7 +631,7 @@ onMounted(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 11px;
+  font-size: 12px;
 }
 .badges {
   display: flex;
@@ -647,7 +647,7 @@ onMounted(() => {
   border-radius: 999px;
   background: #f4f4f5;
   color: var(--adm-muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 .pill.topic {
   background: #f8fafc;
@@ -660,12 +660,12 @@ onMounted(() => {
 }
 .date-main {
   color: var(--adm-text-2);
-  font-size: 11px;
+  font-size: 12px;
 }
 .date-sub {
   margin-top: 2px;
   color: var(--adm-muted-light);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 /* 行内操作(05 §9:[编辑][···]) */
@@ -677,7 +677,7 @@ onMounted(() => {
   border-radius: 7px;
   background: var(--adm-surface);
   color: var(--adm-text-2);
-  font-size: 11px;
+  font-size: 13px;
   cursor: pointer;
 }
 .edit-btn:disabled {
@@ -699,7 +699,7 @@ onMounted(() => {
   padding: 8px 12px;
   border-top: 1px solid var(--adm-border);
   color: var(--adm-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 @media (max-width: 719.98px) {

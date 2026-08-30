@@ -580,7 +580,7 @@ export default {
   border-radius: var(--adm-r-control);
   background: var(--adm-surface);
   color: var(--adm-text-2);
-  font-size: 12px;
+  font-size: 13px;
   outline: none;
 }
 .adm-select:focus {
@@ -666,7 +666,7 @@ export default {
   color: var(--adm-text);
 }
 .folder-meta small {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--adm-muted);
 }
 
@@ -701,7 +701,7 @@ export default {
   color: #fff;
   display: grid;
   place-items: center;
-  font-size: 11px;
+  font-size: 12px;
 }
 .media-thumb {
   height: 130px;
@@ -734,7 +734,7 @@ export default {
   text-overflow: ellipsis;
 }
 .media-copy span {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--adm-muted);
 }
 .card-more {
@@ -764,7 +764,7 @@ export default {
   color: var(--adm-muted);
 }
 .cell-strong {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--adm-text);
 }
 
@@ -775,7 +775,7 @@ export default {
   border-radius: 7px;
   background: var(--adm-surface);
   color: var(--adm-muted);
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 1px;
   cursor: pointer;
 }
@@ -792,7 +792,7 @@ export default {
   gap: 20px;
   padding: 8px 4px 2px;
   color: var(--adm-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 @media (max-width: 950px) {

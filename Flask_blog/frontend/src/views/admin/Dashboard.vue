@@ -290,13 +290,13 @@ onMounted(() => {
 .metric strong {
   display: block;
   margin-top: 7px;
-  font-size: 27px;
+  font-size: 28px;
   letter-spacing: -0.03em;
   color: var(--adm-text);
   font-variant-numeric: tabular-nums;
 }
 .metric small {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--adm-muted-light);
 }
 
@@ -323,12 +323,12 @@ onMounted(() => {
   gap: 16px;
 }
 .card-head h2 {
-  font-size: 13px;
+  font-size: 14px;
   margin: 0;
   color: var(--adm-text);
 }
 .card-link {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--adm-muted);
 }
 .card-link:hover {
@@ -378,7 +378,7 @@ a.kv-title:hover {
   color: var(--adm-primary);
 }
 .kv-sub {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--adm-muted);
 }
 .kv-plain {
@@ -400,7 +400,7 @@ a.kv-title:hover {
   border-radius: var(--adm-r-control);
   background: var(--adm-surface);
   color: var(--adm-text-2);
-  font-size: 12px;
+  font-size: 13px;
   text-decoration: none;
   cursor: pointer;
 }
