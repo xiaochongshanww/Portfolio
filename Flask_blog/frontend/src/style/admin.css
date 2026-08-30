@@ -33,10 +33,11 @@
   --adm-dot-neutral: #a1a1aa;
   --adm-dot-danger: #ef4444;
 
-  /* 尺寸(04 §5/§6/§7/§10/§11) */
-  --adm-sidebar-w: 224px;
+  /* 尺寸(04 V2 §3-§7):视口级 Shell */
+  --adm-sidebar-w: 228px;
   --adm-header-h: 58px;
-  --adm-content-max: 1280px;
+  --adm-content-max: 1440px;
+  --adm-workspace-pad: 32px;
 
   /* 圆角(04 §12) */
   --adm-r-control: 8px;
@@ -49,6 +50,11 @@
 }
 
 /* ── Element Plus 组件视觉统一(.admin-scope 内)────────── */
+/* 文字尺度(04 V2 §7):高密度不等于整体缩小 */
+.admin-scope .page-head-title {
+  font-size: 28px;
+}
+
 /* 按钮:单一高度体系 36/34(04 §11) */
 .admin-scope .el-button {
   --el-button-height: 34px;

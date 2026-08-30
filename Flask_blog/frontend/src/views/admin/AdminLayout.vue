@@ -68,9 +68,11 @@
         </div>
       </header>
 
-      <!-- 页面内容(04 §7:max 1280px) -->
-      <main class="content">
-        <RouterView />
+      <!-- Workspace(04 V2 §5):padding 属于壳,内容区限宽 -->
+      <main class="workspace">
+        <div class="content">
+          <RouterView />
+        </div>
       </main>
     </div>
   </div>
@@ -226,7 +228,9 @@ onUnmounted(() => mq?.removeEventListener('change', onMqChange));
 </script>
 
 <style scoped>
+/* 04 V2 §1/§4:应用壳占满 viewport,Sidebar 贴屏幕最左,Main 占全部剩余宽度 */
 .app-shell {
+  width: 100vw;
   min-height: 100vh;
   display: grid;
   grid-template-columns: var(--adm-sidebar-w) minmax(0, 1fr);
@@ -283,7 +287,7 @@ onUnmounted(() => mq?.removeEventListener('change', onMqChange));
   letter-spacing: 0.02em;
 }
 .nav-item {
-  height: 36px;
+  height: 40px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -466,17 +470,27 @@ onUnmounted(() => mq?.removeEventListener('change', onMqChange));
   display: none;
 }
 
+/* 04 V2 §5:workspace padding 属于 Main,内容区在 Main 内限宽 */
+.workspace {
+  padding: var(--adm-workspace-pad);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
 .content {
-  width: min(var(--adm-content-max), calc(100% - 40px));
+  width: min(var(--adm-content-max), 100%);
   margin: 0 auto;
-  padding: 28px 0 44px;
+  padding-bottom: 44px;
   flex: 1;
 }
 
 /* ── 响应式(04 §27)──────────────────────── */
 @media (max-width: 1050px) {
   .app-shell {
-    grid-template-columns: 196px minmax(0, 1fr);
+    grid-template-columns: 204px minmax(0, 1fr);
+  }
+  .workspace {
+    padding: 24px;
   }
 }
 @media (max-width: 719.98px) {
@@ -506,11 +520,10 @@ onUnmounted(() => mq?.removeEventListener('change', onMqChange));
     display: inline-flex;
   }
   .topbar {
-    padding: 0 16px;
+    padding: 0 18px;
   }
-  .content {
-    width: calc(100% - 28px);
-    padding-top: 20px;
+  .workspace {
+    padding: 18px;
   }
 }
 </style>

@@ -1,6 +1,10 @@
 <template>
+  <!-- Admin 壳(04 V2 §1/§2):/admin/* 视口级应用壳,AdminLayout 自持布局,
+       不渲染 PublicHeader/Footer 或 max-width 容器 -->
+  <router-view v-if="isAdminShell" />
+
   <!-- 公共站壳:暖纸底 + PublicHeader/Footer(meta.public 路由) -->
-  <div v-if="isPublicShell" class="public-shell">
+  <div v-else-if="isPublicShell" class="public-shell">
     <PublicHeader />
     <main class="public-main">
       <router-view />
@@ -59,6 +63,8 @@ import { useUserStore } from './stores/user';
 
 const route = useRoute();
 const isPublicShell = computed(() => route.meta?.public === true);
+// 04 V2 §2:/admin/* 使用独立 Layout,顶层只渲染 router-view
+const isAdminShell = computed(() => route.path.startsWith('/admin'));
 const isScrolled = ref(false);
 const sidebarData = ref({
   categories: [],

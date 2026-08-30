@@ -276,26 +276,27 @@ onMounted(() => {
   gap: 12px;
   margin-bottom: 16px;
 }
+/* 04 V2 §7:Metric Value 24-28px(原型 metric) */
 .metric {
-  padding: 15px;
+  padding: 18px 20px;
   border: 1px solid var(--adm-border);
-  border-radius: 11px;
+  border-radius: var(--adm-r-container);
   background: var(--adm-surface);
 }
 .metric label {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--adm-muted);
 }
 .metric strong {
   display: block;
-  margin-top: 5px;
-  font-size: 20px;
+  margin-top: 7px;
+  font-size: 27px;
   letter-spacing: -0.03em;
   color: var(--adm-text);
   font-variant-numeric: tabular-nums;
 }
 .metric small {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--adm-muted-light);
 }
 
