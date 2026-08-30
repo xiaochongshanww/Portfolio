@@ -15,10 +15,12 @@ if __name__ == "__main__":
     # 2. reloader 默认关闭,需要热重载时显式 FLASK_RELOADER=1 启动;
     # 3. 后台启动务必用 start-backend.ps1(带 PID 记录与 stop-backend.ps1 成对清理),
     #    不要直接 bash -c "... &"。
+    # 4. 默认端口 5050(非 5000):Windows/hyper-v 会保留 5000 端口段,
+    #    绑定报"以一种访问权限不允许的方式做了一个访问套接字的尝试"。
     debug = os.getenv("FLASK_DEBUG", "0") == "1"
     app.run(
         host=os.getenv("FLASK_HOST", "127.0.0.1"),
-        port=int(os.getenv("FLASK_PORT", "5000")),
+        port=int(os.getenv("FLASK_PORT", "5050")),
         debug=debug,
         use_reloader=os.getenv("FLASK_RELOADER", "0") == "1",
     )

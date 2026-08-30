@@ -17,7 +17,7 @@ export default defineConfig({
       command: process.env.PYTHON_BIN || 'python',
       args: ['run.py'],
       cwd: 'backend',
-      port: 5000,
+      port: 5050,
       timeout: 15000,
       reuseExistingServer: true,
     },
