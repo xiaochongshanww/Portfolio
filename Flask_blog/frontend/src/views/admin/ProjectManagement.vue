@@ -1,42 +1,110 @@
 <template>
   <div class="project-management">
-    <div class="page-head">
-      <h2>项目管理</h2>
-      <el-button type="primary" @click="openCreate">新建项目</el-button>
-    </div>
+    <AdminPageHeader title="项目管理" description="维护项目状态、展示信息和关联文章。">
+      <button type="button" class="primary-btn" @click="openCreate">＋ 新建项目</button>
+    </AdminPageHeader>
 
-    <el-table :data="projects" v-loading="loading" border stripe>
-      <el-table-column prop="name" label="名称" min-width="140" />
-      <el-table-column prop="slug" label="Slug" min-width="120" />
-      <el-table-column prop="tag" label="分类" width="90" />
-      <el-table-column label="状态" width="90">
-        <template #default="{ row }">
-          <el-tag :type="row.status === 'active' ? 'success' : row.status === 'paused' ? 'warning' : 'info'" size="small">
-            {{ statusLabel(row.status) }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="当前" width="60" align="center">
-        <template #default="{ row }">
-          <el-tag v-if="row.is_current" type="danger" size="small" effect="plain">是</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="sort_order" label="排序" width="60" align="center" />
-      <el-table-column prop="updated_at" label="更新时间" width="150">
-        <template #default="{ row }">{{ shortDate(row.updated_at) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
-        <template #default="{ row }">
-          <el-button size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button size="small" type="warning" plain @click="toggleCurrent(row)">
-            {{ row.is_current ? '取消当前' : '设为当前' }}
-          </el-button>
-          <el-button size="small" type="danger" plain :disabled="!isAdmin" @click="remove(row)">删除</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+    <!-- Summary Strip(05 §18 项目语义) -->
+    <AdminSummaryStrip :items="summaryItems" />
 
-    <el-dialog v-model="dialogVisible" :title="editingId ? '编辑项目' : '新建项目'" width="640px">
+    <!-- Toolbar:搜索 + 状态筛选 | 结果数/刷新 -->
+    <AdminToolbar
+      v-model:search="search"
+      search-placeholder="搜索项目名称或描述"
+      :result-count="error ? null : filteredProjects.length"
+      refreshable
+      @update:search="() => {}"
+      @refresh="load"
+    >
+      <template #filters>
+        <select v-model="statusFilter" class="adm-select" aria-label="按状态筛选">
+          <option value="">全部状态</option>
+          <option value="active">开发中</option>
+          <option value="paused">暂停</option>
+          <option value="archived">已归档</option>
+        </select>
+      </template>
+    </AdminToolbar>
+
+    <section class="table-card">
+      <AdminStateBlock
+        v-if="error"
+        kind="error"
+        title="项目列表加载失败"
+        compact
+        @reload="load"
+      />
+      <AdminStateBlock
+        v-else-if="!loading && !filteredProjects.length"
+        kind="empty"
+        title="暂无项目"
+        :description="search || statusFilter ? '当前筛选条件下没有项目。' : '录入第一个项目,展示你正在做的东西。'"
+        compact
+      >
+        <button v-if="!search && !statusFilter" type="button" class="primary-btn" @click="openCreate">＋ 新建项目</button>
+      </AdminStateBlock>
+
+      <div v-else class="table-wrap">
+        <el-table :data="filteredProjects" row-key="id" class="adm-table">
+          <el-table-column label="项目" min-width="240">
+            <template #default="{ row }">
+              <div class="proj-name">{{ row.name }}</div>
+              <div v-if="row.description" class="proj-desc">{{ row.description }}</div>
+            </template>
+          </el-table-column>
+          <el-table-column label="状态" width="110">
+            <template #default="{ row }">
+              <AdminStatus :kind="statusKind(row.status)" :label="statusLabel(row.status)" />
+            </template>
+          </el-table-column>
+          <el-table-column label="技术栈" min-width="160">
+            <template #default="{ row }">
+              <div class="tech-stack">
+                <AdminTag v-for="t in techOf(row)" :key="t" :label="t" />
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="当前" width="70" align="center">
+            <template #default="{ row }">
+              <span v-if="row.is_current" class="current-flag">●</span>
+              <span v-else class="cell-muted">—</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="最近更新" width="110">
+            <template #default="{ row }">
+              <span class="cell-text">{{ shortDate(row.updated_at) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column width="150" fixed="right" align="right">
+            <template #default="{ row }">
+              <AdminActionMenu :test-id="`project-${row.id}`">
+                <button type="button" class="edit-btn" @click="openEdit(row)">编辑</button>
+                <template #menu>
+                  <el-dropdown-item @click="toggleCurrent(row)">
+                    {{ row.is_current ? '取消当前' : '设为当前' }}
+                  </el-dropdown-item>
+                  <el-dropdown-item divided danger :disabled="!isAdmin" @click="remove(row)">
+                    删除项目
+                  </el-dropdown-item>
+                </template>
+              </AdminActionMenu>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <div class="table-footer">
+        <span>共 {{ filteredProjects.length }} 个项目</span>
+        <span class="foot-note">同一时间只有一个当前重点项目</span>
+      </div>
+    </section>
+
+    <!-- 创建/编辑对话框(05 §26:超过简单表单改 Drawer 是后续优化,当前沿用 Dialog) -->
+    <el-dialog
+      v-model="dialogVisible"
+      :title="editingId ? '编辑项目' : '新建项目'"
+      width="640px"
+    >
       <el-form :model="form" label-width="110px">
         <el-form-item label="名称" required><el-input v-model="form.name" /></el-form-item>
         <el-form-item label="Slug" required><el-input v-model="form.slug" placeholder="url 标识,如 structure-lab" /></el-form-item>
@@ -90,8 +158,10 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="save">保存</el-button>
+        <div class="dialog-footer">
+          <el-button @click="dialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="saving" @click="save">保存</el-button>
+        </div>
       </template>
     </el-dialog>
   </div>
@@ -99,29 +169,83 @@
 
 <script setup>
 /**
- * 项目管理(P2-A1 验收:模型注册进 admin 可管理)
- * 基础 CRUD + is_current 切换;JSON 字段以文本编辑,保存前校验。
+ * 项目管理(P2-A1 + 2026 Pattern 迁移)
+ * Governance List Pattern;is_current 唯一性由后端 service 保证。
  */
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { API } from '../../api'
 import { useUserStore } from '../../stores/user'
+import AdminPageHeader from '../../components/admin/AdminPageHeader.vue'
+import AdminSummaryStrip from '../../components/admin/AdminSummaryStrip.vue'
+import AdminToolbar from '../../components/admin/AdminToolbar.vue'
+import AdminStatus from '../../components/admin/AdminStatus.vue'
+import AdminActionMenu from '../../components/admin/AdminActionMenu.vue'
+import AdminStateBlock from '../../components/admin/AdminStateBlock.vue'
+import AdminTag from '../../components/admin/AdminTag.vue'
 
 const userStore = useUserStore()
 const isAdmin = computed(() => userStore.hasRole(['admin']))
 
 const loading = ref(false)
+const error = ref(false)
 const saving = ref(false)
 const dialogVisible = ref(false)
 const editingId = ref(null)
+const search = ref('')
+const statusFilter = ref('')
 /** @type {import('vue').Ref<any[]>} */
 const projects = ref([])
 
 /** @type {Record<string,string>} */
 const STATUS = { active: '开发中', paused: '暂停', archived: '已归档' }
+
 /** @param {string} s */
 function statusLabel(s) {
   return STATUS[s] || s
+}
+
+/** @param {string} s @returns {'success'|'warning'|'neutral'} */
+function statusKind(s) {
+  switch (s) {
+    case 'active': return 'warning' // 开发中=活跃进行
+    case 'paused': return 'neutral'
+    default: return 'neutral'
+  }
+}
+
+const filteredProjects = computed(() => {
+  let list = projects.value
+  const kw = search.value.trim().toLowerCase()
+  if (kw) {
+    list = list.filter(
+      (p) =>
+        String(p.name || '').toLowerCase().includes(kw) ||
+        String(p.description || '').toLowerCase().includes(kw),
+    )
+  }
+  if (statusFilter.value) {
+    list = list.filter((p) => p.status === statusFilter.value)
+  }
+  return list
+})
+
+const summaryItems = computed(() => [
+  { label: '全部项目', value: projects.value.length, note: '公开 + 归档' },
+  { label: '开发中', value: projects.value.filter((p) => p.status === 'active').length, note: '进行中' },
+  { label: '当前重点', value: projects.value.filter((p) => p.is_current).length, note: '首页大区展示' },
+  { label: '已归档', value: projects.value.filter((p) => p.status === 'archived').length, note: '历史项目' },
+])
+
+/** @param {any} p */
+function techOf(p) {
+  return Array.isArray(p.tech_stack) ? p.tech_stack : []
+}
+
+/** @param {string | undefined} s */
+function shortDate(s) {
+  if (!s) return '—'
+  return s.replace('T', ' ').slice(0, 10)
 }
 
 const previewPlaceholder = computed(() =>
@@ -129,12 +253,6 @@ const previewPlaceholder = computed(() =>
     ? "图片:填 {\"url\":\"/uploads/x.png\",\"alt\":\"说明\"}"
     : "SVG:填 {\"svg\":\"<svg>…</svg>\"}",
 )
-
-/** @param {string | undefined} s */
-function shortDate(s) {
-  if (!s) return ''
-  return s.replace('T', ' ').slice(0, 16)
-}
 
 const emptyForm = () => ({
   name: '', slug: '', description: '', tag: '', techStack: '',
@@ -147,11 +265,12 @@ const form = ref(emptyForm())
 
 async function load() {
   loading.value = true
+  error.value = false
   try {
     const resp = await API.adminListProjects()
     projects.value = resp?.data?.data?.list || []
   } catch (e) {
-    ElMessage.error('项目列表加载失败')
+    error.value = true
   } finally {
     loading.value = false
   }
@@ -188,7 +307,7 @@ function openEdit(row) {
   dialogVisible.value = true
 }
 
-/** @param {string} text @param {string} what */
+/** @param {string} text @param {string} what @returns {any} undefined 表示解析失败 */
 function parseJson(text, what) {
   if (!text.trim()) return null
   try {
@@ -257,7 +376,11 @@ async function toggleCurrent(row) {
 /** @param {any} row */
 async function remove(row) {
   try {
-    await ElMessageBox.confirm(`确定删除项目「${row.name}」?此操作不可恢复。`, '删除确认', { type: 'warning' })
+    await ElMessageBox.confirm(
+      `删除项目「${row.name}」?删除后不可恢复。`,
+      '删除项目',
+      { type: 'warning', confirmButtonText: '删除项目', cancelButtonText: '取消' },
+    )
   } catch (e) {
     return
   }
@@ -275,16 +398,122 @@ onMounted(load)
 
 <style scoped>
 .project-management {
-  padding: 4px;
+  width: 100%;
 }
-.page-head {
+.project-management :deep(.admin-toolbar) {
+  border-bottom: 0;
+}
+.project-management :deep(.el-table) {
+  width: 100%;
+}
+
+.primary-btn {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--adm-primary);
+  border-radius: 9px;
+  background: var(--adm-primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.primary-btn:hover {
+  opacity: 0.92;
+}
+
+.adm-select {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-r-control);
+  background: var(--adm-surface);
+  color: var(--adm-text-2);
+  font-size: 12px;
+  outline: none;
+}
+.adm-select:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px var(--adm-primary-soft);
+}
+
+.table-card {
+  border: 1px solid var(--adm-border);
+  border-radius: 0 0 var(--adm-r-container) var(--adm-r-container);
+  background: var(--adm-surface);
+  overflow: hidden;
+}
+.table-wrap {
+  overflow: auto;
+}
+
+.proj-name {
+  font-size: 13px;
+  font-weight: 680;
+  color: var(--adm-text);
+}
+.proj-desc {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--adm-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tech-stack {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.current-flag {
+  color: var(--adm-primary);
+  font-size: 12px;
+}
+.cell-muted {
+  color: var(--adm-muted-light);
+}
+.cell-text {
+  font-size: 12px;
+  color: var(--adm-text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.edit-btn {
+  height: 29px;
+  padding: 0 9px;
+  border: 1px solid var(--adm-border);
+  border-radius: 7px;
+  background: var(--adm-surface);
+  color: var(--adm-text-2);
+  font-size: 11px;
+  cursor: pointer;
+}
+.edit-btn:hover:not(:disabled) {
+  border-color: var(--adm-border-strong);
+  color: var(--adm-text);
+}
+
+.table-footer {
+  min-height: 48px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  gap: 20px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--adm-border);
+  color: var(--adm-muted);
+  font-size: 11px;
 }
-.page-head h2 {
-  margin: 0;
-  font-size: 18px;
+.foot-note {
+  font-size: 11px;
+  color: var(--adm-muted-light);
+}
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 </style>

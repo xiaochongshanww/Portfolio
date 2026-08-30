@@ -1,445 +1,336 @@
 <template>
   <div class="comment-management">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <div class="header-content">
-        <h1 class="page-title">评论管理</h1>
-        <p class="page-description">审核和管理用户评论，维护社区讨论质量</p>
-      </div>
-      <div class="header-stats">
-        <div class="stat-item">
-          <span class="stat-label">待审核</span>
-          <span class="stat-value pending">{{ stats.pending }}</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-label">今日评论</span>
-          <span class="stat-value">{{ stats.today }}</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-label">总评论</span>
-          <span class="stat-value">{{ stats.total }}</span>
-        </div>
-      </div>
+    <AdminPageHeader title="评论管理" description="审核评论并维护讨论质量。" />
+
+    <!-- Summary Strip(05 §15):待审核/今日/已通过/已拒绝 -->
+    <AdminSummaryStrip :items="summaryItems" />
+
+    <!-- Toolbar:状态/文章筛选 + 内容搜索 + 结果数/刷新;批量在选中后出现 -->
+    <AdminToolbar
+      v-model:search="filters.content"
+      search-placeholder="搜索评论内容"
+      :result-count="error ? null : pagination.total"
+      refreshable
+      @update:search="onSearchInput"
+      @refresh="loadComments"
+    >
+      <template #filters>
+        <select v-model="filters.status" class="adm-select" aria-label="按状态筛选" @change="handleFilterChange">
+          <option value="">全部状态</option>
+          <option value="pending">待审核</option>
+          <option value="approved">已通过</option>
+          <option value="rejected">已拒绝</option>
+        </select>
+        <input
+          v-model="filters.article_id"
+          class="adm-input"
+          type="text"
+          placeholder="文章 ID"
+          aria-label="按文章 ID 筛选"
+          @keyup.enter="handleFilterChange"
+        >
+      </template>
+    </AdminToolbar>
+
+    <!-- 批量操作条(05 §10) -->
+    <div v-if="selectedComments.length" class="bulk-bar">
+      <span>已选择 {{ selectedComments.length }} 项</span>
+      <button type="button" class="bulk-btn success" @click="handleBatchAction('approve')">批量通过</button>
+      <button type="button" class="bulk-btn danger" @click="handleBatchAction('reject')">批量拒绝</button>
+      <button type="button" class="bulk-btn" @click="selectedComments = []">取消选择</button>
     </div>
 
-    <!-- 筛选和搜索 -->
-    <div class="filter-section">
-      <div class="filter-row">
-        <div class="filter-group">
-          <el-select v-model="filters.status" placeholder="状态筛选" clearable @change="loadComments">
-            <el-option label="待审核" value="pending" />
-            <el-option label="已通过" value="approved" />
-            <el-option label="已拒绝" value="rejected" />
-          </el-select>
-          
-          <el-input
-            v-model="filters.article_id"
-            placeholder="文章ID筛选"
-            clearable
-            @keyup.enter="loadComments"
-            @clear="loadComments"
-          />
-          
-          <el-input
-            v-model="filters.content"
-            placeholder="评论内容搜索"
-            clearable
-            @keyup.enter="loadComments"
-            @clear="loadComments"
-          />
-        </div>
-        
-        <div class="action-group">
-          <el-button :loading="loading" :icon="Refresh" @click="loadComments">刷新</el-button>
-          <el-button 
-            type="danger" 
-            :disabled="selectedComments.length === 0"
-            :icon="Delete"
-            @click="handleBatchAction('reject')"
-          >
-            批量拒绝 ({{ selectedComments.length }})
-          </el-button>
-          <el-button 
-            type="success" 
-            :disabled="selectedComments.length === 0"
-            :icon="Check"
-            @click="handleBatchAction('approve')"
-          >
-            批量通过 ({{ selectedComments.length }})
-          </el-button>
-        </div>
-      </div>
-    </div>
-
-    <!-- 评论列表 -->
-    <div class="comments-table">
-      <el-table
-        v-loading="loading"
-        :data="comments"
-        row-key="id"
-        size="default"
-        @selection-change="handleSelectionChange"
-      >
-        <el-table-column type="selection" width="55" />
-        
-        <el-table-column prop="id" label="ID" width="80" sortable />
-        
-        <el-table-column label="状态" width="120">
-          <template #default="{ row }">
-            <div :class="['modern-status-badge', row.status]">
-              <div class="status-indicator">
-                <el-icon size="14">
-                  <Clock v-if="row.status === 'pending'" />
-                  <Check v-else-if="row.status === 'approved'" />
-                  <Close v-else-if="row.status === 'rejected'" />
-                </el-icon>
-                <span class="status-text">{{ getStatusText(row.status) }}</span>
-              </div>
-            </div>
-          </template>
-        </el-table-column>
-        
-        <el-table-column prop="content" label="评论内容" min-width="300">
-          <template #default="{ row }">
-            <div class="comment-content">
-              <p>{{ row.content }}</p>
-              <div class="comment-meta">
-                <span>
-                  <el-icon size="12"><Document /></el-icon>
-                  文章ID: {{ row.article_id }}
-                </span>
-                <span v-if="row.parent_id">
-                  <el-icon size="12"><ChatLineRound /></el-icon>
-                  回复ID: {{ row.parent_id }}
-                </span>
-              </div>
-            </div>
-          </template>
-        </el-table-column>
-        
-        <el-table-column prop="user_id" label="用户ID" width="100">
-          <template #default="{ row }">
-            <div class="user-id-display">
-              <el-icon size="14"><User /></el-icon>
-              <span>{{ row.user_id }}</span>
-            </div>
-          </template>
-        </el-table-column>
-        
-        <el-table-column prop="created_at" label="发表时间" width="180">
-          <template #default="{ row }">
-            <div class="time-display">
-              <el-icon size="14"><Clock /></el-icon>
-              <span>{{ formatDate(row.created_at) }}</span>
-            </div>
-          </template>
-        </el-table-column>
-        
-        <el-table-column label="操作" width="200" fixed="right">
-          <template #default="{ row }">
-            <div class="modern-action-buttons">
-              <button
-                v-if="row.status === 'pending'"
-                :disabled="moderatingIds.has(row.id)"
-                class="table-btn approve"
-                @click="handleModerate(row, 'approve')"
-              >
-                <el-icon size="14" :class="{ 'is-loading': moderatingIds.has(row.id) }"><Check /></el-icon>
-                <span>通过</span>
-              </button>
-              
-              <button
-                v-if="row.status === 'pending'"
-                :disabled="moderatingIds.has(row.id)"
-                class="table-btn reject"
-                @click="handleModerate(row, 'reject')"
-              >
-                <el-icon size="14" :class="{ 'is-loading': moderatingIds.has(row.id) }"><Close /></el-icon>
-                <span>拒绝</span>
-              </button>
-              
-              <button
-                v-if="row.status === 'approved'"
-                :disabled="moderatingIds.has(row.id)"
-                class="table-btn revoke"
-                @click="handleModerate(row, 'reject')"
-              >
-                <el-icon size="14" :class="{ 'is-loading': moderatingIds.has(row.id) }"><Hide /></el-icon>
-                <span>撤销</span>
-              </button>
-              
-              <button
-                v-if="row.status === 'rejected'"
-                :disabled="moderatingIds.has(row.id)"
-                class="table-btn restore"
-                @click="handleModerate(row, 'approve')"
-              >
-                <el-icon size="14" :class="{ 'is-loading': moderatingIds.has(row.id) }"><Refresh /></el-icon>
-                <span>恢复</span>
-              </button>
-              
-              <button
-                class="table-btn view"
-                @click="viewArticle(row.article_id)"
-              >
-                <el-icon size="14"><View /></el-icon>
-                <span>查看文章</span>
-              </button>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
-    </div>
-
-    <!-- 分页 -->
-    <div v-if="pagination.total > 0" class="pagination-wrapper">
-      <el-pagination
-        v-model:current-page="pagination.page"
-        v-model:page-size="pagination.page_size"
-        :total="pagination.total"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next, jumper"
-        @current-change="loadComments"
-        @size-change="loadComments"
+    <section class="table-card">
+      <AdminStateBlock
+        v-if="error"
+        kind="error"
+        title="评论列表加载失败"
+        compact
+        @reload="loadComments"
       />
-    </div>
+      <AdminStateBlock
+        v-else-if="!loading && !comments.length"
+        kind="empty"
+        title="暂无评论"
+        description="当前筛选条件下没有评论。"
+        compact
+      />
+      <div v-else class="table-wrap">
+        <el-table
+          :data="comments"
+          row-key="id"
+          class="adm-table"
+          @selection-change="handleSelectionChange"
+        >
+          <el-table-column type="selection" width="42" />
+          <el-table-column label="评论" min-width="320">
+            <template #default="{ row }">
+              <div class="comment-body">{{ row.content }}</div>
+              <div class="comment-sub">
+                文章 #{{ row.article_id }}
+                <template v-if="row.parent_id">· 回复 #{{ row.parent_id }}</template>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="状态" width="96">
+            <template #default="{ row }">
+              <AdminStatus :kind="statusKind(row.status)" :label="statusText(row.status)" />
+            </template>
+          </el-table-column>
+          <el-table-column label="用户" width="80">
+            <template #default="{ row }">
+              <span class="cell-text">#{{ row.user_id }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="时间" width="130">
+            <template #default="{ row }">
+              <span class="cell-text">{{ formatDate(row.created_at) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column width="180" fixed="right" align="right">
+            <template #default="{ row }">
+              <div class="row-actions-inline">
+                <!-- 待审核:通过/拒绝直达(05 §15);已审核:撤销直达 -->
+                <template v-if="row.status === 'pending'">
+                  <button
+                    type="button"
+                    class="act-btn success"
+                    :disabled="moderatingIds.has(row.id)"
+                    @click="handleModerate(row, 'approve')"
+                  >通过</button>
+                  <button
+                    type="button"
+                    class="act-btn danger"
+                    :disabled="moderatingIds.has(row.id)"
+                    @click="handleModerate(row, 'reject')"
+                  >拒绝</button>
+                </template>
+                <button
+                  v-else
+                  type="button"
+                  class="edit-btn"
+                  :disabled="moderatingIds.has(row.id)"
+                  @click="handleModerate(row, row.status === 'approved' ? 'reject' : 'approve')"
+                >{{ row.status === 'approved' ? '撤销' : '恢复' }}</button>
+                <AdminActionMenu :test-id="`comment-${row.id}`">
+                  <template #menu>
+                    <el-dropdown-item @click="viewArticle(row.article_id)">查看文章</el-dropdown-item>
+                    <el-dropdown-item divided danger @click="handleModerate(row, 'reject')">拒绝评论</el-dropdown-item>
+                  </template>
+                </AdminActionMenu>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
 
-    <!-- 空状态 -->
-    <div v-if="!loading && comments.length === 0" class="empty-state">
-      <el-empty description="暂无评论数据">
-        <el-button @click="loadComments">重新加载</el-button>
-      </el-empty>
-    </div>
+      <div class="table-footer">
+        <span>共 {{ pagination.total }} 条</span>
+        <el-pagination
+          layout="prev, pager, next, sizes"
+          :total="pagination.total"
+          :current-page="pagination.page"
+          :page-size="pagination.page_size"
+          :page-sizes="[10, 20, 50, 100]"
+          :pager-count="5"
+          small
+          @current-change="handlePageChange"
+          @size-change="handleSizeChange"
+        />
+      </div>
+    </section>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRouter } from 'vue-router';
 import { API } from '../../api';
-import { 
-  ChatLineRound, Clock, Calendar, DataBoard, Document, Search, 
-  Refresh, Delete, Check, Close, Hide, View, User 
-} from '@element-plus/icons-vue';
+import AdminPageHeader from '../../components/admin/AdminPageHeader.vue';
+import AdminSummaryStrip from '../../components/admin/AdminSummaryStrip.vue';
+import AdminToolbar from '../../components/admin/AdminToolbar.vue';
+import AdminStatus from '../../components/admin/AdminStatus.vue';
+import AdminActionMenu from '../../components/admin/AdminActionMenu.vue';
+import AdminStateBlock from '../../components/admin/AdminStateBlock.vue';
 
 const router = useRouter();
 
-// 响应式数据
 const loading = ref(false);
-/** @type {import('vue').Ref<import('@/types').Comment[]>} */
+const error = ref(false);
+/** @type {import('vue').Ref<any[]>} */
 const comments = ref([]);
-/** @type {import('vue').Ref<import('@/types').Comment[]>} */
+/** @type {import('vue').Ref<any[]>} */
 const selectedComments = ref([]);
 /** @type {import('vue').Ref<Set<any>>} */
 const moderatingIds = ref(new Set());
 
-// 统计数据
-const stats = reactive({
-  pending: 0,
-  today: 0,
-  total: 0
-});
+const stats = reactive({ pending: 0, today: 0, approved: 0, rejected: 0 });
 
-// 筛选器
-const filters = reactive({
-  status: '',
-  article_id: '',
-  content: ''
-});
+const filters = reactive({ status: '', article_id: '', content: '' });
 
-// 分页
-const pagination = reactive({
-  page: 1,
-  page_size: 20,
-  total: 0
-});
+const pagination = reactive({ page: 1, page_size: 20, total: 0 });
 
-// 加载评论列表
-const loadComments = async () => {
-  if (loading.value) return;
-  
-  try {
-    loading.value = true;
-    
-    // 构建请求参数
-    /** @type {Record<string, any>} */
-    const params = {
-      page: pagination.page,
-      page_size: pagination.page_size
-    };
-    
-    // 添加筛选参数
-    if (filters.status) params.status = filters.status;
-    if (filters.article_id) params.article_id = filters.article_id;
-    if (filters.content) params.content = filters.content;
-    
-    const response = await API.getAdminComments(params);
-    
-    if (response.data.code === 0) {
-      const data = response.data.data;
-      comments.value = data.list || [];
-      pagination.total = data.total || 0;
-      
-      // 更新统计
-      await loadStats();
-    } else {
-      ElMessage.error(response.data.message || '加载评论失败');
-    }
-  } catch (error) {
-    console.error('加载评论失败:', error);
-    ElMessage.error('加载评论失败');
-  } finally {
-    loading.value = false;
-  }
-};
+const summaryItems = computed(() => [
+  { label: '待审核', value: stats.pending, note: '需要处理' },
+  { label: '今日评论', value: stats.today, note: '过去 24 小时' },
+  { label: '已通过', value: stats.approved, note: '公开显示' },
+  { label: '已拒绝', value: stats.rejected, note: '历史累计' },
+]);
 
-// 加载统计数据
-const loadStats = async () => {
-  try {
-    const response = await API.getCommentStats();
-    if (response.data.code === 0) {
-      Object.assign(stats, response.data.data);
-    }
-  } catch (error) {
-    console.error('加载统计数据失败:', error);
-  }
-};
-
-// 处理选择变化
-/** @param {any[]} selection */
-const handleSelectionChange = (selection) => {
-  selectedComments.value = selection;
-};
-
-// 单个审核操作
-/** @param {any} comment @param {string} action */
-const handleModerate = async (comment, action) => {
-  if (moderatingIds.value.has(comment.id)) return;
-  
-  try {
-    moderatingIds.value.add(comment.id);
-    
-    const response = await API.moderateComment(comment.id, {
-      action
-    });
-    
-    if (response.data.code === 0) {
-      ElMessage.success(
-        action === 'approve' ? '评论已通过' : '评论已拒绝'
-      );
-      
-      // 更新本地数据
-      comment.status = action === 'approve' ? 'approved' : 'rejected';
-      
-      // 重新加载统计
-      await loadStats();
-    } else {
-      ElMessage.error(response.data.message || '操作失败');
-    }
-  } catch (error) {
-    console.error('审核失败:', error);
-    ElMessage.error('审核失败');
-  } finally {
-    moderatingIds.value.delete(comment.id);
-  }
-};
-
-// 批量操作
-/** @param {string} action */
-const handleBatchAction = async (action) => {
-  if (selectedComments.value.length === 0) return;
-  
-  const actionText = action === 'approve' ? '通过' : '拒绝';
-  
-  try {
-    await ElMessageBox.confirm(
-      `确定要批量${actionText}所选的 ${selectedComments.value.length} 条评论吗？`,
-      '批量操作确认',
-      {
-        type: 'warning',
-        confirmButtonText: `确定${actionText}`,
-        cancelButtonText: '取消'
-      }
-    );
-    
-    const ids = selectedComments.value.map(c => c.id);
-    
-    // 使用批量API
-    const response = await API.moderateCommentBatch({
-      ids,
-      action
-    });
-    
-    if (response.data.code === 0) {
-      ElMessage.success(`批量${actionText}操作完成，更新了 ${response.data.data.updated_count} 条评论`);
-      
-      // 更新本地数据
-      const new_status = response.data.data.status;
-      selectedComments.value.forEach(selected => {
-        const comment = comments.value.find(c => c.id === selected.id);
-        if (comment) {
-          comment.status = new_status;
-        }
-      });
-      
-      // 清除选择并重新加载统计
-      selectedComments.value = [];
-      await loadStats();
-    } else {
-      ElMessage.error(response.data.message || '批量操作失败');
-    }
-  } catch (error) {
-    if (error !== 'cancel') {
-      console.error('批量操作失败:', error);
-      ElMessage.error(`批量${actionText}失败`);
-    }
-  }
-};
-
-// 查看文章
-/** @param {any} articleId */
-const viewArticle = (articleId) => {
-  const url = router.resolve({ name: 'ArticleDetail', params: { id: articleId } }).href;
-  window.open(url, '_blank');
-};
-
-// 格式化日期
-/** @param {string | number | Date} dateStr */
-const formatDate = (dateStr) => {
-  const date = new Date(dateStr);
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-};
-
-// 获取状态样式
-/** @param {string | undefined} status */
-const getStatusType = (status) => {
+/** @param {string | undefined} status @returns {'success'|'warning'|'neutral'|'danger'} */
+function statusKind(status) {
   switch (status) {
-    case 'pending': return 'warning';
     case 'approved': return 'success';
+    case 'pending': return 'warning';
     case 'rejected': return 'danger';
-    default: return 'info';
+    default: return 'neutral';
   }
-};
+}
 
-// 获取状态文本
 /** @param {string | undefined} status */
-const getStatusText = (status) => {
+function statusText(status) {
   switch (status) {
     case 'pending': return '待审核';
     case 'approved': return '已通过';
     case 'rejected': return '已拒绝';
     default: return '未知';
   }
-};
+}
 
-// 组件挂载时加载数据
+/** @param {string | number | Date} dateStr */
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (/** @type {number} */ n) => String(n).padStart(2, '0');
+  return `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** @type {ReturnType<typeof setTimeout> | undefined} */
+let searchTimer;
+function onSearchInput() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => handleFilterChange(), 300);
+}
+
+async function loadComments() {
+  if (loading.value) return;
+  loading.value = true;
+  error.value = false;
+  try {
+    /** @type {Record<string, any>} */
+    const params = { page: pagination.page, page_size: pagination.page_size };
+    if (filters.status) params.status = filters.status;
+    if (filters.article_id) params.article_id = filters.article_id;
+    if (filters.content) params.content = filters.content;
+
+    const response = await API.getAdminComments(params);
+    if (response.data.code === 0) {
+      const data = response.data.data;
+      comments.value = data.list || [];
+      pagination.total = data.total || 0;
+      await loadStats();
+    } else {
+      error.value = true;
+    }
+  } catch (e) {
+    error.value = true;
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function loadStats() {
+  try {
+    const response = await API.getCommentStats();
+    if (response.data.code === 0) {
+      Object.assign(stats, response.data.data);
+    }
+  } catch (e) {
+    /* 统计失败不阻塞列表 */
+  }
+}
+
+/** @param {any[]} selection */
+function handleSelectionChange(selection) {
+  selectedComments.value = selection;
+}
+
+function handleFilterChange() {
+  pagination.page = 1;
+  loadComments();
+}
+
+/** @param {number} page */
+function handlePageChange(page) {
+  pagination.page = page;
+  loadComments();
+}
+
+/** @param {number} size */
+function handleSizeChange(size) {
+  pagination.page_size = size;
+  pagination.page = 1;
+  loadComments();
+}
+
+/** @param {any} comment @param {string} action */
+async function handleModerate(comment, action) {
+  if (moderatingIds.value.has(comment.id)) return;
+  try {
+    moderatingIds.value.add(comment.id);
+    const response = await API.moderateComment(comment.id, { action });
+    if (response.data.code === 0) {
+      ElMessage.success(action === 'approve' ? '评论已通过' : '评论已拒绝');
+      await loadComments();
+    } else {
+      ElMessage.error(response.data.message || '操作失败');
+    }
+  } catch (e) {
+    ElMessage.error('操作失败');
+  } finally {
+    moderatingIds.value.delete(comment.id);
+  }
+}
+
+/** @param {string} action */
+async function handleBatchAction(action) {
+  const targets = selectedComments.value;
+  if (!targets.length) {
+    ElMessage.warning('请先选择评论');
+    return;
+  }
+  const actionText = action === 'approve' ? '通过' : '拒绝';
+  try {
+    await ElMessageBox.confirm(
+      `确定要批量${actionText} ${targets.length} 条评论吗？`,
+      `批量${actionText}`,
+      { type: 'warning', confirmButtonText: `批量${actionText}`, cancelButtonText: '取消' },
+    );
+    let ok = 0;
+    for (const c of targets) {
+      try {
+        const r = await API.moderateComment(c.id, { action });
+        if (r.data.code === 0) ok += 1;
+      } catch (e) {
+        /* 单条失败继续(05 §10 Partial failure) */
+      }
+    }
+    ElMessage.success(`已${actionText} ${ok}/${targets.length} 条评论`);
+    selectedComments.value = [];
+    await loadComments();
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error(`批量${actionText}失败`);
+  }
+}
+
+/** @param {any} articleId */
+function viewArticle(articleId) {
+  const url = router.resolve({ name: 'ArticleDetail', params: { id: articleId } }).href;
+  window.open(url, '_blank');
+}
+
 onMounted(() => {
   loadComments();
 });
@@ -447,563 +338,145 @@ onMounted(() => {
 
 <style scoped>
 .comment-management {
-  max-width: 1200px;
-  margin: 0 auto;
+  width: 100%;
+}
+.comment-management :deep(.admin-toolbar) {
+  border-bottom: 0;
+}
+.comment-management :deep(.el-table) {
+  width: 100%;
 }
 
-.page-header {
+/* 原生筛选控件(34px 体系) */
+.adm-select,
+.adm-input {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-r-control);
+  background: var(--adm-surface);
+  color: var(--adm-text-2);
+  font-size: 12px;
+  outline: none;
+}
+.adm-select:focus,
+.adm-input:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px var(--adm-primary-soft);
+}
+
+/* 批量条 */
+.bulk-bar {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 24px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.header-content {
-  flex: 1;
-}
-
-.page-title {
-  margin: 0 0 8px 0;
-  font-size: 28px;
-  font-weight: 600;
-  color: #1f2937;
-}
-
-.page-description {
-  margin: 0;
-  color: #6b7280;
-  font-size: 16px;
-}
-
-.header-stats {
-  display: flex;
-  gap: 24px;
-}
-
-.stat-item {
-  text-align: center;
-}
-
-.stat-label {
-  display: block;
-  font-size: 14px;
-  color: #6b7280;
-  margin-bottom: 4px;
-}
-
-.stat-value {
-  display: block;
-  font-size: 24px;
-  font-weight: 600;
-  color: #1f2937;
-}
-
-.stat-value.pending {
-  color: #f59e0b;
-}
-
-.filter-section {
-  background: white;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-  padding: 20px;
-  margin-bottom: 20px;
-}
-
-.filter-row {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 20px;
+  gap: 10px;
+  margin-bottom: -1px;
+  padding: 8px 12px;
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-r-container) var(--adm-r-container) 0 0;
+  background: var(--adm-primary-soft);
+  color: var(--adm-primary);
+  font-size: 12px;
+}
+.bulk-btn {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--adm-border);
+  border-radius: 7px;
+  background: var(--adm-surface);
+  color: var(--adm-text-2);
+  font-size: 11px;
+  cursor: pointer;
+}
+.bulk-btn.success {
+  color: var(--adm-success);
+  border-color: var(--adm-success);
+}
+.bulk-btn.danger {
+  color: var(--adm-danger);
+  border-color: var(--adm-danger);
 }
 
-.filter-group {
-  display: flex;
-  gap: 12px;
-  flex: 1;
-}
-
-.filter-group .el-select,
-.filter-group .el-input {
-  min-width: 160px;
-}
-
-.action-group {
-  display: flex;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.comments-table {
-  background: white;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
+.table-card {
+  border: 1px solid var(--adm-border);
+  border-radius: 0 0 var(--adm-r-container) var(--adm-r-container);
+  background: var(--adm-surface);
   overflow: hidden;
 }
-
-/* 评论内容样式 */
-.comment-content {
-  max-width: 100%;
-  position: relative;
+.table-wrap {
+  overflow: auto;
 }
 
-.comment-content p {
-  margin: 0 0 0.75rem 0;
-  line-height: 1.6;
-  word-break: break-word;
+/* 评论列:内容 + 弱化副行(05 §17) */
+.comment-body {
+  font-size: 12px;
+  color: var(--adm-text);
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  color: #1e293b;
-  font-size: 0.875rem;
-  background: rgba(59, 130, 246, 0.02);
-  padding: 0.75rem;
-  border-radius: 8px;
-  border: 1px solid rgba(59, 130, 246, 0.1);
-  transition: all 0.3s ease;
+}
+.comment-sub {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--adm-muted);
+}
+.cell-text {
+  font-size: 12px;
+  color: var(--adm-text-2);
+  font-variant-numeric: tabular-nums;
 }
 
-.comment-content p:hover {
-  background: rgba(59, 130, 246, 0.05);
-  border-color: rgba(59, 130, 246, 0.2);
-  transform: scale(1.01);
-}
-
-.comment-meta {
-  font-size: 0.75rem;
-  color: #64748b;
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  margin-top: 0.5rem;
-}
-
-.comment-meta span {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.25rem 0.5rem;
-  background: rgba(239, 68, 68, 0.05);
-  border-radius: 6px;
-  border: 1px solid rgba(239, 68, 68, 0.1);
-  transition: all 0.3s ease;
-  font-weight: 500;
-}
-
-.comment-meta span:hover {
-  background: rgba(239, 68, 68, 0.1);
-  border-color: rgba(239, 68, 68, 0.2);
-  transform: scale(1.05);
-}
-
-
-/* 现代化操作按钮样式 */
-.modern-action-buttons {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.table-btn {
+/* 行内审核按钮(05 §15) */
+.row-actions-inline {
   display: inline-flex;
   align-items: center;
-  gap: 0.375rem;
-  padding: 0.5rem 0.875rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  border-radius: 8px;
-  border: 1px solid;
-  text-decoration: none;
+  gap: 6px;
+}
+.act-btn,
+.edit-btn {
+  height: 29px;
+  padding: 0 9px;
+  border: 1px solid var(--adm-border);
+  border-radius: 7px;
+  background: var(--adm-surface);
+  color: var(--adm-text-2);
+  font-size: 11px;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  backdrop-filter: blur(8px);
-  position: relative;
-  overflow: hidden;
-  white-space: nowrap;
-  min-width: fit-content;
 }
-
-.table-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: left 0.5s ease;
+.act-btn.success {
+  color: var(--adm-success);
+  border-color: var(--adm-success);
 }
-
-.table-btn:hover::before {
-  left: 100%;
+.act-btn.success:hover:not(:disabled) {
+  background: var(--adm-success-soft);
 }
-
-.table-btn:disabled {
-  opacity: 0.6;
+.act-btn.danger {
+  color: var(--adm-danger);
+  border-color: var(--adm-danger);
+}
+.act-btn.danger:hover:not(:disabled) {
+  background: var(--adm-danger-soft);
+}
+.act-btn:disabled,
+.edit-btn:disabled {
+  opacity: 0.45;
   cursor: not-allowed;
-  transform: none !important;
+}
+.edit-btn:hover:not(:disabled) {
+  border-color: var(--adm-border-strong);
+  color: var(--adm-text);
 }
 
-.table-btn:disabled:hover {
-  transform: none !important;
-}
-
-/* 撤销按钮样式 */
-.table-btn.revoke {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.05));
-  color: #dc2626;
-  border-color: rgba(239, 68, 68, 0.3);
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.15);
-}
-
-.table-btn.revoke:hover:not(:disabled) {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.1));
-  border-color: rgba(239, 68, 68, 0.4);
-  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.25);
-  transform: translateY(-2px) scale(1.02);
-  color: #b91c1c;
-}
-
-.table-btn.revoke:active:not(:disabled) {
-  transform: translateY(0) scale(1);
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.15);
-}
-
-/* 查看文章按钮样式 */
-.table-btn.view {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.05));
-  color: #2563eb;
-  border-color: rgba(59, 130, 246, 0.3);
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
-}
-
-.table-btn.view:hover:not(:disabled) {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.1));
-  border-color: rgba(59, 130, 246, 0.4);
-  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.25);
-  transform: translateY(-2px) scale(1.02);
-  color: #1d4ed8;
-}
-
-.table-btn.view:active:not(:disabled) {
-  transform: translateY(0) scale(1);
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
-}
-
-/* 其他按钮样式 */
-.table-btn.approve {
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(22, 163, 74, 0.05));
-  color: #16a34a;
-  border-color: rgba(34, 197, 94, 0.3);
-  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.15);
-}
-
-.table-btn.approve:hover:not(:disabled) {
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(22, 163, 74, 0.1));
-  border-color: rgba(34, 197, 94, 0.4);
-  box-shadow: 0 4px 15px rgba(34, 197, 94, 0.25);
-  transform: translateY(-2px) scale(1.02);
-  color: #15803d;
-}
-
-.table-btn.reject {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.05));
-  color: #dc2626;
-  border-color: rgba(239, 68, 68, 0.3);
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.15);
-}
-
-.table-btn.reject:hover:not(:disabled) {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.1));
-  border-color: rgba(239, 68, 68, 0.4);
-  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.25);
-  transform: translateY(-2px) scale(1.02);
-  color: #b91c1c;
-}
-
-.table-btn.restore {
-  background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(8, 145, 178, 0.05));
-  color: #0891b2;
-  border-color: rgba(6, 182, 212, 0.3);
-  box-shadow: 0 2px 8px rgba(6, 182, 212, 0.15);
-}
-
-.table-btn.restore:hover:not(:disabled) {
-  background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(8, 145, 178, 0.1));
-  border-color: rgba(6, 182, 212, 0.4);
-  box-shadow: 0 4px 15px rgba(6, 182, 212, 0.25);
-  transform: translateY(-2px) scale(1.02);
-  color: #0e7490;
-}
-
-/* 按钮图标样式 */
-.table-btn .el-icon {
-  transition: all 0.3s ease;
-}
-
-.table-btn:hover:not(:disabled) .el-icon {
-  transform: scale(1.1);
-}
-
-/* 响应式设计 */
-@media (max-width: 1024px) {
-  .modern-page-header {
-    flex-direction: column;
-    gap: 1rem;
-    align-items: flex-start;
-  }
-  
-  .title-container {
-    width: 100%;
-  }
-  
-  .modern-stats {
-    width: 100%;
-    justify-content: space-between;
-  }
-  
-  .filter-row {
-    flex-direction: column;
-    gap: 1rem;
-  }
-  
-  .filter-group {
-    width: 100%;
-    justify-content: flex-start;
-  }
-  
-  .filter-item {
-    flex: 1;
-    min-width: 140px;
-  }
-  
-  .search-item {
-    min-width: 200px;
-  }
-  
-  .action-group {
-    width: 100%;
-    justify-content: flex-start;
-  }
-}
-
-@media (max-width: 768px) {
-  .modern-page-header {
-    padding: 1.5rem;
-  }
-  
-  .title-container {
-    flex-direction: column;
-    text-align: center;
-    gap: 1rem;
-  }
-  
-  .title-icon {
-    width: 50px;
-    height: 50px;
-  }
-  
-  .page-title {
-    font-size: 1.75rem;
-  }
-  
-  .modern-stats {
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-  
-  .stat-card {
-    width: 100%;
-  }
-  
-  .filter-container {
-    padding: 1rem;
-  }
-  
-  .filter-group {
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-  
-  .filter-item {
-    width: 100%;
-  }
-  
-  .modern-select,
-  .modern-input,
-  .modern-search-input {
-    width: 100%;
-  }
-  
-  .action-group {
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-  
-  .action-btn {
-    width: 100%;
-    justify-content: center;
-  }
-  
-  .modern-comments-table {
-    /* 移动端表格滚动 */
-  }
-  
-  .modern-table :deep(.el-table__body-wrapper) {
-    overflow-x: auto;
-  }
-  
-  .modern-table :deep(.el-table__row:hover) {
-    transform: none;
-  }
-  
-  .modern-action-buttons {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  
-  .table-btn {
-    width: 100%;
-    justify-content: center;
-    font-size: 0.75rem;
-    padding: 0.25rem 0.5rem;
-  }
-}
-
-@media (max-width: 640px) {
-  .modern-stats {
-    gap: 0.5rem;
-  }
-  
-  .stat-card {
-    padding: 0.75rem;
-  }
-  
-  .stat-icon {
-    width: 35px;
-    height: 35px;
-  }
-  
-  .stat-value {
-    font-size: 1.125rem;
-  }
-  
-  .action-btn span {
-    display: none;
-  }
-  
-  .table-btn span {
-    font-size: 0.7rem;
-  }
-  
-  .comment-content p {
-    padding: 0.5rem;
-    font-size: 0.8rem;
-  }
-  
-  .comment-meta {
-    flex-direction: column;
-    gap: 0.5rem;
-    align-items: flex-start;
-  }
-}
-
-/* 现代化状态徽章 */
-.modern-status-badge {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.status-indicator {
+.table-footer {
+  min-height: 48px;
   display: flex;
   align-items: center;
-  gap: 0.375rem;
-  padding: 0.375rem 0.75rem;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  transition: all 0.3s ease;
-  border: 1px solid;
-}
-
-.modern-status-badge.pending .status-indicator {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(217, 119, 6, 0.1));
-  color: #d97706;
-  border-color: rgba(245, 158, 11, 0.3);
-}
-
-.modern-status-badge.approved .status-indicator {
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(22, 163, 74, 0.1));
-  color: #16a34a;
-  border-color: rgba(34, 197, 94, 0.3);
-}
-
-.modern-status-badge.rejected .status-indicator {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.1));
-  color: #dc2626;
-  border-color: rgba(239, 68, 68, 0.3);
-}
-
-.status-indicator:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-}
-
-/* 时间显示样式 */
-.time-display {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.375rem 0.75rem;
-  background: rgba(6, 182, 212, 0.05);
-  border-radius: 8px;
-  border: 1px solid rgba(6, 182, 212, 0.1);
-  font-size: 0.875rem;
-  color: #0891b2;
-  font-weight: 500;
-  transition: all 0.3s ease;
-}
-
-.time-display:hover {
-  background: rgba(6, 182, 212, 0.1);
-  border-color: rgba(6, 182, 212, 0.2);
-  transform: scale(1.02);
-}
-
-/* 用户ID显示样式 */
-.user-id-display {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.375rem 0.75rem;
-  background: rgba(139, 92, 246, 0.05);
-  border-radius: 8px;
-  border: 1px solid rgba(139, 92, 246, 0.1);
-  font-size: 0.875rem;
-  color: #8b5cf6;
-  font-weight: 500;
-  transition: all 0.3s ease;
-  justify-content: center;
-}
-
-.user-id-display:hover {
-  background: rgba(139, 92, 246, 0.1);
-  border-color: rgba(139, 92, 246, 0.2);
-  transform: scale(1.02);
-}
-
-.action-btn .is-loading {
-  animation: rotate 1s linear infinite;
-}
-
-.table-btn .is-loading {
-  animation: rotate 1s linear infinite;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--adm-border);
+  color: var(--adm-muted);
+  font-size: 11px;
 }
 </style>
