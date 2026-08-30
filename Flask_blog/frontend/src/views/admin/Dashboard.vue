@@ -17,7 +17,7 @@
       <div class="metric">
         <label>专题</label>
         <strong>{{ topicCount }}</strong>
-        <small>长期维护</small>
+        <small>长期专题</small>
       </div>
       <div class="metric">
         <label>项目</label>
@@ -64,13 +64,23 @@
           <div v-if="loading" class="card-loading">
             <el-skeleton :rows="3" animated />
           </div>
-          <AdminStateBlock
-            v-else-if="!todoItems.length"
-            kind="empty"
-            title="暂无待办事项"
-            description="当前没有需要处理的内容。"
-            compact
-          />
+          <!-- 空态带零值信息:不让整张卡只承担一句话 -->
+          <div v-else-if="!todoItems.length" class="todo-clear">
+            <div class="all-clear">
+              <span class="all-clear-mark">✓</span>
+              <span>当前没有待处理事项</span>
+            </div>
+            <div class="kv-list">
+              <div v-if="userStore.canModerateContent" class="kv-row">
+                <label>评论审核</label>
+                <div class="kv-plain">{{ commentStats.pending }} 条待处理</div>
+              </div>
+              <div class="kv-row">
+                <label>待审核文章</label>
+                <div class="kv-plain">{{ stats.pendingArticles }} 篇</div>
+              </div>
+            </div>
+          </div>
           <div v-else class="kv-list">
             <div v-for="t in todoItems" :key="t.label + t.value" class="kv-row">
               <label>{{ t.label }}</label>
@@ -84,33 +94,18 @@
       </section>
     </div>
 
-    <!-- 内容概览 + 快速操作 -->
-    <div class="grid-two grid-gap-top">
-      <section class="card">
-        <div class="card-head">
-          <h2>内容概览</h2>
-        </div>
-        <div class="card-body">
-          <div class="kv-list">
-            <div class="kv-row"><label>已发布</label><div class="kv-plain">{{ stats.publishedArticles }} 篇</div></div>
-            <div class="kv-row"><label>草稿与待审</label><div class="kv-plain">{{ draftPendingCount }} 篇</div></div>
-            <div class="kv-row"><label>未使用标签</label><div class="kv-plain">{{ unusedTagCount }} 个</div></div>
-          </div>
-        </div>
-      </section>
-
-      <section class="card">
-        <div class="card-head">
-          <h2>快速操作</h2>
-        </div>
-        <div class="card-body quick-actions">
-          <RouterLink to="/articles/new" class="quick-btn primary">＋ 新建文章</RouterLink>
-          <RouterLink to="/admin/media" class="quick-btn">上传媒体</RouterLink>
-          <RouterLink to="/admin/categories" class="quick-btn">新建专题</RouterLink>
-          <RouterLink to="/admin/projects" class="quick-btn">新建项目</RouterLink>
-        </div>
-      </section>
-    </div>
+    <!-- 快速操作(2×2 紧凑网格,占满宽度) -->
+    <section class="card quick-card">
+      <div class="card-head">
+        <h2>快速操作</h2>
+      </div>
+      <div class="card-body quick-actions">
+        <RouterLink to="/articles/new" class="quick-btn primary">＋ 新建文章</RouterLink>
+        <RouterLink to="/admin/media" class="quick-btn">上传媒体</RouterLink>
+        <RouterLink to="/admin/categories" class="quick-btn">新建专题</RouterLink>
+        <RouterLink to="/admin/projects" class="quick-btn">新建项目</RouterLink>
+      </div>
+    </section>
   </div>
 </template>
 
@@ -146,9 +141,6 @@ const unusedTagCount = ref(0);
 const topicCount = computed(() => topics.value.length);
 const projectCount = computed(() => projects.value.length);
 const projectActiveCount = computed(() => projects.value.filter((p) => p.status === 'active').length);
-const draftPendingCount = computed(
-  () => stats.totalArticles - stats.publishedArticles,
-);
 
 /** 待处理清单(05 §13:可点击直达) */
 const todoItems = computed(() => {
@@ -283,8 +275,9 @@ onMounted(() => {
   border-radius: var(--adm-r-container);
   background: var(--adm-surface);
 }
+/* 修订:辅助层上调半档并提高对比度(KPI label 13,note 用 muted) */
 .metric label {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--adm-muted);
 }
 .metric strong {
@@ -297,7 +290,7 @@ onMounted(() => {
 }
 .metric small {
   font-size: 12px;
-  color: var(--adm-muted-light);
+  color: var(--adm-muted);
 }
 
 /* 卡片栅格(原型 two) */
@@ -349,7 +342,7 @@ onMounted(() => {
   display: grid;
   grid-template-columns: 110px 1fr;
   gap: 14px;
-  padding: 11px 0;
+  padding: 13px 0;
   border-top: 1px solid var(--adm-border);
 }
 .kv-row:first-child {
@@ -386,9 +379,28 @@ a.kv-title:hover {
   color: var(--adm-text-2);
 }
 
-/* 快速操作 */
+/* 待处理空态:✓ 标记 + 零值行,不出现整卡一句话 */
+.todo-clear {
+  display: grid;
+  gap: 10px;
+}
+.all-clear {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--adm-success);
+  font-weight: 650;
+  padding-bottom: 4px;
+}
+
+/* 快速操作:2×2 紧凑网格(修订:不做纵向长条) */
+.quick-card {
+  margin-top: 16px;
+}
 .quick-actions {
   display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
 .quick-btn {
