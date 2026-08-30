@@ -68,9 +68,10 @@
         </div>
       </header>
 
-      <!-- Workspace(04 V2 §5):padding 属于壳,内容区限宽 -->
+      <!-- Workspace(04 V2 §5 + Content 分档修订):padding 属于壳,
+           内容区按 route.meta.content 分档限宽,Main 内保持居中 -->
       <main class="workspace">
-        <div class="content">
+        <div class="content" :class="`content-${contentWidth}`">
           <RouterView />
         </div>
       </main>
@@ -157,6 +158,12 @@ const visibleGroups = computed(() =>
     ),
   })).filter((g) => g.items.length > 0),
 );
+
+/** 内容宽度档(路由 meta.content,缺省 standard) */
+const contentWidth = computed(() => {
+  const w = route.meta?.content;
+  return typeof w === 'string' && ['wide', 'data', 'standard', 'narrow'].includes(w) ? w : 'standard';
+});
 
 /** 命中规则:精确路径,或前缀命中;审核子页高亮"审核"而非"文章" */
 function isActive(path: string): boolean {
@@ -470,7 +477,8 @@ onUnmounted(() => mq?.removeEventListener('change', onMqChange));
   display: none;
 }
 
-/* 04 V2 §5:workspace padding 属于 Main,内容区在 Main 内限宽 */
+/* 04 V2 §5:workspace padding 属于 Main;内容区按页面类型 Fluid 限宽,
+   Main 内保持居中(左右对称呼吸区,而非大片无效留白) */
 .workspace {
   padding: var(--adm-workspace-pad);
   flex: 1;
@@ -478,10 +486,22 @@ onUnmounted(() => mq?.removeEventListener('change', onMqChange));
   flex-direction: column;
 }
 .content {
-  width: min(var(--adm-content-max), 100%);
+  width: 100%;
   margin: 0 auto;
   padding-bottom: 44px;
   flex: 1;
+}
+.content-wide {
+  max-width: var(--adm-w-wide);
+}
+.content-data {
+  max-width: var(--adm-w-data);
+}
+.content-standard {
+  max-width: var(--adm-w-standard);
+}
+.content-narrow {
+  max-width: var(--adm-w-narrow);
 }
 
 /* ── 响应式(04 §27)──────────────────────── */

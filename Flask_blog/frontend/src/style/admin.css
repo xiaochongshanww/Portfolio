@@ -33,11 +33,18 @@
   --adm-dot-neutral: #a1a1aa;
   --adm-dot-danger: #ef4444;
 
-  /* 尺寸(04 V2 §3-§7):视口级 Shell */
+  /* 尺寸(04 V2 §3-§7):视口级 Shell
+     Content 宽度修订:废弃全局固定 max-width,改为按页面类型的
+     Fluid 分档(wide/data/standard/narrow,由 AdminLayout 按
+     route.meta.content 应用)——超宽屏上固定 1440px 会让 Main
+     两侧出现大片无效留白 */
   --adm-sidebar-w: 228px;
   --adm-header-h: 58px;
-  --adm-content-max: 1440px;
   --adm-workspace-pad: 32px;
+  --adm-w-wide: 2000px;      /* Dashboard */
+  --adm-w-data: 1800px;      /* 文章/评论/日志/媒体 Table */
+  --adm-w-standard: 1600px;  /* 专题/标签/用户/项目/安全 */
+  --adm-w-narrow: 1200px;    /* 设置/表单 */
 
   /* 圆角(04 §12) */
   --adm-r-control: 8px;
