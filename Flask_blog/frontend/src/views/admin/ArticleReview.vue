@@ -2,18 +2,7 @@
   <div class="article-review">
     <!-- 页面头部 -->
     <div class="modern-page-header">
-      <div class="header-decoration" />
-      <div class="header-pattern" />
-      <div class="header-content">
-        <div class="title-container">
-          <div class="title-icon">
-            <el-icon size="32"><View /></el-icon>
-          </div>
-          <div class="title-text">
-            <h1 class="page-title">文章审核</h1>
-            <p class="page-description">审核作者提交的文章，确保内容质量</p>
-          </div>
-        </div>
+      <AdminPageHeader title="文章审核" description="审核作者提交的文章,确保内容质量。" />
       </div>
       <div class="modern-stats">
         <div class="stat-card pending">
@@ -183,7 +172,6 @@
           </div>
         </div>
       </div>
-    </div>
 
     <!-- 分页 -->
     <div v-if="meta.total > 0" class="modern-pagination-wrapper">
@@ -295,6 +283,7 @@
 </template>
 
 <script setup lang="ts">
+import AdminPageHeader from '../../components/admin/AdminPageHeader.vue';
 import { ref, reactive, onMounted, computed } from 'vue';
 import { 
   User, Clock, Collection, View, Link, Close, Check, Document 

@@ -1,24 +1,9 @@
 <template>
   <div class="backup-management">
-    <div class="page-header">
-      <div class="header-left">
-        <h1 class="page-title">
-          <el-icon class="title-icon"><FolderOpened /></el-icon>
-          站点备份管理
-        </h1>
-        <p class="page-description">管理数据库和文件的备份与恢复</p>
-      </div>
-      <div class="header-actions">
-        <el-button type="primary" :loading="creating" @click="showCreateDialog">
-          <el-icon><Plus /></el-icon>
-          创建备份
-        </el-button>
-        <el-button :loading="loading" @click="refreshBackups">
-          <el-icon><Refresh /></el-icon>
-          刷新
-        </el-button>
-      </div>
-    </div>
+    <AdminPageHeader title="备份管理" description="管理数据库和文件的备份与恢复。">
+      <button type="button" class="ghost-btn" :disabled="loading" @click="refreshBackups">↻ 刷新</button>
+      <el-button type="primary" :loading="creating" @click="showCreateDialog">＋ 创建备份</el-button>
+    </AdminPageHeader>
 
     <!-- 统计卡片 -->
     <div class="stats-cards">
@@ -400,6 +385,7 @@
 </template>
 
 <script setup>
+import AdminPageHeader from '../../components/admin/AdminPageHeader.vue';
 import { ref, reactive, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'

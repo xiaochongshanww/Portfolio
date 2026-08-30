@@ -1,9 +1,6 @@
 <template>
   <div class="restore-management">
-    <div class="header">
-      <h2>恢复任务管理</h2>
-      <p class="description">查看和监控所有恢复任务的状态和进度</p>
-    </div>
+    <AdminPageHeader title="恢复任务" description="查看和监控所有恢复任务的状态和进度。" />
 
     <!-- 筛选器 -->
     <div class="filters">
@@ -303,6 +300,7 @@
 </template>
 
 <script setup>
+import AdminPageHeader from '../../components/admin/AdminPageHeader.vue';
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'

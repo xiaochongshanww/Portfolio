@@ -1,38 +1,90 @@
-# Flask Blog Redesign — 2026-08
+# 小重山 2026 设计文档
 
-本目录归档 2026 年 8 月个人博客重新设计阶段的视觉探索原型。
+当前设计已经形成两套稳定基线：
 
-## 背景
+```text
+公开站
+→ Content / Reading System
 
-现有 `Flask_blog` 功能与工程能力继续保留，本阶段先探索前台视觉语言与首页信息架构，不直接修改生产 Vue 页面。
+管理后台
+→ Productivity Admin System
+```
 
-设计目标从传统“博客首页”转向更明确的个人开发者数字空间，同时避免继续沿用旧版的蓝紫渐变、玻璃拟态、重卡片化、侧边栏内容社区式布局。
+## 公开站
 
-## 第一轮：完整首页方向
+1. `01_公开站设计规范.md`
+2. `02_页面与组件设计说明.md`
+3. `03_文章内容系统与Block规范.md`
 
-- `01-editorial-minimal.html` — Editorial Minimalism + Developer Portfolio。强调排版、留白、项目和 Writing。
-- `02-indie-hacker.html` — Indie Hacker / Personal Playground。强调个人开发者、side project、正在构建。
-- `03-digital-garden.html` — Digital Garden。强调长期知识沉淀、主题网络与内容成熟度。
+## 管理后台
 
-这三版后来发现都不同程度带有 Editorial / 数字杂志式骨架，因此继续扩展非 Editorial 候选。
+4. `04_管理后台设计规范.md`
+5. `05_管理后台Pattern与页面规范.md`
 
-## 第二轮：非 Editorial 首屏探索
+---
 
-- `04-bento-developer.html` — Bento Developer。模块化、现代、产品化。
-- `05-developer-workspace.html` — Developer Workspace。像进入开发者自己的数字工作空间。
-- `06-playful-developer.html` — Playful Developer。更有趣、更个人化，降低严肃的 Portfolio 感。
-- `07-calm-personal-web.html` — Calm Personal Web。安静、自然，弱化开发者模板感。
-- `08-directions-comparison.html` — 第二轮四方向的快速比较入口。
+## 设计资产关系
 
-## 当前状态
+```text
+HTML Prototype
+= 视觉参考
 
-这些文件都是设计探索，不代表最终 UI 决策，也不应直接视为生产实现。后续应先筛选 1–2 个方向，再形成完整高保真首页，并最终映射回现有 Vue 3 + Tailwind + Element Plus 前端体系。
+Design Spec
+= 设计原则与不可违反的约束
 
-## 当前讨论中的候选重点
+Pattern Spec
+= 重复业务问题的标准解决方案
 
-1. Bento Developer
-2. Developer Workspace
-3. Playful Developer
-4. Calm Personal Web
+Production Vue
+= 最终实现
+```
 
-归档目的主要是保留设计决策过程，避免后续迭代丢失已经探索过的方向。
+---
+
+## 开发建议阅读顺序
+
+### 重构公开站
+
+```text
+01
+↓
+02
+↓
+03
+↓
+相关 HTML Prototype
+```
+
+### 重构后台
+
+```text
+04
+↓
+05
+↓
+2026 Admin Prototype
+```
+
+---
+
+## 当前阶段
+
+设计探索阶段已经结束。
+
+后续原则：
+
+> 不再自由探索新的公开站或后台视觉方向。
+
+下一阶段应进入：
+
+```text
+现有代码审计
+↓
+组件映射
+↓
+阶段拆分
+↓
+Vue 实现
+↓
+原型对照验收
+```

@@ -86,7 +86,7 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
-  DataBoard, Document, ChatLineRound, Collection, PriceTag, Box,
+  DataBoard, Document, View, ChatLineRound, Collection, PriceTag, Box,
   Picture, User, Lock, Memo, Setting,
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -118,6 +118,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: '内容',
     items: [
       { label: '文章', path: '/admin/articles', icon: Document, roles: ['author', 'editor', 'admin'] },
+      { label: '审核', path: '/admin/articles/review', icon: View, roles: ['editor', 'admin'] },
       { label: '评论', path: '/admin/comments', icon: ChatLineRound, roles: ['editor', 'admin'] },
     ],
   },
@@ -155,9 +156,12 @@ const visibleGroups = computed(() =>
   })).filter((g) => g.items.length > 0),
 );
 
-/** 命中规则:精确路径,或 /admin/articles/* 命中 /admin/articles */
+/** 命中规则:精确路径,或前缀命中;审核子页高亮"审核"而非"文章" */
 function isActive(path: string): boolean {
   if (path === '/admin') return route.path === '/admin';
+  if (path === '/admin/articles' && route.path.startsWith('/admin/articles/review')) {
+    return false;
+  }
   return route.path === path || route.path.startsWith(path + '/');
 }
 

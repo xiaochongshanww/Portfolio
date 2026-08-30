@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>小重山 CMS · 文章管理 2026</title>
+<style>
+:root{
+  --bg:#f6f7f8;--surface:#fff;--surface-subtle:#fafafa;--text:#18181b;--text-2:#3f3f46;
+  --muted:#71717a;--muted-2:#a1a1aa;--line:#e4e4e7;--line-strong:#d4d4d8;
+  --primary:#2563eb;--primary-soft:#eff6ff;--success:#15803d;--success-soft:#f0fdf4;
+  --warning:#b45309;--danger:#b91c1c;--sidebar:224px;--header:58px;
+}
+*{box-sizing:border-box}html,body{height:100%}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:none}
+.app{min-height:100vh;display:grid;grid-template-columns:var(--sidebar) minmax(0,1fr)}
+.sidebar{position:sticky;top:0;height:100vh;background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column}
+.side-brand{height:var(--header);display:flex;align-items:center;gap:10px;padding:0 18px;border-bottom:1px solid var(--line);font-weight:760;letter-spacing:-.02em}
+.brand-mark{width:28px;height:28px;border-radius:8px;background:var(--text);color:#fff;display:grid;place-items:center;font-size:11px;font-weight:800}
+.side-scroll{padding:14px 10px 16px;overflow:auto;flex:1}.nav-group{margin-bottom:18px}
+.nav-label{padding:0 9px 7px;font-size:11px;font-weight:650;color:var(--muted-2);letter-spacing:.02em}
+.nav-item{height:36px;display:flex;align-items:center;gap:10px;padding:0 10px;margin:2px 0;border-radius:8px;color:var(--text-2);font-size:13px}
+.nav-item:hover{background:#f7f7f8}.nav-item.active{background:var(--primary-soft);color:var(--primary);font-weight:650}
+.nav-icon{width:17px;height:17px;display:grid;place-items:center;font-size:14px}.nav-count{margin-left:auto;min-width:20px;height:20px;padding:0 6px;display:grid;place-items:center;border-radius:999px;background:#f4f4f5;color:var(--muted);font-size:10px}
+.nav-item.active .nav-count{background:#fff;color:var(--primary)}.side-footer{border-top:1px solid var(--line);padding:10px}
+.account{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:9px}.account:hover{background:#f7f7f8}
+.avatar{width:30px;height:30px;border-radius:9px;background:#eef2f7;color:#475569;display:grid;place-items:center;font-size:12px;font-weight:700}
+.account-copy{min-width:0;flex:1}.account-name{font-size:12px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.account-role{font-size:10px;color:var(--muted);margin-top:2px}
+.main{min-width:0}.topbar{height:var(--header);position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:rgba(255,255,255,.94);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.breadcrumb{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12px}.breadcrumb b{color:var(--text-2);font-weight:600}
+.top-actions{display:flex;align-items:center;gap:8px}.top-btn{height:32px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text-2);font-size:12px}
+.content{width:min(1280px,calc(100% - 40px));margin:0 auto;padding:28px 0 44px}
+.page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:22px}.page-title h1{margin:0;font-size:24px;line-height:1.2;letter-spacing:-.035em}.page-title p{margin:7px 0 0;color:var(--muted);font-size:13px}
+.primary-btn{height:36px;padding:0 14px;border:1px solid var(--primary);border-radius:9px;background:var(--primary);color:#fff;font-size:13px;font-weight:650;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden;margin-bottom:16px}
+.summary-item{padding:15px 18px;border-right:1px solid var(--line)}.summary-item:last-child{border-right:0}.summary-label{font-size:11px;color:var(--muted)}.summary-value{margin-top:5px;font-size:21px;font-weight:740;letter-spacing:-.03em}.summary-note{margin-top:2px;font-size:10px;color:var(--muted-2)}
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px;border:1px solid var(--line);border-radius:12px 12px 0 0;background:var(--surface)}
+.tool-left{display:flex;align-items:center;gap:8px;min-width:0;flex:1}.search{position:relative;width:min(360px,38vw)}.search input{width:100%;height:34px;padding:0 12px 0 32px;border:1px solid var(--line);border-radius:8px;background:var(--surface);outline:none;color:var(--text);font-size:12px}
+.search input:focus{border-color:#93c5fd;box-shadow:0 0 0 3px #eff6ff}.search-icon{position:absolute;left:10px;top:8px;color:var(--muted-2);font-size:12px}
+.select{height:34px;padding:0 28px 0 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text-2);font-size:12px}
+.ghost-btn{height:34px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text-2);font-size:12px}.tool-right{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11px}
+.table-card{border:1px solid var(--line);border-top:0;border-radius:0 0 12px 12px;background:var(--surface);overflow:hidden}.table-wrap{overflow:auto}
+table{width:100%;min-width:980px;border-collapse:collapse;table-layout:fixed}thead th{height:42px;padding:0 14px;border-bottom:1px solid var(--line);background:var(--surface-subtle);color:var(--muted);font-size:11px;font-weight:650;text-align:left}
+tbody td{padding:13px 14px;border-bottom:1px solid #eeeeef;vertical-align:middle;font-size:12px;color:var(--text-2)}tbody tr:hover{background:#fcfcfd}tbody tr:last-child td{border-bottom:0}
+.checkbox{width:15px;height:15px;border:1px solid var(--line-strong);border-radius:4px;background:#fff;display:inline-block}
+.article-title{font-size:13px;font-weight:680;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.article-summary{margin-top:4px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px}
+.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}.pill{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:999px;background:#f4f4f5;color:var(--muted);font-size:10px}
+.pill.topic{background:#f8fafc;color:#475569;border:1px solid #e2e8f0}.status{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:650}.status i{width:6px;height:6px;border-radius:50%;display:block}.status.published{color:var(--success)}.status.published i{background:#22c55e}
+.num{font-variant-numeric:tabular-nums}.action-cell{display:flex;align-items:center;gap:6px}.edit-btn{height:29px;padding:0 9px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--text-2);font-size:11px}.more-btn{width:29px;height:29px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--muted);font-size:16px}
+.date-main{color:var(--text-2);font-size:11px}.date-sub{margin-top:2px;color:var(--muted-2);font-size:10px}
+.table-footer{min-height:48px;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:8px 12px;border-top:1px solid var(--line);color:var(--muted);font-size:11px}.pagination{display:flex;align-items:center;gap:5px}.page-btn{min-width:28px;height:28px;padding:0 7px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--text-2);font-size:11px}.page-btn.active{background:var(--text);color:#fff;border-color:var(--text)}
+.dropdown{position:fixed;display:none;width:160px;padding:5px;border:1px solid var(--line);border-radius:10px;background:#fff;box-shadow:0 14px 35px rgba(0,0,0,.12);z-index:100}.dropdown.open{display:block}.drop-item{height:32px;padding:0 9px;display:flex;align-items:center;border-radius:7px;color:var(--text-2);font-size:12px}.drop-item:hover{background:#f7f7f8}.drop-item.danger{color:var(--danger)}
+@media(max-width:1050px){:root{--sidebar:196px}.summary{grid-template-columns:repeat(2,1fr)}.summary-item:nth-child(2){border-right:0}.summary-item:nth-child(-n+2){border-bottom:1px solid var(--line)}}
+@media(max-width:760px){.app{grid-template-columns:1fr}.sidebar{display:none}.topbar{padding:0 16px}.content{width:calc(100% - 28px);padding-top:20px}.page-title p{display:none}.toolbar{align-items:stretch;flex-direction:column}.tool-left{flex-wrap:wrap}.search{width:100%}.tool-right{justify-content:space-between}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="side-brand"><span class="brand-mark">山</span><span>小重山 CMS</span></div>
+  <div class="side-scroll">
+    <div class="nav-group"><div class="nav-label">工作台</div><a class="nav-item"><span class="nav-icon">⌂</span><span>仪表盘</span></a></div>
+    <div class="nav-group"><div class="nav-label">内容</div><a class="nav-item active"><span class="nav-icon">▤</span><span>文章</span><span class="nav-count">3</span></a><a class="nav-item"><span class="nav-icon">◉</span><span>评论</span><span class="nav-count">1</span></a></div>
+    <div class="nav-group"><div class="nav-label">组织</div><a class="nav-item"><span class="nav-icon">◫</span><span>专题</span></a><a class="nav-item"><span class="nav-icon">#</span><span>标签</span><span class="nav-count">3</span></a><a class="nav-item"><span class="nav-icon">◇</span><span>项目</span></a></div>
+    <div class="nav-group"><div class="nav-label">资源</div><a class="nav-item"><span class="nav-icon">▧</span><span>媒体</span></a></div>
+    <div class="nav-group"><div class="nav-label">系统</div><a class="nav-item"><span class="nav-icon">○</span><span>用户</span></a><a class="nav-item"><span class="nav-icon">□</span><span>安全</span></a><a class="nav-item"><span class="nav-icon">≡</span><span>日志</span></a><a class="nav-item"><span class="nav-icon">⚙</span><span>设置</span></a></div>
+  </div>
+  <div class="side-footer"><a class="account"><span class="avatar">M</span><span class="account-copy"><div class="account-name">manual@verify.com</div><div class="account-role">管理员</div></span><span style="color:var(--muted-2);font-size:11px">⌄</span></a></div>
+</aside>
+
+<main class="main">
+  <header class="topbar"><div class="breadcrumb"><span>内容</span><span>/</span><b>文章</b></div><div class="top-actions"><button class="top-btn">↗ 返回网站</button><button class="top-btn">帮助</button></div></header>
+  <div class="content">
+    <section class="page-head"><div class="page-title"><h1>文章管理</h1><p>管理、发布和维护站点文章内容。</p></div><button class="primary-btn">＋ 新建文章</button></section>
+
+    <section class="summary">
+      <div class="summary-item"><div class="summary-label">全部文章</div><div class="summary-value">3</div><div class="summary-note">当前站点内容</div></div>
+      <div class="summary-item"><div class="summary-label">已发布</div><div class="summary-value">3</div><div class="summary-note">公开可访问</div></div>
+      <div class="summary-item"><div class="summary-label">草稿</div><div class="summary-value">0</div><div class="summary-note">仅后台可见</div></div>
+      <div class="summary-item"><div class="summary-label">待审核</div><div class="summary-value">0</div><div class="summary-note">等待处理</div></div>
+    </section>
+
+    <section class="toolbar">
+      <div class="tool-left">
+        <div class="search"><span class="search-icon">⌕</span><input placeholder="搜索文章标题或摘要"></div>
+        <select class="select"><option>全部状态</option><option>已发布</option><option>草稿</option><option>待审核</option></select>
+        <select class="select"><option>全部专题</option><option>AI 工程</option><option>软件设计</option><option>产品实践</option></select>
+        <button class="ghost-btn">更多筛选</button>
+      </div>
+      <div class="tool-right"><span>3 条结果</span><button class="ghost-btn">↻ 刷新</button></div>
+    </section>
+
+    <section class="table-card">
+      <div class="table-wrap">
+        <table>
+          <colgroup><col style="width:42px"><col style="width:38%"><col style="width:11%"><col style="width:12%"><col style="width:9%"><col style="width:12%"><col style="width:12%"><col style="width:104px"></colgroup>
+          <thead><tr><th><span class="checkbox"></span></th><th>文章</th><th>状态</th><th>专题</th><th>浏览</th><th>发布时间</th><th>最近更新</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr><td><span class="checkbox"></span></td><td><div class="article-title">深入理解 RAG：从检索到生成</div><div class="article-summary">从真实项目出发，重新理解检索、召回、Embedding、上下文构造与生成模型之间的协作。</div><div class="badges"><span class="pill">RAG</span><span class="pill">Python</span></div></td><td><span class="status published"><i></i>已发布</span></td><td><span class="pill topic">AI 工程</span></td><td><span class="num">9</span></td><td><div class="date-main">2026/08/12</div></td><td><div class="date-main">2026/08/24</div><div class="date-sub">3 天前</div></td><td><div class="action-cell"><button class="edit-btn">编辑</button><button class="more-btn" data-menu>···</button></div></td></tr>
+            <tr><td><span class="checkbox"></span></td><td><div class="article-title">全流程验证文章</div><div class="article-summary">用于验证文章创建、审核、发布、评论和状态流转。</div><div class="badges"><span class="pill">测试</span></div></td><td><span class="status published"><i></i>已发布</span></td><td><span class="pill topic">—</span></td><td><span class="num">11</span></td><td><div class="date-main">2026/08/16</div></td><td><div class="date-main">2026/08/16</div><div class="date-sub">11 天前</div></td><td><div class="action-cell"><button class="edit-btn">编辑</button><button class="more-btn" data-menu>···</button></div></td></tr>
+            <tr><td><span class="checkbox"></span></td><td><div class="article-title">手工验证文章</div><div class="article-summary">冒烟测试文章。</div><div class="badges"><span class="pill">验证</span></div></td><td><span class="status published"><i></i>已发布</span></td><td><span class="pill topic">—</span></td><td><span class="num">7</span></td><td><div class="date-main">2026/08/16</div></td><td><div class="date-main">2026/08/16</div><div class="date-sub">11 天前</div></td><td><div class="action-cell"><button class="edit-btn">编辑</button><button class="more-btn" data-menu>···</button></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-footer"><div>已选择 0 项 · 共 3 条</div><div class="pagination"><button class="page-btn">‹</button><button class="page-btn active">1</button><button class="page-btn">›</button><select class="select" style="height:28px"><option>20 / 页</option></select></div></div>
+    </section>
+  </div>
+</main>
+</div>
+
+<div class="dropdown" id="menu">
+  <div class="drop-item">预览文章</div><div class="drop-item">复制文章</div><div class="drop-item">取消发布</div>
+  <div style="height:1px;background:var(--line);margin:4px"></div><div class="drop-item danger">删除文章</div>
+</div>
+
+<script>
+const menu=document.getElementById('menu');
+document.querySelectorAll('[data-menu]').forEach(btn=>{
+  btn.addEventListener('click',e=>{
+    e.stopPropagation();
+    const r=btn.getBoundingClientRect();
+    menu.style.left=Math.max(8,r.right-160)+'px';
+    menu.style.top=(r.bottom+6)+'px';
+    menu.classList.toggle('open');
+  });
+});
+document.addEventListener('click',()=>menu.classList.remove('open'));
+</script>
+</body>
+</html>

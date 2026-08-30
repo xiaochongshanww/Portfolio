@@ -1,260 +1,121 @@
 <template>
   <div class="user-management">
-    <!-- 现代化页面头部 -->
-    <div class="modern-page-header">
-      <div class="page-header">
-        <div class="title-container">
-          <div class="title-icon">
-            <el-icon size="28"><User /></el-icon>
-          </div>
-          <div class="header-content">
-            <h1 class="page-title">用户管理</h1>
-            <p class="page-description">管理用户账户、角色分配和权限控制</p>
-          </div>
-        </div>
-        <div class="header-actions">
-          <button :disabled="loading" class="action-btn secondary" @click="handleRefresh">
-            <el-icon size="16" :class="{ 'is-loading': loading }"><Refresh /></el-icon>
-            <span>刷新</span>
-          </button>
-        </div>
-      </div>
-      
-      <!-- 统计面板 -->
-      <div class="modern-stats">
-        <div class="stat-card">
-          <div class="stat-header">
-            <div class="stat-icon">
-              <el-icon size="20"><DataBoard /></el-icon>
-            </div>
-            <div class="stat-info">
-              <span class="stat-label">总用户数</span>
-              <span class="stat-value">{{ stats.total }}</span>
-            </div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-header">
-            <div class="stat-icon">
-              <el-icon size="20"><User /></el-icon>
-            </div>
-            <div class="stat-info">
-              <span class="stat-label">今日活跃</span>
-              <span class="stat-value active">{{ stats.activeToday }}</span>
-            </div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-header">
-            <div class="stat-icon">
-              <el-icon size="20"><UserFilled /></el-icon>
-            </div>
-            <div class="stat-info">
-              <span class="stat-label">管理员</span>
-              <span class="stat-value admin">{{ getAdminCount() }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <AdminPageHeader title="用户管理" description="管理后台账号、角色和账户状态。" />
 
-    <!-- 现代化筛选工具栏 -->
-    <div class="modern-filter-container">
-      <div class="filter-row">
-        <div class="filter-group">
-          <div class="modern-select">
-            <el-select v-model="filters.role" placeholder="角色筛选" clearable class="role-select" @change="handleFilterChange">
-              <el-option label="全部角色" value="" />
-              <el-option label="管理员" value="admin" />
-              <el-option label="编辑" value="editor" />
-              <el-option label="作者" value="author" />
-            </el-select>
-          </div>
+    <!-- Summary Strip(05 §20) -->
+    <AdminSummaryStrip :items="summaryItems" />
 
-          <div class="modern-search-input">
-            <el-input
-              v-model="filters.search"
-              placeholder="搜索用户名或邮箱..."
-              clearable
-              class="search-input"
-              @clear="handleFilterChange"
-              @keyup.enter="handleFilterChange"
-            >
-              <template #prefix>
-                <el-icon><Search /></el-icon>
-              </template>
-            </el-input>
-          </div>
+    <!-- Toolbar(05 §5) -->
+    <AdminToolbar
+      v-model:search="filters.search"
+      search-placeholder="搜索用户名或邮箱"
+      :result-count="error ? null : meta.total"
+      refreshable
+      @update:search="onSearchInput"
+      @refresh="loadUsers"
+    >
+      <template #filters>
+        <select v-model="filters.role" class="adm-select" aria-label="按角色筛选" @change="handleFilterChange">
+          <option value="">全部角色</option>
+          <option value="admin">管理员</option>
+          <option value="editor">编辑</option>
+          <option value="author">作者</option>
+        </select>
+      </template>
+    </AdminToolbar>
 
-          <div class="modern-date-picker">
-            <el-date-picker
-              v-model="filters.dateRange"
-              type="daterange"
-              start-placeholder="注册开始日期"
-              end-placeholder="注册结束日期"
-              size="default"
-              class="date-range-picker"
-              @change="handleFilterChange"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 现代化用户列表 -->
-    <div class="modern-user-list-container">
-      <el-table
-        v-loading="loading"
-        :data="users"
-        row-key="id"
-        class="modern-table"
-      >
-        <el-table-column label="用户信息" min-width="250">
-          <template #default="{ row }">
-            <div class="user-info">
-              <div class="user-avatar">
-                <img 
-                  v-if="row.avatar" 
-                  :src="row.avatar" 
+    <section class="table-card">
+      <AdminStateBlock
+        v-if="error"
+        kind="error"
+        title="用户列表加载失败"
+        compact
+        @reload="loadUsers"
+      />
+      <AdminStateBlock
+        v-else-if="!loading && !users.length"
+        kind="empty"
+        title="暂无用户"
+        description="当前筛选条件下没有用户。"
+        compact
+      />
+      <div v-else class="table-wrap">
+        <el-table :data="users" row-key="id" class="adm-table">
+          <el-table-column label="用户" min-width="260">
+            <template #default="{ row }">
+              <div class="user-cell">
+                <img
+                  v-if="row.avatar"
+                  :src="row.avatar"
                   :alt="row.nickname || row.email"
+                  class="user-avatar"
                   @error="handleAvatarError"
                 >
-                <div v-else class="avatar-placeholder">
-                  <el-icon size="24"><User /></el-icon>
-                </div>
+                <span v-else class="user-avatar avatar-fallback">{{ avatarInitial(row) }}</span>
+                <span class="user-copy">
+                  <b>{{ row.nickname || '未设置昵称' }}</b>
+                  <small>{{ row.email }}</small>
+                </span>
               </div>
-              <div class="user-details">
-                <div class="user-name">
-                  {{ row.nickname || '未设置昵称' }}
-                </div>
-                <div class="user-email">{{ row.email }}</div>
-                <div v-if="row.bio" class="user-bio">{{ row.bio }}</div>
-              </div>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="角色" width="120" align="center">
-          <template #default="{ row }">
-            <div class="modern-role-badge">
-              <div class="role-indicator" :class="getRoleClass(row.role)">
-                <el-icon size="14"><component :is="getRoleIcon(row.role)" /></el-icon>
-                <span class="role-text">{{ getRoleText(row.role) }}</span>
-              </div>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="文章统计" width="120" align="center">
-          <template #default="{ row }">
-            <div class="article-stats">
-              <div class="stat-item">
-                <span class="stat-value">{{ row.article_count || 0 }}</span>
-                <span class="stat-label">文章</span>
-              </div>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="注册时间" width="120" align="center">
-          <template #default="{ row }">
-            <div class="join-date">
-              {{ formatDate(row.created_at) }}
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="最后活跃" width="120" align="center">
-          <template #default="{ row }">
-            <div class="last-active">
-              {{ row.last_active ? formatRelativeTime(row.last_active) : '未知' }}
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="状态" width="100" align="center">
-          <template #default="{ row }">
-            <div class="modern-status-badge">
-              <div class="status-indicator" :class="row.is_active ? 'active' : 'inactive'">
-                <el-icon size="14">
-                  <component :is="row.is_active ? 'UserFilled' : 'Lock'" />
-                </el-icon>
-                <span class="status-text">{{ row.is_active ? '正常' : '禁用' }}</span>
-              </div>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="操作" width="200" align="center" fixed="right">
-          <template #default="{ row }">
-            <div class="modern-action-buttons">
-              <button 
-                class="table-btn view"
-                @click="viewUserDetail(row)"
-              >
-                <el-icon size="14"><View /></el-icon>
-                <span>详情</span>
-              </button>
-              
-              <el-dropdown 
-                :disabled="row.id === userStore.user?.id"
-                class="modern-dropdown"
-                @command="(command) => handleUserAction(row, command)"
-              >
-                <button class="table-btn more" :disabled="row.id === userStore.user?.id">
-                  <span>操作</span>
-                  <el-icon size="14"><ArrowDown /></el-icon>
+            </template>
+          </el-table-column>
+          <el-table-column label="角色" width="100">
+            <template #default="{ row }">
+              <AdminTag :label="getRoleText(row.role)" :tone="roleTone(row.role)" />
+            </template>
+          </el-table-column>
+          <el-table-column label="状态" width="90">
+            <template #default="{ row }">
+              <AdminStatus :kind="row.is_active ? 'success' : 'danger'" :label="row.is_active ? '正常' : '已禁用'" />
+            </template>
+          </el-table-column>
+          <el-table-column label="文章" width="70">
+            <template #default="{ row }">
+              <span class="num">{{ row.article_count || 0 }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="注册时间" width="110">
+            <template #default="{ row }">
+              <span class="cell-text">{{ formatDate(row.created_at) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column width="150" fixed="right" align="right">
+            <template #default="{ row }">
+              <AdminActionMenu :test-id="`user-${row.id}`">
+                <button type="button" class="edit-btn" :disabled="row.id === userStore.user?.id" @click="viewUserDetail(row)">
+                  详情
                 </button>
-                <template #dropdown>
-                  <el-dropdown-menu class="modern-dropdown-menu">
-                    <el-dropdown-item command="changeRole">
-                      <el-icon><UserFilled /></el-icon>
-                      修改角色
-                    </el-dropdown-item>
-                    <el-dropdown-item 
-                      :command="row.is_active ? 'disable' : 'enable'"
-                    >
-                      <el-icon><component :is="row.is_active ? 'Lock' : 'Unlock'" /></el-icon>
-                      {{ row.is_active ? '禁用账户' : '启用账户' }}
-                    </el-dropdown-item>
-                    <el-dropdown-item 
-                      command="resetPassword"
-                      divided
-                    >
-                      <el-icon><Key /></el-icon>
-                      重置密码
-                    </el-dropdown-item>
-                    <el-dropdown-item 
-                      command="delete"
-                      :disabled="row.role === 'admin'"
-                    >
-                      <el-icon><Delete /></el-icon>
-                      删除用户
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
+                <template #menu>
+                  <el-dropdown-item :disabled="row.id === userStore.user?.id" @click="handleUserAction(row, 'changeRole')">修改角色</el-dropdown-item>
+                  <el-dropdown-item :disabled="row.id === userStore.user?.id" @click="handleUserAction(row, row.is_active ? 'disable' : 'enable')">
+                    {{ row.is_active ? '禁用账户' : '启用账户' }}
+                  </el-dropdown-item>
+                  <el-dropdown-item :disabled="row.id === userStore.user?.id" divided @click="handleUserAction(row, 'resetPassword')">重置密码</el-dropdown-item>
+                  <el-dropdown-item danger :disabled="row.role === 'admin' || row.id === userStore.user?.id" @click="handleUserAction(row, 'delete')">删除用户</el-dropdown-item>
                 </template>
-              </el-dropdown>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
+              </AdminActionMenu>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
 
-      <!-- 分页 -->
-      <div class="pagination-container">
+      <div class="table-footer">
+        <span>共 {{ meta.total }} 个用户</span>
         <el-pagination
-          background
-          layout="total, sizes, prev, pager, next, jumper"
+          layout="prev, pager, next, sizes"
           :total="meta.total"
           :current-page="meta.page"
           :page-size="meta.page_size"
           :page-sizes="[10, 20, 50, 100]"
+          :pager-count="5"
+          small
           @current-change="handlePageChange"
           @size-change="handleSizeChange"
         />
       </div>
-    </div>
+    </section>
 
-    <!-- 用户详情对话框 -->
+    <!-- 用户详情对话框(暂留 Dialog;Drawer 化留待详情内容扩权时) -->
     <UserDetailDialog
       :visible="detailDialog.visible"
       :user="detailDialog.user"
@@ -273,71 +134,67 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
-import { 
-  Search, Refresh, User, View, ArrowDown, UserFilled, 
-  Lock, Unlock, Key, Delete, DataBoard 
-} from '@element-plus/icons-vue';
+/**
+ * 用户管理(05 §20 List + Detail):外壳套 Pattern,业务/对话框全保留。
+ * 详情 Drawer 化待 UserDetailDialog 内容扩展后进行(当前仅展示 Profile)。
+ */
+import { ref, reactive, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useUserStore } from '../../stores/user';
 import { API } from '../../api';
 import UserDetailDialog from '../../components/admin/UserDetailDialog.vue';
 import ChangeRoleDialog from '../../components/admin/ChangeRoleDialog.vue';
+import AdminPageHeader from '../../components/admin/AdminPageHeader.vue';
+import AdminSummaryStrip from '../../components/admin/AdminSummaryStrip.vue';
+import AdminToolbar from '../../components/admin/AdminToolbar.vue';
+import AdminStatus from '../../components/admin/AdminStatus.vue';
+import AdminTag from '../../components/admin/AdminTag.vue';
+import AdminActionMenu from '../../components/admin/AdminActionMenu.vue';
+import AdminStateBlock from '../../components/admin/AdminStateBlock.vue';
 
 const userStore = useUserStore();
 
-// 响应式数据
 const loading = ref(false);
+const error = ref(false);
 /** @type {import('vue').Ref<any[]>} */
 const users = ref([]);
 
-// 统计数据
-const stats = reactive({
-  total: 0,
-  activeToday: 0
-});
+const stats = reactive({ total: 0 });
 
-// 筛选条件
 const filters = reactive({
   role: '',
   search: '',
-  /** @type {any} */
-  dateRange: null
 });
 
-// 分页信息
-const meta = reactive({
-  total: 0,
-  page: 1,
-  page_size: 20
-});
+const meta = reactive({ total: 0, page: 1, page_size: 20 });
 
-// 对话框状态
 const detailDialog = reactive({
   visible: false,
   /** @type {any} */
-  user: null
+  user: null,
 });
 
 const roleDialog = reactive({
   visible: false,
   loading: false,
   /** @type {any} */
-  user: null
+  user: null,
 });
 
-// 工具函数
-/**
- * @param {string | undefined} role
- * @returns {'info' | 'success' | 'primary' | 'warning' | 'danger'}
- */
-function getRoleType(role) {
-  switch (role) {
-    case 'admin': return 'danger';
-    case 'editor': return 'warning';
-    case 'author': return 'info';
-    default: return 'info';
-  }
+const summaryItems = computed(() => [
+  { label: '用户', value: stats.total, note: '后台账号' },
+  { label: '管理员', value: getAdminCount(), note: '完整权限' },
+  { label: '编辑/作者', value: users.value.filter((u) => u.role !== 'admin').length, note: '内容协作' },
+  { label: '已禁用', value: users.value.filter((u) => u.is_active === false).length, note: '不可登录' },
+]);
+
+/** @param {any} user */
+function avatarInitial(user) {
+  return (user?.nickname || user?.email || 'U').slice(0, 1).toUpperCase();
+}
+
+function getAdminCount() {
+  return users.value.filter((user) => user.role === 'admin').length;
 }
 
 /** @param {string | undefined} role */
@@ -346,31 +203,26 @@ function getRoleText(role) {
     case 'admin': return '管理员';
     case 'editor': return '编辑';
     case 'author': return '作者';
-    default: return role;
+    default: return '用户';
   }
 }
 
-/** @param {string | number | Date} dateStr */
+/** @param {string | undefined} role @returns {'blue'|'green'|'neutral'} */
+function roleTone(role) {
+  switch (role) {
+    case 'admin': return 'blue';
+    case 'editor': return 'green';
+    default: return 'neutral';
+  }
+}
+
+/** @param {string | undefined} dateStr */
 function formatDate(dateStr) {
-  return new Date(dateStr).toLocaleDateString('zh-CN');
-}
-
-/** @param {string | number | Date} dateStr */
-function formatRelativeTime(dateStr) {
-  const now = new Date();
-  const date = new Date(dateStr);
-  const diff = now.getTime() - date.getTime();
-  
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  
-  if (hours < 24) {
-    return `${hours}小时前`;
-  } else if (days < 7) {
-    return `${days}天前`;
-  } else {
-    return formatDate(dateStr);
-  }
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return '—';
+  const pad = (/** @type {number} */ n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())}`;
 }
 
 /** @param {Event} e */
@@ -379,88 +231,38 @@ function handleAvatarError(e) {
   img.style.display = 'none';
 }
 
-function getAdminCount() {
-  return users.value.filter(user => user.role === 'admin').length;
-}
-
-// 角色样式类获取
-/** @param {string | undefined} role */
-function getRoleClass(role) {
-  /** @type {Record<string, string>} */
-  const roleClasses = {
-    admin: 'role-admin',
-    editor: 'role-editor', 
-    author: 'role-author'
-  };
-  return roleClasses[role || ''] || 'role-author';
-}
-
-// 角色图标获取
-/** @param {string | undefined} role */
-function getRoleIcon(role) {
-  /** @type {Record<string, import('vue').Component>} */
-  const roleIcons = {
-    admin: UserFilled,
-    editor: User,
-    author: User
-  };
-  return roleIcons[role || ''] || User;
-}
-
-// 数据加载
 async function loadUsers() {
   loading.value = true;
-  
+  error.value = false;
   try {
     /** @type {Record<string, any>} */
-    const params = {
-      page: meta.page,
-      page_size: meta.page_size
-    };
-
-    // 添加筛选条件
+    const params = { page: meta.page, page_size: meta.page_size };
     if (filters.role) params.role = filters.role;
     if (filters.search) params.search = filters.search;
-    if (filters.dateRange && filters.dateRange.length === 2) {
-      params.start_date = filters.dateRange[0].toISOString().split('T')[0];
-      params.end_date = filters.dateRange[1].toISOString().split('T')[0];
-    }
 
     const response = await API.getUsers(params);
     const data = response.data.data;
-    
     users.value = data?.list || [];
     meta.total = data?.total || 0;
     meta.page = data?.page || 1;
     meta.page_size = data?.page_size || 20;
-    
-    // 更新统计
     stats.total = meta.total;
-  } catch (error) {
-    console.error('加载用户列表失败:', error);
-    ElMessage.error('加载用户列表失败');
+  } catch (e) {
+    error.value = true;
   } finally {
     loading.value = false;
   }
 }
 
-async function loadStats() {
-  try {
-    // 这里可以添加更多统计数据的API调用
-    // 比如今日活跃用户数等
-    stats.activeToday = Math.floor(stats.total * 0.1); // 临时数据
-  } catch (error) {
-    console.error('加载统计数据失败:', error);
-  }
+/** @type {ReturnType<typeof setTimeout> | undefined} */
+let searchTimer;
+function onSearchInput() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => handleFilterChange(), 300);
 }
 
-// 事件处理
 function handleFilterChange() {
   meta.page = 1;
-  loadUsers();
-}
-
-function handleRefresh() {
   loadUsers();
 }
 
@@ -477,7 +279,6 @@ function handleSizeChange(size) {
   loadUsers();
 }
 
-// 用户操作
 /** @param {any} user */
 function viewUserDetail(user) {
   detailDialog.user = user;
@@ -488,7 +289,8 @@ function viewUserDetail(user) {
 async function handleUserAction(user, action) {
   switch (action) {
     case 'changeRole':
-      showRoleDialog(user);
+      roleDialog.user = user;
+      roleDialog.visible = true;
       break;
     case 'disable':
       await toggleUserStatus(user, false);
@@ -505,12 +307,6 @@ async function handleUserAction(user, action) {
   }
 }
 
-/** @param {any} user */
-function showRoleDialog(user) {
-  roleDialog.user = user;
-  roleDialog.visible = true;
-}
-
 /** @param {string} newRole */
 async function handleRoleConfirm(newRole) {
   const user = roleDialog.user;
@@ -518,23 +314,17 @@ async function handleRoleConfirm(newRole) {
     ElMessage.warning('请选择新角色');
     return;
   }
-
   if (newRole === user.role) {
     ElMessage.warning('新角色与当前角色相同');
     return;
   }
-
   roleDialog.loading = true;
-  
   try {
-    await API.updateUser(user.id, {
-      role: newRole
-    });
-    
+    await API.updateUser(user.id, { role: newRole });
     ElMessage.success('角色修改成功');
     roleDialog.visible = false;
     loadUsers();
-  } catch (error) {
+  } catch (e) {
     ElMessage.error('角色修改失败');
   } finally {
     roleDialog.loading = false;
@@ -544,24 +334,17 @@ async function handleRoleConfirm(newRole) {
 /** @param {any} user @param {boolean} isActive */
 async function toggleUserStatus(user, isActive) {
   const action = isActive ? '启用' : '禁用';
-  
   try {
     await ElMessageBox.confirm(
-      `确定要${action}用户 "${user.nickname || user.email}" 吗？`,
+      `${action}用户「${user.nickname || user.email}」?${isActive ? '' : '禁用后该用户将无法登录。'}`,
       `${action}用户`,
-      { type: 'warning' }
+      { type: 'warning', confirmButtonText: `${action}用户`, cancelButtonText: '取消' },
     );
-
-    await API.updateUser(user.id, {
-      is_active: isActive
-    });
-
+    await API.updateUser(user.id, { is_active: isActive });
     ElMessage.success(`用户已${action}`);
     loadUsers();
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error(`${action}失败`);
-    }
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error(`${action}失败`);
   }
 }
 
@@ -569,17 +352,14 @@ async function toggleUserStatus(user, isActive) {
 async function resetUserPassword(user) {
   try {
     await ElMessageBox.confirm(
-      `确定要重置用户 "${user.nickname || user.email}" 的密码吗？新密码将发送到用户邮箱。`,
+      `重置用户「${user.nickname || user.email}」的密码?新密码将发送到用户邮箱。`,
       '重置密码',
-      { type: 'warning' }
+      { type: 'warning', confirmButtonText: '重置密码', cancelButtonText: '取消' },
     );
-
     await API.resetUserPassword(user.id);
     ElMessage.success('密码重置成功，新密码已发送到用户邮箱');
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('密码重置失败');
-    }
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('密码重置失败');
   }
 }
 
@@ -589,1298 +369,139 @@ async function deleteUser(user) {
     ElMessage.warning('无法删除管理员账户');
     return;
   }
-
   try {
     await ElMessageBox.confirm(
-      `确定要删除用户 "${user.nickname || user.email}" 吗？此操作不可恢复，该用户的所有文章也将被删除。`,
+      `删除用户「${user.nickname || user.email}」?该用户的所有文章也将被删除,操作不可恢复。`,
       '删除用户',
-      { 
-        type: 'error',
-        confirmButtonText: '确认删除',
-        confirmButtonClass: 'el-button--danger'
-      }
+      { type: 'warning', confirmButtonText: '删除用户', cancelButtonText: '取消' },
     );
-
     await API.deleteUser(user.id);
     ElMessage.success('用户已删除');
     loadUsers();
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('删除失败');
-    }
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('删除失败');
   }
 }
 
-// 生命周期
 onMounted(() => {
   loadUsers();
-  loadStats();
-  
-  // 固定列透明度修复已完成
 });
 </script>
 
 <style scoped>
-/* ===== 现代化用户管理页面样式 ===== */
 .user-management {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 1.5rem;
+  width: 100%;
+}
+.user-management :deep(.admin-toolbar) {
+  border-bottom: 0;
+}
+.user-management :deep(.el-table) {
+  width: 100%;
 }
 
-/* 现代化页面头部 */
-.modern-page-header {
-  position: relative;
-  background: 
-    radial-gradient(circle at 20% 80%, rgba(6, 182, 212, 0.06) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(59, 130, 246, 0.06) 0%, transparent 50%),
-    radial-gradient(circle at 40% 40%, rgba(14, 165, 233, 0.06) 0%, transparent 50%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.9) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 20px;
-  padding: 2rem;
-  margin-bottom: 2rem;
-  backdrop-filter: blur(20px);
-  box-shadow: 
-    0 4px 20px rgba(6, 182, 212, 0.1),
-    0 1px 3px rgba(0, 0, 0, 0.02);
-  position: relative;
-  overflow: hidden;
+.adm-select {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-r-control);
+  background: var(--adm-surface);
+  color: var(--adm-text-2);
+  font-size: 12px;
+  outline: none;
+}
+.adm-select:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px var(--adm-primary-soft);
 }
 
-.modern-page-header::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(
-    90deg, 
-    transparent 0%, 
-    rgba(6, 182, 212, 0.3) 25%, 
-    rgba(59, 130, 246, 0.3) 75%, 
-    transparent 100%
-  );
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 2rem;
-}
-
-.title-container {
+/* 用户单元格(05 §17 两层:昵称+邮箱) */
+.user-cell {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 10px;
+  min-width: 0;
 }
-
-.title-icon {
-  width: 56px;
-  height: 56px;
-  background: linear-gradient(135deg, #0891b2 0%, #3b82f6 100%);
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  box-shadow: 0 4px 20px rgba(6, 182, 212, 0.25);
-  position: relative;
-  overflow: hidden;
+.user-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  object-fit: cover;
+  flex-shrink: 0;
 }
-
-.title-icon::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: linear-gradient(45deg, transparent 40%, rgba(255, 255, 255, 0.2) 50%, transparent 60%);
-  transform: rotate(45deg) translateX(-100%);
-  transition: transform 0.6s ease;
-}
-
-.title-icon:hover::before {
-  transform: rotate(45deg) translateX(100%);
-}
-
-.header-content h1 {
-  margin: 0 0 0.5rem 0;
-  font-size: 2rem;
-  font-weight: 800;
-  background: linear-gradient(135deg, #0f172a 0%, #0891b2 100%);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  letter-spacing: -0.025em;
-}
-
-.page-description {
-  margin: 0;
-  color: #64748b;
-  font-size: 1rem;
-  font-weight: 500;
-}
-
-.header-actions {
-  display: flex;
-  gap: 0.75rem;
-}
-
-.action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  border-radius: 12px;
-  border: 1px solid;
-  backdrop-filter: blur(8px);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.action-btn.secondary {
-  background: rgba(255, 255, 255, 0.8);
-  border-color: rgba(6, 182, 212, 0.2);
-  color: #0891b2;
-}
-
-.action-btn.secondary:hover:not(:disabled) {
-  background: rgba(6, 182, 212, 0.1);
-  border-color: rgba(6, 182, 212, 0.3);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 20px rgba(6, 182, 212, 0.15);
-}
-
-.action-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none !important;
-}
-
-.action-btn .el-icon.is-loading {
-  animation: rotating 2s linear infinite;
-}
-
-@keyframes rotating {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* 统计面板 */
-.modern-stats {
+.avatar-fallback {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
+  place-items: center;
+  background: #eef2f7;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
 }
-
-.stat-card {
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 16px;
-  padding: 1.5rem;
-  backdrop-filter: blur(12px);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-}
-
-.stat-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, #06b6d4, #3b82f6);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 30px rgba(6, 182, 212, 0.15);
-  border-color: rgba(6, 182, 212, 0.3);
-}
-
-.stat-card:hover::before {
-  opacity: 1;
-}
-
-.stat-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.stat-icon {
-  width: 48px;
-  height: 48px;
-  background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(59, 130, 246, 0.1));
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #0891b2;
-  border: 1px solid rgba(6, 182, 212, 0.2);
-}
-
-.stat-info {
+.user-copy {
+  min-width: 0;
   display: flex;
   flex-direction: column;
-}
-
-.stat-label {
-  font-size: 0.875rem;
-  color: #64748b;
-  font-weight: 500;
-  margin-bottom: 0.25rem;
-}
-
-.stat-value {
-  font-size: 1.875rem;
-  font-weight: 800;
-  color: #0f172a;
-  line-height: 1;
-}
-
-.stat-value.active {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.stat-value.admin {
-  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-/* 现代化筛选容器 - 修复溢出问题 */
-.modern-filter-container {
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 16px;
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
-  backdrop-filter: blur(12px);
-  box-shadow: 0 2px 12px rgba(6, 182, 212, 0.08);
-  overflow: hidden;
-}
-
-/* 完全重写固定列样式 */
-.user-management :deep(.el-table__fixed-right) {
-  background: #ffffff !important;
-  box-shadow: -2px 0 8px rgba(0,0,0,0.1) !important;
-}
-
-.user-management :deep(.el-table__fixed-right .el-table__header),
-.user-management :deep(.el-table__fixed-right .el-table__body) {
-  background: #ffffff !important;
-}
-
-.user-management :deep(.el-table__fixed-right th),
-.user-management :deep(.el-table__fixed-right td) {
-  background-color: #ffffff !important;
-  background: #ffffff !important;
-}
-
-/* 终极解决方案：针对Element Plus真正的固定列结构 */
-:deep(.el-table-fixed-column--right) {
-  background: #ffffff !important;
-  background-color: #ffffff !important;
-  backdrop-filter: none !important;
-  opacity: 1 !important;
-  z-index: 10 !important;
-}
-
-:deep(th.el-table-fixed-column--right) {
-  background: #f8fafc !important;
-  background-color: #f8fafc !important;
-  backdrop-filter: none !important;
-  opacity: 1 !important;
-  border-left: 1px solid rgba(6, 182, 212, 0.15) !important;
-}
-
-:deep(td.el-table-fixed-column--right) {
-  background: #ffffff !important;
-  background-color: #ffffff !important;
-  backdrop-filter: none !important;
-  opacity: 1 !important;
-  border-left: 1px solid rgba(6, 182, 212, 0.1) !important;
-}
-
-/* 悬停状态的固定列 */
-:deep(tr:hover td.el-table-fixed-column--right) {
-  background: #f0f9ff !important;
-  background-color: #f0f9ff !important;
-}
-
-.filter-row {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-
-.filter-group {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex: 1;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-
-.modern-select,
-.modern-search-input {
-  flex: 1;
-  min-width: 200px;
-}
-
-.modern-date-picker {
-  flex: 0 0 auto;
-  width: 260px;
-  min-width: 260px;
-  max-width: 260px;
-}
-
-.modern-date-picker .el-date-editor {
-  width: 100% !important;
-}
-
-/* Element Plus 组件样式覆盖 */
-:deep(.role-select .el-input__wrapper) {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(6, 182, 212, 0.2);
-  border-radius: 12px;
-  backdrop-filter: blur(8px);
-  transition: all 0.3s ease;
-}
-
-:deep(.role-select .el-input__wrapper:hover) {
-  border-color: rgba(6, 182, 212, 0.3);
-  box-shadow: 0 2px 8px rgba(6, 182, 212, 0.1);
-}
-
-:deep(.search-input .el-input__wrapper) {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(6, 182, 212, 0.2);
-  border-radius: 12px;
-  backdrop-filter: blur(8px);
-  transition: all 0.3s ease;
-}
-
-:deep(.search-input .el-input__wrapper:hover) {
-  border-color: rgba(6, 182, 212, 0.3);
-  box-shadow: 0 2px 8px rgba(6, 182, 212, 0.1);
-}
-
-:deep(.date-range-picker .el-input__wrapper) {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(6, 182, 212, 0.2);
-  border-radius: 12px;
-  backdrop-filter: blur(8px);
-  transition: all 0.3s ease;
-}
-
-:deep(.date-range-picker .el-input__wrapper:hover) {
-  border-color: rgba(6, 182, 212, 0.3);
-  box-shadow: 0 2px 8px rgba(6, 182, 212, 0.1);
-}
-
-:deep(.date-range-picker.el-date-editor) {
-  width: 100% !important;
-  max-width: 100% !important;
-}
-
-:deep(.date-range-picker .el-input__inner) {
-  width: 100% !important;
-}
-
-/* 现代化表格容器 - 彻底移除透明效果 */
-.modern-user-list-container {
-  background: #ffffff !important;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 16px;
-  backdrop-filter: none !important;
-  box-shadow: 0 4px 20px rgba(6, 182, 212, 0.08);
-  overflow: hidden;
-}
-
-:deep(.modern-table) {
-  background: #ffffff;
-}
-
-:deep(.modern-table .el-table__header) {
-  background: rgba(6, 182, 212, 0.05);
-  border-radius: 0;
-}
-
-:deep(.modern-table .el-table__header th) {
-  background: rgba(6, 182, 212, 0.05);
-  border: none;
-  color: #0f172a;
-  font-weight: 600;
-  font-size: 0.875rem;
-  padding: 1rem 0.75rem;
-}
-
-:deep(.modern-table .el-table__body tr) {
-  background: #ffffff !important;
-  transition: all 0.3s ease;
-}
-
-:deep(.modern-table .el-table__body tr:hover) {
-  background: rgba(6, 182, 212, 0.05) !important;
-}
-
-:deep(.modern-table .el-table__body td) {
-  background: #ffffff !important;
-  border: none;
-  padding: 1rem 0.75rem;
-  border-bottom: 1px solid rgba(6, 182, 212, 0.1);
-}
-
-/* 修复固定列的层级问题 - 彻底的不透明背景 */
-:deep(.modern-table .el-table__fixed-right) {
-  z-index: 10 !important;
-  background: #ffffff !important;
-  backdrop-filter: none !important;
-  box-shadow: -4px 0 12px rgba(6, 182, 212, 0.08);
-  opacity: 1 !important;
-}
-
-:deep(.modern-table .el-table__fixed-right-patch) {
-  background: #ffffff !important;
-  backdrop-filter: none !important;
-  z-index: 10 !important;
-  opacity: 1 !important;
-}
-
-:deep(.modern-table .el-table__fixed-right .el-table__header) {
-  background: #ffffff !important;
-  backdrop-filter: none !important;
-  opacity: 1 !important;
-}
-
-:deep(.modern-table .el-table__fixed-right .el-table__header th) {
-  background: #ffffff !important;
-  backdrop-filter: none !important;
-  border-left: 1px solid rgba(6, 182, 212, 0.15);
-  position: relative;
-  opacity: 1 !important;
-}
-
-:deep(.modern-table .el-table__fixed-right .el-table__body) {
-  background: #ffffff !important;
-  backdrop-filter: none !important;
-  opacity: 1 !important;
-}
-
-:deep(.modern-table .el-table__fixed-right .el-table__body td) {
-  background: #ffffff !important;
-  backdrop-filter: none !important;
-  border-left: 1px solid rgba(6, 182, 212, 0.1);
-  position: relative;
-  opacity: 1 !important;
-}
-
-:deep(.modern-table .el-table__fixed-right .el-table__body tr) {
-  background: #ffffff !important;
-  opacity: 1 !important;
-}
-
-:deep(.modern-table .el-table__fixed-right .el-table__body tr:hover) {
-  background: #ffffff !important;
-  opacity: 1 !important;
-}
-
-:deep(.modern-table .el-table__fixed-right .el-table__body tr:hover td) {
-  background: #f0f9ff !important;
-  backdrop-filter: none !important;
-  opacity: 1 !important;
-}
-
-/* 覆盖所有可能的透明度设置 */
-:deep(.modern-table .el-table__fixed-right *) {
-  opacity: 1 !important;
-  background-color: inherit;
-}
-
-:deep(.modern-table .el-table__fixed-right .cell) {
-  background: transparent !important;
-  opacity: 1 !important;
-}
-
-/* 最强制的固定列不透明度控制 */
-:deep(.el-table__fixed-right) {
-  background: #ffffff !important;
-  z-index: 100 !important;
-}
-
-:deep(.el-table__fixed-right::before) {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: #ffffff !important;
-  z-index: -1;
-}
-
-:deep(.el-table__fixed-right .el-table__header),
-:deep(.el-table__fixed-right .el-table__body),
-:deep(.el-table__fixed-right .el-table__header th),
-:deep(.el-table__fixed-right .el-table__body td),
-:deep(.el-table__fixed-right .el-table__body tr) {
-  background: #ffffff !important;
-  backdrop-filter: none !important;
-  opacity: 1 !important;
-}
-
-/* 专门针对表头固定列的强制不透明样式 */
-:deep(.el-table__fixed-right .el-table__header-wrapper) {
-  background: #ffffff !important;
-  backdrop-filter: none !important;
-  opacity: 1 !important;
-}
-
-:deep(.el-table__fixed-right .el-table__header-wrapper .el-table__header) {
-  background: #ffffff !important;
-  backdrop-filter: none !important;
-  opacity: 1 !important;
-}
-
-:deep(.el-table__fixed-right .el-table__header-wrapper .el-table__header th) {
-  background: #ffffff !important;
-  backdrop-filter: none !important;
-  opacity: 1 !important;
-}
-
-/* 确保表头固定列有额外的白色背景层 */
-:deep(.el-table__fixed-right .el-table__header-wrapper::before) {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: #ffffff !important;
-  z-index: -1;
-}
-
-/* 最强制的表头固定列样式 - 使用通配符覆盖所有可能的元素 */
-:deep(.el-table__fixed-right *) {
-  background: #ffffff !important;
-  background-color: #ffffff !important;
-  backdrop-filter: none !important;
-  opacity: 1 !important;
-}
-
-/* 特别针对表头区域的强制样式 */
-:deep(.modern-table .el-table__fixed-right) {
-  background: #ffffff !important;
-  background-color: #ffffff !important;
-  backdrop-filter: none !important;
-  opacity: 1 !important;
-  z-index: 999 !important;
-}
-
-/* 覆盖任何可能的透明度设置 */
-:deep(.modern-table .el-table__fixed-right),
-:deep(.modern-table .el-table__fixed-right *),
-:deep(.modern-table .el-table__fixed-right::before),
-:deep(.modern-table .el-table__fixed-right::after) {
-  background: #ffffff !important;
-  background-color: #ffffff !important;
-  backdrop-filter: none !important;
-  filter: none !important;
-  opacity: 1 !important;
-}
-
-/* 移除所有伪元素装饰，确保完全不透明 */
-:deep(.modern-table .el-table__fixed-right .el-table__header th::before) {
-  display: none;
-}
-
-:deep(.modern-table .el-table__fixed-right .el-table__body tr:hover td::before) {
-  display: none;
-}
-
-/* 最终解决方案：暴力覆盖所有透明度相关属性 */
-.modern-user-list-container :deep(.el-table__fixed-right),
-.modern-user-list-container :deep(.el-table__fixed-right-patch),
-.modern-user-list-container :deep(.el-table__fixed-right *) {
-  background: #ffffff !important;
-  background-color: #ffffff !important;
-  background-image: none !important;
-  backdrop-filter: none !important;
-  filter: none !important;
-  opacity: 1 !important;
-  -webkit-backdrop-filter: none !important;
-  z-index: inherit !important;
-}
-
-/* 强制覆盖表头固定列的所有背景属性 */
-.modern-user-list-container :deep(.el-table__fixed-right .el-table__header),
-.modern-user-list-container :deep(.el-table__fixed-right .el-table__header *) {
-  background: #ffffff !important;
-  background-color: #ffffff !important;
-  background-image: none !important;
-  backdrop-filter: none !important;
-  filter: none !important;
-  opacity: 1 !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-/* 使用CSS变量强制覆盖Element Plus的内部样式 */
-.modern-user-list-container {
-  --el-table-bg-color: #ffffff;
-  --el-table-tr-bg-color: #ffffff;
-  --el-table-header-bg-color: #ffffff;
-  --el-bg-color: #ffffff;
-  --el-bg-color-page: #ffffff;
-}
-
-/* 终极解决方案：直接覆盖Element Plus的固定列样式类 */
-.modern-user-list-container :deep(.el-table__fixed-right) {
-  background: #ffffff !important;
-  background-color: #ffffff !important;
-  backdrop-filter: none !important;
-  opacity: 1 !important;
-  z-index: 999 !important;
-}
-
-.modern-user-list-container :deep(.el-table__fixed-right::after) {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: #ffffff !important;
-  pointer-events: none;
-  z-index: 1;
-}
-
-/* 确保固定列的所有子元素都有正确的背景和层级 */
-:deep(.modern-table .el-table__fixed-right *) {
-  z-index: inherit;
-}
-
-:deep(.modern-table .el-table__fixed-right .cell) {
-  background: transparent;
-  position: relative;
-  z-index: 1;
-}
-
-/* 用户信息样式 */
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.user-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  overflow: hidden;
-  flex-shrink: 0;
-  border: 2px solid rgba(6, 182, 212, 0.2);
-  transition: all 0.3s ease;
-}
-
-.user-avatar:hover {
-  border-color: rgba(6, 182, 212, 0.4);
-  transform: scale(1.05);
-}
-
-.user-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.avatar-placeholder {
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(59, 130, 246, 0.1));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #0891b2;
-}
-
-.user-details {
-  flex: 1;
-  min-width: 0;
-}
-
-.user-name {
-  font-weight: 600;
-  color: #0f172a;
-  margin-bottom: 0.25rem;
-  font-size: 1rem;
-}
-
-.user-email {
-  font-size: 0.875rem;
-  color: #64748b;
-  margin-bottom: 0.125rem;
-}
-
-.user-bio {
-  font-size: 0.75rem;
-  color: #94a3b8;
+  gap: 2px;
+}
+.user-copy b {
+  font-size: 12px;
+  color: var(--adm-text);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.user-copy small {
+  font-size: 11px;
+  color: var(--adm-muted);
   white-space: nowrap;
-  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.num {
+  font-variant-numeric: tabular-nums;
+  color: var(--adm-text-2);
+}
+.cell-text {
+  font-size: 12px;
+  color: var(--adm-text-2);
 }
 
-/* 现代化角色徽章 */
-.modern-role-badge {
-  display: flex;
-  justify-content: center;
-}
-
-.role-indicator {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.375rem 0.75rem;
-  border-radius: 8px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  border: 1px solid;
-  backdrop-filter: blur(8px);
-  transition: all 0.3s ease;
-}
-
-.role-admin {
-  background: rgba(220, 38, 38, 0.1);
-  border-color: rgba(220, 38, 38, 0.2);
-  color: #dc2626;
-}
-
-.role-editor {
-  background: rgba(245, 158, 11, 0.1);
-  border-color: rgba(245, 158, 11, 0.2);
-  color: #f59e0b;
-}
-
-.role-author {
-  background: rgba(6, 182, 212, 0.1);
-  border-color: rgba(6, 182, 212, 0.2);
-  color: #0891b2;
-}
-
-.role-indicator:hover {
-  transform: scale(1.05);
-}
-
-/* 文章统计样式 */
-.article-stats {
-  text-align: center;
-}
-
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.stat-item .stat-value {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #0891b2;
-}
-
-.stat-item .stat-label {
-  font-size: 0.75rem;
-  color: #64748b;
-}
-
-/* 日期和活跃时间样式 */
-.join-date, .last-active {
-  font-size: 0.875rem;
-  color: #64748b;
-  text-align: center;
-  font-weight: 500;
-}
-
-/* 现代化状态徽章 */
-.modern-status-badge {
-  display: flex;
-  justify-content: center;
-}
-
-.status-indicator {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.375rem 0.75rem;
-  border-radius: 8px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  border: 1px solid;
-  backdrop-filter: blur(8px);
-  transition: all 0.3s ease;
-}
-
-.status-indicator.active {
-  background: rgba(16, 185, 129, 0.1);
-  border-color: rgba(16, 185, 129, 0.2);
-  color: #10b981;
-}
-
-.status-indicator.inactive {
-  background: rgba(239, 68, 68, 0.1);
-  border-color: rgba(239, 68, 68, 0.2);
-  color: #ef4444;
-}
-
-.status-indicator:hover {
-  transform: scale(1.05);
-}
-
-/* 现代化操作按钮 */
-.modern-action-buttons {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  justify-content: center;
-}
-
-.table-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.5rem 0.875rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  border-radius: 8px;
-  border: 1px solid;
-  backdrop-filter: blur(8px);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+.edit-btn {
+  height: 29px;
+  padding: 0 9px;
+  border: 1px solid var(--adm-border);
+  border-radius: 7px;
+  background: var(--adm-surface);
+  color: var(--adm-text-2);
+  font-size: 11px;
   cursor: pointer;
-  text-decoration: none;
 }
-
-.table-btn.view {
-  background: rgba(6, 182, 212, 0.1);
-  border-color: rgba(6, 182, 212, 0.2);
-  color: #0891b2;
-}
-
-.table-btn.view:hover {
-  background: rgba(6, 182, 212, 0.2);
-  border-color: rgba(6, 182, 212, 0.3);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(6, 182, 212, 0.2);
-}
-
-.table-btn.more {
-  background: rgba(100, 116, 139, 0.1);
-  border-color: rgba(100, 116, 139, 0.2);
-  color: #64748b;
-}
-
-.table-btn.more:hover:not(:disabled) {
-  background: rgba(100, 116, 139, 0.2);
-  border-color: rgba(100, 116, 139, 0.3);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(100, 116, 139, 0.2);
-}
-
-.table-btn:disabled {
-  opacity: 0.5;
+.edit-btn:disabled {
+  opacity: 0.45;
   cursor: not-allowed;
-  transform: none !important;
+}
+.edit-btn:hover:not(:disabled) {
+  border-color: var(--adm-border-strong);
+  color: var(--adm-text);
 }
 
-/* 现代化下拉菜单 */
-.modern-dropdown {
-  display: inline-block;
+.table-card {
+  border: 1px solid var(--adm-border);
+  border-radius: 0 0 var(--adm-r-container) var(--adm-r-container);
+  background: var(--adm-surface);
+  overflow: hidden;
 }
-
-:deep(.modern-dropdown-menu) {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(6, 182, 212, 0.15);
-  padding: 0.5rem;
+.table-wrap {
+  overflow: auto;
 }
-
-:deep(.modern-dropdown-menu .el-dropdown-menu__item) {
-  border-radius: 8px;
-  margin-bottom: 0.25rem;
-  padding: 0.75rem 1rem;
-  transition: all 0.3s ease;
-  border: 1px solid transparent;
-}
-
-:deep(.modern-dropdown-menu .el-dropdown-menu__item:hover) {
-  background: rgba(6, 182, 212, 0.1);
-  border-color: rgba(6, 182, 212, 0.2);
-  color: #0891b2;
-}
-
-:deep(.modern-dropdown-menu .el-dropdown-menu__item:last-child) {
-  margin-bottom: 0;
-}
-
-:deep(.modern-dropdown-menu .el-dropdown-menu__item .el-icon) {
-  margin-right: 0.5rem;
-}
-
-/* 分页样式 */
-.pagination-container {
-  padding: 2rem;
-  display: flex;
-  justify-content: center;
-  background: rgba(6, 182, 212, 0.02);
-  border-top: 1px solid rgba(6, 182, 212, 0.1);
-}
-
-:deep(.el-pagination) {
-  --el-pagination-bg-color: rgba(255, 255, 255, 0.8);
-  --el-pagination-button-bg-color: rgba(255, 255, 255, 0.6);
-  --el-pagination-hover-color: #0891b2;
-}
-
-:deep(.el-pagination .btn-prev),
-:deep(.el-pagination .btn-next),
-:deep(.el-pagination .el-pager li) {
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(6, 182, 212, 0.1);
-  border-radius: 8px;
-  backdrop-filter: blur(8px);
-  transition: all 0.3s ease;
-  margin: 0 0.125rem;
-}
-
-:deep(.el-pagination .btn-prev:hover),
-:deep(.el-pagination .btn-next:hover),
-:deep(.el-pagination .el-pager li:hover) {
-  background: rgba(6, 182, 212, 0.1);
-  border-color: rgba(6, 182, 212, 0.2);
-}
-
-:deep(.el-pagination .el-pager li.is-active) {
-  background: linear-gradient(135deg, #0891b2, #3b82f6);
-  color: white;
-  border-color: transparent;
-}
-
-/* 用户详情对话框样式 */
-:deep(.el-dialog) {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 16px;
-  box-shadow: 0 10px 40px rgba(6, 182, 212, 0.15);
-}
-
-:deep(.el-dialog__header) {
-  background: linear-gradient(135deg, rgba(6, 182, 212, 0.05), rgba(59, 130, 246, 0.05));
-  border-bottom: 1px solid rgba(6, 182, 212, 0.1);
-  border-radius: 16px 16px 0 0;
-  padding: 1.5rem 2rem;
-}
-
-:deep(.el-dialog__title) {
-  font-weight: 700;
-  color: #0f172a;
-  font-size: 1.25rem;
-}
-
-:deep(.el-dialog__body) {
-  padding: 2rem;
-}
-
-.user-detail {
-  max-height: 60vh;
-  overflow-y: auto;
-}
-
-.detail-section {
-  margin-bottom: 2rem;
-}
-
-.detail-section h4 {
-  margin: 0 0 1rem 0;
-  font-size: 1rem;
-  font-weight: 700;
-  color: #0891b2;
-  border-bottom: 2px solid rgba(6, 182, 212, 0.2);
-  padding-bottom: 0.5rem;
-  position: relative;
-}
-
-.detail-section h4::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 0;
-  width: 3rem;
-  height: 2px;
-  background: linear-gradient(90deg, #0891b2, #3b82f6);
-  border-radius: 1px;
-}
-
-.detail-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1rem;
-}
-
-.detail-item {
+.table-footer {
+  min-height: 48px;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  background: rgba(6, 182, 212, 0.05);
-  border-radius: 8px;
-  border: 1px solid rgba(6, 182, 212, 0.1);
-}
-
-.detail-item .label {
-  font-weight: 600;
-  color: #64748b;
-  min-width: 80px;
-}
-
-.detail-item .value {
-  color: #0f172a;
-  font-weight: 500;
-}
-
-.bio-content {
-  padding: 1rem;
-  background: rgba(6, 182, 212, 0.05);
-  border-radius: 12px;
-  color: #475569;
-  line-height: 1.6;
-  margin: 0;
-  border: 1px solid rgba(6, 182, 212, 0.1);
-}
-
-.social-json {
-  background: rgba(100, 116, 139, 0.05);
-  padding: 1rem;
-  border-radius: 8px;
-  font-size: 0.75rem;
-  color: #64748b;
-  overflow-x: auto;
-  border: 1px solid rgba(100, 116, 139, 0.1);
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 1rem;
-}
-
-.stat-box {
-  text-align: center;
-  padding: 1.5rem 1rem;
-  background: rgba(6, 182, 212, 0.05);
-  border-radius: 12px;
-  border: 1px solid rgba(6, 182, 212, 0.2);
-  transition: all 0.3s ease;
-}
-
-.stat-box:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(6, 182, 212, 0.15);
-}
-
-.stat-number {
-  font-size: 2rem;
-  font-weight: 800;
-  background: linear-gradient(135deg, #0891b2, #3b82f6);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 0.5rem;
-}
-
-.stat-text {
-  font-size: 0.875rem;
-  color: #64748b;
-  font-weight: 500;
-}
-
-/* 响应式设计 */
-@media (max-width: 1024px) {
-  .user-management {
-    padding: 1rem;
-  }
-  
-  .modern-page-header {
-    padding: 1.5rem;
-  }
-  
-  .page-header {
-    flex-direction: column;
-    gap: 1rem;
-    align-items: stretch;
-  }
-  
-  .title-container {
-    justify-content: center;
-    text-align: center;
-  }
-  
-  .header-actions {
-    justify-content: center;
-  }
-  
-  .modern-stats {
-    grid-template-columns: 1fr;
-  }
-  
-  .filter-group {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .modern-select,
-  .modern-search-input {
-    min-width: auto;
-  }
-  
-  .modern-date-picker {
-    width: 100%;
-    min-width: auto;
-    max-width: 100%;
-  }
-}
-
-@media (max-width: 768px) {
-  .title-container {
-    flex-direction: column;
-    text-align: center;
-    gap: 1rem;
-  }
-  
-  .header-content h1 {
-    font-size: 1.75rem;
-  }
-  
-  .detail-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .modern-action-buttons {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .user-bio {
-    max-width: 150px;
-  }
-}
-
-@media (max-width: 640px) {
-  .modern-page-header {
-    padding: 1rem;
-  }
-  
-  .modern-filter-container {
-    padding: 1rem;
-  }
-  
-  :deep(.el-dialog) {
-    margin: 1rem;
-    width: calc(100% - 2rem);
-  }
-  
-  :deep(.el-dialog__body) {
-    padding: 1rem;
-  }
-}
-
-/* 角色修改对话框样式 */
-:deep(.el-form-item__label) {
-  font-weight: 600;
-  color: #0f172a;
-}
-
-:deep(.el-form-item__content) {
-  display: flex;
-  align-items: center;
-}
-
-:deep(.el-select .el-input__wrapper) {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(6, 182, 212, 0.2);
-  border-radius: 8px;
-  backdrop-filter: blur(8px);
-  transition: all 0.3s ease;
-}
-
-:deep(.el-select .el-input__wrapper:hover) {
-  border-color: rgba(6, 182, 212, 0.3);
-  box-shadow: 0 2px 8px rgba(6, 182, 212, 0.1);
-}
-
-:deep(.el-dialog__footer) {
-  padding: 1.5rem 2rem;
-  border-top: 1px solid rgba(6, 182, 212, 0.1);
-  background: rgba(6, 182, 212, 0.02);
-  border-radius: 0 0 16px 16px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-}
-
-:deep(.el-button) {
-  border-radius: 8px;
-  font-weight: 600;
-  backdrop-filter: blur(8px);
-  transition: all 0.3s ease;
-}
-
-:deep(.el-button--primary) {
-  background: linear-gradient(135deg, #0891b2, #3b82f6);
-  border-color: transparent;
-  box-shadow: 0 2px 8px rgba(6, 182, 212, 0.2);
-}
-
-:deep(.el-button--primary:hover) {
-  box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
-  transform: translateY(-1px);
-}
-
-:deep(.el-button--default) {
-  background: rgba(255, 255, 255, 0.8);
-  border-color: rgba(100, 116, 139, 0.2);
-  color: #64748b;
-}
-
-:deep(.el-button--default:hover) {
-  background: rgba(100, 116, 139, 0.1);
-  border-color: rgba(100, 116, 139, 0.3);
-  transform: translateY(-1px);
+  justify-content: space-between;
+  gap: 20px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--adm-border);
+  color: var(--adm-muted);
+  font-size: 11px;
 }
 </style>
