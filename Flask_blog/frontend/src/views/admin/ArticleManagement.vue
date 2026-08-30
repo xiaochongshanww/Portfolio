@@ -31,18 +31,7 @@
           <option value="">全部专题</option>
           <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
         </select>
-        <select
-          v-if="userStore.isAdmin"
-          v-model="filters.author_id"
-          class="adm-select"
-          aria-label="按作者筛选"
-          @change="handleFilterChange"
-        >
-          <option value="">全部作者</option>
-          <option v-for="a in authors" :key="a.id" :value="a.id">
-            {{ a.nickname || a.email }}
-          </option>
-        </select>
+        <!-- 作者筛选:单作者业务价值低,不入一级 Toolbar(低频筛选后续进"更多筛选") -->
       </template>
     </AdminToolbar>
 
@@ -219,8 +208,6 @@ const articles = ref([]);
 /** @type {import('vue').Ref<any[]>} */
 const categories = ref([]);
 /** @type {import('vue').Ref<any[]>} */
-const authors = ref([]);
-/** @type {import('vue').Ref<any[]>} */
 const selectedArticles = ref([]);
 
 const filters = reactive({
@@ -250,12 +237,13 @@ const canBulkReject = computed(() =>
   selectedArticles.value.some((a) => a.status === 'pending'),
 );
 
-/** Summary Strip 数据:由当前列表与筛选推导(全量计数来自 total) */
+/** Summary Strip 数据:由当前列表与筛选推导(全量计数来自 total);
+     待审核条目跳审核队列(语义:文章页管理全部,审核页处理队列) */
 const summaryItems = computed(() => [
   { label: '全部文章', value: meta.total, note: '当前站点内容' },
   { label: '已发布', value: countByStatus('published'), note: '公开可访问' },
   { label: '草稿', value: countByStatus('draft'), note: '仅后台可见' },
-  { label: '待审核', value: countByStatus('pending'), note: '等待处理' },
+  { label: '待审核', value: countByStatus('pending'), note: '等待处理', to: '/admin/articles/review' },
 ]);
 
 /** @param {string} status */
@@ -364,16 +352,6 @@ async function loadCategories() {
     categories.value = response.data.data || [];
   } catch (e) {
     /* 筛选项失败不阻塞列表 */
-  }
-}
-
-async function loadAuthors() {
-  if (!userStore.isAdmin) return;
-  try {
-    const response = await API.getUsers();
-    authors.value = response.data.data?.list || [];
-  } catch (e) {
-    /* 同上 */
   }
 }
 
@@ -531,7 +509,6 @@ async function handleBulkReject() {
 onMounted(() => {
   loadArticles();
   loadCategories();
-  loadAuthors();
 });
 </script>
 
@@ -563,6 +540,24 @@ onMounted(() => {
 /* Toolbar 与表格拼合 */
 .article-management :deep(.admin-toolbar) {
   border-bottom: 0;
+}
+
+/* 原生筛选控件(Toolbar 拼合的 34px/13px 体系;此前样式块丢失,控件回落浏览器默认) */
+.adm-select,
+.adm-input {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-r-control);
+  background: var(--adm-surface);
+  color: var(--adm-text-2);
+  font-size: 13px;
+  outline: none;
+}
+.adm-select:focus,
+.adm-input:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px var(--adm-primary-soft);
 }
 
 /* 批量操作条(05 §10) */
@@ -613,7 +608,7 @@ onMounted(() => {
 
 /* 第一业务列(05 §8.2):Title/Summary/Tag 三层 */
 .article-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 680;
   white-space: nowrap;
   overflow: hidden;
@@ -626,7 +621,7 @@ onMounted(() => {
   color: var(--adm-primary);
 }
 .article-summary {
-  margin-top: 4px;
+  margin-top: 5px;
   color: var(--adm-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -637,7 +632,7 @@ onMounted(() => {
   display: flex;
   gap: 5px;
   flex-wrap: wrap;
-  margin-top: 6px;
+  margin-top: 7px;
 }
 .pill {
   display: inline-flex;

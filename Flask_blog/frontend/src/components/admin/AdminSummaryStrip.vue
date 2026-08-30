@@ -1,11 +1,19 @@
 <template>
-  <!-- 04 §14 / 05 §4:同一容器 + 1px border + 内部分隔,无彩色无 Icon,最多 4 项 -->
+  <!-- 04 §14 / 05 §4:同一容器 + 1px border + 内部分隔,无彩色无 Icon,最多 4 项
+       带 to 的条目可点击(如 待审核 → 审核页) -->
   <section class="summary-strip">
-    <div v-for="item in items.slice(0, 4)" :key="item.label" class="summary-item">
+    <component
+      :is="item.to ? 'router-link' : 'div'"
+      v-for="item in items.slice(0, 4)"
+      :key="item.label"
+      :to="item.to"
+      class="summary-item"
+      :class="{ link: item.to }"
+    >
       <div class="summary-label">{{ item.label }}</div>
       <div class="summary-value">{{ item.value }}</div>
       <div v-if="item.note" class="summary-note">{{ item.note }}</div>
-    </div>
+    </component>
   </section>
 </template>
 
@@ -14,6 +22,8 @@ export interface SummaryItem {
   label: string
   value: string | number
   note?: string
+  /** 可选跳转(如 待审核 → 审核页) */
+  to?: string
 }
 
 defineProps<{
@@ -53,7 +63,16 @@ defineProps<{
 .summary-note {
   margin-top: 2px;
   font-size: 12px;
-  color: var(--adm-muted-light);
+  color: var(--adm-muted);
+}
+.summary-item.link {
+  cursor: pointer;
+}
+.summary-item.link:hover .summary-value {
+  color: var(--adm-primary);
+}
+.summary-item.link:hover .summary-note {
+  color: var(--adm-text-2);
 }
 @media (max-width: 1050px) {
   .summary-strip {

@@ -44,7 +44,7 @@ defineEmits<{
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 12px;
+  padding: 14px 12px;
   border: 1px solid var(--adm-border);
   border-radius: var(--adm-r-container) var(--adm-r-container) 0 0;
   background: var(--adm-surface);
