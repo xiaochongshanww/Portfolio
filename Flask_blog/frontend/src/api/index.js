@@ -288,9 +288,9 @@ const HandwrittenAPI = {
   getHotArticles(params) {
     return apiClient.get('/articles/public/hot', { params })
   },
-  /** @param {any} params */
-  getAuditLogs(params) {
-    return apiClient.get('/articles/audit_logs', { params })
+  /** @param {number} articleId */
+  getAuditLogs(articleId) {
+    return apiClient.get(`/articles/${articleId}/audit_logs`)
   },
   /** @param {number} id */
   submitArticle(id) {

@@ -243,7 +243,7 @@ const summaryItems = computed(() => [
   { label: '全部文章', value: meta.total, note: '当前站点内容' },
   { label: '已发布', value: countByStatus('published'), note: '公开可访问' },
   { label: '草稿', value: countByStatus('draft'), note: '仅后台可见' },
-  { label: '待审核', value: countByStatus('pending'), note: '等待处理', to: '/admin/articles/review' },
+  { label: '待审核', value: countByStatus('pending'), note: '等待处理', to: '/admin/reviews' },
 ]);
 
 /** @param {string} status */

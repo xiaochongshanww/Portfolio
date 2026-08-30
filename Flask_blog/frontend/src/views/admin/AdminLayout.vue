@@ -121,7 +121,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: '内容',
     items: [
       { label: '文章', path: '/admin/articles', icon: Document, roles: ['author', 'editor', 'admin'] },
-      { label: '审核', path: '/admin/articles/review', icon: View, roles: ['editor', 'admin'] },
+      { label: '审核', path: '/admin/reviews', icon: View, roles: ['editor', 'admin'] },
       { label: '评论', path: '/admin/comments', icon: ChatLineRound, roles: ['editor', 'admin'] },
     ],
   },
@@ -168,7 +168,7 @@ const contentWidth = computed(() => {
 /** 命中规则:精确路径,或前缀命中;审核子页高亮"审核"而非"文章" */
 function isActive(path: string): boolean {
   if (path === '/admin') return route.path === '/admin';
-  if (path === '/admin/articles' && route.path.startsWith('/admin/articles/review')) {
+  if (path === '/admin/articles' && route.path.startsWith('/admin/reviews')) {
     return false;
   }
   return route.path === path || route.path.startsWith(path + '/');
@@ -186,8 +186,8 @@ const breadcrumbs = computed(() => {
     }
   }
   // 编辑/审核等子页:前缀命中父级后补当前路径段
-  if (route.path.includes('/articles/review')) {
-    return [{ text: '内容' }, { text: '文章', to: '/admin/articles' }, { text: '文章审核' }];
+  if (route.path === '/admin/reviews' || route.path.startsWith('/admin/reviews/')) {
+    return [{ text: '内容' }, { text: '审核', to: '/admin/reviews' }, ...(route.path !== '/admin/reviews' ? [{ text: '审核文章' }] : [])];
   }
   if (route.path.includes('/articles/') && route.path !== '/admin/articles') {
     return [{ text: '内容' }, { text: '文章', to: '/admin/articles' }, { text: '编辑文章' }];

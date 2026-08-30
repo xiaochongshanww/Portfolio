@@ -22,7 +22,8 @@ import { resetMeta } from './composables/useMeta';
 const AdminLayout = () => import(/* webpackChunkName: 'admin' */ './views/admin/AdminLayout.vue');
 const Dashboard = () => import(/* webpackChunkName: 'admin' */ './views/admin/Dashboard.vue');
 const ArticleManagement = () => import(/* webpackChunkName: 'admin' */ './views/admin/ArticleManagement.vue');
-const ArticleReview = () => import(/* webpackChunkName: 'admin' */ './views/admin/ArticleReview.vue');
+const ArticleReviewQueue = () => import(/* webpackChunkName: 'admin' */ './views/admin/ArticleReviewQueue.vue');
+const ArticleReviewDetail = () => import(/* webpackChunkName: 'admin' */ './views/admin/ArticleReviewDetail.vue');
 const CommentManagement = () => import(/* webpackChunkName: 'admin' */ './views/admin/CommentManagement.vue');
 const CategoryManagement = () => import(/* webpackChunkName: 'admin' */ './views/admin/CategoryManagement.vue');
 const TagManagement = () => import(/* webpackChunkName: 'admin' */ './views/admin/TagManagement.vue');
@@ -91,7 +92,9 @@ const routes = [
       { path: '', component: Dashboard, meta: { content: 'wide' } },
       { path: 'articles', component: ArticleManagement, meta: { content: 'data' } },
       { path: 'articles/:id/edit', component: NewArticle, props: true, meta: { editMode: true, content: 'data' } },
-      { path: 'articles/review', component: ArticleReview, meta: { requiresRole: ['editor', 'admin'], content: 'data' } },
+      { path: 'reviews', component: ArticleReviewQueue, meta: { requiresRole: ['editor', 'admin'], content: 'data' } },
+      { path: 'reviews/:reviewId', component: ArticleReviewDetail, props: true, meta: { requiresRole: ['editor', 'admin'], content: 'data' } },
+      { path: 'articles/review', redirect: 'reviews' },
       { path: 'comments', component: CommentManagement, meta: { requiresRole: ['editor', 'admin'], content: 'data' } },
       { path: 'categories', component: CategoryManagement, meta: { requiresRole: ['editor', 'admin'], content: 'standard' } },
       { path: 'projects', component: () => import('./views/admin/ProjectManagement.vue'), meta: { requiresRole: ['editor', 'admin'], content: 'standard' } },
