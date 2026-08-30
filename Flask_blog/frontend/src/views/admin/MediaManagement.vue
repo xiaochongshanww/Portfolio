@@ -1,272 +1,220 @@
 <template>
   <div class="media-management">
-    <div class="page-header">
-      <div class="header-left">
-        <h1 class="page-title">媒体库管理</h1>
-        <p class="page-description">管理和组织您的媒体文件</p>
-      </div>
-      <div class="header-actions">
-        <el-button type="primary" @click="showUploadDialog = true">
-          <el-icon><Upload /></el-icon>
-          上传文件
-        </el-button>
-        <el-button @click="showCreateFolderDialog = true">
-          <el-icon><FolderAdd /></el-icon>
-          新建文件夹
-        </el-button>
-      </div>
-    </div>
+    <AdminPageHeader title="媒体库" description="管理图片、文档和文章附件。">
+      <button type="button" class="primary-btn" @click="showUploadDialog = true">上传文件</button>
+    </AdminPageHeader>
 
-    <!-- 工具栏 -->
-    <div class="toolbar">
-      <div class="toolbar-left">
-        <!-- 面包屑导航 -->
-        <el-breadcrumb separator="/">
-          <el-breadcrumb-item>
-            <el-button text @click="navigateToFolder(null)">
-              <el-icon><House /></el-icon>
-              根目录
-            </el-button>
-          </el-breadcrumb-item>
-          <el-breadcrumb-item 
-            v-for="folder in breadcrumbs" 
-            :key="folder.id"
-            @click="navigateToFolder(folder.id)"
-          >
-            <el-button text>{{ folder.name }}</el-button>
-          </el-breadcrumb-item>
-        </el-breadcrumb>
-      </div>
-      
-      <div class="toolbar-right">
-        <!-- 视图切换 -->
-        <el-radio-group v-model="viewMode" size="small">
-          <el-radio-button label="grid">
-            <el-icon><Grid /></el-icon>
-            网格
-          </el-radio-button>
-          <el-radio-button label="list">
-            <el-icon><List /></el-icon>
-            列表
-          </el-radio-button>
-        </el-radio-group>
-        
-        <!-- 筛选 -->
-        <el-select v-model="filters.type" placeholder="类型" clearable style="width: 120px">
-          <el-option label="图片" value="image" />
-          <el-option label="视频" value="video" />
-          <el-option label="音频" value="audio" />
-          <el-option label="文档" value="document" />
-        </el-select>
-        
-        <el-select v-model="filters.visibility" placeholder="可见性" clearable style="width: 120px">
-          <el-option label="私有" value="private" />
-          <el-option label="共享" value="shared" />
-          <el-option label="公开" value="public" />
-        </el-select>
-        
-        <!-- 搜索 -->
-        <el-input
-          v-model="searchKeyword"
-          placeholder="搜索文件..."
-          style="width: 200px"
-          @keyup.enter="loadMediaList"
-        >
-          <template #prefix>
-            <el-icon><Search /></el-icon>
+    <!-- Summary Strip(05 §19 媒体语义) -->
+    <AdminSummaryStrip
+      v-if="stats"
+      :items="[
+        { label: '媒体文件', value: stats.total_count ?? 0, note: '全部资源' },
+        { label: '总大小', value: formatFileSize(stats.total_size || 0), note: '当前总量' },
+        { label: '当前文件夹', value: currentFolder ? currentFolder.name || '—' : '根目录', note: '浏览位置' },
+        { label: '已选择', value: selectedMedia.length, note: '点击卡片选择' },
+      ]"
+    />
+
+    <!-- Toolbar(05 §19):面包屑 + 类型/可见性筛选 + 视图切换 + 搜索 -->
+    <AdminToolbar
+      v-model:search="searchKeyword"
+      search-placeholder="搜索文件名"
+      :result-count="error ? null : pagination.total"
+      @refresh="refreshAll"
+    >
+      <template #filters>
+        <select v-model="filters.type" class="adm-select" aria-label="按类型筛选">
+          <option value="">全部类型</option>
+          <option value="image">图片</option>
+          <option value="video">视频</option>
+          <option value="audio">音频</option>
+          <option value="document">文档</option>
+        </select>
+        <select v-model="filters.visibility" class="adm-select" aria-label="按可见性筛选">
+          <option value="">全部可见性</option>
+          <option value="private">私有</option>
+          <option value="shared">共享</option>
+          <option value="public">公开</option>
+        </select>
+        <button
+          type="button"
+          class="ghost-btn"
+          :class="{ 'view-active': viewMode === 'grid' }"
+          aria-label="网格视图"
+          @click="viewMode = 'grid'"
+        >▦</button>
+        <button
+          type="button"
+          class="ghost-btn"
+          :class="{ 'view-active': viewMode === 'list' }"
+          aria-label="列表视图"
+          @click="viewMode = 'list'"
+        >☰</button>
+        <button type="button" class="ghost-btn" @click="showCreateFolderDialog = true">＋ 文件夹</button>
+      </template>
+      <template #right>
+        <nav v-if="breadcrumbs.length || currentFolder" class="crumb" aria-label="文件夹路径">
+          <a href="#" @click.prevent="navigateToFolder(null)">根目录</a>
+          <template v-for="f in breadcrumbs" :key="f.id">
+            <span class="crumb-sep">/</span>
+            <a href="#" @click.prevent="navigateToFolder(f.id)">{{ f.name }}</a>
           </template>
-        </el-input>
-      </div>
-    </div>
+          <template v-if="currentFolder">
+            <span class="crumb-sep">/</span>
+            <b>{{ currentFolder.name }}</b>
+          </template>
+        </nav>
+      </template>
+    </AdminToolbar>
 
-    <!-- 统计信息 -->
-    <div v-if="stats" class="stats-bar">
-      <div class="stat-item">
-        <span class="stat-label">总文件数：</span>
-        <span class="stat-value">{{ stats.total_count }}</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-label">总大小：</span>
-        <span class="stat-value">{{ formatFileSize(stats.total_size) }}</span>
-      </div>
-      <div v-if="currentFolder" class="stat-item">
-        <span class="stat-label">当前文件夹：</span>
-        <span class="stat-value">{{ currentFolder.name }}</span>
-      </div>
-    </div>
+    <section class="table-card content-card">
+      <AdminStateBlock
+        v-if="error"
+        kind="error"
+        title="媒体列表加载失败"
+        compact
+        @reload="refreshAll"
+      />
+      <AdminStateBlock
+        v-else-if="!loading && !mediaList.length && !folders.length"
+        kind="empty"
+        title="暂无媒体文件"
+        description="上传第一个文件开始使用媒体库。"
+        compact
+      >
+        <button type="button" class="primary-btn" @click="showUploadDialog = true">上传文件</button>
+      </AdminStateBlock>
 
-    <!-- 内容区域 -->
-    <div class="content-area">
-      <!-- 文件夹列表 -->
-      <div v-if="folders.length > 0" class="folders-section">
-        <div class="section-title">文件夹</div>
-        <div class="folders-grid">
-          <div 
-            v-for="folder in folders" 
+      <template v-else>
+        <!-- 文件夹行(Grid 卡上移一层的轻量呈现) -->
+        <div v-if="folders.length" class="folder-strip">
+          <div
+            v-for="folder in folders"
             :key="'folder-' + folder.id"
-            class="folder-item"
+            class="folder-chip"
             @dblclick="navigateToFolder(folder.id)"
           >
-            <div class="folder-icon">
-              <el-icon size="48"><Folder /></el-icon>
-            </div>
-            <div class="folder-name">{{ folder.name }}</div>
-            <div class="folder-info">
-              {{ folder.media_count }} 个文件
-            </div>
-            <div class="folder-actions">
-              <el-dropdown @command="handleFolderAction">
-                <el-button text>
-                  <el-icon><MoreFilled /></el-icon>
-                </el-button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item :command="{ action: 'edit', folder }">重命名</el-dropdown-item>
-                    <el-dropdown-item :command="{ action: 'delete', folder }" class="danger">删除</el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </div>
-            <div class="visibility-badge">
-              <el-tag :type="getVisibilityInfo(folder.visibility).color" size="small">
-                {{ getVisibilityInfo(folder.visibility).name }}
-              </el-tag>
-            </div>
+            <span class="folder-ico">▧</span>
+            <span class="folder-meta">
+              <b>{{ folder.name }}</b>
+              <small>{{ folder.media_count }} 个文件</small>
+            </span>
+            <el-dropdown trigger="click" placement="bottom-end" :width="150">
+              <button type="button" class="more-btn" :aria-label="`文件夹操作:${folder.name}`">···</button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click="handleFolderAction({ action: 'edit', folder })">重命名</el-dropdown-item>
+                  <el-dropdown-item divided danger @click="handleFolderAction({ action: 'delete', folder })">删除</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
         </div>
-      </div>
 
-      <!-- 媒体文件列表 -->
-      <div class="media-section">
-        <div v-if="folders.length > 0" class="section-title">媒体文件</div>
-        
-        <!-- 网格视图 -->
-        <div v-if="viewMode === 'grid'" class="media-grid">
-          <div 
-            v-for="media in mediaList" 
+        <!-- Grid 视图(05 §19 默认) -->
+        <div v-if="viewMode === 'grid' && mediaList.length" class="media-grid">
+          <div
+            v-for="media in mediaList"
             :key="'media-' + media.id"
-            class="media-item"
+            class="media-card"
             :class="{ selected: selectedMedia.includes(media.id) }"
             @click="selectMedia(media)"
           >
-            <div class="media-preview">
-              <img v-if="media.media_type === 'image'" :src="media.url" :alt="media.alt_text">
-              <div v-else class="media-placeholder">
-                <el-icon size="48" :component="getMediaIcon(media.media_type)" />
-              </div>
+            <div class="media-thumb">
+              <img
+                v-if="media.media_type === 'image'"
+                :src="media.url"
+                :alt="media.alt_text || media.original_name"
+                loading="lazy"
+              >
+              <span v-else class="thumb-icon">{{ getMediaIcon(media.media_type) }}</span>
             </div>
-            <div class="media-info">
-              <div class="media-title" :title="media.original_name">{{ media.original_name }}</div>
-              <div class="media-meta">
-                {{ formatFileSize(media.file_size) }} • {{ formatDate(media.created_at) }}
-              </div>
-              <div v-if="media.tags && media.tags.length" class="media-tags">
-                <el-tag 
-                  v-for="tag in media.tags.slice(0, 2)" 
-                  :key="tag"
-                  size="small"
-                  class="tag-item"
-                >
-                  {{ tag }}
-                </el-tag>
-                <span v-if="media.tags && media.tags.length > 2" class="more-tags">+{{ media.tags.length - 2 }}</span>
-              </div>
+            <div class="media-copy">
+              <b :title="media.original_name">{{ media.original_name }}</b>
+              <span>{{ formatFileSize(media.file_size) }}</span>
             </div>
-            <div class="media-actions">
-              <el-dropdown @command="handleMediaAction">
-                <el-button text>
-                  <el-icon><MoreFilled /></el-icon>
-                </el-button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item :command="{ action: 'view', media }">查看详情</el-dropdown-item>
-                    <el-dropdown-item :command="{ action: 'edit', media }">编辑信息</el-dropdown-item>
-                    <el-dropdown-item :command="{ action: 'download', media }">下载</el-dropdown-item>
-                    <el-dropdown-item :command="{ action: 'delete', media }" class="danger">删除</el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </div>
-            <div class="visibility-badge">
-              <el-tag :type="getVisibilityInfo(media.visibility).color" size="small">
-                {{ getVisibilityInfo(media.visibility).name }}
-              </el-tag>
-            </div>
+            <el-dropdown trigger="click" placement="bottom-end" :width="160">
+              <button type="button" class="more-btn card-more" :aria-label="`文件操作:${media.original_name}`">···</button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click="viewMediaDetail(media)">查看详情</el-dropdown-item>
+                  <el-dropdown-item @click="editMedia(media)">编辑信息</el-dropdown-item>
+                  <el-dropdown-item @click="downloadMedia(media)">下载</el-dropdown-item>
+                  <el-dropdown-item divided danger @click="handleMediaAction({ action: 'delete', media })">删除</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
         </div>
 
-        <!-- 列表视图 -->
-        <div v-else class="media-table">
-          <el-table :data="mediaList" @selection-change="handleSelectionChange">
-            <el-table-column type="selection" width="55" />
-            <el-table-column label="预览" width="80">
+        <!-- List 视图(05 §19:大量文件时) -->
+        <div v-if="viewMode === 'list' && mediaList.length" class="table-wrap">
+          <el-table :data="mediaList" row-key="id" class="adm-table" @selection-change="handleSelectionChange">
+            <el-table-column type="selection" width="42" />
+            <el-table-column label="预览" width="64">
               <template #default="{ row }">
-                <div class="table-preview">
-                  <img v-if="row.media_type === 'image'" :src="row.url">
-                  <el-icon v-else size="32" :component="getMediaIcon(row.media_type)" />
-                </div>
+                <img
+                  v-if="row.media_type === 'image'"
+                  :src="row.url"
+                  :alt="row.alt_text || row.original_name"
+                  loading="lazy"
+                  class="thumb-mini"
+                >
+                <span v-else class="thumb-icon-sm">{{ getMediaIcon(row.media_type) }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="original_name" label="文件名" />
-            <el-table-column prop="media_type" label="类型" width="80">
+            <el-table-column label="文件名" min-width="240" show-overflow-tooltip>
               <template #default="{ row }">
-                {{ getMediaTypeName(row.media_type) }}
+                <span class="cell-strong">{{ row.original_name }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="file_size" label="大小" width="100">
-              <template #default="{ row }">
-                {{ formatFileSize(row.file_size) }}
-              </template>
+            <el-table-column label="类型" width="90">
+              <template #default="{ row }">{{ getMediaTypeName(row.media_type) }}</template>
             </el-table-column>
-            <el-table-column prop="visibility" label="可见性" width="80">
-              <template #default="{ row }">
-                <el-tag :type="getVisibilityInfo(row.visibility).color" size="small">
-                  {{ getVisibilityInfo(row.visibility).name }}
-                </el-tag>
-              </template>
+            <el-table-column label="大小" width="100">
+              <template #default="{ row }">{{ formatFileSize(row.file_size) }}</template>
             </el-table-column>
-            <el-table-column prop="created_at" label="上传时间" width="160">
-              <template #default="{ row }">
-                {{ formatDate(row.created_at) }}
-              </template>
+            <el-table-column label="可见性" width="90">
+              <template #default="{ row }">{{ getVisibilityInfo(row.visibility).name }}</template>
             </el-table-column>
-            <el-table-column label="操作" width="120">
+            <el-table-column label="上传时间" width="110">
+              <template #default="{ row }">{{ shortDate(row.created_at) }}</template>
+            </el-table-column>
+            <el-table-column width="70" fixed="right" align="right">
               <template #default="{ row }">
-                <el-button text @click="viewMediaDetail(row)">详情</el-button>
-                <el-button text @click="editMedia(row)">编辑</el-button>
+                <el-dropdown trigger="click" placement="bottom-end" :width="160">
+                  <button type="button" class="more-btn" :aria-label="`文件操作:${row.original_name}`">···</button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item @click="viewMediaDetail(row)">查看详情</el-dropdown-item>
+                      <el-dropdown-item @click="editMedia(row)">编辑信息</el-dropdown-item>
+                      <el-dropdown-item @click="downloadMedia(row)">下载</el-dropdown-item>
+                      <el-dropdown-item divided danger @click="handleMediaAction({ action: 'delete', media: row })">删除</el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
               </template>
             </el-table-column>
           </el-table>
         </div>
 
-        <!-- 分页 -->
-        <div v-if="pagination.total > 0" class="pagination-wrapper">
+        <div v-if="pagination.total > pagination.size" class="table-footer">
+          <span>共 {{ pagination.total }} 个文件</span>
           <el-pagination
-            v-model:current-page="pagination.page"
-            v-model:page-size="pagination.size"
+            layout="prev, pager, next"
             :total="pagination.total"
-            :page-sizes="[20, 50, 100]"
-            layout="total, sizes, prev, pager, next, jumper"
-            @size-change="loadMediaList"
-            @current-change="loadMediaList"
+            :current-page="pagination.page"
+            :page-size="pagination.size"
+            :pager-count="5"
+            small
+            @current-change="handlePageChange"
           />
         </div>
-      </div>
-    </div>
-
-    <!-- 空状态 -->
-    <el-empty
-      v-if="!loading && mediaList.length === 0 && folders.length === 0"
-      description="暂无媒体文件"
-    >
-      <el-button type="primary" @click="showUploadDialog = true">
-        <el-icon><Upload /></el-icon>
-        上传第一个文件
-      </el-button>
-    </el-empty>
+      </template>
+    </section>
 
     <!-- 上传对话框 -->
-    <MediaUploadDialog 
+    <MediaUploadDialog
       v-model:visible="showUploadDialog"
       :current-folder-id="currentFolderId ?? undefined"
       @uploaded="handleFileUploaded"
@@ -297,14 +245,22 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted, watch, computed } from 'vue'
+/**
+ * 媒体库(05 §19 Media Grid Pattern):默认 Grid,大量文件可切 Table。
+ * 文件夹导航/四个子对话框/全部业务动作保留。
+ */
+import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { API } from '@/api'
-import { formatFileSize, getMediaTypeName, getVisibilityInfo, getMediaIcon } from '@/utils/mediaUtils'
-import MediaUploadDialog from '@/components/media/MediaUploadDialog.vue'
-import FolderCreateDialog from '@/components/media/FolderCreateDialog.vue'
-import MediaDetailDialog from '@/components/media/MediaDetailDialog.vue'
-import MediaEditDialog from '@/components/media/MediaEditDialog.vue'
+import { API } from '../../api'
+import { formatFileSize, getMediaTypeName, getVisibilityInfo, getMediaIcon } from '../../utils/mediaUtils'
+import MediaUploadDialog from '../../components/media/MediaUploadDialog.vue'
+import FolderCreateDialog from '../../components/media/FolderCreateDialog.vue'
+import MediaDetailDialog from '../../components/media/MediaDetailDialog.vue'
+import MediaEditDialog from '../../components/media/MediaEditDialog.vue'
+import AdminPageHeader from '../../components/admin/AdminPageHeader.vue'
+import AdminSummaryStrip from '../../components/admin/AdminSummaryStrip.vue'
+import AdminToolbar from '../../components/admin/AdminToolbar.vue'
+import AdminStateBlock from '../../components/admin/AdminStateBlock.vue'
 
 export default {
   name: 'MediaManagement',
@@ -312,251 +268,209 @@ export default {
     MediaUploadDialog,
     FolderCreateDialog,
     MediaDetailDialog,
-    MediaEditDialog
+    MediaEditDialog,
+    AdminPageHeader,
+    AdminSummaryStrip,
+    AdminToolbar,
+    AdminStateBlock,
   },
   setup() {
     const loading = ref(false)
+    const error = ref(false)
     const viewMode = ref('grid')
     const searchKeyword = ref('')
     /** @type {import('vue').Ref<number | null>} */
     const currentFolderId = ref(null)
-    /** @type {import('vue').Ref<import('@/types').MediaFile | null>} */
+    /** @type {import('vue').Ref<any>} */
     const currentFolder = ref(null)
     /** @type {import('vue').Ref<Array<{ id?: number, name?: string }>>} */
     const breadcrumbs = ref([])
-    
-    /** @type {import('vue').Ref<import('@/types').MediaFile[]>} */
+    /** @type {import('vue').Ref<any[]>} */
     const mediaList = ref([])
-    /** @type {import('vue').Ref<import('@/types').MediaFile[]>} */
+    /** @type {import('vue').Ref<any[]>} */
     const folders = ref([])
     /** @type {import('vue').Ref<number[]>} */
     const selectedMedia = ref([])
-    /** @type {import('vue').Ref<{ total_count?: number, total_files?: number, total_size?: number } | null>} */
+    /** @type {import('vue').Ref<any>} */
     const stats = ref(null)
-    
-    const pagination = reactive({
-      page: 1,
-      size: 20,
-      total: 0
-    })
-    
-    const filters = reactive({
-      type: '',
-      visibility: ''
-    })
-    
-    // 对话框状态
+
+    const pagination = reactive({ page: 1, size: 20, total: 0 })
+    const filters = reactive({ type: '', visibility: '' })
+
     const showUploadDialog = ref(false)
     const showCreateFolderDialog = ref(false)
     const showDetailDialog = ref(false)
     const showEditDialog = ref(false)
-    /** @type {import('vue').Ref<import('@/types').MediaFile | null>} */
+    /** @type {import('vue').Ref<any>} */
     const selectedMediaForDetail = ref(null)
-    /** @type {import('vue').Ref<import('@/types').MediaFile | null>} */
+    /** @type {import('vue').Ref<any>} */
     const selectedMediaForEdit = ref(null)
 
-    // 格式化日期
     /** @param {string | undefined} dateStr */
-    const formatDate = (dateStr) => {
-      if (!dateStr) return ''
-      return new Date(dateStr).toLocaleString('zh-CN')
+    const shortDate = (dateStr) => {
+      if (!dateStr) return '—'
+      const d = new Date(dateStr)
+      if (Number.isNaN(d.getTime())) return '—'
+      const pad = (/** @type {number} */ n) => String(n).padStart(2, '0')
+      return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())}`
     }
 
-    // 加载媒体列表
     const loadMediaList = async () => {
       loading.value = true
+      error.value = false
       try {
         const params = {
           page: pagination.page,
           size: pagination.size,
           folder_id: currentFolderId.value || 0,
           keyword: searchKeyword.value,
-          ...filters
+          ...filters,
         }
-        
         const response = await API.getMediaList(params)
-        
-        // 处理嵌套响应格式
         let actualData = response.data
         if (response.data && response.data.code === 0 && response.data.data) {
           actualData = response.data.data
         }
-        
-        // 优先使用items字段，备用media字段
-        if (actualData.items) {
-          mediaList.value = actualData.items
-        } else if (actualData.media) {
-          mediaList.value = actualData.media
-        } else {
-          mediaList.value = []
-        }
-        
+        if (actualData.items) mediaList.value = actualData.items
+        else if (actualData.media) mediaList.value = actualData.media
+        else mediaList.value = []
         pagination.total = actualData.total || 0
-      } catch (error) {
-        console.error('加载媒体列表失败:', error)
-        ElMessage.error('加载媒体列表失败')
+      } catch (e) {
+        error.value = true
       } finally {
         loading.value = false
       }
     }
 
-    // 加载文件夹列表
     const loadFolders = async () => {
       try {
         const response = await API.getFolders(currentFolderId.value || 0)
-        
-        // 处理嵌套响应格式
         let actualData = response.data
         if (response.data && response.data.code === 0 && response.data.data) {
           actualData = response.data.data
         }
-        
         folders.value = actualData || []
-      } catch (error) {
-        console.error('加载文件夹失败:', error)
+      } catch (e) {
+        folders.value = []
       }
     }
 
-    // 加载统计信息
     const loadStats = async () => {
       try {
         const response = await API.getMediaStats()
-        
-        // 处理嵌套响应格式
         let actualData = response.data
         if (response.data && response.data.code === 0 && response.data.data) {
           actualData = response.data.data
         }
-        
         stats.value = actualData
-      } catch (error) {
-        console.error('加载统计信息失败:', error)
+      } catch (e) {
+        stats.value = null
       }
     }
 
-    // 导航到文件夹
+    const refreshAll = () => {
+      loadMediaList()
+      loadFolders()
+      loadStats()
+    }
+
     /** @param {number | null | undefined} folderId */
     const navigateToFolder = async (folderId) => {
       currentFolderId.value = folderId ?? null
       pagination.page = 1
       selectedMedia.value = []
-      
-      // 更新面包屑
       if (folderId) {
-        try {
-          // TODO: 实现获取文件夹路径的 API
-          // const path = await API.getFolderPath(folderId)
-          // breadcrumbs.value = path
-        } catch (error) {
-          console.error('获取文件夹路径失败:', error)
-        }
+        const hit = folders.value.find((f) => f.id === folderId)
+        currentFolder.value = hit || null
       } else {
-        breadcrumbs.value = []
         currentFolder.value = null
       }
-      
-      await Promise.all([loadMediaList(), loadFolders()])
+      loadMediaList()
+      loadFolders()
     }
 
-    // 选择媒体
-    /** @param {import('@/types').MediaFile} media */
+    /** @param {any} media */
     const selectMedia = (media) => {
       const index = selectedMedia.value.indexOf(media.id)
-      if (index > -1) {
-        selectedMedia.value.splice(index, 1)
-      } else {
-        selectedMedia.value.push(media.id)
-      }
+      if (index > -1) selectedMedia.value.splice(index, 1)
+      else selectedMedia.value.push(media.id)
     }
 
-    // 处理表格选择变化
-    /** @param {Array<import('@/types').MediaFile>} selection */
+    /** @param {any[]} selection */
     const handleSelectionChange = (selection) => {
-      selectedMedia.value = selection.map(item => item.id)
+      selectedMedia.value = selection.map((/** @type {any} */ s) => s.id)
     }
 
-    // 处理文件上传完成
     const handleFileUploaded = () => {
-      loadMediaList()
-      loadStats()
-      ElMessage.success('文件上传成功')
+      ElMessage.success('上传成功')
+      refreshAll()
     }
-
-    // 处理文件夹创建
     const handleFolderCreated = () => {
+      ElMessage.success('文件夹已创建')
       loadFolders()
-      ElMessage.success('文件夹创建成功')
     }
-
-    // 处理媒体更新
     const handleMediaUpdated = () => {
-      loadMediaList()
-      ElMessage.success('媒体信息更新成功')
+      ElMessage.success('已更新')
+      refreshAll()
     }
-
-    // 处理媒体删除
     const handleMediaDeleted = () => {
-      loadMediaList()
-      loadStats()
-      ElMessage.success('媒体文件删除成功')
+      ElMessage.success('已删除')
+      refreshAll()
     }
 
-    // 文件夹操作处理
-    /** @param {{ action: string, folder: import('@/types').MediaFile }} arg */
+    /** @param {{ action: string, folder: any }} payload */
     const handleFolderAction = async ({ action, folder }) => {
-      if (action === 'edit') {
-        // TODO: 实现文件夹编辑
-        ElMessage.info('文件夹编辑功能开发中')
-      } else if (action === 'delete') {
+      if (action === 'delete') {
         try {
           await ElMessageBox.confirm(
-            `确定要删除文件夹"${folder.name}"吗？此操作不可恢复。`,
-            '确认删除',
-            { type: 'warning' }
+            `删除文件夹「${folder.name}」?其中的文件将移动到上级目录。`,
+            '删除文件夹',
+            { type: 'warning', confirmButtonText: '删除文件夹', cancelButtonText: '取消' },
           )
-          
           await API.deleteMediaFolder(folder.id)
-          await loadFolders()
-          ElMessage.success('文件夹删除成功')
-        } catch (error) {
-          if (error !== 'cancel') {
-            console.error('删除文件夹失败:', error)
-            ElMessage.error('删除文件夹失败')
-          }
+          ElMessage.success('文件夹已删除')
+          if (currentFolderId.value === folder.id) navigateToFolder(null)
+          else loadFolders()
+        } catch (e) {
+          if (e !== 'cancel') ElMessage.error('删除失败')
         }
       }
     }
 
-    // 媒体操作处理
-    /** @param {{ action: string, media: import('@/types').MediaFile }} arg */
+    /** @param {{ action: string, media: any }} payload */
     const handleMediaAction = async ({ action, media }) => {
-      if (action === 'view') {
-        viewMediaDetail(media)
-      } else if (action === 'edit') {
-        editMedia(media)
-      } else if (action === 'download') {
-        downloadMedia(media)
-      } else if (action === 'delete') {
-        deleteMedia(media)
+      if (action === 'view') viewMediaDetail(media)
+      else if (action === 'edit') editMedia(media)
+      else if (action === 'download') downloadMedia(media)
+      else if (action === 'delete') {
+        try {
+          await ElMessageBox.confirm(
+            `删除文件「${media.original_name}」?删除后不可恢复。`,
+            '删除文件',
+            { type: 'warning', confirmButtonText: '删除文件', cancelButtonText: '取消' },
+          )
+          await API.deleteMedia(media.id)
+          ElMessage.success('删除成功')
+          refreshAll()
+        } catch (e) {
+          if (e !== 'cancel') ElMessage.error('删除失败')
+        }
       }
     }
 
-    // 查看媒体详情
-    /** @param {import('@/types').MediaFile} media */
+    /** @param {any} media */
     const viewMediaDetail = (media) => {
       selectedMediaForDetail.value = media
       showDetailDialog.value = true
     }
 
-    // 编辑媒体
-    /** @param {import('@/types').MediaFile} media */
+    /** @param {any} media */
     const editMedia = (media) => {
       selectedMediaForEdit.value = media
       showEditDialog.value = true
     }
 
-    // 下载媒体
-    /** @param {import('@/types').MediaFile} media */
+    /** @param {any} media */
     const downloadMedia = async (media) => {
       try {
         const response = await API.downloadMedia(media.id)
@@ -569,51 +483,29 @@ export default {
         window.URL.revokeObjectURL(url)
         document.body.removeChild(link)
         ElMessage.success('下载成功')
-      } catch (error) {
-        console.error('下载失败:', error)
+      } catch (e) {
         ElMessage.error('下载失败')
       }
     }
 
-    // 删除媒体
-    /** @param {import('@/types').MediaFile} media */
-    const deleteMedia = async (media) => {
-      try {
-        await ElMessageBox.confirm(
-          `确定要删除"${media.original_name}"吗？此操作不可恢复。`,
-          '确认删除',
-          { type: 'warning' }
-        )
-        
-        await API.deleteMedia(media.id)
-        await loadMediaList()
-        await loadStats()
-        ElMessage.success('删除成功')
-      } catch (error) {
-        if (error !== 'cancel') {
-          console.error('删除失败:', error)
-          ElMessage.error('删除失败')
-        }
-      }
+    /** @param {number} page */
+    const handlePageChange = (page) => {
+      pagination.page = page
+      loadMediaList()
     }
 
-    // 监听筛选条件变化
     watch([filters, searchKeyword], () => {
       pagination.page = 1
       loadMediaList()
     }, { deep: true })
 
-    // 初始化
     onMounted(() => {
-      Promise.all([
-        loadMediaList(),
-        loadFolders(),
-        loadStats()
-      ])
+      refreshAll()
     })
 
     return {
       loading,
+      error,
       viewMode,
       searchKeyword,
       currentFolderId,
@@ -635,8 +527,8 @@ export default {
       getMediaTypeName,
       getVisibilityInfo,
       getMediaIcon,
-      formatDate,
-      loadMediaList,
+      shortDate,
+      refreshAll,
       navigateToFolder,
       selectMedia,
       handleSelectionChange,
@@ -649,254 +541,268 @@ export default {
       viewMediaDetail,
       editMedia,
       downloadMedia,
-      deleteMedia
+      handlePageChange,
     }
-  }
+  },
 }
 </script>
 
 <style scoped>
 .media-management {
-  padding: 24px;
-  height: 100%;
+  width: 100%;
+}
+.media-management :deep(.admin-toolbar) {
+  border-bottom: 0;
+}
+
+.primary-btn {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--adm-primary);
+  border-radius: 9px;
+  background: var(--adm-primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.primary-btn:hover {
+  opacity: 0.92;
+}
+
+.adm-select {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-r-control);
+  background: var(--adm-surface);
+  color: var(--adm-text-2);
+  font-size: 12px;
+  outline: none;
+}
+.adm-select:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px var(--adm-primary-soft);
+}
+.ghost-btn {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-r-control);
+  background: var(--adm-surface);
+  color: var(--adm-text-2);
+  font-size: 12px;
+  cursor: pointer;
+}
+.ghost-btn:hover,
+.ghost-btn.view-active {
+  border-color: var(--adm-border-strong);
+  color: var(--adm-text);
+}
+.ghost-btn.view-active {
+  background: var(--adm-surface-subtle);
+}
+
+.crumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--adm-muted);
+  white-space: nowrap;
+}
+.crumb a:hover {
+  color: var(--adm-text);
+}
+.crumb b {
+  color: var(--adm-text-2);
+  font-weight: 600;
+}
+
+.table-card {
+  border: 1px solid var(--adm-border);
+  border-radius: 0 0 var(--adm-r-container) var(--adm-r-container);
+  background: var(--adm-surface);
+  overflow: hidden;
+}
+.content-card {
+  padding: 14px;
+}
+
+/* 文件夹条 */
+.folder-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.folder-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--adm-border);
+  border-radius: 10px;
+  background: var(--adm-surface);
+  cursor: pointer;
+}
+.folder-chip:hover {
+  border-color: var(--adm-border-strong);
+}
+.folder-ico {
+  font-size: 18px;
+  color: var(--adm-muted);
+}
+.folder-meta {
   display: flex;
   flex-direction: column;
+  line-height: 1.3;
 }
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 24px;
-}
-
-.header-left .page-title {
-  margin: 0 0 8px 0;
-  font-size: 24px;
-  font-weight: 600;
-  color: #303133;
-}
-
-.header-left .page-description {
-  margin: 0;
-  color: #606266;
-  font-size: 14px;
-}
-
-.header-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  margin-bottom: 16px;
-}
-
-.toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.stats-bar {
-  display: flex;
-  gap: 24px;
-  padding: 12px 16px;
-  background: #f0f2f5;
-  border-radius: 6px;
-  margin-bottom: 16px;
-  font-size: 14px;
-}
-
-.stat-item .stat-label {
-  color: #606266;
-}
-
-.stat-item .stat-value {
-  color: #303133;
-  font-weight: 500;
-}
-
-.content-area {
-  flex: 1;
-  overflow: auto;
-}
-
-.section-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: #303133;
-  margin-bottom: 16px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid #e4e7ed;
-}
-
-.folders-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 16px;
-  margin-bottom: 32px;
-}
-
-.folder-item {
-  position: relative;
-  padding: 16px;
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-align: center;
-}
-
-.folder-item:hover {
-  border-color: #409eff;
-  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);
-}
-
-.folder-icon {
-  color: #409eff;
-  margin-bottom: 8px;
-}
-
-.folder-name {
-  font-weight: 500;
-  color: #303133;
-  margin-bottom: 4px;
-}
-
-.folder-info {
+.folder-meta b {
   font-size: 12px;
-  color: #909399;
+  color: var(--adm-text);
+}
+.folder-meta small {
+  font-size: 10px;
+  color: var(--adm-muted);
 }
 
-.folder-actions {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-}
-
-.visibility-badge {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-}
-
+/* Grid 视图(原型 mediaBox 三卡) */
 .media-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
 }
-
-.media-item {
+.media-card {
   position: relative;
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-r-container);
+  background: var(--adm-surface);
   overflow: hidden;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: border-color var(--transition, 0.18s ease);
 }
-
-.media-item:hover {
-  border-color: #409eff;
-  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);
+.media-card:hover,
+.media-card.selected {
+  border-color: var(--adm-primary);
 }
-
-.media-item.selected {
-  border-color: #409eff;
-  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+.media-card.selected::after {
+  content: '✓';
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--adm-primary);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
 }
-
-.media-preview {
-  width: 100%;
-  height: 150px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f5f7fa;
+.media-thumb {
+  height: 130px;
+  background: #eef2f7;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
 }
-
-.media-preview img {
+.media-thumb img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-
-.media-placeholder {
-  color: #c0c4cc;
+.thumb-icon {
+  font-size: 34px;
+  color: var(--adm-muted);
 }
-
-.media-info {
-  padding: 12px;
+.media-copy {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 36px;
 }
-
-.media-title {
-  font-weight: 500;
-  color: #303133;
-  margin-bottom: 4px;
+.media-copy b {
+  font-size: 12px;
+  color: var(--adm-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
-.media-meta {
-  font-size: 12px;
-  color: #909399;
-  margin-bottom: 8px;
+.media-copy span {
+  font-size: 11px;
+  color: var(--adm-muted);
 }
-
-.media-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.tag-item {
-  font-size: 10px;
-}
-
-.more-tags {
-  font-size: 10px;
-  color: #909399;
-}
-
-.media-actions {
+.card-more {
   position: absolute;
-  top: 8px;
   right: 8px;
+  bottom: 10px;
 }
 
-.table-preview {
-  width: 48px;
-  height: 48px;
+/* List 视图 */
+.table-wrap {
+  overflow: auto;
+}
+.thumb-mini {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 6px;
+  display: block;
+}
+.thumb-icon-sm {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  background: #eef2f7;
+  color: var(--adm-muted);
+}
+.cell-strong {
+  font-size: 12px;
+  color: var(--adm-text);
+}
+
+.more-btn {
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--adm-border);
+  border-radius: 7px;
+  background: var(--adm-surface);
+  color: var(--adm-muted);
+  font-size: 12px;
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+.more-btn:hover {
+  color: var(--adm-text-2);
+  border-color: var(--adm-border-strong);
+}
+
+.table-footer {
+  min-height: 48px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  overflow: hidden;
-  background: #f5f7fa;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 8px 4px 2px;
+  color: var(--adm-muted);
+  font-size: 11px;
 }
 
-.table-preview img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+@media (max-width: 950px) {
+  .media-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
-
-.pagination-wrapper {
-  display: flex;
-  justify-content: center;
-  margin-top: 24px;
-  padding-top: 24px;
-  border-top: 1px solid #e4e7ed;
-}
-
-.danger {
-  color: #f56c6c !important;
+@media (max-width: 719.98px) {
+  .media-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
