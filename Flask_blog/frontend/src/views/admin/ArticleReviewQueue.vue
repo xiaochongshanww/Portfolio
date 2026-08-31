@@ -293,14 +293,16 @@ onMounted(() => {
 }
 
 /* Summary(评审修订:两卡收紧为统一 Strip,同一容器 + 内部分隔) */
+/* 评审修订:Summary 是紧凑信息组,不与列表等宽(控制在 ~600px) */
 .summary-strip {
   display: grid;
-  grid-template-columns: repeat(2, 260px);
+  grid-template-columns: repeat(2, minmax(0, 300px));
+  max-width: 600px;
   border: 1px solid var(--adm-border);
   border-radius: var(--adm-r-container);
   background: var(--adm-surface);
   overflow: hidden;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 .sum-card {
   padding: 15px 16px;
