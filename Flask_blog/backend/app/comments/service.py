@@ -123,7 +123,7 @@ def admin_list(page, size, status=None, article_id=None, content=None):
 
 
 def get_stats():
-    """管理员统计：待审核 / 今日 / 总数。"""
+    """管理员统计：待审核 / 今日 / 总数 / 已通过 / 已拒绝。"""
     pending_count = Comment.query.filter_by(status="pending").count()
     today = datetime.now(timezone.utc).date()
     today_start = datetime.combine(today, datetime.min.time()).replace(
@@ -131,7 +131,15 @@ def get_stats():
     )
     today_count = Comment.query.filter(Comment.created_at >= today_start).count()
     total_count = Comment.query.count()
-    return {"pending": pending_count, "today": today_count, "total": total_count}
+    approved_count = Comment.query.filter_by(status="approved").count()
+    rejected_count = Comment.query.filter_by(status="rejected").count()
+    return {
+        "pending": pending_count,
+        "today": today_count,
+        "total": total_count,
+        "approved": approved_count,
+        "rejected": rejected_count,
+    }
 
 
 def moderate_comment(comment, action):
