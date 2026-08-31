@@ -196,6 +196,39 @@ def admin_stats():
     return _ok(get_stats())
 
 
+@comments_bp.route("/admin/review-stats", methods=["GET"])
+@require_roles("editor", "admin")
+def review_queue_stats():
+    """审核队列统计:待审核数 + 今日已审核(通过/退回,来自审计日志)。"""
+    from datetime import datetime, timezone
+
+    from ..models import AuditLog
+
+    pending_count = Comment.query.filter_by(status="pending").count()
+    today_start = datetime.combine(
+        datetime.now(timezone.utc).date(), datetime.min.time()
+    ).replace(tzinfo=timezone.utc)
+    approved_today = (
+        AuditLog.query.filter(
+            AuditLog.action == "approve",
+            AuditLog.created_at >= today_start,
+        ).count()
+    )
+    rejected_today = (
+        AuditLog.query.filter(
+            AuditLog.action == "reject",
+            AuditLog.created_at >= today_start,
+        ).count()
+    )
+    return _ok(
+        {
+            "pending": pending_count,
+            "approved_today": approved_today,
+            "rejected_today": rejected_today,
+        }
+    )
+
+
 @comments_bp.route("/moderate/<int:comment_id>", methods=["POST"])
 @require_roles("editor", "admin")
 @limiter.limit("60/minute")  # type: ignore  # 审核操作限速

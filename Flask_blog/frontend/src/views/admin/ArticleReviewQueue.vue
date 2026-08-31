@@ -2,19 +2,20 @@
   <div class="review-queue">
     <AdminPageHeader title="文章审核" description="审核待发布文章，保证公开内容质量。" />
 
-    <!-- Summary(05 V2 补充 §2):真实数据,不虚构今日统计 -->
-    <div class="summary-row">
+    <!-- Summary(05 V2 补充 §2 + 评审修订):两卡收紧为统一 Strip;
+         第二卡为「今日已审核」(通过 N · 退回 N),已退回下沉为 Tab/筛选 -->
+    <section class="summary-strip">
       <div class="sum-card">
         <label>待审核</label>
         <strong>{{ pendingCount }}</strong>
         <small>当前审核队列</small>
       </div>
       <div class="sum-card">
-        <label>已退回</label>
-        <strong>{{ rejectedCount }}</strong>
-        <small>可修改后重新提交</small>
+        <label>今日已审核</label>
+        <strong>{{ approvedToday }}</strong>
+        <small>通过 {{ approvedToday }} · 退回 {{ rejectedToday }}</small>
       </div>
-    </div>
+    </section>
 
     <!-- Tabs(05 V2 补充 §2):普通 Selected State -->
     <div class="tabs">
@@ -30,12 +31,7 @@
         :class="{ active: tab === 'recent' }"
         @click="switchTab('recent')"
       >最近处理</button>
-      <button
-        type="button"
-        class="tab"
-        :class="{ active: tab === 'rejected' }"
-        @click="switchTab('rejected')"
-      >已退回 {{ rejectedCount }}</button>
+
     </div>
 
     <!-- Toolbar -->
@@ -55,6 +51,11 @@
         <select v-if="tab === 'pending'" v-model="sortAsc" class="adm-select" aria-label="排序方式">
           <option :value="true">最早提交优先</option>
           <option :value="false">最晚提交优先</option>
+        </select>
+        <select v-if="tab === 'recent'" v-model="resultFilter" class="adm-select" aria-label="按审核结果筛选">
+          <option value="">全部结果</option>
+          <option value="published">已通过</option>
+          <option value="rejected">已退回</option>
         </select>
       </template>
     </AdminToolbar>
@@ -154,18 +155,24 @@ const sortAsc = ref(true);
 const pendingRows = ref([]);
 /** @type {import('vue').Ref<any[]>} */
 const recentRows = ref([]);
-/** @type {import('vue').Ref<any[]>} */
-const rejectedRows = ref([]);
-
 const pendingCount = computed(() => pendingRows.value.length);
-const rejectedCount = computed(() => rejectedRows.value.length);
+const approvedToday = ref(0);
+const rejectedToday = ref(0);
+
+/** @type {import('vue').Ref<string>} */
+const resultFilter = ref('');
 
 const rowsByTab = computed(() => {
-  switch (tab.value) {
-    case 'recent': return recentRows.value;
-    case 'rejected': return rejectedRows.value;
-    default: return pendingRows.value;
+  if (tab.value === 'recent') {
+    if (resultFilter.value === 'published') {
+      return recentRows.value.filter((/** @type {any} */ r) => r.status === 'published');
+    }
+    if (resultFilter.value === 'rejected') {
+      return recentRows.value.filter((/** @type {any} */ r) => r.status === 'rejected');
+    }
+    return recentRows.value;
   }
+  return pendingRows.value;
 });
 
 const topicOptions = computed(() => {
@@ -201,10 +208,15 @@ const filteredRows = computed(() => {
 });
 
 /** @param {string} t */
+/** @param {string} t */
 function switchTab(t) {
   tab.value = t;
   search.value = '';
   topicFilter.value = '';
+  resultFilter.value = '';
+  // pending 数据常驻缓存;其它 Tab 首次进入或刷新时加载
+  if (t === 'pending' && pendingRows.value.length) return;
+  loadTab();
 }
 
 /** @param {string | undefined} t */
@@ -237,11 +249,16 @@ async function loadTab() {
       const r = await API.getArticles({ status: 'pending', page: 1, page_size: 50, sort: 'updated_at:asc' });
       pendingRows.value = r?.data?.data?.list || [];
     } else if (tab.value === 'recent') {
-      const r = await API.getArticles({ status: 'published', page: 1, page_size: 20, sort: 'updated_at:desc' });
-      recentRows.value = r?.data?.data?.list || [];
-    } else {
-      const r = await API.getArticles({ status: 'rejected', page: 1, page_size: 50 });
-      rejectedRows.value = r?.data?.data?.list || [];
+      // 最近处理 = 已通过 + 已退回(两个状态并行拉取后合并,按更新时间倒序)
+      const [pub, rej] = await Promise.all([
+        API.getArticles({ status: 'published', page: 1, page_size: 20, sort: 'updated_at:desc' }),
+        API.getArticles({ status: 'rejected', page: 1, page_size: 20, sort: 'updated_at:desc' }),
+      ]);
+      const merged = [
+        ...(pub?.data?.data?.list || []),
+        ...(rej?.data?.data?.list || []),
+      ].sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+      recentRows.value = merged;
     }
   } catch (e) {
     error.value = true;
@@ -251,22 +268,16 @@ async function loadTab() {
 }
 
 onMounted(() => {
-  // 队列与已退回计数同时加载(summary 需要)
-  Promise.allSettled([
-    loadTab(),
-    (async () => {
-      try {
-        const r = await API.getArticles({ status: 'pending', page: 1, page_size: 50, sort: 'updated_at:asc' });
-        pendingRows.value = r?.data?.data?.list || [];
-      } catch (e) { /* error 由 loadTab 呈现 */ }
-    })(),
-    (async () => {
-      try {
-        const r = await API.getArticles({ status: 'rejected', page: 1, page_size: 50 });
-        rejectedRows.value = r?.data?.data?.list || [];
-      } catch (e) { /* 静默 */ }
-    })(),
-  ]);
+  // 今日统计独立于当前 Tab(切到最近处理/已退回时 summary 仍正确)
+  try {
+    API.getReviewStats().then((/** @type {any} */ r) => {
+      if (r?.data?.code === 0) {
+        approvedToday.value = r.data.data.approved_today || 0;
+        rejectedToday.value = r.data.data.rejected_today || 0;
+      }
+    });
+  } catch (e) { /* 统计失败静默 */ }
+  loadTab();
 });
 </script>
 
@@ -281,18 +292,22 @@ onMounted(() => {
   width: 100%;
 }
 
-/* Summary(原型:两张 260px 卡) */
-.summary-row {
+/* Summary(评审修订:两卡收紧为统一 Strip,同一容器 + 内部分隔) */
+.summary-strip {
   display: grid;
   grid-template-columns: repeat(2, 260px);
-  gap: 12px;
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-r-container);
+  background: var(--adm-surface);
+  overflow: hidden;
   margin-bottom: 14px;
 }
 .sum-card {
-  background: var(--adm-surface);
-  border: 1px solid var(--adm-border);
-  border-radius: 10px;
   padding: 15px 16px;
+  border-right: 1px solid var(--adm-border);
+}
+.sum-card:last-child {
+  border-right: 0;
 }
 .sum-card label {
   font-size: 12px;

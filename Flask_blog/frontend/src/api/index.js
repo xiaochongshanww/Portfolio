@@ -462,6 +462,10 @@ const HandwrittenAPI = {
   getCommentStats() {
     return apiClient.get('/comments/admin/stats')
   },
+  /** 审核队列统计:待审核 + 今日已审核(通过/退回) */
+  getReviewStats() {
+    return apiClient.get('/comments/admin/review-stats')
+  },
   /** @param {any} data */
   moderateCommentBatch(data) {
     return apiClient.post('/comments/moderate/batch', data)
