@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>小重山 CMS · 系统页面补充</title>
+<style>
+:root{--bg:#f6f7f8;--s:#fff;--t:#18181b;--t2:#3f3f46;--m:#71717a;--m2:#a1a1aa;--l:#e4e4e7;--p:#2563eb;--ps:#eff6ff;--ok:#15803d;--w:#b45309;--d:#b91c1c;--side:228px}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font-family:Inter,system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+button,input,select{font:inherit}button{cursor:pointer}a{text-decoration:none;color:inherit}
+.app{min-height:100vh;display:grid;grid-template-columns:var(--side) 1fr}
+.side{height:100vh;position:sticky;top:0;background:#fff;border-right:1px solid var(--l);display:flex;flex-direction:column}
+.brand{height:58px;padding:0 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--l);font-weight:750}
+.mark{width:29px;height:29px;border-radius:8px;background:#18181b;color:#fff;display:grid;place-items:center;font-size:11px}
+.navs{padding:16px 10px;flex:1}.g{margin-bottom:18px}.g small{display:block;padding:0 10px 7px;color:var(--m2);font-size:12px}
+.nav{height:40px;padding:0 10px;display:flex;align-items:center;gap:10px;border-radius:8px;font-size:14px;color:var(--t2)}
+.nav.active{background:var(--ps);color:var(--p);font-weight:650}.nav i{width:18px;font-style:normal}
+.acct{padding:10px;border-top:1px solid var(--l);font-size:12px}
+.main{min-width:0}.top{height:58px;position:sticky;top:0;background:#fff;border-bottom:1px solid var(--l);display:flex;align-items:center;justify-content:space-between;padding:0 28px}
+.crumb{display:flex;gap:7px;color:var(--m);font-size:12px}.crumb b{color:var(--t2)}
+.btn{height:34px;padding:0 11px;border:1px solid var(--l);border-radius:8px;background:#fff;color:var(--t2);font-size:13px}
+.btn.primary{background:var(--p);border-color:var(--p);color:#fff;font-weight:650}.btn.danger{color:var(--d)}
+.work{padding:32px}.content{max-width:1800px;margin:auto}
+.head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px}.head h1{margin:0;font-size:28px;letter-spacing:-.04em}.head p{margin:8px 0 0;color:var(--m);font-size:14px}.actions{display:flex;gap:8px}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border:1px solid var(--l);border-radius:12px;overflow:hidden;margin-bottom:18px}
+.sum{padding:18px 20px;border-right:1px solid var(--l)}.sum:last-child{border-right:0}.sum label{font-size:12px;color:var(--m)}.sum strong{display:block;font-size:26px;margin-top:7px}.sum small{font-size:12px;color:var(--m2)}
+.toolbar{display:flex;justify-content:space-between;gap:12px;padding:12px;background:#fff;border:1px solid var(--l);border-radius:12px 12px 0 0}.left,.right{display:flex;gap:8px;align-items:center}.search,.select{height:36px;border:1px solid var(--l);border-radius:8px;background:#fff;font-size:13px}.search{width:300px;padding:0 11px}.select{padding:0 28px 0 10px}
+.table{background:#fff;border:1px solid var(--l);border-top:0;border-radius:0 0 12px 12px;overflow:hidden}.wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:1000px}
+th{height:44px;padding:0 14px;background:#fafafa;color:var(--m);font-size:12px;text-align:left;border-bottom:1px solid var(--l)}td{padding:14px;border-bottom:1px solid #eee;font-size:13px;color:var(--t2)}tr:last-child td{border-bottom:0}
+.status{display:inline-flex;gap:6px;align-items:center;font-size:12px;font-weight:650}.dot{width:6px;height:6px;border-radius:50%}.ok{color:var(--ok)}.ok .dot{background:#22c55e}.warn{color:var(--w)}.warn .dot{background:#f59e0b}
+.pill{font-size:11px;border-radius:99px;padding:3px 7px;background:#f4f4f5;color:var(--m)}.pill.blue{background:var(--ps);color:var(--p)}
+.foot{padding:10px 12px;border-top:1px solid var(--l);display:flex;justify-content:space-between;color:var(--m);font-size:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}.card{background:#fff;border:1px solid var(--l);border-radius:12px;overflow:hidden}.chead{height:46px;padding:0 16px;border-bottom:1px solid var(--l);display:flex;align-items:center;justify-content:space-between}.chead h2{font-size:14px;margin:0}.body{padding:16px}
+.kv{display:grid;grid-template-columns:180px 1fr;gap:14px;padding:12px 0;border-top:1px solid #eee;font-size:13px}.kv:first-child{border-top:0}.kv label{color:var(--m)}
+.notice{padding:13px 14px;border:1px solid #fed7aa;background:#fff7ed;border-radius:10px;color:#9a3412;font-size:12px;line-height:1.65}
+.metric{display:grid;grid-template-columns:160px 1fr 80px;gap:14px;align-items:center;padding:13px 0;border-top:1px solid #eee}.metric:first-child{border-top:0}.metric label{font-size:12px;color:var(--m)}.bar{height:8px;border-radius:99px;background:#f1f5f9;overflow:hidden}.bar i{display:block;height:100%;background:#2563eb;border-radius:99px}.metric b{font-size:12px;text-align:right}
+.empty{padding:54px 20px;text-align:center;color:var(--m);font-size:12px}.empty b{display:block;color:var(--t2);font-size:14px;margin-bottom:7px}
+.view{display:none}.view.active{display:block}
+@media(max-width:1050px){:root{--side:204px}.work{padding:24px}.summary{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}}
+@media(max-width:720px){.app{grid-template-columns:1fr}.side{display:none}.work{padding:18px}.summary{grid-template-columns:1fr}.toolbar{flex-direction:column}.search{width:100%}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="side">
+  <div class="brand"><span class="mark">山</span>小重山 CMS</div>
+  <div class="navs">
+    <div class="g"><small>工作台</small><a class="nav"><i>⌂</i>仪表盘</a></div>
+    <div class="g"><small>内容</small><a class="nav"><i>▤</i>文章</a><a class="nav"><i>◉</i>审核</a><a class="nav"><i>◎</i>评论</a></div>
+    <div class="g"><small>组织</small><a class="nav"><i>◫</i>专题</a><a class="nav"><i>#</i>标签</a><a class="nav"><i>◇</i>项目</a></div>
+    <div class="g"><small>资源</small><a class="nav"><i>▧</i>媒体</a></div>
+    <div class="g"><small>系统</small>
+      <a class="nav"><i>○</i>用户</a><a class="nav"><i>□</i>安全</a><a class="nav"><i>≡</i>日志</a>
+      <a class="nav active" data-page="backup"><i>▣</i>备份</a>
+      <a class="nav" data-page="restore"><i>↻</i>恢复</a>
+      <a class="nav" data-page="performance"><i>◌</i>性能</a>
+      <a class="nav"><i>⚙</i>设置</a>
+    </div>
+  </div>
+  <div class="acct">M　manual@verify.com<br><span style="color:var(--m)">　　管理员</span></div>
+</aside>
+
+<main class="main">
+<header class="top"><div class="crumb"><span>系统</span><span>/</span><b id="crumbTitle">备份</b></div><button class="btn">↗ 返回网站</button></header>
+<div class="work"><div class="content">
+
+<section class="view active" id="backup">
+  <div class="head"><div><h1>备份管理</h1><p>管理数据库、媒体文件的备份记录和备份策略。</p></div><div class="actions"><button class="btn">↻ 刷新</button><button class="btn primary">＋ 创建备份</button></div></div>
+  <div class="summary">
+    <div class="sum"><label>备份总数</label><strong>6</strong><small>最近 30 天</small></div>
+    <div class="sum"><label>成功备份</label><strong>6</strong><small>最近一次今天 02:00</small></div>
+    <div class="sum"><label>存储占用</label><strong>1.8 GB</strong><small>数据库 + 媒体</small></div>
+    <div class="sum"><label>最近状态</label><strong style="font-size:22px">正常</strong><small>自动备份运行正常</small></div>
+  </div>
+  <div class="toolbar"><div class="left"><input class="search" placeholder="搜索备份 ID 或描述"><select class="select"><option>全部类型</option><option>自动备份</option><option>手动备份</option></select><select class="select"><option>全部状态</option><option>成功</option><option>失败</option></select></div><div class="right"><span style="font-size:12px;color:var(--m)">6 条记录</span></div></div>
+  <section class="table"><div class="wrap"><table>
+    <thead><tr><th>备份</th><th>类型</th><th>状态</th><th>大小</th><th>创建时间</th><th>耗时</th><th>说明</th><th>操作</th></tr></thead>
+    <tbody>
+      <tr><td><b>bk_20260902_0200</b></td><td><span class="pill blue">自动备份</span></td><td><span class="status ok"><i class="dot"></i>成功</span></td><td>312 MB</td><td>今天 02:00</td><td>18s</td><td>每日自动完整备份</td><td><button class="btn">下载</button> <button class="btn">···</button></td></tr>
+      <tr><td><b>bk_20260901_0200</b></td><td><span class="pill">自动备份</span></td><td><span class="status ok"><i class="dot"></i>成功</span></td><td>308 MB</td><td>09/01 02:00</td><td>17s</td><td>每日自动完整备份</td><td><button class="btn">下载</button> <button class="btn">···</button></td></tr>
+      <tr><td><b>bk_20260831_manual</b></td><td><span class="pill">手动备份</span></td><td><span class="status ok"><i class="dot"></i>成功</span></td><td>301 MB</td><td>08/31 23:42</td><td>21s</td><td>后台重构前手动备份</td><td><button class="btn">下载</button> <button class="btn">···</button></td></tr>
+    </tbody>
+  </table></div><div class="foot"><span>共 6 条备份记录</span><span>保留策略：最近 14 天</span></div></section>
+</section>
+
+<section class="view" id="restore">
+  <div class="head"><div><h1>恢复管理</h1><p>从历史备份恢复站点数据，并查看恢复记录。</p></div></div>
+  <div class="notice" style="margin-bottom:18px"><b>恢复操作会修改当前数据。</b> 建议先创建最新备份。恢复开始后，后台将暂时进入维护状态。</div>
+  <div class="grid2">
+    <section class="card"><div class="chead"><h2>选择恢复点</h2></div><div class="body">
+      <div class="kv"><label>备份版本</label><div><select class="select" style="width:100%"><option>bk_20260902_0200 · 今天 02:00</option><option>bk_20260901_0200 · 09/01 02:00</option></select></div></div>
+      <div class="kv"><label>恢复范围</label><div><select class="select" style="width:100%"><option>完整恢复（数据库 + 媒体）</option><option>仅数据库</option></select></div></div>
+      <div class="kv"><label>恢复前保护</label><div>✓ 自动创建当前状态备份</div></div>
+      <div style="margin-top:16px"><button class="btn danger">开始恢复</button></div>
+    </div></section>
+    <section class="card"><div class="chead"><h2>最近恢复记录</h2></div><div class="empty"><b>暂无恢复记录</b>恢复任务完成后会记录操作人、恢复点和结果。</div></section>
+  </div>
+  <section class="card" style="margin-top:18px"><div class="chead"><h2>恢复流程</h2></div><div class="body">
+    <div class="kv"><label>1. 创建保护备份</label><div>保存恢复前的当前状态</div></div>
+    <div class="kv"><label>2. 进入维护状态</label><div>阻止新的写入操作</div></div>
+    <div class="kv"><label>3. 恢复数据</label><div>恢复数据库与所选文件</div></div>
+    <div class="kv"><label>4. 完整性检查</label><div>确认数据库和媒体引用一致</div></div>
+    <div class="kv"><label>5. 恢复服务</label><div>退出维护状态并记录审计日志</div></div>
+  </div></section>
+</section>
+
+<section class="view" id="performance">
+  <div class="head"><div><h1>性能监控</h1><p>查看应用响应、资源使用和核心依赖健康状态。</p></div><div class="actions"><button class="btn">↻ 刷新</button></div></div>
+  <div class="summary">
+    <div class="sum"><label>API P95</label><strong>184 ms</strong><small>过去 15 分钟</small></div>
+    <div class="sum"><label>错误率</label><strong>0.2%</strong><small>HTTP 5xx</small></div>
+    <div class="sum"><label>数据库</label><strong>正常</strong><small>连接池 6 / 20</small></div>
+    <div class="sum"><label>运行状态</label><strong>正常</strong><small>核心检查通过</small></div>
+  </div>
+  <div class="grid2">
+    <section class="card"><div class="chead"><h2>资源使用</h2><span class="status ok"><i class="dot"></i>正常</span></div><div class="body">
+      <div class="metric"><label>CPU</label><div class="bar"><i style="width:24%"></i></div><b>24%</b></div>
+      <div class="metric"><label>内存</label><div class="bar"><i style="width:48%"></i></div><b>48%</b></div>
+      <div class="metric"><label>磁盘</label><div class="bar"><i style="width:39%"></i></div><b>39%</b></div>
+      <div class="metric"><label>数据库连接</label><div class="bar"><i style="width:30%"></i></div><b>6 / 20</b></div>
+    </div></section>
+    <section class="card"><div class="chead"><h2>服务检查</h2></div><div class="body">
+      <div class="kv"><label>Web API</label><div><span class="status ok"><i class="dot"></i>正常</span></div></div>
+      <div class="kv"><label>PostgreSQL</label><div><span class="status ok"><i class="dot"></i>正常</span></div></div>
+      <div class="kv"><label>媒体存储</label><div><span class="status ok"><i class="dot"></i>正常</span></div></div>
+      <div class="kv"><label>后台任务</label><div><span class="status ok"><i class="dot"></i>正常</span></div></div>
+    </div></section>
+  </div>
+  <section class="card" style="margin-top:18px"><div class="chead"><h2>慢请求</h2><button class="btn">查看日志</button></div><div class="empty"><b>暂无明显慢请求</b>过去 15 分钟没有超过 1 秒的请求。</div></section>
+</section>
+
+</div></div>
+</main>
+</div>
+<script>
+const titles={backup:'备份',restore:'恢复',performance:'性能'};
+document.querySelectorAll('[data-page]').forEach(el=>{
+  el.addEventListener('click',()=>{
+    document.querySelectorAll('[data-page]').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById(el.dataset.page).classList.add('active');
+    document.getElementById('crumbTitle').textContent=titles[el.dataset.page];
+  });
+});
+</script>
+</body></html>

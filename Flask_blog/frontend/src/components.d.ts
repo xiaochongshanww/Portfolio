@@ -100,6 +100,7 @@ declare module 'vue' {
     QuoteBlock: typeof import('./components/article/QuoteBlock.vue')['default']
     ReadingProgressBar: typeof import('./components/article/ReadingProgressBar.vue')['default']
     ReadingRail: typeof import('./components/article/ReadingRail.vue')['default']
+    RejectArticleDialog: typeof import('./components/admin/RejectArticleDialog.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SchedulePicker: typeof import('./components/SchedulePicker.vue')['default']
