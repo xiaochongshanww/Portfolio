@@ -90,7 +90,7 @@ import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   DataBoard, Document, View, ChatLineRound, Collection, PriceTag, Box,
-  Picture, User, Lock, Memo, Setting,
+  Picture, User, Lock, Memo, Setting, FolderOpened, RefreshLeft, Odometer,
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useUserStore } from '../../stores/user';
@@ -143,6 +143,9 @@ const NAV_GROUPS: NavGroup[] = [
       { label: '用户', path: '/admin/users', icon: User, roles: ['admin'] },
       { label: '安全', path: '/admin/security', icon: Lock, roles: ['editor', 'admin'] },
       { label: '日志', path: '/admin/logs', icon: Memo, roles: ['editor', 'admin'] },
+      { label: '备份', path: '/admin/backup', icon: FolderOpened, roles: ['admin'] },
+      { label: '恢复', path: '/admin/restore', icon: RefreshLeft, roles: ['admin'] },
+      { label: '性能', path: '/admin/performance', icon: Odometer, roles: ['editor', 'admin'] },
       { label: '设置', path: '/admin/settings/general', icon: Setting, roles: ['admin'] },
     ],
   },
