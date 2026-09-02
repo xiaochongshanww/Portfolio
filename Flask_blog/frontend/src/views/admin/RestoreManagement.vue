@@ -1,317 +1,316 @@
 <template>
   <div class="restore-management">
-    <AdminPageHeader title="恢复任务" description="查看和监控所有恢复任务的状态和进度。" />
+    <AdminPageHeader title="恢复管理" description="从历史备份恢复站点数据，并查看恢复记录。" />
 
-    <!-- 筛选器 -->
-    <div class="filters">
-      <el-row :gutter="20">
-        <el-col :span="6">
-          <el-select 
-            v-model="filters.status" 
-            placeholder="状态筛选" 
-            clearable
-            @change="loadRestoreRecords"
-          >
-            <el-option label="全部状态" value="" />
-            <el-option label="等待中" value="pending" />
-            <el-option label="执行中" value="running" />
-            <el-option label="已完成" value="completed" />
-            <el-option label="失败" value="failed" />
-            <el-option label="已取消" value="cancelled" />
-          </el-select>
-        </el-col>
-        <el-col :span="6">
-          <el-select 
-            v-model="filters.restore_type" 
-            placeholder="恢复类型" 
-            clearable
-            @change="loadRestoreRecords"
-          >
-            <el-option label="全部类型" value="" />
-            <el-option label="完整恢复" value="full" />
-            <el-option label="仅数据库" value="database_only" />
-            <el-option label="仅文件" value="files_only" />
-            <el-option label="部分恢复" value="partial" />
-          </el-select>
-        </el-col>
-        <el-col :span="12">
-          <el-button type="primary" :loading="loading" @click="loadRestoreRecords">
-            <el-icon><Refresh /></el-icon>
-            刷新
-          </el-button>
-          <el-button type="warning" :loading="cleaningUp" style="margin-left: 10px;" @click="cleanupStuckTasks">
-            <el-icon><Delete /></el-icon>
-            清理卡住的任务
-          </el-button>
-        </el-col>
-      </el-row>
+    <!-- 恢复警告(原型 notice) -->
+    <div class="restore-notice">
+      <b>恢复操作会修改当前数据。</b>
+      建议先创建最新备份。恢复开始后，后台将暂时进入维护状态。
     </div>
 
-    <!-- 恢复记录表格 -->
-    <el-table 
-      v-loading="loading" 
-      :data="restoreRecords" 
-      style="width: 100%"
-      :row-class-name="getRowClassName"
-      @row-click="showRestoreDetail"
+    <!-- Grid2:选择恢复点 + 最近恢复记录 -->
+    <div class="grid-two">
+      <!-- 选择恢复点 -->
+      <section class="card">
+        <div class="card-head">
+          <h2>选择恢复点</h2>
+        </div>
+        <div class="card-body">
+          <div v-if="backupsLoading" class="card-loading">
+            <el-skeleton :rows="3" animated />
+          </div>
+          <AdminStateBlock
+            v-else-if="!completedBackups.length"
+            kind="empty"
+            title="暂无可用备份"
+            description="先在备份管理中创建备份，才能执行恢复。"
+            compact
+          >
+            <RouterLink to="/admin/backup" class="ghost-btn">前往备份管理</RouterLink>
+          </AdminStateBlock>
+          <div v-else class="restore-form">
+            <label class="field-label">备份版本</label>
+            <select v-model="selectedBackupId" class="adm-select w-full" aria-label="选择备份版本">
+              <option v-for="b in completedBackups" :key="b.backup_id" :value="b.backup_id">
+                {{ b.backup_id }} · {{ shortTime(b.created_at) }}
+              </option>
+            </select>
+
+            <label class="field-label">恢复范围</label>
+            <select v-model="restoreType" class="adm-select w-full" aria-label="选择恢复范围">
+              <option value="full">完整恢复（数据库 + 文件）</option>
+              <option value="database_only">仅数据库</option>
+              <option value="files_only">仅文件</option>
+            </select>
+
+            <div class="protect-row">✓ 恢复前自动创建当前状态备份</div>
+
+            <el-button
+              type="danger"
+              :loading="starting"
+              :disabled="!selectedBackupId"
+              @click="startRestore"
+            >开始恢复</el-button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 恢复前检查(评审修订:替代与下方表格重复的"最近恢复记录";
+           每项均来自真实数据:最新备份=已完成备份列表,DB=记录加载成功) -->
+      <section class="card">
+        <div class="card-head">
+          <h2>恢复前检查</h2>
+        </div>
+        <div class="card-body">
+          <div class="kv-list">
+            <div class="kv-row">
+              <label>最新备份</label>
+              <div>
+                <template v-if="latestBackup">{{ latestBackup.backup_id }}<span class="kv-sub"> · {{ shortTime(latestBackup.created_at) }}</span></template>
+                <template v-else><span class="check-bad">无可用备份</span></template>
+              </div>
+            </div>
+            <div class="kv-row">
+              <label>数据库状态</label>
+              <div><AdminStatus :kind="dbReachable ? 'success' : 'danger'" :label="dbReachable ? '正常' : '异常'" /></div>
+            </div>
+            <div class="kv-row">
+              <label>存储空间</label>
+              <div>{{ storageText }}</div>
+            </div>
+            <div class="kv-row">
+              <label>当前写入任务</label>
+              <div>{{ runningRestoreCount }} 个恢复任务执行中</div>
+            </div>
+            <div class="kv-row">
+              <label>维护状态</label>
+              <div><AdminStatus :kind="maintenanceActive ? 'warning' : 'success'" :label="maintenanceActive ? '维护中' : '未启用'" /></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 筛选 Toolbar(记录较多时使用) -->
+    <AdminToolbar
+      :result-count="pagination.total"
+      refreshable
+      @refresh="loadRestoreRecords"
     >
-      <el-table-column prop="restore_id" label="恢复ID" width="200" show-overflow-tooltip>
-        <template #default="scope">
-          <el-button type="text" @click="showRestoreDetail(scope.row)">
-            {{ scope.row.restore_id }}
-          </el-button>
-        </template>
-      </el-table-column>
+      <template #filters>
+        <select v-model="filters.status" class="adm-select" aria-label="按状态筛选" @change="loadRestoreRecords">
+          <option value="">全部状态</option>
+          <option value="pending">等待中</option>
+          <option value="running">执行中</option>
+          <option value="completed">已完成</option>
+          <option value="failed">失败</option>
+          <option value="cancelled">已取消</option>
+        </select>
+        <select v-model="filters.restore_type" class="adm-select" aria-label="按恢复类型筛选" @change="loadRestoreRecords">
+          <option value="">全部类型</option>
+          <option value="full">完整恢复</option>
+          <option value="database_only">仅数据库</option>
+          <option value="files_only">仅文件</option>
+          <option value="partial">部分恢复</option>
+        </select>
+      </template>
+      <template #right>
+        <button
+          v-if="hasStuckTasks"
+          type="button"
+          class="ghost-danger-btn"
+          :disabled="cleaningUp"
+          @click="cleanupStuckTasks"
+        >清理卡住的任务</button>
+      </template>
+    </AdminToolbar>
 
-      <el-table-column prop="backup_info" label="源备份" width="180" show-overflow-tooltip>
-        <template #default="scope">
-          <div v-if="scope.row.backup_info">
-            <div>{{ scope.row.backup_info.backup_id }}</div>
-            <div class="text-xs text-gray-500">
-              {{ scope.row.backup_info.backup_type }}
-            </div>
-          </div>
-          <div v-else class="text-gray-400">-</div>
-        </template>
-      </el-table-column>
-
-      <el-table-column prop="restore_type" label="恢复类型" width="120">
-        <template #default="scope">
-          <el-tag 
-            :type="getRestoreTypeTagType(scope.row.restore_type)" 
-            size="small"
-          >
-            {{ getRestoreTypeText(scope.row.restore_type) }}
-          </el-tag>
-        </template>
-      </el-table-column>
-
-      <el-table-column prop="status" label="状态" width="120">
-        <template #default="scope">
-          <el-tag 
-            :type="getStatusTagType(scope.row.status)" 
-            size="small"
-          >
-            {{ getStatusText(scope.row.status) }}
-          </el-tag>
-        </template>
-      </el-table-column>
-
-      <el-table-column prop="progress" label="进度" width="200">
-        <template #default="scope">
-          <div class="progress-container">
-            <el-progress 
-              :percentage="scope.row.progress || 0" 
-              :status="getProgressStatus(scope.row.status)"
-              :stroke-width="16"
-              text-inside
-            />
-            <div v-if="scope.row.status_message" class="status-message text-xs text-gray-600 mt-1">
-              {{ scope.row.status_message }}
-            </div>
-          </div>
-        </template>
-      </el-table-column>
-
-      <el-table-column prop="created_at" label="创建时间" width="160">
-        <template #default="scope">
-          {{ formatDateTime(scope.row.created_at) }}
-        </template>
-      </el-table-column>
-
-      <el-table-column prop="started_at" label="开始时间" width="160">
-        <template #default="scope">
-          {{ scope.row.started_at ? formatDateTime(scope.row.started_at) : '-' }}
-        </template>
-      </el-table-column>
-
-      <el-table-column label="操作" width="200" fixed="right">
-        <template #default="scope">
-          <el-button 
-            type="primary" 
-            size="small" 
-            @click.stop="showRestoreDetail(scope.row)"
-          >
-            查看详情
-          </el-button>
-          <el-button 
-            v-if="canCancel(scope.row.status)"
-            type="danger" 
-            size="small" 
-            :loading="scope.row._cancelling"
-            @click.stop="cancelRestore(scope.row.restore_id)"
-          >
-            取消
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
-
-    <!-- 分页 -->
-    <div class="pagination">
-      <el-pagination
-        v-model:current-page="pagination.page"
-        v-model:page-size="pagination.per_page"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="pagination.total"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="loadRestoreRecords"
-        @current-change="loadRestoreRecords"
+    <!-- 恢复记录表 -->
+    <section class="table-card">
+      <AdminStateBlock
+        v-if="loadError"
+        kind="error"
+        title="恢复记录加载失败"
+        compact
+        @reload="loadRestoreRecords"
       />
-    </div>
+      <AdminStateBlock
+        v-else-if="!loading && !restoreRecords.length"
+        kind="empty"
+        title="暂无恢复记录"
+        compact
+      />
+      <div v-else class="table-wrap">
+        <el-table :data="restoreRecords" row-key="restore_id" class="adm-table">
+          <el-table-column label="恢复任务" min-width="220">
+            <template #default="{ row }">
+              <span class="cell-strong">{{ row.restore_id }}</span>
+              <span v-if="row.backup_info" class="cell-sub">源备份 {{ row.backup_info.backup_id }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="类型" width="110">
+            <template #default="{ row }">{{ getRestoreTypeText(row.restore_type) }}</template>
+          </el-table-column>
+          <el-table-column label="状态" width="100">
+            <template #default="{ row }">
+              <AdminStatus :kind="statusKind(row.status)" :label="getStatusText(row.status)" />
+            </template>
+          </el-table-column>
+          <el-table-column label="进度" width="140">
+            <template #default="{ row }">
+              <span class="cell-text">{{ row.progress != null ? row.progress + '%' : '—' }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="创建时间" width="150">
+            <template #default="{ row }">{{ formatDateTime(row.created_at) }}</template>
+          </el-table-column>
+          <el-table-column width="150" fixed="right" align="right">
+            <template #default="{ row }">
+              <div class="row-actions-inline">
+                <button type="button" class="edit-btn" @click="showRestoreDetail(row)">详情</button>
+                <button
+                  v-if="canCancel(row.status)"
+                  type="button"
+                  class="edit-btn danger-btn"
+                  :disabled="row._cancelling"
+                  @click="cancelRestore(row.restore_id)"
+                >取消</button>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
 
-    <!-- 恢复详情对话框 -->
+      <div class="table-footer">
+        <span>共 {{ pagination.total }} 条恢复记录</span>
+        <el-pagination
+          layout="prev, pager, next, sizes"
+          :total="pagination.total"
+          :current-page="pagination.page"
+          :page-size="pagination.per_page"
+          :page-sizes="[10, 20, 50]"
+          :pager-count="5"
+          small
+          @current-change="handlePageChange"
+          @size-change="handleSizeChange"
+        />
+      </div>
+    </section>
+
+    <!-- 恢复流程(原型 5 步 KV) -->
+    <section class="card flow-card">
+      <div class="card-head">
+        <h2>恢复流程</h2>
+      </div>
+      <div class="card-body">
+        <div class="kv-list">
+          <div class="kv-row"><label>1. 创建保护备份</label><div>保存恢复前的当前状态</div></div>
+          <div class="kv-row"><label>2. 进入维护状态</label><div>阻止新的写入操作</div></div>
+          <div class="kv-row"><label>3. 恢复数据</label><div>恢复数据库与所选文件</div></div>
+          <div class="kv-row"><label>4. 完整性检查</label><div>确认数据库和媒体引用一致</div></div>
+          <div class="kv-row"><label>5. 恢复服务</label><div>退出维护状态并记录审计日志</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 恢复详情对话框(保留进度监控) -->
     <el-dialog
       v-model="detailDialog.visible"
       :title="'恢复任务详情 - ' + detailDialog.data?.restore_id"
-      width="800px"
-      :z-index="3000"
-      :append-to-body="true"
+      width="720px"
+      :close-on-click-modal="false"
       @close="stopProgressMonitoring"
     >
-      <div v-if="detailDialog.data" class="restore-detail">
-        <!-- 基本信息 -->
-        <div class="section">
-          <h4>基本信息</h4>
-          <el-row :gutter="20">
-            <el-col :span="12">
-              <div class="info-item">
-                <label>恢复ID:</label>
-                <span>{{ detailDialog.data.restore_id }}</span>
-              </div>
-            </el-col>
-            <el-col :span="12">
-              <div class="info-item">
-                <label>恢复类型:</label>
-                <el-tag :type="getRestoreTypeTagType(detailDialog.data.restore_type)" size="small">
-                  {{ getRestoreTypeText(detailDialog.data.restore_type) }}
-                </el-tag>
-              </div>
-            </el-col>
-            <el-col :span="12">
-              <div class="info-item">
-                <label>状态:</label>
-                <el-tag :type="getStatusTagType(detailDialog.data.status)" size="small">
-                  {{ getStatusText(detailDialog.data.status) }}
-                </el-tag>
-              </div>
-            </el-col>
-            <el-col :span="12">
-              <div class="info-item">
-                <label>进度:</label>
-                <span>{{ detailDialog.data.progress || 0 }}%</span>
-              </div>
-            </el-col>
-          </el-row>
-        </div>
-
-        <!-- 实时进度 -->
-        <div v-if="detailDialog.data.status === 'running'" class="section">
-          <h4>实时进度监控</h4>
-          <el-progress 
-            :percentage="detailDialog.data.progress || 0" 
-            :status="getProgressStatus(detailDialog.data.status)"
-            :stroke-width="20"
-            text-inside
-          />
-          <div v-if="detailDialog.data.status_message" class="status-message mt-2 text-gray-600">
-            当前状态: {{ detailDialog.data.status_message }}
+      <div v-if="detailDialog.data" class="detail-body">
+        <div class="kv-row"><label>恢复 ID</label><div>{{ detailDialog.data.restore_id }}</div></div>
+        <div class="kv-row"><label>类型</label><div>{{ getRestoreTypeText(detailDialog.data.restore_type) }}</div></div>
+        <div class="kv-row"><label>状态</label><div><AdminStatus :kind="statusKind(detailDialog.data.status)" :label="getStatusText(detailDialog.data.status)" /></div></div>
+        <div class="kv-row">
+          <label>进度</label>
+          <div>
+            <el-progress
+              :percentage="detailDialog.data.progress || 0"
+              :status="getProgressStatus(detailDialog.data.status)"
+            />
+            <div v-if="detailDialog.data.status_message" class="kv-sub">{{ detailDialog.data.status_message }}</div>
           </div>
         </div>
-
-        <!-- 源备份信息 -->
-        <div v-if="detailDialog.data.backup_info" class="section">
-          <h4>源备份信息</h4>
-          <el-row :gutter="20">
-            <el-col :span="12">
-              <div class="info-item">
-                <label>备份ID:</label>
-                <span>{{ detailDialog.data.backup_info.backup_id }}</span>
-              </div>
-            </el-col>
-            <el-col :span="12">
-              <div class="info-item">
-                <label>备份类型:</label>
-                <span>{{ detailDialog.data.backup_info.backup_type }}</span>
-              </div>
-            </el-col>
-            <el-col :span="12">
-              <div class="info-item">
-                <label>文件大小:</label>
-                <span>{{ formatFileSize(detailDialog.data.backup_info.file_size) }}</span>
-              </div>
-            </el-col>
-            <el-col :span="12">
-              <div class="info-item">
-                <label>创建时间:</label>
-                <span>{{ formatDateTime(detailDialog.data.backup_info.created_at) }}</span>
-              </div>
-            </el-col>
-          </el-row>
+        <div v-if="detailDialog.data.backup_info" class="kv-row">
+          <label>源备份</label>
+          <div>
+            {{ detailDialog.data.backup_info.backup_id }}
+            <span class="kv-sub">({{ formatFileSize(detailDialog.data.backup_info.file_size) }})</span>
+          </div>
         </div>
-
-        <!-- 时间信息 -->
-        <div class="section">
-          <h4>时间信息</h4>
-          <el-row :gutter="20">
-            <el-col :span="8">
-              <div class="info-item">
-                <label>创建时间:</label>
-                <span>{{ formatDateTime(detailDialog.data.created_at) }}</span>
-              </div>
-            </el-col>
-            <el-col :span="8">
-              <div class="info-item">
-                <label>开始时间:</label>
-                <span>{{ detailDialog.data.started_at ? formatDateTime(detailDialog.data.started_at) : '-' }}</span>
-              </div>
-            </el-col>
-            <el-col :span="8">
-              <div class="info-item">
-                <label>完成时间:</label>
-                <span>{{ detailDialog.data.completed_at ? formatDateTime(detailDialog.data.completed_at) : '-' }}</span>
-              </div>
-            </el-col>
-          </el-row>
-        </div>
-
-        <!-- 恢复配置 -->
-        <div v-if="detailDialog.data.restore_options" class="section">
-          <h4>恢复配置</h4>
-          <pre class="config-display">{{ formatJSON(detailDialog.data.restore_options) }}</pre>
+        <div class="kv-row"><label>创建时间</label><div>{{ formatDateTime(detailDialog.data.created_at) }}</div></div>
+        <div class="kv-row"><label>完成时间</label><div>{{ detailDialog.data.completed_at ? formatDateTime(detailDialog.data.completed_at) : '—' }}</div></div>
+        <div v-if="canCancel(detailDialog.data.status)" class="kv-row">
+          <label>操作</label>
+          <div>
+            <el-button type="danger" size="small" @click="cancelRestoreFromDialog(detailDialog.data.restore_id)">取消任务</el-button>
+          </div>
         </div>
       </div>
-
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button 
-            v-if="canCancel(detailDialog.data?.status)"
-            type="danger" 
-            :loading="detailDialog.data?._cancelling"
-            @click="cancelRestoreFromDialog(detailDialog.data?.restore_id)"
-          >
-            取消任务
-          </el-button>
-          <el-button @click="detailDialog.visible = false">关闭</el-button>
-        </span>
-      </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
-import AdminPageHeader from '../../components/admin/AdminPageHeader.vue';
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+/**
+ * 恢复管理(05 V2 系统页面原型)
+ * - 选择恢复点:从已完成备份发起恢复(restoreBackup + 进度监控);
+ * - 最近恢复记录 + 记录表:状态/进度/取消;
+ * - 恢复流程五步说明卡。
+ * 保留:进度轮询、取消(表格/详情)、清理卡住任务、?highlight= 联动。
+ */
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, Delete } from '@element-plus/icons-vue'
-import { API } from '@/api'
+import { API } from '../../api'
+import AdminPageHeader from '../../components/admin/AdminPageHeader.vue'
+import AdminToolbar from '../../components/admin/AdminToolbar.vue'
+import AdminStatus from '../../components/admin/AdminStatus.vue'
+import AdminStateBlock from '../../components/admin/AdminStateBlock.vue'
+
+const route = useRoute()
 
 // 数据
-/** @type {import('vue').Ref<import('@/types').RestoreRecord[]>} */
+/** @type {import('vue').Ref<any[]>} */
 const restoreRecords = ref([])
 const loading = ref(false)
+const loadError = ref(false)
 const cleaningUp = ref(false)
+const starting = ref(false)
+
+/** @type {import('vue').Ref<any[]>} */
+const completedBackups = ref([])
+const backupsLoading = ref(false)
+/** @type {import('vue').Ref<string>} */
+const selectedBackupId = ref('')
+const restoreType = ref('full')
+
+// 恢复前检查(§ 恢复前检查卡):各项均由真实数据派生
+const dbReachable = ref(true)
+/** @type {import('vue').Ref<{free?: number, total?: number} | null>} */
+const storageInfo = ref(null)
+const latestBackup = computed(() => completedBackups.value[0] || null)
+const runningRestoreCount = computed(() =>
+  restoreRecords.value.filter((/** @type {any} */ r) => r.status === 'running' || r.status === 'pending').length,
+)
+const maintenanceActive = computed(() => runningRestoreCount.value > 0)
+const storageText = computed(() => {
+  const st = storageInfo.value
+  if (!st || !st.total) return '—'
+  return `可用 ${formatFileSize(st.free)} / 总量 ${formatFileSize(st.total)}`
+})
+const hasStuckTasks = computed(() =>
+  restoreRecords.value.some(
+    (/** @type {any} */ r) =>
+      (r.status === 'running' || r.status === 'pending') &&
+      r.created_at &&
+      Date.now() - new Date(r.created_at).getTime() > 10 * 60 * 1000,
+  ),
+)
 
 // 筛选条件
 const filters = reactive({
@@ -329,12 +328,12 @@ const pagination = reactive({
 // 详情对话框
 const detailDialog = reactive({
   visible: false,
-  /** @type {import('@/types').RestoreRecord | null} */
+  /** @type {any} */
   data: null
 })
 
 // 进度监控定时器
-/** @type {ReturnType<typeof setTimeout> | null} */
+/** @type {ReturnType<typeof setInterval> | null} */
 let progressTimer = null
 
 // 高亮显示的恢复任务ID
@@ -343,43 +342,90 @@ const highlightRestoreId = ref(null)
 
 // 加载恢复记录
 const loadRestoreRecords = async () => {
+  loading.value = true
+  loadError.value = false
   try {
-    loading.value = true
     const params = {
       page: pagination.page,
       per_page: pagination.per_page,
       ...filters
     }
-    
+
     const response = await API.getRestoreRecords(params)
     if (response.data.code === 0) {
       restoreRecords.value = response.data.data.items
       pagination.total = response.data.data.total
+      dbReachable.value = true
     } else {
-      ElMessage.error(response.data.message || '加载恢复记录失败')
+      dbReachable.value = false
+      loadError.value = true
     }
   } catch (error) {
-    console.error('加载恢复记录失败:', error)
-    ElMessage.error('加载恢复记录失败')
+    dbReachable.value = false
+    loadError.value = true
   } finally {
     loading.value = false
   }
 }
 
-// 显示恢复详情
-/** @param {import('@/types').RestoreRecord} record */
-const showRestoreDetail = async (record) => {
+// 可用恢复点:已完成的备份
+const loadBackups = async () => {
+  backupsLoading.value = true
   try {
-    detailDialog.data = { ...record }
-    detailDialog.visible = true
-    
-    // 如果任务正在运行，启动进度监控
-    if (record.status === 'running') {
-      startProgressMonitoring(record.restore_id)
+    const response = await API.getBackupRecords({ status: 'completed', page: 1, per_page: 50 })
+    const data = response.data?.data || response.data || {}
+    completedBackups.value = data.records || []
+    if (!selectedBackupId.value && completedBackups.value.length) {
+      selectedBackupId.value = completedBackups.value[0].backup_id
+    }
+  } catch (e) {
+    completedBackups.value = []
+  } finally {
+    backupsLoading.value = false
+  }
+}
+
+// 发起恢复(原型:开始恢复)
+const startRestore = async () => {
+  if (!selectedBackupId.value) return
+  const backup = completedBackups.value.find((b) => b.backup_id === selectedBackupId.value)
+  try {
+    await ElMessageBox.confirm(
+      `从「${selectedBackupId.value}」恢复站点数据？恢复开始后后台将暂时进入维护状态。`,
+      '开始恢复',
+      { type: 'warning', confirmButtonText: '开始恢复', cancelButtonText: '取消' }
+    )
+    starting.value = true
+    const response = await API.restoreBackup(selectedBackupId.value, {
+      restore_type: restoreType.value
+    })
+    if (response.data.code === 0) {
+      ElMessage.success('恢复任务已开始')
+      const restoreId = response.data.data?.restore_id
+      await loadRestoreRecords()
+      // 开始进度监控
+      if (restoreId) {
+        const record = restoreRecords.value.find((r) => r.restore_id === restoreId)
+        if (record) showRestoreDetail(record)
+        else startProgressMonitoring(restoreId)
+      }
+    } else {
+      ElMessage.error(response.data.message || '恢复任务启动失败')
     }
   } catch (error) {
-    console.error('显示恢复详情失败:', error)
-    ElMessage.error('显示恢复详情失败')
+    if (error !== 'cancel') ElMessage.error('恢复任务启动失败')
+  } finally {
+    starting.value = false
+  }
+}
+
+// 显示恢复详情
+/** @param {any} record */
+const showRestoreDetail = async (record) => {
+  detailDialog.data = { ...record }
+  detailDialog.visible = true
+  if (record.status === 'running') {
+    startProgressMonitoring(record.restore_id)
   }
 }
 
@@ -389,25 +435,20 @@ const startProgressMonitoring = (restoreId) => {
   if (progressTimer) {
     clearInterval(progressTimer)
   }
-  
   progressTimer = setInterval(async () => {
     try {
       const response = await API.getRestoreProgress(restoreId)
       if (response.data.code === 0) {
         detailDialog.data = response.data.data
-        
-        // 如果任务已完成或失败，停止监控
         if (['completed', 'failed', 'cancelled'].includes(response.data.data.status)) {
           stopProgressMonitoring()
-          // 刷新列表
           loadRestoreRecords()
         }
       }
     } catch (error) {
-      console.error('获取恢复进度失败:', error)
       stopProgressMonitoring()
     }
-  }, 2000) // 每2秒更新一次
+  }, 2000)
 }
 
 // 停止进度监控
@@ -416,6 +457,78 @@ const stopProgressMonitoring = () => {
     clearInterval(progressTimer)
     progressTimer = null
   }
+}
+
+const handleSelectionChange = () => {}
+
+/** @param {string | undefined} status */
+const getProgressStatus = (status) => {
+  if (status === 'failed') return 'exception'
+  if (status === 'completed') return 'success'
+  return undefined
+}
+
+/** @param {string | undefined} status */
+const canCancel = (status) => ['pending', 'running'].includes(status || '')
+
+/** @param {string | undefined} status @returns {'success'|'warning'|'neutral'|'danger'} */
+function statusKind(status) {
+  /** @type {Record<string, 'success'|'warning'|'neutral'|'danger'>} */
+  const kinds = { completed: 'success', running: 'warning', failed: 'danger' }
+  return kinds[status || ''] || 'neutral'
+}
+
+/** @param {string | undefined} status */
+const getStatusText = (status) => {
+  /** @type {Record<string, string>} */
+  const statusMap = {
+    'pending': '等待中',
+    'running': '执行中',
+    'completed': '已完成',
+    'failed': '失败',
+    'cancelled': '已取消'
+  }
+  return statusMap[status || ''] || status || '未知'
+}
+
+/** @param {string | undefined} type */
+const getRestoreTypeText = (type) => {
+  /** @type {Record<string, string>} */
+  const typeMap = {
+    'full': '完整恢复',
+    'database_only': '仅数据库',
+    'files_only': '仅文件',
+    'partial': '部分恢复'
+  }
+  return typeMap[type || ''] || type
+}
+
+/** @param {number | null | undefined} bytes */
+const formatFileSize = (bytes) => {
+  if (!bytes || bytes <= 0) return '—'
+  const units = ['B', 'KB', 'MB', 'GB']
+  let i = 0
+  let n = bytes
+  while (n >= 1024 && i < units.length - 1) {
+    n /= 1024
+    i += 1
+  }
+  return `${n.toFixed(i === 0 ? 0 : 1)} ${units[i]}`
+}
+
+/** @param {string | undefined} t */
+const shortTime = (t) => {
+  if (!t) return '—'
+  const d = new Date(t)
+  if (Number.isNaN(d.getTime())) return '—'
+  const pad = (/** @type {number} */ n) => String(n).padStart(2, '0')
+  return `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+/** @param {string | undefined} dateString */
+const formatDateTime = (dateString) => {
+  if (!dateString) return '—'
+  return new Date(dateString).toLocaleString('zh-CN')
 }
 
 // 取消恢复任务（从表格发起）
@@ -431,8 +544,7 @@ const cancelRestore = async (restoreId) => {
         type: 'warning'
       }
     )
-    
-    // 设置取消loading状态
+
     const record = restoreRecords.value.find(r => r.restore_id === restoreId)
     if (record) {
       record._cancelling = true
@@ -440,13 +552,12 @@ const cancelRestore = async (restoreId) => {
     if (detailDialog.data?.restore_id === restoreId && detailDialog.data) {
       detailDialog.data._cancelling = true
     }
-    
+
     const response = await API.cancelRestore(restoreId)
     if (response.data.code === 0) {
       ElMessage.success('恢复任务已取消')
       await loadRestoreRecords()
-      
-      // 如果详情对话框正在显示这个任务，关闭它
+
       if (detailDialog.visible && detailDialog.data?.restore_id === restoreId) {
         detailDialog.visible = false
       }
@@ -455,11 +566,9 @@ const cancelRestore = async (restoreId) => {
     }
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('取消恢复任务失败:', error)
       ElMessage.error('取消恢复任务失败')
     }
   } finally {
-    // 清除取消loading状态
     const record = restoreRecords.value.find(r => r.restore_id === restoreId)
     if (record) {
       record._cancelling = false
@@ -471,48 +580,18 @@ const cancelRestore = async (restoreId) => {
 }
 
 // 从详情对话框取消恢复任务
-/** @param {string | undefined} restoreId */
+/** @param {string} restoreId */
 const cancelRestoreFromDialog = async (restoreId) => {
-  // 临时保存对话框状态
   const wasDetailDialogVisible = detailDialog.visible
   const originalDialogData = detailDialog.data
-  
   try {
-    // 如果详情对话框是打开的，先临时关闭它，避免层级问题
-    if (wasDetailDialogVisible) {
-      detailDialog.visible = false
-    }
-    
-    await ElMessageBox.confirm(
-      '确定要取消这个恢复任务吗？正在进行的恢复操作将被中止。',
-      '确认取消',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-    
-    // 设置取消loading状态
-    const record = restoreRecords.value.find(r => r.restore_id === restoreId)
-    if (record) {
-      record._cancelling = true
-    }
-    if (originalDialogData?.restore_id === restoreId && originalDialogData) {
-      originalDialogData._cancelling = true
-    }
-    
     const response = await API.cancelRestore(restoreId)
     if (response.data.code === 0) {
       ElMessage.success('恢复任务已取消')
       await loadRestoreRecords()
-      
-      // 取消成功，不需要重新打开详情对话框
-      // 因为任务已被取消，详情已无意义
+      detailDialog.visible = false
     } else {
       ElMessage.error(response.data.message || '取消恢复任务失败')
-      
-      // 取消失败，恢复详情对话框显示
       if (wasDetailDialogVisible && originalDialogData?.restore_id === restoreId) {
         detailDialog.data = originalDialogData
         detailDialog.visible = true
@@ -520,28 +599,17 @@ const cancelRestoreFromDialog = async (restoreId) => {
     }
   } catch (error) {
     if (error === 'cancel') {
-      // 用户取消了确认对话框，恢复详情对话框显示
       if (wasDetailDialogVisible && originalDialogData?.restore_id === restoreId) {
         detailDialog.data = originalDialogData
         detailDialog.visible = true
       }
     } else {
-      console.error('取消恢复任务失败:', error)
       ElMessage.error('取消恢复任务失败')
-      
-      // 发生错误，恢复详情对话框显示
       if (wasDetailDialogVisible && originalDialogData?.restore_id === restoreId) {
         detailDialog.data = originalDialogData
         detailDialog.visible = true
       }
     }
-  } finally {
-    // 清除取消loading状态
-    const record = restoreRecords.value.find(r => r.restore_id === restoreId)
-    if (record) {
-      record._cancelling = false
-    }
-    // 注意：不再需要清理详情对话框的loading状态，因为对话框可能已经关闭
   }
 }
 
@@ -560,12 +628,12 @@ const cleanupStuckTasks = async () => {
 
     cleaningUp.value = true
     const response = await API.cleanupStuckRestores()
-    
+
     if (response.data.code === 0) {
       const cleanedCount = response.data.data.cleaned_count
       if (cleanedCount > 0) {
         ElMessage.success(`成功清理了 ${cleanedCount} 个卡住的任务`)
-        await loadRestoreRecords() // 刷新列表
+        await loadRestoreRecords()
       } else {
         ElMessage.info('没有发现卡住的任务')
       }
@@ -574,165 +642,58 @@ const cleanupStuckTasks = async () => {
     }
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('清理卡住任务失败:', error)
-      ElMessage.error('清理任务失败')
+      ElMessage.error('清理卡住任务失败')
     }
-  } finally {
-    cleaningUp.value = false
   }
 }
 
-// 工具函数
-/** @param {string | undefined} status */
-const getStatusText = (status) => {
-  /** @type {Record<string, string>} */
-  const statusMap = {
-    'pending': '等待中',
-    'running': '执行中',
-    'completed': '已完成',
-    'failed': '失败',
-    'cancelled': '已取消'
-  }
-  return statusMap[status || ''] || status
+/** @param {number} page */
+function handlePageChange(page) {
+  pagination.page = page
+  loadRestoreRecords()
 }
 
-/**
- * @param {string | undefined} status
- * @returns {'info' | 'success' | 'primary' | 'warning' | 'danger'}
- */
-const getStatusTagType = (status) => {
-  /** @type {Record<string, 'info' | 'success' | 'primary' | 'warning' | 'danger'>} */
-  const typeMap = {
-    'pending': 'info',
-    'running': 'warning',
-    'completed': 'success',
-    'failed': 'danger'
-  }
-  return typeMap[status || ''] || 'info'
+/** @param {number} size */
+function handleSizeChange(size) {
+  pagination.per_page = size
+  pagination.page = 1
+  loadRestoreRecords()
 }
 
-/** @param {string | undefined} type */
-const getRestoreTypeText = (type) => {
-  /** @type {Record<string, string>} */
-  const typeMap = {
-    'full': '完整恢复',
-    'database_only': '仅数据库',
-    'files_only': '仅文件',
-    'partial': '部分恢复'
-  }
-  return typeMap[type || ''] || type
-}
-
-/**
- * @param {string | undefined} type
- * @returns {'info' | 'success' | 'primary' | 'warning' | 'danger'}
- */
-const getRestoreTypeTagType = (type) => {
-  /** @type {Record<string, 'info' | 'success' | 'primary' | 'warning' | 'danger'>} */
-  const typeMap = {
-    'full': 'primary',
-    'database_only': 'success',
-    'files_only': 'warning',
-    'partial': 'info'
-  }
-  return typeMap[type || ''] || 'info'
-}
-
-/** @param {string | undefined} status */
-const getProgressStatus = (status) => {
-  if (status === 'completed') return 'success'
-  if (status === 'failed') return 'exception'
-  if (status === 'cancelled') return 'exception'
-  return undefined
-}
-
-/** @param {string | undefined} status */
-const canCancel = (status) => {
-  return ['pending', 'running'].includes(status || '')
-}
-
-/** @param {string | undefined} dateString */
-const formatDateTime = (dateString) => {
-  if (!dateString) return '-'
-  return new Date(dateString).toLocaleString('zh-CN')
-}
-
-/** @param {number | undefined} bytes */
-const formatFileSize = (bytes) => {
-  if (!bytes) return '-'
-  const units = ['B', 'KB', 'MB', 'GB', 'TB']
-  let size = bytes
-  let unitIndex = 0
-  
-  while (size >= 1024 && unitIndex < units.length - 1) {
-    size /= 1024
-    unitIndex++
-  }
-  
-  return `${size.toFixed(1)} ${units[unitIndex]}`
-}
-
-/** @param {unknown} jsonString */
-const formatJSON = (jsonString) => {
-  try {
-    if (typeof jsonString === 'string') {
-      return JSON.stringify(JSON.parse(jsonString), null, 2)
-    }
-    return JSON.stringify(jsonString, null, 2)
-  } catch (error) {
-    return jsonString
-  }
-}
-
-// 表格行样式
-/** @param {{ row: import('@/types').RestoreRecord }} arg */
-const getRowClassName = ({ row }) => {
-  if (highlightRestoreId.value && row.restore_id === highlightRestoreId.value) {
-    return 'highlight-row'
-  }
-  if (row.status === 'running') {
-    return 'running-row'
-  }
-  return ''
-}
-
-// 生命周期
 onMounted(async () => {
   await loadRestoreRecords()
-  
-  // 检查URL查询参数，高亮显示特定的恢复任务
-  const route = useRoute()
+
+  // 检查URL查询参数，高亮显示特定的恢复任务(备份页发起恢复后跳转联动)
   const highlightId = route.query.highlight
   if (highlightId) {
-    // 设置高亮显示的恢复任务ID
-    highlightRestoreId.value = String(highlightId)
-    
-    // 查找对应的恢复任务
     const targetRecord = restoreRecords.value.find(record => record.restore_id === highlightId)
     if (targetRecord) {
-      // 如果是正在执行的任务，开始监控进度
       if (targetRecord.status === 'running' || targetRecord.status === 'pending') {
         startProgressMonitoring(targetRecord.restore_id)
       }
-      
-      // 延迟一下以确保表格已渲染，然后滚动到对应行
       setTimeout(() => {
-        console.log('高亮显示恢复任务:', highlightId)
-        // 5秒后取消高亮
-        setTimeout(() => {
-          highlightRestoreId.value = null
-        }, 5000)
-      }, 500)
+        highlightRestoreId.value = null
+      }, 5000)
     }
   }
-  
-  // 对于任何正在运行的任务，自动开始监控
-  const runningTasks = restoreRecords.value.filter(record => 
-    record.status === 'running' || record.status === 'pending'
-  )
-  if (runningTasks.length > 0) {
-    startProgressMonitoring(runningTasks[0]?.restore_id)
-  }
+
+  // 正在运行的任务自动监控
+  restoreRecords.value.forEach((record) => {
+    if (record.status === 'running' || record.status === 'pending') {
+      startProgressMonitoring(record.restore_id)
+    }
+  })
+
+  // 恢复前检查:存储空间来自备份统计
+  try {
+    API.getBackupStatistics().then((/** @type {any} */ r) => {
+      if (r?.data?.code === 0) {
+        storageInfo.value = r.data.data?.storage || null
+      }
+    })
+  } catch (e) { /* 静默 */ }
+
+  loadBackups()
 })
 
 onUnmounted(() => {
@@ -742,182 +703,275 @@ onUnmounted(() => {
 
 <style scoped>
 .restore-management {
-  padding: 20px;
-}
-
-.header {
-  margin-bottom: 20px;
-}
-
-.header h2 {
-  margin: 0 0 8px 0;
-  color: #303133;
-}
-
-.header .description {
-  margin: 0;
-  color: #606266;
-  font-size: 14px;
-}
-
-.filters {
-  margin-bottom: 20px;
-  padding: 20px;
-  background: #f8f9fa;
-  border-radius: 6px;
-}
-
-.pagination {
-  margin-top: 20px;
-  display: flex;
-  justify-content: center;
-}
-
-.progress-container {
   width: 100%;
-  min-width: 120px; /* 确保进度条有足够空间显示百分比 */
 }
-
-/* 修复进度条文本显示问题 */
-.progress-container {
-  width: 100%;
-  min-width: 140px; /* 确保进度条有足够空间显示百分比 */
-  padding: 4px 0; /* 上下增加间距 */
+.restore-management :deep(.admin-toolbar) {
+  border-bottom: 0;
 }
-
-.progress-container .el-progress {
+.restore-management :deep(.el-table) {
   width: 100%;
 }
 
-.progress-container .el-progress-bar {
-  padding-right: 0;
+/* 恢复警告(原型 notice) */
+.restore-notice {
+  padding: 13px 14px;
+  border: 1px solid #fed7aa;
+  background: #fff7ed;
+  border-radius: 10px;
+  color: #9a3412;
+  font-size: 13px;
+  line-height: 1.65;
+  margin-bottom: 18px;
+}
+.restore-notice b {
+  font-weight: 650;
 }
 
-.progress-container .el-progress__text {
-  min-width: 35px;
-  font-size: 12px !important;
-  line-height: 16px !important; /* 确保文字有足够高度 */
+.grid-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-bottom: 18px;
 }
-
-.status-message {
-  font-size: 12px;
-  margin-top: 4px;
-  color: #909399;
+.card {
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-r-container);
+  background: var(--adm-surface);
+  overflow: hidden;
 }
-
-.restore-detail .section {
-  margin-bottom: 24px;
-}
-
-.restore-detail .section h4 {
-  margin: 0 0 12px 0;
-  color: #303133;
-  font-size: 16px;
-  border-bottom: 1px solid #e4e7ed;
-  padding-bottom: 8px;
-}
-
-.restore-detail .info-item {
-  margin-bottom: 12px;
+.card-head {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--adm-border);
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.card-head h2 {
+  font-size: 14px;
+  margin: 0;
+  color: var(--adm-text);
+}
+.card-body {
+  padding: 16px;
+}
+.card-loading {
+  padding: 4px 0;
 }
 
-.restore-detail .info-item label {
-  display: inline-block;
-  width: 80px;
-  color: #606266;
-  font-weight: 500;
+/* 恢复点表单 */
+.restore-form {
+  display: grid;
+  gap: 8px;
 }
-
-.restore-detail .info-item span {
-  color: #303133;
+.field-label {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--adm-text-2);
+  margin-top: 4px;
 }
-
-.config-display {
-  background: #f5f7fa;
-  border: 1px solid #e4e7ed;
-  border-radius: 4px;
-  padding: 12px;
+.adm-select {
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-r-control);
+  background: var(--adm-surface);
+  color: var(--adm-text);
   font-size: 13px;
-  color: #606266;
-  white-space: pre-wrap;
-  max-height: 200px;
-  overflow-y: auto;
+  outline: none;
+}
+.adm-select:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px var(--adm-primary-soft);
+}
+.w-full {
+  width: 100%;
+}
+.protect-row {
+  font-size: 12px;
+  color: var(--adm-success);
+  padding: 4px 0;
 }
 
-.text-xs {
+.ghost-btn {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-r-control);
+  background: var(--adm-surface);
+  color: var(--adm-text-2);
+  font-size: 12px;
+  cursor: pointer;
+}
+.ghost-btn:hover {
+  border-color: var(--adm-border-strong);
+  color: var(--adm-text);
+}
+.ghost-danger-btn {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-r-control);
+  background: var(--adm-surface);
+  color: var(--adm-danger);
+  font-size: 12px;
+  cursor: pointer;
+}
+.ghost-danger-btn:hover {
+  border-color: var(--adm-danger);
+  background: var(--adm-danger-soft);
+}
+
+/* 记录 KV */
+.kv-list {
+  display: grid;
+}
+.kv-row {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 14px;
+  padding: 12px 0;
+  border-top: 1px solid var(--adm-border);
+}
+.kv-row:first-child {
+  border-top: 0;
+  padding-top: 2px;
+}
+.kv-row label {
+  font-size: 12px;
+  color: var(--adm-muted);
+}
+.kv-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.kv-title {
+  font-size: 12px;
+  color: var(--adm-text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kv-sub {
+  font-size: 11px;
+  color: var(--adm-muted);
+}
+.kv-row.highlight {
+  background: var(--adm-primary-soft);
+}
+
+/* 记录表 */
+.table-card {
+  border: 1px solid var(--adm-border);
+  border-radius: 0 0 var(--adm-r-container) var(--adm-r-container);
+  background: var(--adm-surface);
+  overflow: hidden;
+}
+.table-wrap {
+  overflow: auto;
+}
+.cell-strong {
+  font-size: 12px;
+  color: var(--adm-text);
+  display: block;
+}
+.cell-sub {
+  display: block;
+  font-size: 11px;
+  color: var(--adm-muted);
+  margin-top: 2px;
+}
+.cell-text {
+  font-size: 12px;
+  color: var(--adm-text-2);
+  font-variant-numeric: tabular-nums;
+}
+.row-actions-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.edit-btn {
+  height: 29px;
+  padding: 0 9px;
+  border: 1px solid var(--adm-border);
+  border-radius: 7px;
+  background: var(--adm-surface);
+  color: var(--adm-text-2);
+  font-size: 12px;
+  cursor: pointer;
+}
+.edit-btn.danger-btn {
+  color: var(--adm-danger);
+  border-color: var(--adm-danger);
+}
+.edit-btn.danger-btn:hover:not(:disabled) {
+  background: var(--adm-danger-soft);
+}
+.edit-btn:hover:not(:disabled) {
+  border-color: var(--adm-border-strong);
+  color: var(--adm-text);
+}
+.edit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.table-footer {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--adm-border);
+  color: var(--adm-muted);
   font-size: 12px;
 }
 
-.text-gray-400 {
-  color: #c0c4cc;
+/* 流程卡 */
+.flow-card {
+  margin-top: 18px;
+}
+.flow-card .kv-row {
+  grid-template-columns: 180px 1fr;
+  font-size: 13px;
+  color: var(--adm-text-2);
+}
+.flow-card .kv-row label {
+  font-weight: 650;
+  color: var(--adm-text-2);
 }
 
-.text-gray-500 {
-  color: #909399;
+/* 详情 */
+.detail-body {
+  display: grid;
+}
+.detail-body .kv-row {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 14px;
+  padding: 11px 0;
+  border-top: 1px solid var(--adm-border);
+  font-size: 12px;
+  color: var(--adm-text-2);
+}
+.detail-body .kv-row:first-child {
+  border-top: 0;
+}
+.detail-body label {
+  color: var(--adm-muted);
+}
+.kv-sub {
+  font-size: 11px;
+  color: var(--adm-muted);
 }
 
-.text-gray-600 {
-  color: #606266;
-}
-
-.mt-1 {
-  margin-top: 4px;
-}
-
-.mt-2 {
-  margin-top: 8px;
-}
-
-/* 确保对话框在侧边栏之上 */
-:deep(.el-dialog__wrapper) {
-  z-index: 3000 !important;
-}
-
-:deep(.el-overlay) {
-  z-index: 2999 !important;
-}
-
-:deep(.el-dialog) {
-  z-index: 3001 !important;
-}
-
-/* 针对AdminLayout的侧边栏确保层级正确 */
-:deep(.admin-sidebar) {
-  z-index: 1000 !important;
-}
-
-/* 确保MessageBox确认对话框在所有对话框之上 */
-:deep(.el-message-box__wrapper) {
-  z-index: 4000 !important;
-}
-
-:deep(.el-message-box) {
-  z-index: 4001 !important;
-}
-
-/* 表格行样式 */
-:deep(.highlight-row) {
-  background-color: #fff7e6 !important;
-  border-left: 3px solid #faad14 !important;
-  animation: highlight-pulse 1s ease-in-out;
-}
-
-:deep(.running-row) {
-  background-color: #f0f9ff !important;
-  border-left: 3px solid #1890ff !important;
-}
-
-@keyframes highlight-pulse {
-  0% {
-    background-color: #ffe58f;
-  }
-  50% {
-    background-color: #fff7e6;
-  }
-  100% {
-    background-color: #fff7e6;
+@media (max-width: 1000px) {
+  .grid-two {
+    grid-template-columns: 1fr;
   }
 }
 </style>

@@ -3,6 +3,7 @@
     :data="backups"
     :loading="loading"
     stripe
+    empty-text="暂无备份记录"
     class="backup-table"
   >
     <el-table-column prop="backup_id" label="备份ID" width="200">
