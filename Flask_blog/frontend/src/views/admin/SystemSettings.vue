@@ -343,6 +343,7 @@ onMounted(() => {
   border: 1px solid var(--adm-border);
   border-radius: var(--adm-r-container);
   background: var(--adm-surface);
+  overflow: hidden; /* 裁掉卡头背景的方角,否则圆角被盖掉 */
 }
 .card-head {
   padding: 14px 16px;
