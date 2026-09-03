@@ -5,56 +5,15 @@
       <el-button type="primary" :loading="creating" @click="showCreateDialog">＋ 创建备份</el-button>
     </AdminPageHeader>
 
-    <!-- 统计卡片 -->
-    <div class="stats-cards">
-      <el-card class="stat-card">
-        <div class="stat-content">
-          <div class="stat-icon total">
-            <el-icon size="24"><FolderOpened /></el-icon>
-          </div>
-          <div class="stat-info">
-            <div class="stat-value">{{ stats.total_backups || 0 }}</div>
-            <div class="stat-label">总备份数</div>
-          </div>
-        </div>
-      </el-card>
-      
-      <el-card class="stat-card">
-        <div class="stat-content">
-          <div class="stat-icon success">
-            <el-icon size="24"><SuccessFilled /></el-icon>
-          </div>
-          <div class="stat-info">
-            <div class="stat-value">{{ stats.completed_backups || 0 }}</div>
-            <div class="stat-label">成功备份</div>
-          </div>
-        </div>
-      </el-card>
-
-      <el-card class="stat-card">
-        <div class="stat-content">
-          <div class="stat-icon storage">
-            <el-icon size="24"><Coin /></el-icon>
-          </div>
-          <div class="stat-info">
-            <div class="stat-value">{{ formatFileSize(stats.total_storage_size) }}</div>
-            <div class="stat-label">存储使用</div>
-          </div>
-        </div>
-      </el-card>
-
-      <el-card class="stat-card">
-        <div class="stat-content">
-          <div class="stat-icon rate">
-            <el-icon size="24"><TrendCharts /></el-icon>
-          </div>
-          <div class="stat-info">
-            <div class="stat-value">{{ Math.round(stats.success_rate || 0) }}%</div>
-            <div class="stat-label">成功率</div>
-          </div>
-        </div>
-      </el-card>
-    </div>
+    <!-- Summary Strip(04 §14,真实统计字段) -->
+    <AdminSummaryStrip
+      :items="[
+        { label: '备份总数', value: stats.total_backups || 0, note: '最近 30 天' },
+        { label: '成功备份', value: stats.completed_backups || 0, note: '成功率 ' + Math.round(stats.success_rate || 0) + '%' },
+        { label: '存储占用', value: formatFileSize(stats.total_storage_size || 0), note: '数据库 + 文件' },
+        { label: '失败任务', value: stats.failed || 0, note: '需要关注' },
+      ]"
+    />
 
     <!-- 运行中的备份任务 -->
     <el-card v-if="runningBackups.length > 0" class="running-backups-card">
@@ -124,25 +83,30 @@
       </div>
     </el-card>
 
-    <!-- 备份列表 -->
-    <el-card class="backup-list-card">
-      <template #header>
-        <div class="card-header">
-          <span class="card-title">备份记录</span>
-          <div class="filter-controls">
-            <el-select v-model="filters.backup_type" placeholder="备份类型" clearable size="small">
-              <el-option label="全量备份" value="full" />
-              <el-option label="增量备份" value="incremental" />
-              <el-option label="快照备份" value="snapshot" />
-            </el-select>
-            <el-select v-model="filters.status" placeholder="状态" clearable size="small">
-              <el-option label="已完成" value="completed" />
-              <el-option label="进行中" value="running" />
-              <el-option label="失败" value="failed" />
-            </el-select>
-          </div>
-        </div>
+    <!-- Toolbar(05 §5:类型/状态筛选 | 记录数) -->
+    <AdminToolbar
+      :result-count="pagination.total"
+      refreshable
+      @refresh="refreshBackups"
+    >
+      <template #filters>
+        <select v-model="filters.backup_type" class="adm-select" aria-label="按备份类型筛选">
+          <option value="">全部类型</option>
+          <option value="full">全量备份</option>
+          <option value="incremental">增量备份</option>
+          <option value="snapshot">快照备份</option>
+        </select>
+        <select v-model="filters.status" class="adm-select" aria-label="按状态筛选">
+          <option value="">全部状态</option>
+          <option value="completed">已完成</option>
+          <option value="running">进行中</option>
+          <option value="failed">失败</option>
+        </select>
       </template>
+    </AdminToolbar>
+
+    <!-- 备份列表 -->
+    <div class="backup-list-card">
 
       <BackupRecordList
         :backups="backups"
@@ -157,7 +121,7 @@
         @size-change="handleSizeChange"
         @current-change="handleCurrentChange"
       />
-    </el-card>
+    </div>
 
     <!-- 创建备份对话框 -->
     <CreateBackupDialog
@@ -386,6 +350,8 @@
 
 <script setup>
 import AdminPageHeader from '../../components/admin/AdminPageHeader.vue';
+import AdminSummaryStrip from '../../components/admin/AdminSummaryStrip.vue';
+import AdminToolbar from '../../components/admin/AdminToolbar.vue';
 import { ref, reactive, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -1356,6 +1322,39 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss" scoped>
+.admin-card {
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-r-container);
+  background: var(--adm-surface);
+  margin-bottom: 14px;
+}
+.admin-card :deep(.el-card__header) {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--adm-border);
+}
+.admin-card :deep(.el-card__body) {
+  padding: 16px;
+}
+.backup-list-card {
+  border: 1px solid var(--adm-border);
+  border-radius: 0 0 var(--adm-r-container) var(--adm-r-container);
+  background: var(--adm-surface);
+  overflow: hidden;
+}
+.adm-select {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-r-control);
+  background: var(--adm-surface);
+  color: var(--adm-text-2);
+  font-size: 13px;
+  outline: none;
+}
+.adm-select:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px var(--adm-primary-soft);
+}
 .backup-management {
   padding: 20px;
 
@@ -1418,22 +1417,18 @@ onUnmounted(() => {
           margin-right: 16px;
 
           &.total {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
           }
 
           &.success {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
             color: white;
           }
 
           &.storage {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             color: white;
           }
 
           &.rate {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
             color: white;
           }
         }
@@ -1460,7 +1455,6 @@ onUnmounted(() => {
     border: none;
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
 
     :deep(.el-card__header) {

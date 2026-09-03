@@ -1,27 +1,8 @@
 <template>
   <div class="modern-metrics-dashboard">
-    <!-- 现代化页面头部 -->
-    <div class="dashboard-header">
-      <div class="header-content">
-        <div class="header-icon">
-          <el-icon size="40"><TrendCharts /></el-icon>
-        </div>
-        <div class="header-text">
-          <h1 class="dashboard-title">站点数据看板</h1>
-          <p class="dashboard-subtitle">实时监控站点各项指标和运行状态</p>
-        </div>
-      </div>
-      <div class="refresh-button">
-        <el-button 
-          :loading="loading" 
-          type="primary" 
-          :icon="Refresh" 
-          circle
-          size="large"
-          @click="() => fetchStats()"
-        />
-      </div>
-    </div>
+    <AdminPageHeader title="站点数据看板" description="实时监控站点各项指标和运行状态。">
+      <el-button type="primary" :loading="loading" @click="() => fetchStats()">↻ 刷新</el-button>
+    </AdminPageHeader>
     <!-- 现代化加载状态 -->
     <div v-if="loading" class="modern-loading">
       <div class="loading-grid">
@@ -237,6 +218,7 @@
 </template>
 
 <script setup>
+import AdminPageHeader from '../components/admin/AdminPageHeader.vue';
 import { ref, onMounted } from 'vue';
 import { ElMessage, ElButton, ElIcon } from 'element-plus';
 import { 

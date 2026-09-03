@@ -93,6 +93,7 @@ import {
   Picture, User, Lock, Memo, Setting, FolderOpened, RefreshLeft, Odometer,
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import zhCn from 'element-plus/es/locale/lang/zh-cn.mjs';
 import { useUserStore } from '../../stores/user';
 
 const route = useRoute();

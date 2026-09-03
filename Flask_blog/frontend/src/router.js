@@ -30,7 +30,6 @@ const TagManagement = () => import(/* webpackChunkName: 'admin' */ './views/admi
 const UserManagement = () => import(/* webpackChunkName: 'admin' */ './views/admin/UserManagement.vue');
 const SecurityMonitoring = () => import(/* webpackChunkName: 'admin' */ './views/admin/SecurityMonitoring.vue');
 const LogManagement = () => import(/* webpackChunkName: 'admin' */ './views/admin/LogManagement.vue');
-const SimpleLogManagement = () => import(/* webpackChunkName: 'admin' */ './views/admin/SimpleLogManagement.vue');
 const SystemPerformance = () => import(/* webpackChunkName: 'admin' */ './views/admin/SystemPerformance.vue');
 const SystemSettings = () => import(/* webpackChunkName: 'admin' */ './views/admin/SystemSettings.vue');
 const BackupManagement = () => import(/* webpackChunkName: 'admin' */ './views/admin/BackupManagement.vue');
@@ -102,7 +101,6 @@ const routes = [
       { path: 'users', component: UserManagement, meta: { requiresRole: ['admin'], content: 'standard' } },
       { path: 'security', component: SecurityMonitoring, meta: { requiresRole: ['editor', 'admin'], content: 'standard' } },
       { path: 'logs', component: LogManagement, meta: { requiresRole: ['editor', 'admin'], content: 'data' } },
-      { path: 'simple-logs', component: SimpleLogManagement, meta: { requiresRole: ['editor', 'admin'], content: 'data' } },
       { path: 'performance', component: SystemPerformance, meta: { requiresRole: ['editor', 'admin'] } },
       { path: 'settings/general', component: SystemSettings, meta: { requiresRole: ['admin'], content: 'narrow' } },
       { path: 'backup', component: BackupManagement, meta: { requiresRole: ['admin'], content: 'data' } },
