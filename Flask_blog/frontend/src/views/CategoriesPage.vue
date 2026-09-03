@@ -82,7 +82,7 @@ onMounted(loadCategories);
 
 <style scoped>
 .categories-page {
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #ffffff 100%);
+  background: #f1f5f9;
   min-height: 100vh;
   padding: 2rem 1rem;
 }
@@ -106,7 +106,7 @@ onMounted(loadCategories);
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, #3b82f6, #6366f1, #8b5cf6);
+  background: #f1f5f9;
   transform: scaleX(0);
   transition: transform 0.3s ease;
   transform-origin: left;
@@ -141,7 +141,7 @@ onMounted(loadCategories);
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+  background: #f1f5f9;
   color: white;
   display: flex;
   align-items: center;
@@ -151,7 +151,7 @@ onMounted(loadCategories);
 
 .modern-category-card:hover .category-icon {
   transform: rotate(10deg) scale(1.1);
-  background: linear-gradient(135deg, #1d4ed8 0%, #4f46e5 100%);
+  background: #f1f5f9;
 }
 
 .article-count {

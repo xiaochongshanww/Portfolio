@@ -675,7 +675,7 @@ export default {
 <style scoped>
 .media-gallery {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #f1f5f9;
   padding-bottom: 60px;
 }
 
@@ -699,7 +699,7 @@ export default {
   font-weight: 700;
   color: #2c3e50;
   margin-bottom: 0.5rem;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: #f1f5f9;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }

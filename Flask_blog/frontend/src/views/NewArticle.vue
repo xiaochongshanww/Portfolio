@@ -826,7 +826,7 @@ async function submit() {
           overflow: hidden !important;
         }
         .publish-success-dialog.el-message-box .el-message-box__header {
-          background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%) !important;
+          background: #f1f5f9;
           padding: 32px 24px 16px !important;
           text-align: center !important;
           border-bottom: 1px solid #f0f9ff !important;
@@ -854,7 +854,7 @@ async function submit() {
           gap: 16px !important;
         }
         .publish-success-dialog.el-message-box .dialog-confirm-btn {
-          background: linear-gradient(135deg, #10b981, #059669) !important;
+          background: #f1f5f9;
           border: none !important;
           border-radius: 12px !important;
           color: #ffffff !important;
@@ -1310,7 +1310,7 @@ async function loadLatestDraft() {
             overflow: hidden !important;
           }
           .draft-restore-dialog.el-message-box .el-message-box__header {
-            background: linear-gradient(135deg, #fefbff 0%, #f8fafc 100%) !important;
+            background: #f1f5f9;
             padding: 32px 24px 16px !important;
             text-align: center !important;
             border-bottom: 1px solid #e5e7eb !important;
@@ -1339,7 +1339,7 @@ async function loadLatestDraft() {
             gap: 16px !important;
           }
           .draft-restore-dialog.el-message-box .dialog-restore-btn {
-            background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+            background: #f1f5f9;
             border: none !important;
             border-radius: 12px !important;
             color: #ffffff !important;
@@ -1828,7 +1828,7 @@ if (process.env.NODE_ENV === 'development') {
   max-width: 900px;
   margin: 0 auto;
   padding: 1.5rem 1rem 0rem;
-  background: linear-gradient(135deg, rgb(248 250 252) 0%, rgb(241 245 249) 100%);
+  background: #f1f5f9;
   min-height: calc(100vh - 80px);
 }
 
@@ -1837,7 +1837,7 @@ if (process.env.NODE_ENV === 'development') {
   text-align: center;
   margin-bottom: 2.5rem;
   padding: 2rem 0;
-  background: linear-gradient(135deg, rgb(255 255 255) 0%, rgb(248 250 252) 100%);
+  background: #f1f5f9;
   border-radius: 1rem;
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
 }
@@ -1958,7 +1958,7 @@ if (process.env.NODE_ENV === 'development') {
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(to right, transparent, #e4e7ed 20%, #e4e7ed 80%, transparent);
+  background: #f1f5f9;
   z-index: 1;
 }
 
@@ -2075,7 +2075,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 .submit-button {
-  background: linear-gradient(135deg, rgb(34 197 94), rgb(22 163 74));
+  background: #f1f5f9;
   border: none;
   padding: 0.75rem 2rem;
   border-radius: 0.75rem;
@@ -2085,7 +2085,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 .submit-button:hover {
-  background: linear-gradient(135deg, rgb(22 163 74), rgb(21 128 61));
+  background: #f1f5f9;
   transform: translateY(-2px);
   box-shadow: 0 8px 12px rgb(34 197 94 / 0.35);
 }
@@ -2181,7 +2181,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 .category-selector-field :deep(.ai-recommend-btn) {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #f1f5f9;
   border: none;
   color: white;
   font-weight: 500;
@@ -2194,7 +2194,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 .category-selector-field :deep(.recommendations-panel) {
-  background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+  background: #f1f5f9;
   border: 1px solid #e4e7ed;
   border-radius: 12px;
   margin-top: 12px;
@@ -2206,7 +2206,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 .category-selector-field :deep(.selected-category) {
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  background: #f1f5f9;
   border: 1px solid #7dd3fc;
   color: #0c4a6e;
   font-size: 14px;
@@ -2300,7 +2300,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 :deep(.el-progress-bar__inner) {
-  background: linear-gradient(135deg, rgb(34 197 94), rgb(22 163 74));
+  background: #f1f5f9;
   border-radius: 0.5rem;
 }
 
@@ -2565,7 +2565,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 .publish-success-dialog.el-message-box .el-message-box__header {
-  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%) !important;
+  background: #f1f5f9;
   padding: 32px 24px 16px !important;
   text-align: center !important;
   border-bottom: 1px solid #f0f9ff !important;
@@ -2607,7 +2607,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 .publish-success-dialog.el-message-box .dialog-confirm-btn {
-  background: linear-gradient(135deg, #10b981, #059669) !important;
+  background: #f1f5f9;
   border: none !important;
   border-radius: 12px !important;
   color: #ffffff !important;
@@ -2621,7 +2621,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 .publish-success-dialog.el-message-box .dialog-confirm-btn:hover {
-  background: linear-gradient(135deg, #059669, #047857) !important;
+  background: #f1f5f9;
   transform: translateY(-2px) !important;
   box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4) !important;
 }
@@ -2745,7 +2745,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 .selected-tag {
-  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  background: #f1f5f9;
   border-color: #3b82f6;
   color: white;
   font-weight: 500;

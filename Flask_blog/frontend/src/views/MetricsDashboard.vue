@@ -375,7 +375,7 @@ onMounted(() => {
     radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.04) 0%, transparent 40%),
     radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.04) 0%, transparent 40%),
     radial-gradient(circle at 40% 80%, rgba(16, 185, 129, 0.04) 0%, transparent 40%),
-    linear-gradient(135deg, #f8fafc 0%, #f1f5f9 30%, #ffffff 70%, #fafbfe 100%);
+#f8fafc;
   min-height: 100vh;
   position: relative;
 }
@@ -406,7 +406,7 @@ onMounted(() => {
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, #3b82f6, #8b5cf6, #10b981, #f59e0b);
+  background: #f1f5f9;
   opacity: 0.6;
 }
 
@@ -426,7 +426,7 @@ onMounted(() => {
 .header-icon {
   width: 64px;
   height: 64px;
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  background: #f1f5f9;
   border-radius: 20px;
   display: flex;
   align-items: center;
@@ -444,7 +444,7 @@ onMounted(() => {
 .dashboard-title {
   font-size: 2.5rem;
   font-weight: 800;
-  background: linear-gradient(135deg, #1e293b 0%, #3b82f6 50%, #8b5cf6 100%);
+  background: #f1f5f9;
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -541,19 +541,19 @@ onMounted(() => {
 }
 
 .article-stats .header-icon {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  background: #f1f5f9;
 }
 
 .comment-stats .header-icon {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: #f1f5f9;
 }
 
 .user-stats .header-icon {
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  background: #f1f5f9;
 }
 
 .taxonomy-stats .header-icon {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: #f1f5f9;
 }
 
 .modern-stat-card:hover .header-icon {
@@ -563,7 +563,7 @@ onMounted(() => {
 .card-title {
   font-size: 1.25rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  background: #f1f5f9;
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -650,23 +650,23 @@ onMounted(() => {
 }
 
 .stat-item.primary .stat-icon {
-  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  background: #f1f5f9;
 }
 
 .stat-item.success .stat-icon {
-  background: linear-gradient(135deg, #10b981, #059669);
+  background: #f1f5f9;
 }
 
 .stat-item.info .stat-icon {
-  background: linear-gradient(135deg, #06b6d4, #0891b2);
+  background: #f1f5f9;
 }
 
 .stat-item.warning .stat-icon {
-  background: linear-gradient(135deg, #f59e0b, #d97706);
+  background: #f1f5f9;
 }
 
 .stat-item.purple .stat-icon {
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  background: #f1f5f9;
 }
 
 .stat-item:hover .stat-icon {
@@ -680,7 +680,7 @@ onMounted(() => {
 .stat-number {
   font-size: 2rem;
   font-weight: 800;
-  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  background: #f1f5f9;
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -742,7 +742,7 @@ onMounted(() => {
 
 .loading-header {
   height: 24px;
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background: #f1f5f9;
   background-size: 200% 100%;
   border-radius: 6px;
   margin-bottom: 1.5rem;
@@ -757,7 +757,7 @@ onMounted(() => {
 
 .loading-stat {
   height: 80px;
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background: #f1f5f9;
   background-size: 200% 100%;
   border-radius: 8px;
   animation: loading-shimmer 1.5s ease-in-out infinite;

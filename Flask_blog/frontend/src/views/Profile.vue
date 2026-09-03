@@ -909,7 +909,7 @@ onMounted(() => {
   max-width: 800px;
   margin: 0 auto;
   padding: 2rem 1rem;
-  background: linear-gradient(135deg, rgb(248 250 252) 0%, rgb(241 245 249) 100%);
+  background: #f1f5f9;
   min-height: calc(100vh - 80px);
 }
 
@@ -918,7 +918,7 @@ onMounted(() => {
   text-align: center;
   margin-bottom: 2.5rem;
   padding: 2rem 0;
-  background: linear-gradient(135deg, rgb(255 255 255) 0%, rgb(248 250 252) 100%);
+  background: #f1f5f9;
   border-radius: 1rem;
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
 }
@@ -1048,7 +1048,7 @@ onMounted(() => {
 .avatar-placeholder {
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, rgb(59 130 246), rgb(139 92 246));
+  background: #f1f5f9;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1150,7 +1150,7 @@ onMounted(() => {
 }
 
 :deep(.el-progress-bar__inner) {
-  background: linear-gradient(135deg, rgb(34 197 94), rgb(22 163 74));
+  background: #f1f5f9;
   border-radius: 0.5rem;
 }
 
@@ -1300,28 +1300,28 @@ onMounted(() => {
   color: rgb(239 68 68);
 }
 .strength-weak.strength-fill {
-  background: linear-gradient(135deg, rgb(239 68 68), rgb(220 38 38));
+  background: #f1f5f9;
 }
 
 .strength-medium {
   color: rgb(251 191 36);
 }
 .strength-medium.strength-fill {
-  background: linear-gradient(135deg, rgb(251 191 36), rgb(245 158 11));
+  background: #f1f5f9;
 }
 
 .strength-good {
   color: rgb(59 130 246);
 }
 .strength-good.strength-fill {
-  background: linear-gradient(135deg, rgb(59 130 246), rgb(37 99 235));
+  background: #f1f5f9;
 }
 
 .strength-strong {
   color: rgb(34 197 94);
 }
 .strength-strong.strength-fill {
-  background: linear-gradient(135deg, rgb(34 197 94), rgb(22 163 74));
+  background: #f1f5f9;
 }
 
 .strength-text {
@@ -1340,7 +1340,7 @@ onMounted(() => {
 }
 
 .change-password-button {
-  background: linear-gradient(135deg, rgb(59 130 246), rgb(37 99 235));
+  background: #f1f5f9;
   border: none;
   padding: 0.75rem 2rem;
   border-radius: 0.75rem;
@@ -1350,7 +1350,7 @@ onMounted(() => {
 }
 
 .change-password-button:hover {
-  background: linear-gradient(135deg, rgb(37 99 235), rgb(29 78 216));
+  background: #f1f5f9;
   transform: translateY(-2px);
   box-shadow: 0 8px 12px rgb(59 130 246 / 0.35);
 }
@@ -1395,17 +1395,11 @@ onMounted(() => {
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(
-    90deg, 
-    transparent 0%, 
-    rgba(59, 130, 246, 0.3) 25%, 
-    rgba(139, 92, 246, 0.3) 75%, 
-    transparent 100%
-  );
+  background: #f1f5f9;
 }
 
 .save-button {
-  background: linear-gradient(135deg, rgb(34 197 94), rgb(22 163 74));
+  background: #f1f5f9;
   border: none;
   padding: 0.75rem 2rem;
   border-radius: 0.75rem;
@@ -1415,7 +1409,7 @@ onMounted(() => {
 }
 
 .save-button:hover {
-  background: linear-gradient(135deg, rgb(22 163 74), rgb(21 128 61));
+  background: #f1f5f9;
   transform: translateY(-2px);
   box-shadow: 0 8px 12px rgb(34 197 94 / 0.35);
 }

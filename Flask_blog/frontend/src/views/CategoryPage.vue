@@ -352,7 +352,7 @@ watch(() => props.id || route.params.id, (newId) => {
 /* 全局布局 */
 .category-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #f1f5f9;
   background-attachment: fixed;
 }
 
@@ -383,7 +383,7 @@ watch(() => props.id || route.params.id, (newId) => {
 /* 分类头部 */
 .category-header {
   position: relative;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.9) 0%, rgba(118, 75, 162, 0.9) 100%);
+  background: #f1f5f9;
   color: white;
   padding: 3rem 0 4rem;
   margin-bottom: 2rem;
@@ -612,7 +612,7 @@ watch(() => props.id || route.params.id, (newId) => {
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  background: #f1f5f9;
   transform: scaleX(0);
   transform-origin: left;
   transition: transform 0.3s ease;
@@ -634,7 +634,7 @@ watch(() => props.id || route.params.id, (newId) => {
   height: 200px;
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: #f1f5f9;
 }
 
 .article-img {
@@ -653,7 +653,7 @@ watch(() => props.id || route.params.id, (newId) => {
   align-items: center;
   justify-content: center;
   height: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #f1f5f9;
   color: white;
 }
 
@@ -774,7 +774,7 @@ watch(() => props.id || route.params.id, (newId) => {
 }
 
 .read-more-btn:hover {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #f1f5f9;
   border-color: transparent;
 }
 

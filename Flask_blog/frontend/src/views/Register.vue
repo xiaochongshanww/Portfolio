@@ -113,7 +113,7 @@ async function submit() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, rgb(239 246 255) 0%, rgb(249 250 251) 50%, rgb(243 244 246) 100%);
+  background: #f1f5f9;
   padding: 2rem 1rem;
   position: relative;
 }
@@ -234,12 +234,12 @@ async function submit() {
   font-weight: 600;
   font-size: 1rem;
   transition: all 0.2s ease;
-  background: linear-gradient(135deg, rgb(59 130 246), rgb(37 99 235));
+  background: #f1f5f9;
   border: none;
 }
 
 .auth-submit-btn:hover {
-  background: linear-gradient(135deg, rgb(37 99 235), rgb(29 78 216));
+  background: #f1f5f9;
   transform: translateY(-1px);
   box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
 }
