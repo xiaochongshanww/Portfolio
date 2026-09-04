@@ -76,7 +76,7 @@ const routes = [
   { path: '/new-article', redirect: '/articles/new' }, // 兼容重定向
   { path: '/author/:id', component: AuthorProfile, props: true, meta: { public: true } },
   { path: '/category/:id', redirect: '/topics' }, // A5: 旧分类路由并入专题体系
-  { path: '/tag/:slug', component: TagPage, props: true },
+  { path: '/tag/:slug', component: TagPage, props: true, meta: { public: true } }, // A5: 保留原页,轻量对齐后入公共壳
   { path: '/categories', redirect: '/topics' }, // A5: 并入专题体系
   { path: '/tags', redirect: '/topics' }, // 旧"标签云"入口同样并入专题(页脚链接防死链)
   { path: '/about', component: () => import('./views/About.vue'), meta: { public: true } },

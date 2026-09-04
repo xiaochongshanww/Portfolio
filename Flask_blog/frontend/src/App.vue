@@ -17,7 +17,7 @@
 
   <!-- 旧壳:/admin 与未迁移页面保持现状 -->
   <!-- 注意:本构建的 Tailwind 工具类未生成(v4 迁移遗留),壳层样式由 .legacy-* 实样式兜底 -->
-  <div class="legacy-shell min-h-screen bg-slate-50 text-gray-800">
+  <div v-else class="legacy-shell min-h-screen bg-slate-50 text-gray-800">
     <!-- 固定在顶部的Header - 全屏渐变背景 -->
     <header
       class="header-gradient-bg fixed top-0 left-0 right-0 z-50 transition-all duration-300 w-full"
