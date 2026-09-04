@@ -16,7 +16,8 @@
   </div>
 
   <!-- 旧壳:/admin 与未迁移页面保持现状 -->
-  <div v-else class="min-h-screen bg-slate-50 text-gray-800">
+  <!-- 注意:本构建的 Tailwind 工具类未生成(v4 迁移遗留),壳层样式由 .legacy-* 实样式兜底 -->
+  <div class="legacy-shell min-h-screen bg-slate-50 text-gray-800">
     <!-- 固定在顶部的Header - 全屏渐变背景 -->
     <header
       class="header-gradient-bg fixed top-0 left-0 right-0 z-50 transition-all duration-300 w-full"
@@ -34,8 +35,8 @@
 
     <!-- 主要内容区域 - 添加顶部边距避免被Header遮挡 -->
     <div class="container-content">
-      <main class="bg-white rounded-lg shadow-sm">
-        <div class="p-6">
+      <main class="legacy-main bg-white rounded-lg shadow-sm">
+        <div class="legacy-main-pad p-6">
           <router-view />
         </div>
       </main>
@@ -148,6 +149,21 @@ onUnmounted(() => {
 }
 
 /* ===== 以下为旧壳样式(未迁移页面继续使用)===== */
+/* 旧壳实样式:Tailwind 工具类在本构建未生成,这里兜底声明同等视觉 */
+.legacy-shell {
+  min-height: 100vh;
+  background: #f8fafc;
+  color: #1f2937;
+}
+.legacy-main {
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+.legacy-main-pad {
+  padding: 24px;
+}
+
 /* 页头渐变背景效果 */
 .header-gradient-bg {
   background: linear-gradient(

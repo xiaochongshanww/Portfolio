@@ -1,245 +1,145 @@
 <template>
-  <div class="media-gallery">
-    <!-- 页面头部 -->
-    <div class="gallery-header">
-      <div class="header-content">
-        <h1 class="page-title">我的媒体库</h1>
-        <p class="page-subtitle">管理和浏览我上传的媒体内容</p>
-      </div>
-      
-      <!-- 搜索和筛选工具栏 -->
-      <div class="search-toolbar">
-        <div class="search-section">
-          <el-input
-            v-model="searchQuery"
-            placeholder="搜索图片、视频..."
-            style="width: 300px"
-            clearable
-            @input="handleSearch"
-          >
-            <template #prefix>
-              <el-icon><Search /></el-icon>
-            </template>
-          </el-input>
-        </div>
-        
-        <div class="filter-section">
-          <el-select 
-            v-model="selectedCategory" 
-            placeholder="分类"
-            style="width: 120px"
-            clearable
-            @change="handleCategoryChange"
-          >
-            <el-option label="全部" value="" />
-            <el-option label="图片" value="image" />
-            <el-option label="视频" value="video" />
-            <el-option label="音频" value="audio" />
-          </el-select>
-          
-          <el-select 
-            v-model="sortBy" 
-            placeholder="排序"
-            style="width: 130px"
-            @change="loadMediaData"
-          >
-            <el-option label="最新上传" value="created_at_desc" />
-            <el-option label="最早上传" value="created_at_asc" />
-            <el-option label="文件名 A-Z" value="name_asc" />
-            <el-option label="文件名 Z-A" value="name_desc" />
-            <el-option label="文件大小" value="size_desc" />
-          </el-select>
-          
-          <el-button 
-            type="primary"
-            @click="showUploadDialog = true"
-          >
-            <el-icon><Upload /></el-icon>
-            上传文件
-          </el-button>
-          
-          <el-button-group>
-            <el-button 
-              :type="viewMode === 'grid' ? 'primary' : 'default'"
-              @click="viewMode = 'grid'"
-            >
-              <el-icon><Grid /></el-icon>
-            </el-button>
-            <el-button 
-              :type="viewMode === 'masonry' ? 'primary' : 'default'"
-              @click="viewMode = 'masonry'"
-            >
-              <el-icon><Menu /></el-icon>
-            </el-button>
-          </el-button-group>
-        </div>
-      </div>
-    </div>
+  <div class="media-page">
+    <!-- 页头 -->
+    <section class="page-head">
+      <div class="eyebrow">媒体库</div>
+      <h1>我的媒体库</h1>
+      <p>管理和浏览我上传的媒体内容。</p>
+    </section>
 
-    <!-- 媒体内容区 -->
-    <div v-loading="loading" class="gallery-content">
-      <!-- 网格视图 -->
-      <div v-if="viewMode === 'grid'" class="media-grid">
-        <div 
-          v-for="media in mediaList" 
-          :key="media.id"
-          class="media-card"
-          @click="openLightbox(media)"
+    <!-- 工具栏 -->
+    <section class="toolbar">
+      <div class="toolbar-filters">
+        <el-input
+          v-model="searchQuery"
+          class="search-input"
+          placeholder="搜索文件名、标题..."
+          clearable
+          @input="handleSearch"
+        />
+        <el-select
+          v-model="selectedCategory"
+          class="type-select"
+          placeholder="类型"
+          clearable
+          @change="handleCategoryChange"
         >
-          <div class="card-image">
-            <img 
-              v-if="media.media_type === 'image'" 
-              :src="getPreviewUrl(media)"
-              :alt="(media.alt_text || media.title) || ''"
-              loading="lazy"
-              @error="handleImageError"
-            >
-            <div v-else class="media-placeholder">
-              <el-icon size="48" :component="getMediaIcon(media.media_type)" />
-              <p class="placeholder-text">{{ getMediaTypeName(media.media_type) }}</p>
-            </div>
-            
-            <!-- 媒体类型标识 -->
-            <div class="media-type-badge">
-              <el-tag 
-                :type="getMediaTypeColor(media.media_type)" 
-                size="small"
-                effect="dark"
-              >
-                {{ getMediaTypeName(media.media_type) }}
-              </el-tag>
-            </div>
-            
-            <!-- 悬停信息 -->
-            <div class="hover-overlay">
-              <div class="hover-content">
-                <h4 class="media-title">{{ media.title || media.original_name }}</h4>
-                <div class="media-meta">
-                  <span class="file-size">{{ formatFileSize(media.file_size) }}</span>
-                  <span v-if="media.width && media.height" class="dimensions">
-                    {{ media.width }}×{{ media.height }}
-                  </span>
-                </div>
-                <div class="action-buttons">
-                  <el-button size="small" type="primary" @click.stop="openLightbox(media)">
-                    <el-icon><View /></el-icon>
-                    查看
-                  </el-button>
-                  <el-button size="small" @click.stop="downloadMedia(media)">
-                    <el-icon><Download /></el-icon>
-                    下载
-                  </el-button>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div class="card-info">
-            <h4 class="card-title" :title="media.title || media.original_name">
-              {{ media.title || media.original_name }}
-            </h4>
-            <div class="card-meta">
-              <span class="upload-date">{{ formatDate(media.created_at) }}</span>
-              <span class="author">by {{ media.owner_name }}</span>
-            </div>
-          </div>
+          <el-option label="全部类型" value="" />
+          <el-option label="图片" value="image" />
+          <el-option label="视频" value="video" />
+          <el-option label="音频" value="audio" />
+        </el-select>
+        <el-select
+          v-model="sortBy"
+          class="sort-select"
+          placeholder="排序"
+          @change="loadMediaData"
+        >
+          <el-option label="最新上传" value="created_at_desc" />
+          <el-option label="最早上传" value="created_at_asc" />
+          <el-option label="文件名 A-Z" value="name_asc" />
+          <el-option label="文件名 Z-A" value="name_desc" />
+          <el-option label="文件大小" value="size_desc" />
+        </el-select>
+      </div>
+      <div class="toolbar-actions">
+        <span class="result-count">共 {{ total }} 个文件</span>
+        <el-button type="primary" @click="showUploadDialog = true">
+          <el-icon><Upload /></el-icon>
+          上传文件
+        </el-button>
+      </div>
+    </section>
+
+    <!-- 加载中 -->
+    <section v-if="loading" class="state-section">
+      <el-skeleton :rows="6" animated />
+    </section>
+
+    <!-- API 不可用 -->
+    <section v-else-if="apiError" class="state-section">
+      <div class="state-block">
+        <p class="state-title">媒体库暂时不可用</p>
+        <p>媒体服务暂未连接,请检查后稍后重试。</p>
+        <div class="state-actions">
+          <button type="button" class="ghost-btn" @click="testApiConnection">测试连接</button>
+          <button type="button" class="ghost-btn" @click="loadMediaData">重试</button>
+          <button
+            v-if="userStore.canAccessAdmin"
+            type="button"
+            class="ghost-btn"
+            @click="$router.push('/admin/media')"
+          >
+            前往管理控制台
+          </button>
         </div>
       </div>
+    </section>
 
-      <!-- 瀑布流视图 -->
-      <div v-else-if="viewMode === 'masonry'" class="media-masonry">
-        <div 
-          v-for="media in mediaList" 
-          :key="media.id"
-          class="masonry-item"
-          @click="openLightbox(media)"
-        >
-          <div class="masonry-image">
-            <img 
-              v-if="media.media_type === 'image'" 
-              :src="getPreviewUrl(media)"
-              :alt="(media.alt_text || media.title) || ''"
-              loading="lazy"
-              @error="handleImageError"
-            >
-            <div v-else class="media-placeholder">
-              <el-icon size="64" :component="getMediaIcon(media.media_type)" />
-              <p class="placeholder-text">{{ getMediaTypeName(media.media_type) }}</p>
-            </div>
-          </div>
-          
-          <div class="masonry-info">
-            <h4 class="masonry-title">{{ media.title || media.original_name }}</h4>
-            <p v-if="media.description" class="masonry-description">
-              {{ media.description }}
-            </p>
-            <div class="masonry-meta">
-              <span class="author">{{ media.owner_name }}</span>
-              <span class="date">{{ formatDate(media.created_at) }}</span>
-            </div>
-            <div v-if="media.tags && media.tags.length > 0" class="masonry-tags">
-              <el-tag 
-                v-for="tag in media.tags.slice(0, 3)" 
-                :key="tag" 
-                size="small"
-                class="tag-item"
-              >
-                {{ tag }}
-              </el-tag>
-              <span v-if="media.tags.length > 3" class="more-tags">
-                +{{ media.tags.length - 3 }}
-              </span>
-            </div>
-          </div>
+    <!-- 空状态 -->
+    <section v-else-if="mediaList.length === 0" class="state-section">
+      <div class="state-block">
+        <p class="state-title">暂无媒体内容</p>
+        <p>上传第一个文件,或调整筛选条件。</p>
+        <div class="state-actions">
+          <button type="button" class="ghost-btn" @click="clearFilters">清除筛选条件</button>
+          <button type="button" class="ghost-btn primary" @click="showUploadDialog = true">上传第一个文件</button>
+          <button type="button" class="ghost-btn" @click="loadMediaData">刷新</button>
         </div>
       </div>
+    </section>
 
-      <!-- API不可用提示 -->
-      <div v-if="!loading && apiError" class="api-error-state">
-        <el-alert
-          title="媒体库暂时不可用"
-          type="warning"
-          description="媒体库功能正在开发中，敬请期待！"
-          show-icon
-          :closable="false"
-        >
-          <template #default>
-            <div class="error-actions">
-              <el-button @click="testApiConnection">测试连接</el-button>
-              <el-button @click="loadMediaData">重试</el-button>
-              <el-button v-if="userStore.canAccessAdmin" type="primary" @click="$router.push('/admin/media')">
-                前往管理控制台
-              </el-button>
-            </div>
-          </template>
-        </el-alert>
-      </div>
+    <!-- 媒体网格 -->
+    <section v-else class="media-grid">
+      <div
+        v-for="media in mediaList"
+        :key="media.id"
+        class="media-card"
+        @click="openLightbox(media)"
+      >
+        <div class="card-thumb">
+          <img
+            v-if="media.media_type === 'image'"
+            :src="getPreviewUrl(media)"
+            :alt="(media.alt_text || media.title) || ''"
+            loading="lazy"
+            @error="handleImageError"
+          >
+          <div v-else class="thumb-placeholder">
+            <el-icon size="34" :component="getMediaIcon(media.media_type)" />
+            <span>{{ getMediaTypeName(media.media_type) }}</span>
+          </div>
 
-      <!-- 空状态 -->
-      <div v-else-if="!loading && mediaList.length === 0" class="empty-state">
-        <el-empty description="暂无媒体内容">
-          <div class="empty-actions">
-            <el-button @click="clearFilters">清除筛选条件</el-button>
-            <el-button type="primary" @click="showUploadDialog = true">
-              上传第一个文件
+          <div class="thumb-overlay">
+            <el-button size="small" type="primary" @click.stop="openLightbox(media)">
+              <el-icon><View /></el-icon>
+              查看
             </el-button>
-            <el-button @click="loadMediaData">刷新数据</el-button>
+            <el-button size="small" @click.stop="downloadMedia(media)">
+              <el-icon><Download /></el-icon>
+              下载
+            </el-button>
           </div>
-        </el-empty>
+        </div>
+
+        <div class="card-copy">
+          <b class="card-title" :title="media.title || media.original_name">
+            {{ media.title || media.original_name }}
+          </b>
+          <span class="card-meta">
+            {{ formatFileSize(media.file_size) }}
+            <template v-if="media.width && media.height"> · {{ media.width }}×{{ media.height }}</template>
+            · {{ formatDate(media.created_at) }}
+          </span>
+        </div>
       </div>
-    </div>
+    </section>
 
     <!-- 分页 -->
-    <div v-if="total > pageSize" class="pagination-section">
-      <el-pagination
-        v-model:current-page="currentPage"
-        v-model:page-size="pageSize"
-        :total="total"
-        :page-sizes="[12, 24, 48, 96]"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="handleSizeChange"
-        @current-change="handlePageChange"
-      />
+    <div v-if="!loading && !apiError && total > pageSize" class="pager">
+      <button type="button" class="ghost-btn" :disabled="currentPage === 1" @click="goPage(currentPage - 1)">‹ 上一页</button>
+      <span class="pager-info">{{ currentPage }} / {{ totalPages }}</span>
+      <button type="button" class="ghost-btn" :disabled="currentPage >= totalPages" @click="goPage(currentPage + 1)">下一页 ›</button>
     </div>
 
     <!-- 图片灯箱 -->
@@ -252,13 +152,13 @@
     >
       <div v-if="currentMedia" class="lightbox-content">
         <div class="lightbox-media">
-          <img 
-            v-if="currentMedia.media_type === 'image'" 
+          <img
+            v-if="currentMedia.media_type === 'image'"
             :src="currentMedia.url"
             :alt="currentMedia.alt_text || currentMedia.title"
             class="lightbox-image"
           >
-          <video 
+          <video
             v-else-if="currentMedia.media_type === 'video'"
             :src="currentMedia.url"
             controls
@@ -266,7 +166,7 @@
           >
             您的浏览器不支持视频播放
           </video>
-          <audio 
+          <audio
             v-else-if="currentMedia.media_type === 'audio'"
             :src="currentMedia.url"
             controls
@@ -279,56 +179,47 @@
             <p>{{ getMediaTypeName(currentMedia.media_type) }}文件</p>
           </div>
         </div>
-        
+
         <div class="lightbox-info">
-          <div class="media-details">
-            <h3>{{ currentMedia.title || currentMedia.original_name }}</h3>
-            
-            <div v-if="currentMedia.description" class="description">
-              <p>{{ currentMedia.description }}</p>
+          <h3>{{ currentMedia.title || currentMedia.original_name }}</h3>
+
+          <p v-if="currentMedia.description" class="lightbox-description">
+            {{ currentMedia.description }}
+          </p>
+
+          <div class="details-grid">
+            <div class="detail-item">
+              <span class="detail-label">文件大小</span>
+              <span>{{ formatFileSize(currentMedia.file_size) }}</span>
             </div>
-            
-            <div class="details-grid">
-              <div class="detail-item">
-                <strong>文件大小：</strong>
-                <span>{{ formatFileSize(currentMedia.file_size) }}</span>
-              </div>
-              <div v-if="currentMedia.width && currentMedia.height" class="detail-item">
-                <strong>尺寸：</strong>
-                <span>{{ currentMedia.width }} × {{ currentMedia.height }} 像素</span>
-              </div>
-              <div class="detail-item">
-                <strong>上传者：</strong>
-                <span>{{ currentMedia.owner_name }}</span>
-              </div>
-              <div class="detail-item">
-                <strong>上传时间：</strong>
-                <span>{{ formatDateTime(currentMedia.created_at) }}</span>
-              </div>
+            <div v-if="currentMedia.width && currentMedia.height" class="detail-item">
+              <span class="detail-label">尺寸</span>
+              <span>{{ currentMedia.width }} × {{ currentMedia.height }} 像素</span>
             </div>
-            
-            <div v-if="currentMedia.tags && currentMedia.tags.length > 0" class="tags-section">
-              <strong>标签：</strong>
-              <div class="tags-list">
-                <el-tag 
-                  v-for="tag in currentMedia.tags" 
-                  :key="tag"
-                  size="small"
-                  class="tag-item"
-                >
-                  {{ tag }}
-                </el-tag>
-              </div>
+            <div class="detail-item">
+              <span class="detail-label">上传者</span>
+              <span>{{ currentMedia.owner_name }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">上传时间</span>
+              <span>{{ formatDateTime(currentMedia.created_at) }}</span>
+            </div>
+          </div>
+
+          <div v-if="currentMedia.tags && currentMedia.tags.length > 0" class="tags-section">
+            <span class="detail-label">标签</span>
+            <div class="tags-list">
+              <span v-for="tag in currentMedia.tags" :key="tag" class="tag-chip">{{ tag }}</span>
             </div>
           </div>
         </div>
       </div>
-      
+
       <template #footer>
         <div class="lightbox-actions">
           <el-button @click="downloadMedia(currentMedia)">
             <el-icon><Download /></el-icon>
-            下载原图
+            下载原文件
           </el-button>
           <el-button @click="copyUrl(currentMedia?.url)">
             <el-icon><Link /></el-icon>
@@ -340,7 +231,7 @@
     </el-dialog>
 
     <!-- 上传对话框 -->
-    <MediaUploadDialog 
+    <MediaUploadDialog
       v-model:visible="showUploadDialog"
       @uploaded="handleUploaded"
     />
@@ -348,7 +239,12 @@
 </template>
 
 <script>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+/**
+ * 媒体库(V2 重构,原型 media-gallery-v1)
+ * 结构:PageHead + Toolbar + Media Grid + 四态 + Pager;灯箱与上传对话框保留。
+ * 视觉走公开站 token(--bg/--surface/--text/--muted/--line),克制 hover,无渐变。
+ */
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
@@ -370,21 +266,21 @@ export default {
     const searchQuery = ref('')
     const selectedCategory = ref('')
     const sortBy = ref('created_at_desc')
-    const viewMode = ref('grid')
-    
+
     // 分页
     const currentPage = ref(1)
     const pageSize = ref(24)
     const total = ref(0)
-    
+    const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
+
     // 灯箱
     const lightboxVisible = ref(false)
     /** @type {import('vue').Ref<import('@/types').MediaFile | null>} */
     const currentMedia = ref(null)
-    
+
     // 上传对话框
     const showUploadDialog = ref(false)
-    
+
     // API错误状态
     const apiError = ref(false)
 
@@ -403,7 +299,8 @@ export default {
     }
 
     // 获取预览URL
-    /** @param {import('@/types').MediaFile} media @returns {string} */
+    /** @param {import('@/types').MediaFile} media
+     * @returns {string} */
     const getPreviewUrl = (media) => {
       const medium = media.variants?.variants?.find(v => v.label === 'medium')
       if (medium && medium.url) {
@@ -412,37 +309,18 @@ export default {
       return media.url || ''
     }
 
-    // 获取媒体类型颜色
-    /**
-     * @param {string | undefined} type
-     * @returns {'success' | 'primary' | 'warning' | 'info' | 'danger'}
-     */
-    const getMediaTypeColor = (type) => {
-      /** @type {Record<string, 'success' | 'primary' | 'warning' | 'info' | 'danger'>} */
-      const colorMap = {
-        image: 'success',
-        video: 'primary',
-        audio: 'warning',
-        document: 'info'
-      }
-      return (type && colorMap[type]) || 'danger'
-    }
-
     // 加载媒体数据
     const loadMediaData = async () => {
       try {
         loading.value = true
         apiError.value = false
-        
+
         /** @type {Record<string, unknown>} */
         const params = {}
-        
+
         // 只添加非空参数
         if (currentPage.value > 1) {
           params.page = currentPage.value
-        }
-        if (pageSize.value !== 20) {
-          params.size = pageSize.value
         }
         if (searchQuery.value.trim()) {
           params.keyword = searchQuery.value.trim()
@@ -452,15 +330,15 @@ export default {
         }
 
         const response = await API.getMediaList(params)
-        
+
         // 处理不同的响应格式
         let actualData = response.data
-        
+
         // 如果响应是 {code: 0, data: {...}} 格式，取出内层的data
         if (response.data && response.data.code === 0 && response.data.data) {
           actualData = response.data.data
         }
-        
+
         if (actualData) {
           if (actualData.items) {
             mediaList.value = actualData.items || []
@@ -482,9 +360,7 @@ export default {
 
       } catch (error) {
         const err = /** @type {{ response?: { data?: { message?: string }, status?: number }, message?: string }} */ (error);
-        console.error('加载媒体数据失败:', error)
-        console.error('错误详情:', err.response?.data)
-        
+
         // 根据错误类型显示不同的提示信息
         if (err.response?.status === 404) {
           apiError.value = true
@@ -497,7 +373,7 @@ export default {
           apiError.value = true
           ElMessage.error(`加载媒体内容失败: ${err.response?.data?.message || err.message || '未知错误'}`)
         }
-        
+
         mediaList.value = []
         total.value = 0
       } finally {
@@ -511,23 +387,17 @@ export default {
       loadMediaData()
     }
 
-    // 分类筛选
+    // 类型筛选
     const handleCategoryChange = () => {
       currentPage.value = 1
       loadMediaData()
     }
 
-    // 分页处理
+    // 翻页
     /** @param {number} page */
-    const handlePageChange = (page) => {
+    const goPage = (page) => {
+      if (page < 1 || page > totalPages.value) return
       currentPage.value = page
-      loadMediaData()
-    }
-
-    /** @param {number} size */
-    const handleSizeChange = (size) => {
-      pageSize.value = size
-      currentPage.value = 1
       loadMediaData()
     }
 
@@ -548,7 +418,7 @@ export default {
     /** @param {import('@/types').MediaFile | null} media */
     const downloadMedia = async (media) => {
       if (!media) return
-      
+
       try {
         const response = await API.downloadMedia(media.id)
         const url = window.URL.createObjectURL(new Blob([response.data]))
@@ -570,7 +440,7 @@ export default {
     /** @param {string | undefined} url */
     const copyUrl = async (url) => {
       if (!url) return
-      
+
       try {
         const fullUrl = url.startsWith('http') ? url : `${window.location.origin}${url}`
         await navigator.clipboard.writeText(fullUrl)
@@ -615,20 +485,19 @@ export default {
       }
     }
 
-
     // 初始化加载
     onMounted(async () => {
       // 检查用户是否已登录
       if (!userStore.isAuthenticated) {
         try {
           await userStore.initAuth()
-        } catch (error) {
+        } catch {
           ElMessage.error('请先登录后访问媒体库')
           router.push('/login')
           return
         }
       }
-      
+
       loadMediaData()
     })
 
@@ -638,10 +507,10 @@ export default {
       searchQuery,
       selectedCategory,
       sortBy,
-      viewMode,
       currentPage,
       pageSize,
       total,
+      totalPages,
       lightboxVisible,
       currentMedia,
       showUploadDialog,
@@ -653,12 +522,10 @@ export default {
       formatDate,
       formatDateTime,
       getPreviewUrl,
-      getMediaTypeColor,
       loadMediaData,
       handleSearch,
       handleCategoryChange,
-      handlePageChange,
-      handleSizeChange,
+      goPage,
       openLightbox,
       closeLightbox,
       downloadMedia,
@@ -673,444 +540,308 @@ export default {
 </script>
 
 <style scoped>
-.media-gallery {
-  min-height: 100vh;
-  background: #f1f5f9;
-  padding-bottom: 60px;
+.page-head {
+  padding: 6px 0 20px;
+  border-bottom: 1px solid var(--line);
 }
-
-.gallery-header {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  padding: 2rem 0;
-  margin-bottom: 2rem;
+.eyebrow {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 10px;
 }
-
-.header-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 2rem;
-  text-align: center;
-  margin-bottom: 2rem;
-}
-
-.page-title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: #2c3e50;
-  margin-bottom: 0.5rem;
-  background: #f1f5f9;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.page-subtitle {
-  font-size: 1.1rem;
-  color: #7f8c8d;
+.page-head h1 {
   margin: 0;
+  font-size: 28px;
+  letter-spacing: -0.04em;
+  color: var(--text);
+}
+.page-head p {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--muted);
 }
 
-.search-toolbar {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 2rem;
+/* 工具栏 */
+.toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 16px;
   flex-wrap: wrap;
-  gap: 1rem;
+  padding: 16px 0;
 }
-
-.search-section,
-.filter-section {
+.toolbar-filters {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.search-input {
+  width: 260px;
+}
+.type-select,
+.sort-select {
+  width: 128px;
+}
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.result-count {
+  font-size: 12px;
+  color: var(--muted);
 }
 
-.gallery-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 2rem;
-  min-height: 400px;
+/* 状态区 */
+.state-section {
+  padding: 12px 0 24px;
 }
-
-/* 网格视图 */
-.media-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 2rem;
-  margin-bottom: 3rem;
+.state-block {
+  border: 1px dashed var(--line-strong, var(--line));
+  border-radius: 16px;
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
 }
-
-.media-card {
-  background: white;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
+.state-block p {
+  margin: 0 0 6px;
+}
+.state-title {
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--text);
+}
+.state-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+.ghost-btn {
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong, var(--line));
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
   cursor: pointer;
 }
-
-.media-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+.ghost-btn:hover:not(:disabled) {
+  border-color: var(--text);
+}
+.ghost-btn.primary {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--bg);
+  font-weight: 650;
+}
+.ghost-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.card-image {
+/* 媒体网格 */
+.media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 14px;
+  padding: 4px 0 28px;
+}
+.media-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color var(--transition, 180ms ease), background-color var(--transition, 180ms ease);
+}
+.media-card:hover {
+  border-color: var(--line-strong, var(--line));
+  background: var(--surface-2, var(--surface));
+}
+.card-thumb {
   position: relative;
   aspect-ratio: 16 / 10;
+  background: var(--surface-2, #f1f1ee);
   overflow: hidden;
 }
-
-.card-image img {
+.card-thumb img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.3s ease;
+  display: block;
 }
-
-.media-card:hover .card-image img {
-  transform: scale(1.05);
-}
-
-.media-placeholder {
+.thumb-placeholder {
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #f8f9fa;
-  color: #6c757d;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
 }
-
-.placeholder-text {
-  margin-top: 0.5rem;
-  font-size: 0.9rem;
-}
-
-.media-type-badge {
+.thumb-overlay {
   position: absolute;
-  top: 12px;
-  left: 12px;
-  z-index: 2;
-}
-
-.hover-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 4px;
+  background: rgba(23, 23, 23, 0.55);
   opacity: 0;
-  transition: opacity 0.3s ease;
-  z-index: 3;
+  transition: opacity var(--transition, 180ms ease);
 }
-
-.media-card:hover .hover-overlay {
+.media-card:hover .thumb-overlay {
   opacity: 1;
 }
-
-.hover-content {
-  text-align: center;
-  color: white;
-  padding: 1rem;
+.card-copy {
+  padding: 10px 12px 12px;
 }
-
-.media-title {
-  font-size: 1.1rem;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-}
-
-.media-meta {
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
-  opacity: 0.9;
-}
-
-.media-meta span {
-  margin-right: 1rem;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: center;
-}
-
-.card-info {
-  padding: 1.5rem;
-}
-
 .card-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #2c3e50;
-  margin-bottom: 0.5rem;
+  display: block;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
 .card-meta {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.85rem;
-  color: #7f8c8d;
-}
-
-/* 瀑布流视图 */
-.media-masonry {
-  column-count: 3;
-  column-gap: 2rem;
-  column-fill: balance;
-}
-
-@media (max-width: 1024px) {
-  .media-masonry {
-    column-count: 2;
-  }
-}
-
-@media (max-width: 768px) {
-  .media-masonry {
-    column-count: 1;
-  }
-}
-
-.masonry-item {
-  break-inside: avoid;
-  margin-bottom: 2rem;
-  background: white;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
-  cursor: pointer;
-}
-
-.masonry-item:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
-}
-
-.masonry-image img {
-  width: 100%;
-  height: auto;
   display: block;
-}
-
-.masonry-info {
-  padding: 1.5rem;
-}
-
-.masonry-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #2c3e50;
-  margin-bottom: 0.5rem;
-}
-
-.masonry-description {
-  color: #7f8c8d;
-  font-size: 0.9rem;
-  line-height: 1.5;
-  margin-bottom: 1rem;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.masonry-meta {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.85rem;
-  color: #95a5a6;
-  margin-bottom: 1rem;
-}
-
-.masonry-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.tag-item {
-  margin: 0;
-}
-
-.more-tags {
-  font-size: 0.8rem;
-  color: #95a5a6;
-}
-
-/* 空状态 */
-.empty-state {
-  text-align: center;
-  padding: 4rem 2rem;
-}
-
-.empty-actions {
-  margin-top: 1rem;
-}
-
-.empty-actions .el-button + .el-button {
-  margin-left: 1rem;
-}
-
-/* API错误状态 */
-.api-error-state {
-  padding: 2rem;
-  text-align: center;
-}
-
-.error-actions {
-  margin-top: 1rem;
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted);
 }
 
 /* 分页 */
-.pagination-section {
+.pager {
   display: flex;
+  align-items: center;
   justify-content: center;
-  margin-top: 3rem;
-  padding: 2rem;
+  gap: 12px;
+  padding: 4px 0 28px;
+}
+.pager-info {
+  font-size: 12px;
+  color: var(--muted);
 }
 
-/* 灯箱样式 */
-.lightbox-dialog {
-  --el-dialog-bg-color: rgba(0, 0, 0, 0.9);
-}
-
-.lightbox-dialog :deep(.el-dialog__header) {
-  color: white;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
+/* 灯箱 */
 .lightbox-dialog :deep(.el-dialog__body) {
   padding: 0;
 }
-
 .lightbox-content {
   display: flex;
   height: 70vh;
 }
-
 .lightbox-media {
   flex: 2;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: black;
+  background: var(--code, #151614);
+  min-width: 0;
 }
-
 .lightbox-image,
 .lightbox-video {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
 }
-
 .lightbox-audio {
   width: 100%;
 }
-
 .lightbox-placeholder {
-  color: white;
+  color: #fff;
   text-align: center;
 }
-
 .lightbox-info {
   flex: 1;
-  padding: 2rem;
-  background: white;
+  max-width: 380px;
+  padding: 22px;
   overflow-y: auto;
 }
-
 .lightbox-info h3 {
-  color: #2c3e50;
-  margin-bottom: 1rem;
+  font-size: 16px;
+  margin: 0 0 10px;
+  color: var(--text);
 }
-
-.description {
-  margin-bottom: 1.5rem;
-  color: #7f8c8d;
-  line-height: 1.6;
+.lightbox-description {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--muted);
+  margin: 0 0 16px;
 }
-
 .details-grid {
   display: grid;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: 0;
+  border-top: 1px solid var(--line);
 }
-
 .detail-item {
   display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--text);
 }
-
-.detail-item strong {
-  min-width: 80px;
-  color: #2c3e50;
+.detail-label {
+  color: var(--muted);
+  font-size: 12px;
 }
-
 .tags-section {
-  margin-top: 1.5rem;
+  margin-top: 16px;
 }
-
-.tags-section strong {
-  color: #2c3e50;
-  margin-bottom: 0.5rem;
+.tags-section .detail-label {
   display: block;
+  margin-bottom: 8px;
 }
-
 .tags-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 6px;
 }
-
+.tag-chip {
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-2, var(--surface));
+  font-size: 11px;
+  color: var(--muted);
+}
 .lightbox-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 1rem;
-  padding: 1rem 2rem;
-  background: white;
 }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .search-toolbar {
+/* 响应式 */
+@media (max-width: 720px) {
+  .toolbar {
     flex-direction: column;
     align-items: stretch;
   }
-  
-  .search-section,
-  .filter-section {
-    justify-content: center;
+  .search-input {
+    width: 100%;
   }
-  
-  .media-grid {
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 1.5rem;
+  .toolbar-actions {
+    justify-content: space-between;
   }
-  
   .lightbox-content {
     flex-direction: column;
     height: auto;
   }
-  
   .lightbox-media {
     height: 40vh;
+  }
+  .lightbox-info {
+    max-width: none;
   }
 }
 </style>

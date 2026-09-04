@@ -78,6 +78,7 @@ const routes = [
   { path: '/category/:id', redirect: '/topics' }, // A5: 旧分类路由并入专题体系
   { path: '/tag/:slug', component: TagPage, props: true },
   { path: '/categories', redirect: '/topics' }, // A5: 并入专题体系
+  { path: '/tags', redirect: '/topics' }, // 旧"标签云"入口同样并入专题(页脚链接防死链)
   { path: '/about', component: () => import('./views/About.vue'), meta: { public: true } },
   { path: '/media', component: () => import('./views/MediaGallery.vue') },
   
@@ -88,6 +89,7 @@ const routes = [
     meta: { requiresAuth: true, requiresRole: ['author', 'editor', 'admin'] },
     children: [
       { path: '', component: Dashboard, meta: { content: 'wide' } },
+      { path: 'metrics', component: MetricsDashboard, meta: { requiresRole: ['editor', 'admin'], content: 'wide' } },
       { path: 'articles', component: ArticleManagement, meta: { content: 'data' } },
       { path: 'articles/:id/edit', component: NewArticle, props: true, meta: { editMode: true, content: 'data' } },
       { path: 'reviews', component: ArticleReviewQueue, meta: { requiresRole: ['editor', 'admin'], content: 'data' } },
@@ -113,8 +115,7 @@ const routes = [
   // 兼容旧的管理路由
   { path: '/moderation/comments', component: CommentsModeration },
   { path: '/admin/users', component: UserAdmin },
-  { path: '/admin/search/synonyms', component: SearchSynonymsAdmin },
-  { path: '/admin/metrics', component: MetricsDashboard }
+  { path: '/admin/search/synonyms', component: SearchSynonymsAdmin }
 ];
 
 const router = createRouter({

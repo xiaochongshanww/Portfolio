@@ -91,6 +91,7 @@ import { useRoute, useRouter } from 'vue-router';
 import {
   DataBoard, Document, View, ChatLineRound, Collection, PriceTag, Box,
   Picture, User, Lock, Memo, Setting, FolderOpened, RefreshLeft, Odometer,
+  TrendCharts,
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import zhCn from 'element-plus/es/locale/lang/zh-cn.mjs';
@@ -116,7 +117,10 @@ interface NavGroup {
 const NAV_GROUPS: NavGroup[] = [
   {
     label: '工作台',
-    items: [{ label: '仪表盘', path: '/admin', icon: DataBoard }],
+    items: [
+      { label: '仪表盘', path: '/admin', icon: DataBoard },
+      { label: '站点数据', path: '/admin/metrics', icon: TrendCharts, roles: ['editor', 'admin'] },
+    ],
   },
   {
     label: '内容',

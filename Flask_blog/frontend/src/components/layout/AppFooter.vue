@@ -25,7 +25,7 @@
                 <li><router-link to="/" class="footer-link">首页</router-link></li>
                 <li><router-link to="/archive" class="footer-link">文章归档</router-link></li>
                 <li><router-link to="/topics" class="footer-link">专题浏览</router-link></li>
-                <li><router-link to="/tags" class="footer-link">标签云</router-link></li>
+                <li><router-link to="/projects" class="footer-link">项目</router-link></li>
               </ul>
             </div>
           </div>

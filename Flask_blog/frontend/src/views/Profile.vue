@@ -1,409 +1,260 @@
 <template>
-  <div class="profile-page-container">
-    <!-- 页面头部 -->
-    <div class="profile-header">
-      <h1 class="page-title">个人设置</h1>
-      <p class="page-subtitle">管理您的个人信息和偏好设置</p>
-    </div>
+  <div class="profile-page">
+    <!-- 页头 -->
+    <section class="page-head">
+      <div class="eyebrow">设置</div>
+      <h1>个人中心</h1>
+      <p>管理你的个人资料与账户安全。</p>
+    </section>
 
     <!-- 加载状态 -->
-    <div v-if="!loaded" class="loading-container">
-      <div class="loading-spinner" />
-      <p class="loading-text">加载中...</p>
-    </div>
+    <div v-if="!loaded" class="page-loading">加载中...</div>
 
-    <!-- 主要内容 -->
-    <div v-else class="profile-content">
-      <!-- 头像卡片 -->
-      <el-card class="avatar-card" shadow="hover">
-        <template #header>
-          <h3 class="card-title">
-            <el-icon class="title-icon"><Avatar /></el-icon>
-            头像设置
-          </h3>
-        </template>
-        
-        <div class="avatar-section">
-          <div class="avatar-preview">
-            <div class="avatar-container">
-              <img 
-                v-if="form.avatar && !avatarError" 
-                :src="form.avatar" 
+    <!-- 05 §23 Settings Pattern:Stacked Sections -->
+    <div v-else class="settings-stack">
+      <!-- 基本资料 -->
+      <section class="card">
+        <div class="card-head">
+          <h2>基本资料</h2>
+          <div class="head-actions">
+            <el-button size="small" :disabled="saving" @click="resetForm">重置</el-button>
+            <el-button type="primary" size="small" :loading="saving" @click="save">保存更改</el-button>
+          </div>
+        </div>
+        <div class="card-body">
+          <el-alert
+            v-if="error"
+            :title="error"
+            type="error"
+            class="card-alert"
+            @close="error = ''"
+          />
+          <el-alert
+            v-if="saved"
+            title="个人资料已保存"
+            type="success"
+            class="card-alert"
+            @close="saved = false"
+          />
+
+          <!-- 头像 -->
+          <div class="avatar-row">
+            <div class="avatar-box">
+              <img
+                v-if="form.avatar && !avatarError"
+                :src="form.avatar"
                 alt="头像预览"
-                class="avatar-img"
                 @error="handleAvatarError"
                 @load="handleAvatarLoad"
               >
-              <div v-else class="avatar-placeholder">
-                <el-icon class="placeholder-icon"><User /></el-icon>
+              <div v-else class="avatar-fallback">
+                <el-icon :size="26"><User /></el-icon>
               </div>
             </div>
-            <div class="avatar-info">
-              <p v-if="form.avatar" class="avatar-status">
-                <span v-if="avatarLoading" class="status-loading">检测中...</span>
-                <span v-else-if="avatarError" class="status-error">头像加载失败</span>
-                <span v-else class="status-success">头像正常</span>
-              </p>
+            <div class="avatar-main">
+              <div class="avatar-status">
+                <span v-if="form.avatar">
+                  <span v-if="avatarLoading">检测中...</span>
+                  <span v-else-if="avatarError" class="status-error">头像加载失败</span>
+                  <span v-else class="status-ok">头像正常</span>
+                </span>
+                <span v-else>尚未设置头像</span>
+              </div>
+              <div class="avatar-actions">
+                <el-upload
+                  action="#"
+                  :auto-upload="false"
+                  :on-change="handleFileSelect"
+                  :show-file-list="false"
+                  accept="image/*"
+                  :disabled="uploading"
+                >
+                  <el-button size="small" type="primary" :loading="uploading">
+                    {{ uploading ? '上传中...' : '上传头像' }}
+                  </el-button>
+                </el-upload>
+              </div>
+              <p class="hint">支持 JPG、PNG、WebP,不超过 5MB,建议尺寸 200×200。</p>
+              <el-progress
+                v-if="uploading"
+                :percentage="uploadProgress"
+                class="upload-progress"
+              />
             </div>
           </div>
-          
-          <div class="avatar-controls">
-            <!-- 主要上传方式：文件上传 -->
-            <div class="upload-section">
-              <el-form-item label="上传头像">
-                <div class="upload-area">
-                  <el-upload
-                    class="avatar-uploader"
-                    action="#"
-                    :auto-upload="false"
-                    :on-change="handleFileSelect"
-                    :show-file-list="false"
-                    accept="image/*"
-                    :disabled="uploading"
-                  >
-                    <el-button 
-                      type="primary" 
-                      :loading="uploading"
-                      :icon="uploading ? Loading : UploadFilled"
-                      size="large"
-                    >
-                      {{ uploading ? '上传中...' : '选择图片' }}
-                    </el-button>
-                  </el-upload>
-                  <div v-if="uploading" class="upload-progress">
-                    <el-progress :percentage="uploadProgress" />
-                  </div>
-                </div>
-                <div class="input-hint">
-                  <el-icon class="hint-icon"><InfoFilled /></el-icon>
-                  支持 JPG、PNG、WebP 格式，文件大小不超过 5MB，建议尺寸 200x200 像素
-                </div>
-              </el-form-item>
-            </div>
 
-            <!-- 高级选项：URL 输入 -->
-            <div class="url-section">
-              <el-collapse>
-                <el-collapse-item title="高级选项：使用图片链接" name="url">
-                  <el-form-item label="头像URL">
-                    <el-input 
-                      v-model="form.avatar" 
-                      placeholder="https://example.com/avatar.jpg" 
-                      size="large"
-                      clearable
-                    >
-                      <template #prefix>
-                        <el-icon><Link /></el-icon>
-                      </template>
-                    </el-input>
-                    <div class="input-hint">
-                      直接输入头像图片的网络地址，适合已有图片链接的用户
-                    </div>
-                  </el-form-item>
-                </el-collapse-item>
-              </el-collapse>
-            </div>
-          </div>
-        </div>
-      </el-card>
+          <el-collapse class="url-collapse">
+            <el-collapse-item title="使用图片链接" name="url">
+              <el-input
+                v-model="form.avatar"
+                placeholder="https://example.com/avatar.jpg"
+                clearable
+              />
+              <p class="hint">直接填写头像图片的网络地址,保存后生效。</p>
+            </el-collapse-item>
+          </el-collapse>
 
-      <!-- 基本信息卡片 -->
-      <el-card class="basic-info-card" shadow="hover">
-        <template #header>
-          <h3 class="card-title">
-            <el-icon class="title-icon"><User /></el-icon>
-            基本信息
-          </h3>
-        </template>
-
-        <el-form :model="form" label-position="top" class="profile-form">
-          <el-row :gutter="24">
-            <el-col :span="12">
+          <el-form label-position="top" class="settings-form">
+            <div class="form-grid">
               <el-form-item label="昵称">
-                <el-input 
-                  v-model="form.nickname" 
-                  maxlength="80" 
+                <el-input
+                  v-model="form.nickname"
+                  maxlength="80"
                   placeholder="请输入您的昵称"
-                  size="large"
                   show-word-limit
                   clearable
-                >
-                  <template #prefix>
-                    <el-icon><EditPen /></el-icon>
-                  </template>
-                </el-input>
-                <div class="input-hint">
-                  昵称将在文章和评论中显示，建议使用真实姓名或常用网名
-                </div>
+                />
               </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <div class="nickname-preview">
-                <label class="preview-label">显示效果预览</label>
-                <div class="preview-container">
-                  <div class="preview-name">{{ getDisplayPreview() }}</div>
-                  <div class="preview-hint">其他用户看到的名称</div>
-                </div>
-              </div>
-            </el-col>
-          </el-row>
-
-          <el-form-item label="个人简介">
-            <el-input 
-              v-model="form.bio" 
-              type="textarea" 
-              :rows="4" 
-              maxlength="2000" 
-              placeholder="介绍一下您自己..."
-              show-word-limit
-              resize="vertical"
-            />
-            <div class="input-hint">
-              简介将显示在您的个人主页，让其他用户更好地了解您
+              <el-form-item label="显示效果预览">
+                <div class="preview-name">{{ getDisplayPreview() }}</div>
+                <p class="hint">其他用户看到的名称,将出现在文章和评论中。</p>
+              </el-form-item>
             </div>
-          </el-form-item>
-        </el-form>
-      </el-card>
+            <el-form-item label="个人简介">
+              <el-input
+                v-model="form.bio"
+                type="textarea"
+                :rows="4"
+                maxlength="2000"
+                placeholder="介绍一下您自己..."
+                show-word-limit
+                resize="vertical"
+              />
+            </el-form-item>
+            <el-form-item label="社交链接(JSON)">
+              <el-input
+                v-model="form.social_links_raw"
+                type="textarea"
+                :rows="5"
+                class="json-input"
+                :placeholder="socialPlaceholder"
+              />
+              <p class="hint">支持 GitHub、Twitter、LinkedIn、微信等平台,使用 JSON 对象格式。</p>
+            </el-form-item>
+          </el-form>
 
-      <!-- 密码修改卡片 -->
-      <el-card class="password-card" shadow="hover">
-        <template #header>
-          <h3 class="card-title">
-            <el-icon class="title-icon"><Key /></el-icon>
-            密码管理
-          </h3>
-        </template>
+          <!-- 社交链接预览 -->
+          <div v-if="parsedSocialLinks" class="social-preview">
+            <div
+              v-for="(url, platform) in parsedSocialLinks"
+              :key="platform"
+              class="social-item"
+            >
+              <span class="platform">{{ platform }}</span>
+              <span class="url">{{ url }}</span>
+            </div>
+          </div>
 
-        <div class="password-section">
-          <el-form 
-            ref="passwordFormRef" 
+          <el-alert
+            v-if="socialLinksError"
+            :title="socialLinksError"
+            type="warning"
+            :closable="false"
+            class="card-alert"
+          />
+        </div>
+      </section>
+
+      <!-- 账户安全 -->
+      <section class="card">
+        <div class="card-head">
+          <h2>账户安全</h2>
+        </div>
+        <div class="card-body">
+          <el-alert
+            v-if="passwordError"
+            :title="passwordError"
+            type="error"
+            class="card-alert"
+            @close="passwordError = ''"
+          />
+          <el-alert
+            v-if="passwordChanged"
+            title="密码修改成功"
+            description="请使用新密码重新登录。"
+            type="success"
+            class="card-alert"
+            @close="passwordChanged = false"
+          />
+
+          <el-form
+            ref="passwordFormRef"
             :model="passwordForm"
             :rules="passwordRules"
-            label-position="top" 
-            class="password-form"
+            label-position="top"
+            class="settings-form"
           >
-            <el-form-item label="当前密码" prop="currentPassword">
-              <el-input 
-                v-model="passwordForm.currentPassword"
-                type="password"
-                placeholder="请输入当前密码"
-                size="large"
-                clearable
-                show-password
-              >
-                <template #prefix>
-                  <el-icon><Lock /></el-icon>
-                </template>
-              </el-input>
-              <div class="input-hint">
-                <el-icon class="hint-icon"><InfoFilled /></el-icon>
-                验证您的身份以确保账户安全
-              </div>
-            </el-form-item>
+            <div class="form-grid">
+              <el-form-item label="当前密码" prop="currentPassword">
+                <el-input
+                  v-model="passwordForm.currentPassword"
+                  type="password"
+                  placeholder="请输入当前密码"
+                  clearable
+                  show-password
+                />
+              </el-form-item>
+              <el-form-item label="新密码" prop="newPassword">
+                <el-input
+                  v-model="passwordForm.newPassword"
+                  type="password"
+                  placeholder="至少 8 位,含字母和数字"
+                  clearable
+                  show-password
+                />
+              </el-form-item>
+            </div>
+            <div class="form-grid">
+              <el-form-item label="确认新密码" prop="confirmPassword">
+                <el-input
+                  v-model="passwordForm.confirmPassword"
+                  type="password"
+                  placeholder="请再次输入新密码"
+                  clearable
+                  show-password
+                />
+              </el-form-item>
+            </div>
 
-            <el-form-item label="新密码" prop="newPassword">
-              <el-input 
-                v-model="passwordForm.newPassword"
-                type="password"
-                placeholder="请输入新密码"
-                size="large"
-                clearable
-                show-password
-              >
-                <template #prefix>
-                  <el-icon><Key /></el-icon>
-                </template>
-              </el-input>
-              <div class="input-hint">
-                <el-icon class="hint-icon"><InfoFilled /></el-icon>
-                密码长度至少8位，建议包含字母、数字和特殊字符
-              </div>
-            </el-form-item>
-
-            <el-form-item label="确认新密码" prop="confirmPassword">
-              <el-input 
-                v-model="passwordForm.confirmPassword"
-                type="password"
-                placeholder="请再次输入新密码"
-                size="large"
-                clearable
-                show-password
-              >
-                <template #prefix>
-                  <el-icon><Key /></el-icon>
-                </template>
-              </el-input>
-            </el-form-item>
-
-            <!-- 密码强度指示器 -->
+            <!-- 密码强度 -->
             <div v-if="passwordForm.newPassword" class="password-strength">
-              <label class="strength-label">密码强度</label>
+              <span class="strength-label">密码强度</span>
               <div class="strength-bar">
-                <div 
-                  class="strength-fill" 
+                <div
+                  class="strength-fill"
                   :class="passwordStrengthClass"
                   :style="{ width: passwordStrengthPercent + '%' }"
                 />
               </div>
-              <span 
-                class="strength-text"
-                :class="passwordStrengthClass"
-              >
+              <span class="strength-text" :class="passwordStrengthClass">
                 {{ passwordStrengthText }}
               </span>
             </div>
 
-            <!-- 密码修改按钮 -->
-            <div class="password-actions">
-              <el-button 
-                type="primary" 
-                size="large"
+            <div class="form-actions">
+              <el-button
+                type="primary"
                 :loading="changingPassword"
-                class="change-password-button"
                 @click="changePassword"
               >
-                <el-icon class="button-icon"><Key /></el-icon>
                 {{ changingPassword ? '修改中...' : '修改密码' }}
               </el-button>
-              
-              <el-button 
-                size="large" 
-                :disabled="changingPassword"
-                class="reset-password-button"
-                @click="resetPasswordForm"
-              >
-                <el-icon class="button-icon"><RefreshLeft /></el-icon>
-                清空
-              </el-button>
+              <el-button :disabled="changingPassword" @click="resetPasswordForm">清空</el-button>
             </div>
           </el-form>
-
-          <!-- 密码修改成功提示 -->
-          <el-alert 
-            v-if="passwordChanged" 
-            title="密码修改成功"
-            description="您的密码已成功修改，请使用新密码登录"
-            type="success" 
-            :closable="true"
-            class="password-success-alert"
-            @close="passwordChanged = false"
-          />
-
-          <!-- 密码修改错误提示 -->
-          <el-alert 
-            v-if="passwordError" 
-            :title="passwordError" 
-            type="error" 
-            :closable="true"
-            class="password-error-alert"
-            @close="passwordError = ''"
-          />
+          <p class="hint">修改成功后将自动退出登录,请使用新密码重新登录。</p>
         </div>
-      </el-card>
-
-      <!-- 社交链接卡片 -->
-      <el-card class="social-links-card" shadow="hover">
-        <template #header>
-          <h3 class="card-title">
-            <el-icon class="title-icon"><Link /></el-icon>
-            社交链接
-          </h3>
-        </template>
-
-        <div class="social-section">
-          <el-form-item label="社交链接配置">
-            <el-input 
-              v-model="form.social_links_raw" 
-              type="textarea" 
-              :rows="6" 
-              placeholder="请输入 JSON 格式的社交链接：
-{
-  &quot;github&quot;: &quot;https://github.com/username&quot;,
-  &quot;twitter&quot;: &quot;https://twitter.com/username&quot;,
-  &quot;linkedin&quot;: &quot;https://linkedin.com/in/username&quot;
-}"
-              class="json-input"
-            />
-            <div class="input-hint">
-              <el-icon class="hint-icon"><InfoFilled /></el-icon>
-              支持的平台：GitHub, Twitter, LinkedIn, WeChat 等
-            </div>
-          </el-form-item>
-
-          <!-- JSON 预览 -->
-          <div v-if="parsedSocialLinks" class="social-preview">
-            <label class="preview-label">链接预览</label>
-            <div class="social-items">
-              <div 
-                v-for="(url, platform) in parsedSocialLinks" 
-                :key="platform" 
-                class="social-item"
-              >
-                <el-icon class="social-icon"><Link /></el-icon>
-                <span class="platform-name">{{ platform }}</span>
-                <span class="platform-url">{{ url }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- JSON 错误提示 -->
-          <el-alert 
-            v-if="socialLinksError" 
-            :title="socialLinksError" 
-            type="warning" 
-            :closable="false"
-            class="json-error-alert"
-          />
-        </div>
-      </el-card>
-
-      <!-- 操作按钮区域 -->
-      <div class="action-section">
-        <el-button 
-          type="primary" 
-          size="large" 
-          :loading="saving" 
-          class="save-button"
-          @click="save"
-        >
-          <el-icon class="button-icon"><Check /></el-icon>
-          {{ saving ? '保存中...' : '保存设置' }}
-        </el-button>
-
-        <el-button 
-          size="large" 
-          :disabled="saving"
-          class="reset-button"
-          @click="resetForm"
-        >
-          <el-icon class="button-icon"><RefreshLeft /></el-icon>
-          重置
-        </el-button>
-      </div>
-
-      <!-- 状态提示 -->
-      <el-alert 
-        v-if="error" 
-        :title="error" 
-        type="error" 
-        :closable="true"
-        class="error-alert"
-        @close="error = ''"
-      />
-
-      <el-alert 
-        v-if="saved" 
-        title="设置已保存"
-        description="您的个人信息已成功更新"
-        type="success" 
-        :closable="true"
-        class="success-alert"
-        @close="saved = false"
-      />
+      </section>
     </div>
   </div>
 </template>
 <script setup>
+/**
+ * 个人中心(V2 重构,原型 profile-v1;05 §23 Settings Sections)
+ * 两个 Section:基本资料(头像/昵称/简介/社交链接,单一保存动作)+ 账户安全(修改密码)。
+ * 数据流保持原状:UsersService.get/patchApiV1UsersMe、UploadsService.postApiV1UploadsImage、
+ * API.changePassword(成功后 3 秒登出)。
+ */
 import { ref, computed, onMounted } from 'vue';
 import { UsersService, UploadsService } from '../generated';
 import { API } from '../api';
@@ -412,10 +263,6 @@ import { setMeta } from '../composables/useMeta';
 import { getUserDisplayName } from '../utils/userDisplay';
 import { ElMessage } from 'element-plus';
 import { useUserStore } from '../stores/user';
-import { 
-  Avatar, User, Link, EditPen, Check, RefreshLeft, InfoFilled,
-  UploadFilled, Loading, Key, Lock
-} from '@element-plus/icons-vue';
 
 const { pushError } = useNotify();
 const userStore = useUserStore();
@@ -435,11 +282,11 @@ const uploading = ref(false);
 const uploadProgress = ref(0);
 
 // 表单数据
-const form = ref({ 
-  nickname: '', 
-  bio: '', 
-  avatar: '', 
-  social_links_raw: '' 
+const form = ref({
+  nickname: '',
+  bio: '',
+  avatar: '',
+  social_links_raw: ''
 });
 
 // 原始数据备份（用于重置）
@@ -460,6 +307,12 @@ const passwordForm = ref({
   confirmPassword: ''
 });
 
+const socialPlaceholder = JSON.stringify(
+  { github: 'https://github.com/username', twitter: 'https://twitter.com/username' },
+  null,
+  2,
+);
+
 // 密码验证规则
 const passwordRules = {
   currentPassword: [
@@ -479,7 +332,7 @@ const passwordRules = {
 // 社交链接解析
 const parsedSocialLinks = computed(() => {
   if (!form.value.social_links_raw.trim()) return null;
-  
+
   try {
     const parsed = JSON.parse(form.value.social_links_raw);
     if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
@@ -494,7 +347,7 @@ const parsedSocialLinks = computed(() => {
 // 社交链接错误
 const socialLinksError = computed(() => {
   if (!form.value.social_links_raw.trim()) return null;
-  
+
   try {
     const parsed = JSON.parse(form.value.social_links_raw);
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
@@ -511,25 +364,25 @@ const socialLinksError = computed(() => {
 const passwordStrength = computed(() => {
   const password = passwordForm.value.newPassword;
   if (!password) return 0;
-  
+
   let score = 0;
-  
+
   // 长度检查
   if (password.length >= 8) score += 25;
   if (password.length >= 12) score += 25;
-  
+
   // 包含小写字母
   if (/[a-z]/.test(password)) score += 15;
-  
+
   // 包含大写字母
   if (/[A-Z]/.test(password)) score += 15;
-  
+
   // 包含数字
   if (/\d/.test(password)) score += 10;
-  
+
   // 包含特殊字符
   if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) score += 10;
-  
+
   return Math.min(score, 100);
 });
 
@@ -556,15 +409,15 @@ async function load() {
   try {
     const r = await UsersService.getApiV1UsersMe();
     const d = r.data;
-    
+
     form.value.nickname = d?.nickname || '';
     form.value.bio = d?.bio || '';
     form.value.avatar = d?.avatar || '';
-    
+
     if (d?.social_links) {
       form.value.social_links_raw = JSON.stringify(d.social_links, null, 2);
     }
-    
+
     // 备份原始数据
     originalForm.value = { ...form.value };
   } catch (e) {
@@ -579,7 +432,7 @@ async function save() {
   saving.value = true;
   error.value = '';
   saved.value = false;
-  
+
   try {
     let socialLinks;
     if (form.value.social_links_raw.trim()) {
@@ -594,25 +447,23 @@ async function save() {
         return;
       }
     }
-    
+
     const payload = {
       nickname: form.value.nickname || undefined,
       bio: form.value.bio || undefined,
       avatar: form.value.avatar || undefined,
       social_links: socialLinks
     };
-    
+
     await UsersService.patchApiV1UsersMe(payload);
     saved.value = true;
-    
+
     // 更新原始数据备份
     originalForm.value = { ...form.value };
-    
+
     // 更新全局用户状态，让头像等信息同步到其他组件
     await userStore.fetchUserInfo();
   } catch (e) {
-    console.error('Profile save error:', e);
-    
     // 提取详细错误信息
     const err = /** @type {{ response?: { data?: { message?: string, data?: unknown } }, message?: string }} */ (e);
     if (err.response?.data) {
@@ -659,25 +510,25 @@ function handleAvatarLoad() {
 /** @param {{ raw?: File }} file */
 async function handleFileSelect(file) {
   if (!file || !file.raw) return;
-  
+
   // 验证文件类型
   const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
   if (!allowedTypes.includes(file.raw.type)) {
     error.value = '不支持的文件格式，请选择 JPG、PNG 或 WebP 格式的图片';
     return;
   }
-  
+
   // 验证文件大小 (5MB)
   const maxSize = 5 * 1024 * 1024;
   if (file.raw.size > maxSize) {
     error.value = '文件过大，请选择小于 5MB 的图片';
     return;
   }
-  
+
   uploading.value = true;
   uploadProgress.value = 0;
   error.value = '';
-  
+
   try {
     // 模拟上传进度
     const progressInterval = setInterval(() => {
@@ -685,45 +536,42 @@ async function handleFileSelect(file) {
         uploadProgress.value += 10;
       }
     }, 100);
-    
+
     const response = await UploadsService.postApiV1UploadsImage({
       file: file.raw
     });
-    
+
     clearInterval(progressInterval);
     uploadProgress.value = 100;
-    
+
     if (response.data?.url) {
       // 直接使用后端返回的相对路径URL，代理会自动转发
       form.value.avatar = response.data.url;
-      
+
       // 重置头像错误状态
       avatarError.value = false;
       avatarLoading.value = true;
-      
+
       // 自动保存头像到后端
       try {
         await UsersService.patchApiV1UsersMe({
           avatar: form.value.avatar
         });
-        
+
         // 更新全局用户状态，让右上角头像立即更新
         await userStore.fetchUserInfo();
-        
+
         // 更新原始数据备份
         originalForm.value.avatar = form.value.avatar;
-        
+
         ElMessage.success('头像上传并保存成功！');
       } catch (saveError) {
-        console.error('头像自动保存失败:', saveError);
         ElMessage.warning('头像上传成功，但自动保存失败，请手动点击保存按钮');
       }
     } else {
       error.value = '上传成功但未获取到图片地址';
     }
   } catch (e) {
-    console.error('Avatar upload error:', e);
-    
     const err = /** @type {{ response?: { data?: { message?: string } } }} */ (e);
     if (err.response?.data?.message) {
       error.value = `上传失败: ${err.response.data.message}`;
@@ -747,27 +595,27 @@ function validateNewPassword(rule, value, callback) {
     callback(new Error('请输入新密码'));
     return;
   }
-  
+
   if (value.length < 8) {
     callback(new Error('密码长度至少8位'));
     return;
   }
-  
+
   // 检查密码复杂度
   const hasLetter = /[a-zA-Z]/.test(value);
   const hasNumber = /\d/.test(value);
-  
+
   if (!hasLetter || !hasNumber) {
     callback(new Error('密码应包含字母和数字'));
     return;
   }
-  
+
   // 检查与当前密码是否相同
   if (value === passwordForm.value.currentPassword) {
     callback(new Error('新密码不能与当前密码相同'));
     return;
   }
-  
+
   callback();
 }
 
@@ -781,19 +629,19 @@ function validateConfirmPassword(rule, value, callback) {
     callback(new Error('请确认新密码'));
     return;
   }
-  
+
   if (value !== passwordForm.value.newPassword) {
     callback(new Error('两次输入的密码不一致'));
     return;
   }
-  
+
   callback();
 }
 
 // 密码修改
 async function changePassword() {
   if (!passwordFormRef.value) return;
-  
+
   try {
     // 表单验证
     const valid = await passwordFormRef.value.validate();
@@ -801,34 +649,33 @@ async function changePassword() {
   } catch (error) {
     return;
   }
-  
+
   changingPassword.value = true;
   passwordError.value = '';
   passwordChanged.value = false;
-  
+
   try {
     // 获取用户邮箱
     const userInfo = await UsersService.getApiV1UsersMe();
     const userEmail = userInfo.data?.email;
-    
+
     if (!userEmail) {
       passwordError.value = '无法获取用户邮箱信息';
       return;
     }
-    
+
     // 调用密码修改API
     const response = await API.changePassword({
       email: userEmail,
       old_password: passwordForm.value.currentPassword,
       new_password: passwordForm.value.newPassword
     });
-    
+
     const respData = response.data || {}
-  if (response.status >= 400 || respData.code !== 0) {
+    if (response.status >= 400 || respData.code !== 0) {
       // 处理HTTP错误状态
       let errorMessage = '密码修改失败';
       try {
-        const errorData = respData;
         errorMessage = respData.message || `HTTP ${response.status}: ${response.statusText}`;
       } catch (e) {
         errorMessage = `HTTP ${response.status}: ${response.statusText}`;
@@ -836,27 +683,23 @@ async function changePassword() {
       passwordError.value = errorMessage;
       return;
     }
-    
+
     const result = response.data;
-    
+
     if (result.code === 0) {
       passwordChanged.value = true;
       resetPasswordForm();
-      
-      // 3秒后自动跳转到登录页面
+
+      // 3秒后自动登出，要求用新密码重新登录
       setTimeout(() => {
         ElMessage.info('请使用新密码重新登录');
         userStore.logout();
-        // 可以选择跳转到登录页面
-        // router.push('/login');
       }, 3000);
-      
+
     } else {
       passwordError.value = result.message || '密码修改失败';
     }
   } catch (error) {
-    console.error('Password change error:', error);
-    
     const err = /** @type {{ response?: { data?: { message?: string } } }} */ (error);
     if (err.response?.data) {
       const errorData = err.response.data;
@@ -876,11 +719,11 @@ function resetPasswordForm() {
     newPassword: '',
     confirmPassword: ''
   };
-  
+
   if (passwordFormRef.value) {
     passwordFormRef.value.clearValidate();
   }
-  
+
   passwordError.value = '';
 }
 
@@ -896,680 +739,248 @@ function getDisplayPreview() {
 
 // 组件挂载
 onMounted(() => {
-  setMeta({ 
-    title: '个人设置', 
-    description: '管理您的个人信息和偏好设置' 
+  setMeta({
+    title: '个人中心',
+    description: '管理你的个人资料与账户安全'
   });
   load();
 });
 </script>
 <style scoped>
-/* 页面容器 */
-.profile-page-container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 2rem 1rem;
-  background: #f1f5f9;
-  min-height: calc(100vh - 80px);
+.page-head {
+  padding-bottom: 18px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--line);
 }
-
-/* 页面头部 */
-.profile-header {
+.eyebrow {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.page-head h1 {
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: -0.04em;
+  color: var(--text);
+}
+.page-head p {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+.page-loading {
+  padding: 48px 0;
   text-align: center;
-  margin-bottom: 2.5rem;
-  padding: 2rem 0;
-  background: #f1f5f9;
-  border-radius: 1rem;
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  color: var(--muted);
+  font-size: 13px;
 }
 
-.page-title {
-  font-size: 2.25rem;
-  font-weight: 700;
-  color: rgb(17 24 39);
-  margin-bottom: 0.5rem;
-  letter-spacing: -0.025em;
+/* Settings Sections(05 §23) */
+.settings-stack {
+  display: grid;
+  gap: 16px;
+  max-width: 860px;
 }
-
-.page-subtitle {
-  color: rgb(107 114 128);
-  font-size: 1.125rem;
-  margin: 0;
-  line-height: 1.6;
+.card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  overflow: hidden; /* 裁掉卡头背景的方角 */
 }
-
-/* 加载状态 */
-.loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem 0;
-}
-
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid rgb(229 231 235);
-  border-top: 4px solid rgb(59 130 246);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 1rem;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.loading-text {
-  color: rgb(107 114 128);
-  font-size: 1rem;
-}
-
-/* 主要内容区域 */
-.profile-content {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-}
-
-/* 卡片通用样式 */
-.avatar-card,
-.basic-info-card,
-.password-card,
-.social-links-card {
-  background: white;
-  border-radius: 1rem;
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  transition: all 0.3s ease;
-  border: 1px solid rgb(229 231 235);
-}
-
-.avatar-card:hover,
-.basic-info-card:hover,
-.password-card:hover,
-.social-links-card:hover {
-  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  transform: translateY(-2px);
-}
-
-/* 卡片标题 */
-.card-title {
+.card-head {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: rgb(17 24 39);
+  justify-content: space-between;
+  gap: 16px;
+}
+.card-head h2 {
+  font-size: 14px;
   margin: 0;
+  color: var(--text);
 }
-
-.title-icon {
-  color: rgb(59 130 246);
-  font-size: 1.5rem;
-}
-
-/* ====== 头像卡片样式 ====== */
-.avatar-section {
+.head-actions {
   display: flex;
-  gap: 2rem;
+  align-items: center;
+  gap: 8px;
+}
+.card-body {
+  padding: 16px;
+}
+.card-alert {
+  margin-bottom: 14px;
+}
+
+/* 头像 */
+.avatar-row {
+  display: flex;
+  gap: 16px;
   align-items: flex-start;
+  padding-bottom: 16px;
 }
-
-.avatar-preview {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-  min-width: 120px;
-}
-
-.avatar-container {
-  position: relative;
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
+.avatar-box {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 8px 16px rgb(0 0 0 / 0.15);
-  transition: transform 0.3s ease;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  flex-shrink: 0;
 }
-
-.avatar-container:hover {
-  transform: scale(1.05);
-}
-
-.avatar-img {
+.avatar-box img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-.avatar-placeholder {
-  width: 100%;
-  height: 100%;
-  background: #f1f5f9;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.placeholder-icon {
-  color: white;
-  font-size: 2.5rem;
-}
-
-.avatar-info {
-  text-align: center;
-}
-
-.avatar-status {
-  font-size: 0.875rem;
-  margin: 0;
-}
-
-.status-loading { color: rgb(251 191 36); }
-.status-error { color: rgb(239 68 68); }
-.status-success { color: rgb(34 197 94); }
-
-.avatar-controls {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-/* 上传区域样式 */
-.upload-section {
-  flex: 1;
-}
-
-.upload-area {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.avatar-uploader {
-  width: 100%;
-}
-
-.upload-progress {
-  width: 100%;
-}
-
-/* URL 输入区域样式 */
-.url-section {
-  margin-top: 1rem;
-}
-
-/* Element Plus 折叠面板样式覆盖 */
-:deep(.el-collapse) {
-  border: none;
-  border-radius: 0.5rem;
-  background: rgb(248 250 252);
-}
-
-:deep(.el-collapse-item__header) {
-  background: rgb(248 250 252);
-  border: none;
-  border-radius: 0.5rem;
-  padding: 0.75rem 1rem;
-  font-size: 0.875rem;
-  color: rgb(107 114 128);
-  font-weight: 500;
-}
-
-:deep(.el-collapse-item__content) {
-  background: rgb(248 250 252);
-  border: none;
-  padding: 0 1rem 1rem;
-}
-
-:deep(.el-collapse-item__wrap) {
-  border: none;
-}
-
-/* 上传按钮样式 */
-:deep(.el-upload) {
-  width: 100%;
-}
-
-:deep(.el-upload .el-button) {
-  width: 100%;
-  border-radius: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  font-weight: 600;
-  transition: all 0.3s ease;
-}
-
-/* 进度条样式 */
-:deep(.el-progress-bar) {
-  background: rgb(243 244 246);
-  border-radius: 0.5rem;
-}
-
-:deep(.el-progress-bar__inner) {
-  background: #f1f5f9;
-  border-radius: 0.5rem;
-}
-
-/* ====== 基本信息卡片样式 ====== */
-.profile-form {
-  width: 100%;
-}
-
-.nickname-preview {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.preview-label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: rgb(75 85 99);
-}
-
-.preview-container {
-  padding: 1rem;
-  background: rgb(248 250 252);
-  border: 2px dashed rgb(203 213 225);
-  border-radius: 0.5rem;
-  text-align: center;
-}
-
-.preview-name {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: rgb(17 24 39);
-  margin-bottom: 0.25rem;
-}
-
-.preview-hint {
-  font-size: 0.75rem;
-  color: rgb(107 114 128);
-}
-
-/* ====== 社交链接卡片样式 ====== */
-.social-section {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.json-input :deep(.el-textarea__inner) {
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
-  font-size: 0.875rem;
-  line-height: 1.5;
-  border-radius: 0.5rem;
-}
-
-.social-preview {
-  padding: 1rem;
-  background: rgb(248 250 252);
-  border-radius: 0.75rem;
-  border: 1px solid rgb(229 231 235);
-}
-
-.social-items {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-top: 0.75rem;
-}
-
-.social-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  background: white;
-  border-radius: 0.5rem;
-  border: 1px solid rgb(229 231 235);
-  transition: all 0.2s ease;
-}
-
-.social-item:hover {
-  background: rgb(239 246 255);
-  border-color: rgb(59 130 246);
-}
-
-.social-icon {
-  color: rgb(59 130 246);
-  font-size: 1.125rem;
-}
-
-.platform-name {
-  font-weight: 600;
-  color: rgb(17 24 39);
-  min-width: 80px;
-  text-transform: capitalize;
-}
-
-.platform-url {
-  color: rgb(107 114 128);
-  font-size: 0.875rem;
-  word-break: break-all;
-}
-
-/* ====== 密码修改卡片样式 ====== */
-.password-section {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.password-form {
-  width: 100%;
-}
-
-/* 密码强度指示器 */
-.password-strength {
-  margin-top: 1rem;
-  padding: 1rem;
-  background: rgb(248 250 252);
-  border-radius: 0.75rem;
-  border: 1px solid rgb(229 231 235);
-}
-
-.strength-label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: rgb(75 85 99);
-  margin-bottom: 0.5rem;
   display: block;
 }
-
-.strength-bar {
+.avatar-fallback {
   width: 100%;
-  height: 8px;
-  background: rgb(229 231 235);
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 0.5rem;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+.avatar-main {
+  min-width: 0;
+}
+.avatar-status {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.status-ok {
+  color: var(--green-ink);
+}
+.status-error {
+  color: #b91c1c;
+}
+.avatar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.upload-progress {
+  width: 240px;
+  max-width: 100%;
+  margin-top: 10px;
+}
+.url-collapse {
+  margin-bottom: 16px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
 }
 
+/* 表单 */
+.settings-form :deep(.el-form-item) {
+  margin-bottom: 14px;
+}
+.settings-form :deep(.el-form-item__label) {
+  font-size: 12px;
+  color: var(--muted);
+  padding-bottom: 4px;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 24px;
+}
+.hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.preview-name {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  padding: 7px 12px;
+  font-size: 13px;
+  color: var(--text);
+}
+.json-input :deep(textarea) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+/* 社交链接预览 */
+.social-preview {
+  border-top: 1px solid var(--line);
+  padding-top: 4px;
+}
+.social-item {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 14px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  align-items: center;
+}
+.social-item:last-child {
+  border-bottom: 0;
+}
+.social-item .platform {
+  color: var(--muted);
+}
+.social-item .url {
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 密码强度 */
+.password-strength {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0 12px;
+}
+.strength-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+.strength-bar {
+  flex: 1;
+  max-width: 240px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
 .strength-fill {
   height: 100%;
-  border-radius: 4px;
-  transition: all 0.3s ease;
+  border-radius: 999px;
+  transition: width 180ms ease;
 }
-
-.strength-weak {
-  color: rgb(239 68 68);
-}
-.strength-weak.strength-fill {
-  background: #f1f5f9;
-}
-
-.strength-medium {
-  color: rgb(251 191 36);
-}
-.strength-medium.strength-fill {
-  background: #f1f5f9;
-}
-
-.strength-good {
-  color: rgb(59 130 246);
-}
-.strength-good.strength-fill {
-  background: #f1f5f9;
-}
-
-.strength-strong {
-  color: rgb(34 197 94);
-}
-.strength-strong.strength-fill {
-  background: #f1f5f9;
-}
-
 .strength-text {
-  font-size: 0.875rem;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 650;
 }
+.strength-weak .strength-fill { background: #dc2626; }
+.strength-weak.strength-text { color: #b91c1c; }
+.strength-medium .strength-fill { background: #d97706; }
+.strength-medium.strength-text { color: #b45309; }
+.strength-good .strength-fill { background: #2563eb; }
+.strength-good.strength-text { color: #1d4ed8; }
+.strength-strong .strength-fill { background: #16a34a; }
+.strength-strong.strength-text { color: #15803d; }
 
-/* 密码修改按钮区域 */
-.password-actions {
+.form-actions {
   display: flex;
-  gap: 1.5rem;
-  justify-content: flex-start;
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid rgb(243 244 246);
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
 }
 
-.change-password-button {
-  background: #f1f5f9;
-  border: none;
-  padding: 0.75rem 2rem;
-  border-radius: 0.75rem;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 6px rgb(59 130 246 / 0.25);
-}
-
-.change-password-button:hover {
-  background: #f1f5f9;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 12px rgb(59 130 246 / 0.35);
-}
-
-.reset-password-button {
-  background: rgb(249 250 251);
-  border: 1px solid rgb(209 213 219);
-  color: rgb(75 85 99);
-  padding: 0.75rem 2rem;
-  border-radius: 0.75rem;
-  font-weight: 500;
-  transition: all 0.3s ease;
-}
-
-.reset-password-button:hover {
-  background: rgb(243 244 246);
-  border-color: rgb(156 163 175);
-  color: rgb(55 65 81);
-}
-
-/* 密码相关提示框 */
-.password-success-alert,
-.password-error-alert {
-  margin-top: 1.5rem;
-  border-radius: 0.75rem;
-}
-
-/* ====== 现代化操作按钮区域 ====== */
-.action-section {
-  display: flex;
-  gap: 1.5rem;
-  justify-content: center;
-  padding: 3rem 0;
-  margin-top: 3rem;
-  position: relative;
-}
-
-.action-section::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: #f1f5f9;
-}
-
-.save-button {
-  background: #f1f5f9;
-  border: none;
-  padding: 0.75rem 2rem;
-  border-radius: 0.75rem;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 6px rgb(34 197 94 / 0.25);
-}
-
-.save-button:hover {
-  background: #f1f5f9;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 12px rgb(34 197 94 / 0.35);
-}
-
-.reset-button {
-  background: rgb(249 250 251);
-  border: 1px solid rgb(209 213 219);
-  color: rgb(75 85 99);
-  padding: 0.75rem 2rem;
-  border-radius: 0.75rem;
-  font-weight: 500;
-  transition: all 0.3s ease;
-}
-
-.reset-button:hover {
-  background: rgb(243 244 246);
-  border-color: rgb(156 163 175);
-  color: rgb(55 65 81);
-}
-
-.button-icon {
-  margin-right: 0.5rem;
-}
-
-/* ====== 状态提示 ====== */
-.error-alert,
-.success-alert,
-.json-error-alert {
-  margin-top: 1.5rem;
-  border-radius: 0.75rem;
-}
-
-/* ====== 输入提示 ====== */
-.input-hint {
-  margin-top: 0.5rem;
-  font-size: 0.875rem;
-  color: rgb(107 114 128);
-  line-height: 1.4;
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-}
-
-.hint-icon {
-  color: rgb(59 130 246);
-  font-size: 1rem;
-  margin-top: 0.1rem;
-  flex-shrink: 0;
-}
-
-/* ====== 响应式设计 ====== */
-@media (max-width: 768px) {
-  .profile-page-container {
-    padding: 1rem 0.75rem;
+@media (max-width: 720px) {
+  .form-grid {
+    grid-template-columns: 1fr;
   }
-  
-  .page-title {
-    font-size: 1.875rem;
-  }
-  
-  .page-subtitle {
-    font-size: 1rem;
-  }
-  
-  .avatar-section {
+  .avatar-row {
     flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 1.5rem;
   }
-  
-  .avatar-controls {
-    width: 100%;
-    gap: 1rem;
-  }
-  
-  .password-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .change-password-button,
-  .reset-password-button {
-    width: 100%;
-  }
-  
-  .action-section {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .save-button,
-  .reset-button {
-    width: 100%;
-  }
-}
-
-@media (max-width: 640px) {
-  .profile-header {
-    padding: 1.5rem 1rem;
-  }
-  
-  .avatar-container {
-    width: 80px;
-    height: 80px;
-  }
-  
-  .placeholder-icon {
-    font-size: 2rem;
-  }
-  
-  /* Element Plus 卡片内边距调整 */
-  :deep(.el-card__body) {
-    padding: 1.25rem;
-  }
-  
-  /* Element Plus 表单项间距调整 */
-  :deep(.el-form-item) {
-    margin-bottom: 1.25rem;
-  }
-}
-
-/* ====== Element Plus 样式深度覆盖 ====== */
-:deep(.el-card__header) {
-  padding: 1.5rem 1.5rem 1rem;
-  border-bottom: 1px solid rgb(243 244 246);
-}
-
-:deep(.el-card__body) {
-  padding: 1.5rem;
-}
-
-:deep(.el-form-item__label) {
-  font-weight: 600;
-  color: rgb(17 24 39);
-  font-size: 0.875rem;
-  margin-bottom: 0.5rem;
-}
-
-:deep(.el-input__wrapper) {
-  border-radius: 0.5rem;
-  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
-  transition: all 0.2s ease;
-}
-
-:deep(.el-input__wrapper):hover {
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-}
-
-:deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 2px rgb(59 130 246 / 0.3), 0 4px 6px -1px rgb(0 0 0 / 0.1);
-}
-
-:deep(.el-textarea__inner) {
-  border-radius: 0.5rem;
-  transition: all 0.2s ease;
-}
-
-:deep(.el-button) {
-  border-radius: 0.5rem;
-  font-weight: 500;
 }
 </style>

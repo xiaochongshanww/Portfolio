@@ -1,235 +1,125 @@
 <template>
-  <div class="modern-metrics-dashboard">
-    <AdminPageHeader title="站点数据看板" description="实时监控站点各项指标和运行状态。">
-      <el-button type="primary" :loading="loading" @click="() => fetchStats()">↻ 刷新</el-button>
+  <div class="metrics-dashboard">
+    <AdminPageHeader title="站点数据看板" description="查看内容、评论与社区的总量和待处理事项。">
+      <el-button :loading="loading" @click="() => fetchStats()">↻ 刷新</el-button>
     </AdminPageHeader>
-    <!-- 现代化加载状态 -->
-    <div v-if="loading" class="modern-loading">
-      <div class="loading-grid">
-        <div v-for="n in 4" :key="n" class="loading-card">
-          <div class="loading-header" />
-          <div class="loading-content">
-            <div v-for="i in 3" :key="i" class="loading-stat" />
-          </div>
-        </div>
+
+    <!-- 加载骨架 -->
+    <section v-if="loading" class="card">
+      <div class="card-body state-body">
+        <el-skeleton :rows="5" animated />
       </div>
-    </div>
-    <!-- 现代化错误状态 -->
-    <div v-else-if="error" class="modern-error">
-      <div class="error-card">
-        <div class="error-icon">
-          <el-icon size="48"><Warning /></el-icon>
-        </div>
-        <h3 class="error-title">加载数据失败</h3>
-        <p class="error-message">{{ error }}</p>
-        
-        <!-- 诊断信息 -->
-        <div class="diagnostic-info">
-          <el-collapse>
-            <el-collapse-item title="诊断信息" name="1">
-              <div class="diagnostic-content">
-                <p><strong>问题排查建议：</strong></p>
-                <ul>
-                  <li>检查Flask后端服务是否正在运行（端口5000）</li>
-                  <li>确认您的用户权限为editor或admin</li>
-                  <li>检查数据库连接是否正常</li>
-                  <li>查看浏览器开发者工具的Network选项卡</li>
-                </ul>
-                <p><strong>当前状态：</strong></p>
-                <ul>
-                  <li>API地址: /api/v1/metrics/summary</li>
-                  <li>用户认证: {{ userStore.isAuthenticated ? '已登录' : '未登录' }}</li>
-                  <li>用户角色: {{ userStore.role || '无' }}</li>
-                </ul>
+    </section>
+
+    <!-- 错误态(05 §31:统一形态,提供 reload) -->
+    <template v-else-if="error">
+      <AdminStateBlock
+        kind="error"
+        title="数据加载失败"
+        :description="error + '。请确认后端服务运行中,且账号具备 editor/admin 权限。'"
+        @reload="() => fetchStats()"
+      >
+        <el-button size="small" @click="() => fetchStats(999)">使用备用数据源</el-button>
+      </AdminStateBlock>
+    </template>
+
+    <template v-else>
+      <!-- 总量条(04 §14:同一容器+内部分隔,无彩色无图标) -->
+      <AdminSummaryStrip :items="summaryItems" />
+
+      <div class="grid">
+        <!-- 待处理 -->
+        <section class="card">
+          <div class="card-head">
+            <h2>待处理</h2>
+            <router-link class="head-link" to="/admin/reviews">审核队列 →</router-link>
+          </div>
+          <div class="card-body">
+            <div v-if="queueEmpty" class="queue-empty">
+              <AdminStatus kind="success" label="全部处理完毕" />
+              <p>没有待审核的文章或评论。</p>
+            </div>
+            <template v-else>
+              <div class="queue-row">
+                <div>
+                  <b>待审核文章</b>
+                  <small>提交后进入审核队列</small>
+                </div>
+                <div class="queue-side">
+                  <AdminStatus
+                    :kind="stats.articles.pending > 0 ? 'warning' : 'success'"
+                    :label="stats.articles.pending > 0 ? `${stats.articles.pending} 篇待审` : '暂无待审'"
+                  />
+                  <router-link class="row-link" to="/admin/reviews">去处理 →</router-link>
+                </div>
               </div>
-            </el-collapse-item>
-          </el-collapse>
-        </div>
-        
-        <div class="error-actions">
-          <el-button type="primary" :icon="Refresh" @click="() => fetchStats()">
-            重新加载
-          </el-button>
-          <el-button type="success" plain @click="() => fetchStats(999)">
-            使用备用数据源
-          </el-button>
-        </div>
-      </div>
-    </div>
-    <!-- 现代化统计网格 -->
-    <div v-else class="modern-stats-grid">
-      <!-- 文章统计卡片 -->
-      <div class="modern-stat-card article-stats">
-        <div class="card-header">
-          <div class="header-icon">
-            <el-icon size="24"><Document /></el-icon>
+              <div class="queue-row">
+                <div>
+                  <b>待审核评论</b>
+                  <small>来自公开文章的读者评论</small>
+                </div>
+                <div class="queue-side">
+                  <AdminStatus
+                    :kind="stats.comments.pending > 0 ? 'warning' : 'success'"
+                    :label="stats.comments.pending > 0 ? `${stats.comments.pending} 条待审` : '暂无待审'"
+                  />
+                  <router-link class="row-link" to="/admin/comments">去处理 →</router-link>
+                </div>
+              </div>
+            </template>
           </div>
-          <div class="header-text">
-            <h3 class="card-title">文章统计</h3>
-            <span class="card-subtitle">内容管理数据</span>
-          </div>
-        </div>
-        <div class="stats-container">
-          <div class="stat-item primary">
-            <div class="stat-icon">
-              <el-icon size="20"><Collection /></el-icon>
-            </div>
-            <div class="stat-content">
-              <div class="stat-number">{{ stats.articles.total }}</div>
-              <div class="stat-label">总数</div>
-            </div>
-          </div>
-          <div class="stat-item success">
-            <div class="stat-icon">
-              <el-icon size="20"><Select /></el-icon>
-            </div>
-            <div class="stat-content">
-              <div class="stat-number">{{ stats.articles.published }}</div>
-              <div class="stat-label">已发布</div>
-            </div>
-          </div>
-          <div class="stat-item info">
-            <div class="stat-icon">
-              <el-icon size="20"><Edit /></el-icon>
-            </div>
-            <div class="stat-content">
-              <div class="stat-number">{{ stats.articles.draft }}</div>
-              <div class="stat-label">草稿</div>
-            </div>
-          </div>
-          <div class="stat-item warning">
-            <div class="stat-icon">
-              <el-icon size="20"><Clock /></el-icon>
-            </div>
-            <div class="stat-content">
-              <div class="stat-number">{{ stats.articles.pending }}</div>
-              <div class="stat-label">待审核</div>
-            </div>
-            <div v-if="stats.articles.pending > 0" class="stat-alert">
-              <el-icon size="14"><Warning /></el-icon>
-            </div>
-          </div>
-        </div>
-      </div>
+        </section>
 
-      <!-- 评论统计卡片 -->
-      <div class="modern-stat-card comment-stats">
-        <div class="card-header">
-          <div class="header-icon">
-            <el-icon size="24"><ChatDotRound /></el-icon>
+        <!-- 内容构成 -->
+        <section class="card">
+          <div class="card-head">
+            <h2>内容构成</h2>
           </div>
-          <div class="header-text">
-            <h3 class="card-title">评论统计</h3>
-            <span class="card-subtitle">互动反馈数据</span>
-          </div>
-        </div>
-        <div class="stats-container">
-          <div class="stat-item primary">
-            <div class="stat-icon">
-              <el-icon size="20"><ChatRound /></el-icon>
-            </div>
-            <div class="stat-content">
-              <div class="stat-number">{{ stats.comments.total }}</div>
-              <div class="stat-label">总数</div>
-            </div>
-          </div>
-          <div class="stat-item success">
-            <div class="stat-icon">
-              <el-icon size="20"><CircleCheck /></el-icon>
-            </div>
-            <div class="stat-content">
-              <div class="stat-number">{{ stats.comments.approved }}</div>
-              <div class="stat-label">已批准</div>
-            </div>
-          </div>
-          <div class="stat-item warning">
-            <div class="stat-icon">
-              <el-icon size="20"><Clock /></el-icon>
-            </div>
-            <div class="stat-content">
-              <div class="stat-number">{{ stats.comments.pending }}</div>
-              <div class="stat-label">待审核</div>
-            </div>
-            <div v-if="stats.comments.pending > 0" class="stat-alert">
-              <el-icon size="14"><Warning /></el-icon>
+          <div class="card-body">
+            <div class="kv-list">
+              <div class="kv-row">
+                <label>已发布文章</label>
+                <span class="kv-value">{{ stats.articles.published }} 篇</span>
+              </div>
+              <div class="kv-row">
+                <label>草稿</label>
+                <span class="kv-value">{{ stats.articles.draft }} 篇</span>
+              </div>
+              <div class="kv-row">
+                <label>已批准评论</label>
+                <span class="kv-value">{{ stats.comments.approved }} 条</span>
+              </div>
+              <div class="kv-row">
+                <label>标签</label>
+                <span class="kv-value">{{ stats.taxonomy.tags }} 个</span>
+              </div>
+              <div class="kv-row">
+                <label>注册用户</label>
+                <span class="kv-value">{{ stats.users.total }} 人</span>
+              </div>
             </div>
           </div>
-        </div>
+        </section>
       </div>
-
-      <!-- 用户统计卡片 -->
-      <div class="modern-stat-card user-stats">
-        <div class="card-header">
-          <div class="header-icon">
-            <el-icon size="24"><User /></el-icon>
-          </div>
-          <div class="header-text">
-            <h3 class="card-title">用户统计</h3>
-            <span class="card-subtitle">社区成员数据</span>
-          </div>
-        </div>
-        <div class="stats-container single-stat">
-          <div class="stat-item primary large">
-            <div class="stat-icon">
-              <el-icon size="24"><UserFilled /></el-icon>
-            </div>
-            <div class="stat-content">
-              <div class="stat-number">{{ stats.users.total }}</div>
-              <div class="stat-label">总用户数</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 分类与标签统计卡片 -->
-      <div class="modern-stat-card taxonomy-stats">
-        <div class="card-header">
-          <div class="header-icon">
-            <el-icon size="24"><Files /></el-icon>
-          </div>
-          <div class="header-text">
-            <h3 class="card-title">分类与标签</h3>
-            <span class="card-subtitle">内容组织结构</span>
-          </div>
-        </div>
-        <div class="stats-container">
-          <div class="stat-item info">
-            <div class="stat-icon">
-              <el-icon size="20"><Folder /></el-icon>
-            </div>
-            <div class="stat-content">
-              <div class="stat-number">{{ stats.taxonomy.categories }}</div>
-              <div class="stat-label">分类总数</div>
-            </div>
-          </div>
-          <div class="stat-item purple">
-            <div class="stat-icon">
-              <el-icon size="20"><PriceTag /></el-icon>
-            </div>
-            <div class="stat-content">
-              <div class="stat-number">{{ stats.taxonomy.tags }}</div>
-              <div class="stat-label">标签总数</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    </template>
   </div>
 </template>
 
 <script setup>
+/**
+ * 站点数据看板(A4 决策:Pattern 化保留,Dashboard/Status Cards)
+ * AdminPageHeader + AdminSummaryStrip(总量)+ 待处理队列 + 内容构成;
+ * 数据面保持原状:API.getMetricsSummary(10s 超时、网络错误自动重试 ×2、备用数据源)。
+ */
+import { ref, computed, onMounted } from 'vue';
+import { ElMessage } from 'element-plus';
 import AdminPageHeader from '../components/admin/AdminPageHeader.vue';
-import { ref, onMounted } from 'vue';
-import { ElMessage, ElButton, ElIcon } from 'element-plus';
-import { 
-  Warning, TrendCharts, Refresh, Document, Collection, Select, Edit, Clock,
-  ChatDotRound, ChatRound, CircleCheck, User, UserFilled, Files, Folder, PriceTag
-} from '@element-plus/icons-vue';
+import AdminSummaryStrip from '../components/admin/AdminSummaryStrip.vue';
+import AdminStatus from '../components/admin/AdminStatus.vue';
+import AdminStateBlock from '../components/admin/AdminStateBlock.vue';
 import { API } from '../api';
 import { setMeta } from '../composables/useMeta';
-import { useUserStore } from '../stores/user';
 
-const userStore = useUserStore();
 const loading = ref(true);
 /** @type {import('vue').Ref<string | null>} */
 const error = ref(null);
@@ -239,6 +129,37 @@ const stats = ref({
   users: { total: 0 },
   taxonomy: { tags: 0, categories: 0 },
 });
+
+const summaryItems = computed(() => [
+  {
+    label: '文章',
+    value: stats.value.articles.total,
+    note: `草稿 ${stats.value.articles.draft} · 待审核 ${stats.value.articles.pending}`,
+    to: '/admin/articles',
+  },
+  {
+    label: '评论',
+    value: stats.value.comments.total,
+    note: `待处理 ${stats.value.comments.pending}`,
+    to: '/admin/comments',
+  },
+  {
+    label: '分类',
+    value: stats.value.taxonomy.categories,
+    note: `标签 ${stats.value.taxonomy.tags} 个`,
+    to: '/admin/categories',
+  },
+  {
+    label: '用户',
+    value: stats.value.users.total,
+    note: '注册用户',
+    to: '/admin/users',
+  },
+]);
+
+const queueEmpty = computed(
+  () => stats.value.articles.pending === 0 && stats.value.comments.pending === 0,
+);
 
 const api = {
   getSummary: () => API.getMetricsSummary(),
@@ -250,27 +171,27 @@ const api = {
         API.getPublicV1('/articles?per_page=1').catch(() => ({ data: { data: [] } })),
         API.getPublicV1('/categories').catch(() => ({ data: { data: [] } }))
       ]);
-      
+
       return {
         data: {
           code: 0,
           data: {
             users: { total: 0 },
-            articles: { 
-              total: articles.data.data?.length || 0, 
-              published: articles.data.data?.length || 0, 
-              draft: 0, 
-              pending: 0 
+            articles: {
+              total: articles.data.data?.length || 0,
+              published: articles.data.data?.length || 0,
+              draft: 0,
+              pending: 0
             },
             comments: { total: 0, pending: 0, approved: 0 },
-            taxonomy: { 
-              tags: 0, 
-              categories: categories.data.data?.length || 0 
+            taxonomy: {
+              tags: 0,
+              categories: categories.data.data?.length || 0
             }
           }
         }
       };
-    } catch (error) {
+    } catch (err) {
       throw new Error('备用数据源也无法访问');
     }
   }
@@ -279,34 +200,29 @@ const api = {
 const fetchStats = async (retryCount = 0) => {
   loading.value = true;
   error.value = null;
-  
+
   try {
-    console.log('开始获取站点统计数据...');
-    
     // 设置超时时间为10秒
     const response = await Promise.race([
       api.getSummary(),
-      new Promise((_, reject) => 
+      new Promise((_, reject) =>
         setTimeout(() => reject(new Error('请求超时')), 10000)
       )
     ]);
-    
+
     if (response.data.code === 0) {
       stats.value = response.data.data;
-      console.log('✅ 站点统计数据获取成功');
       ElMessage.success('数据加载完成');
     } else {
       throw new Error(response.data.message || '服务器返回错误');
     }
-    
+
   } catch (err) {
-    console.error('获取统计数据失败:', err);
-    
     const e = /** @type {{ message?: string, code?: string, response?: { status?: number, data?: { message?: string } } }} */ (err);
-    
+
     // 根据错误类型提供不同的错误信息
     let errorMsg = '加载数据失败';
-    
+
     if (e.message === '请求超时') {
       errorMsg = '服务器响应超时，请检查后端服务是否正常运行';
     } else if (e.code === 'NETWORK_ERROR' || e.message?.includes('Network Error')) {
@@ -320,569 +236,166 @@ const fetchStats = async (retryCount = 0) => {
     } else if (e.message) {
       errorMsg = e.message;
     }
-    
+
     error.value = errorMsg;
-    
+
     // 如果是网络问题且重试次数少于2次，自动重试
     if ((e.message === '请求超时' || e.code === 'NETWORK_ERROR') && retryCount < 2) {
-      console.log(`自动重试中... (${retryCount + 1}/2)`);
       ElMessage.warning(`连接失败，正在重试... (${retryCount + 1}/2)`);
-      
+
       setTimeout(() => {
         fetchStats(retryCount + 1);
       }, 2000 * (retryCount + 1)); // 递增延迟
     } else if (retryCount >= 2) {
       // 重试失败后尝试备用数据源
-      console.log('主API重试失败，尝试备用数据源...');
       ElMessage.info('主数据源不可用，正在尝试备用数据源...');
-      
+
       try {
         const fallbackResponse = await api.getFallbackStats();
         stats.value = fallbackResponse.data.data;
-        console.log('✅ 备用数据源获取成功');
         ElMessage.success('已使用备用数据源加载基础数据');
         error.value = null; // 清除错误状态
       } catch (fallbackErr) {
-        console.error('备用数据源也失败:', fallbackErr);
         error.value = '主数据源和备用数据源均不可用，请检查网络连接或联系管理员';
         ElMessage.error('所有数据源均不可用');
       }
     } else {
       ElMessage.error(errorMsg);
     }
-    
+
   } finally {
     loading.value = false;
   }
 };
 
 onMounted(() => {
-  setMeta({ 
-    title: '站点数据看板', 
-    description: '实时监控站点各项指标和运行状态' 
+  setMeta({
+    title: '站点数据看板',
+    description: '实时监控站点各项指标和运行状态'
   });
   fetchStats();
 });
 </script>
 
 <style scoped>
-/* ===== 现代化数据看板样式 ===== */
-.modern-metrics-dashboard {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 2rem 1rem;
-  background: 
-    radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.04) 0%, transparent 40%),
-    radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.04) 0%, transparent 40%),
-    radial-gradient(circle at 40% 80%, rgba(16, 185, 129, 0.04) 0%, transparent 40%),
-#f8fafc;
-  min-height: 100vh;
-  position: relative;
+.metrics-dashboard {
+  width: 100%;
 }
 
-/* 现代化页面头部 */
-.dashboard-header {
+/* 卡片(同后台其他页的统一卡形) */
+.card {
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-r-container);
+  background: var(--adm-surface);
+  overflow: hidden;
+}
+.card-head {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--adm-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.card-head h2 {
+  font-size: 14px;
+  margin: 0;
+  color: var(--adm-text);
+}
+.head-link {
+  font-size: 12px;
+  color: var(--adm-muted);
+}
+.head-link:hover {
+  color: var(--adm-primary);
+}
+.card-body {
+  padding: 6px 16px 12px;
+}
+.state-body {
+  padding: 16px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+/* 待处理队列行 */
+.queue-empty {
+  padding: 14px 0;
+}
+.queue-empty p {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--adm-muted);
+}
+.queue-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: center;
+  padding: 13px 0;
+  border-top: 1px solid var(--adm-border);
+}
+.queue-row:first-of-type {
+  border-top: 0;
+}
+.queue-row b {
+  display: block;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--adm-text);
+}
+.queue-row small {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--adm-muted);
+}
+.queue-side {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.row-link {
+  font-size: 12px;
+  color: var(--adm-muted);
+}
+.row-link:hover {
+  color: var(--adm-primary);
+}
+
+/* 内容构成 KV */
+.kv-list {
+  display: grid;
+}
+.kv-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 3rem;
-  padding: 2.5rem;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 2rem;
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.06),
-    0 1px 0 rgba(255, 255, 255, 0.4) inset;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
+  gap: 16px;
+  padding: 11px 0;
+  border-top: 1px solid var(--adm-border);
 }
-
-.dashboard-header::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: #f1f5f9;
-  opacity: 0.6;
-}
-
-.dashboard-header:hover {
-  transform: translateY(-2px);
-  box-shadow: 
-    0 12px 40px rgba(59, 130, 246, 0.08),
-    0 2px 0 rgba(255, 255, 255, 0.6) inset;
-}
-
-.header-content {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-}
-
-.header-icon {
-  width: 64px;
-  height: 64px;
-  background: #f1f5f9;
-  border-radius: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  box-shadow: 0 8px 32px rgba(59, 130, 246, 0.3);
-  transition: all 0.3s ease;
-}
-
-.dashboard-header:hover .header-icon {
-  transform: scale(1.05) rotate(-2deg);
-  box-shadow: 0 12px 40px rgba(59, 130, 246, 0.4);
-}
-
-.dashboard-title {
-  font-size: 2.5rem;
-  font-weight: 800;
-  background: #f1f5f9;
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin: 0 0 0.5rem 0;
-  letter-spacing: -0.05em;
-}
-
-.dashboard-subtitle {
-  color: #64748b;
-  font-size: 1rem;
-  margin: 0;
-  font-weight: 500;
-  max-width: 400px;
-}
-
-.refresh-button {
-  background: rgba(59, 130, 246, 0.1);
-  border-radius: 50%;
-  padding: 0.5rem;
-  transition: all 0.3s ease;
-}
-
-.refresh-button:hover {
-  background: rgba(59, 130, 246, 0.15);
-  transform: scale(1.05);
-}
-
-/* 现代化统计网格 */
-.modern-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-  gap: 2rem;
-  margin-bottom: 2rem;
-}
-
-.modern-stat-card {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 2rem;
-  padding: 2rem;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.04),
-    0 1px 0 rgba(255, 255, 255, 0.4) inset;
-}
-
-.modern-stat-card::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
-  transform: scale(0);
-  transition: transform 0.6s ease;
-  pointer-events: none;
-}
-
-.modern-stat-card:hover {
-  transform: translateY(-4px) scale(1.01);
-  box-shadow: 
-    0 20px 40px rgba(59, 130, 246, 0.06),
-    0 2px 0 rgba(255, 255, 255, 0.6) inset;
-}
-
-.modern-stat-card:hover::before {
-  transform: scale(1);
-}
-
-/* 卡片头部 */
-.card-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
-}
-
-.header-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-}
-
-.article-stats .header-icon {
-  background: #f1f5f9;
-}
-
-.comment-stats .header-icon {
-  background: #f1f5f9;
-}
-
-.user-stats .header-icon {
-  background: #f1f5f9;
-}
-
-.taxonomy-stats .header-icon {
-  background: #f1f5f9;
-}
-
-.modern-stat-card:hover .header-icon {
-  transform: scale(1.1) rotate(-5deg);
-}
-
-.card-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  background: #f1f5f9;
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin: 0;
-  letter-spacing: -0.025em;
-}
-
-.card-subtitle {
-  font-size: 0.875rem;
-  color: #64748b;
-  font-weight: 500;
-  margin: 0;
-}
-
-/* 统计容器 */
-.stats-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 1.5rem;
-}
-
-.stats-container.single-stat {
-  grid-template-columns: 1fr;
-  justify-items: center;
-}
-
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.5rem;
-  border-radius: 1rem;
-  transition: all 0.3s ease;
-  position: relative;
-  backdrop-filter: blur(8px);
-}
-
-.stat-item.large {
-  padding: 2rem;
-  gap: 1.5rem;
-}
-
-.stat-item:hover {
-  transform: translateY(-2px) scale(1.02);
-}
-
-/* 统计项主题色彩 */
-.stat-item.primary {
-  background: rgba(59, 130, 246, 0.08);
-  border: 1px solid rgba(59, 130, 246, 0.15);
-}
-
-.stat-item.success {
-  background: rgba(16, 185, 129, 0.08);
-  border: 1px solid rgba(16, 185, 129, 0.15);
-}
-
-.stat-item.info {
-  background: rgba(6, 182, 212, 0.08);
-  border: 1px solid rgba(6, 182, 212, 0.15);
-}
-
-.stat-item.warning {
-  background: rgba(245, 158, 11, 0.08);
-  border: 1px solid rgba(245, 158, 11, 0.15);
-}
-
-.stat-item.purple {
-  background: rgba(139, 92, 246, 0.08);
-  border: 1px solid rgba(139, 92, 246, 0.15);
-}
-
-.stat-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.stat-item.primary .stat-icon {
-  background: #f1f5f9;
-}
-
-.stat-item.success .stat-icon {
-  background: #f1f5f9;
-}
-
-.stat-item.info .stat-icon {
-  background: #f1f5f9;
-}
-
-.stat-item.warning .stat-icon {
-  background: #f1f5f9;
-}
-
-.stat-item.purple .stat-icon {
-  background: #f1f5f9;
-}
-
-.stat-item:hover .stat-icon {
-  transform: scale(1.1) rotate(-5deg);
-}
-
-.stat-content {
-  text-align: center;
-}
-
-.stat-number {
-  font-size: 2rem;
-  font-weight: 800;
-  background: #f1f5f9;
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 0.5rem;
-  letter-spacing: -0.025em;
-}
-
-.stat-item.large .stat-number {
-  font-size: 3rem;
-}
-
-.stat-label {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.stat-alert {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  width: 24px;
-  height: 24px;
-  background: #f59e0b;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  animation: pulse-alert 2s infinite;
-}
-
-@keyframes pulse-alert {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.1); opacity: 0.8; }
-}
-
-/* 加载状态 */
-.modern-loading {
-  margin-top: 2rem;
+.kv-row:first-child {
+  border-top: 0;
 }
-
-.loading-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-  gap: 2rem;
-}
-
-.loading-card {
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 2rem;
-  padding: 2rem;
-  animation: loading-shimmer 1.5s ease-in-out infinite;
-}
-
-.loading-header {
-  height: 24px;
-  background: #f1f5f9;
-  background-size: 200% 100%;
-  border-radius: 6px;
-  margin-bottom: 1.5rem;
-  animation: loading-shimmer 1.5s ease-in-out infinite;
-}
-
-.loading-content {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-}
-
-.loading-stat {
-  height: 80px;
-  background: #f1f5f9;
-  background-size: 200% 100%;
-  border-radius: 8px;
-  animation: loading-shimmer 1.5s ease-in-out infinite;
-}
-
-@keyframes loading-shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-/* 错误状态 */
-.modern-error {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-top: 4rem;
-}
-
-.error-card {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 2rem;
-  padding: 3rem;
-  text-align: center;
-  max-width: 400px;
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.06),
-    0 1px 0 rgba(255, 255, 255, 0.4) inset;
-}
-
-.error-icon {
-  color: #ef4444;
-  margin-bottom: 1rem;
-}
-
-.error-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #374151;
-  margin: 0 0 1rem 0;
-}
-
-.error-message {
-  color: #6b7280;
-  margin: 0 0 1rem 0;
-  line-height: 1.5;
-}
-
-.diagnostic-info {
-  margin: 1.5rem 0;
-  text-align: left;
-}
-
-.diagnostic-content {
-  font-size: 0.875rem;
-  line-height: 1.6;
-}
-
-.diagnostic-content ul {
-  margin: 0.5rem 0;
-  padding-left: 1.5rem;
-}
-
-.diagnostic-content li {
-  margin: 0.25rem 0;
-  color: #4b5563;
-}
-
-.error-actions {
-  display: flex;
-  gap: 0.75rem;
-  justify-content: center;
-  margin-top: 1.5rem;
+.kv-row label {
+  font-size: 12px;
+  color: var(--adm-muted);
 }
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .modern-metrics-dashboard {
-    padding: 1rem;
-  }
-  
-  .dashboard-header {
-    flex-direction: column;
-    gap: 1.5rem;
-    text-align: center;
-    padding: 2rem;
-  }
-  
-  .dashboard-title {
-    font-size: 2rem;
-  }
-  
-  .modern-stats-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .stats-container {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .loading-content {
-    grid-template-columns: repeat(2, 1fr);
-  }
+.kv-value {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--adm-text);
+  font-variant-numeric: tabular-nums;
 }
 
-@media (max-width: 640px) {
-  .header-icon {
-    width: 48px;
-    height: 48px;
-  }
-  
-  .dashboard-title {
-    font-size: 1.75rem;
-  }
-  
-  .modern-stat-card {
-    padding: 1.5rem;
-  }
-  
-  .stats-container {
-    grid-template-columns: 1fr;
-  }
-  
-  .loading-content {
+@media (max-width: 1050px) {
+  .grid {
     grid-template-columns: 1fr;
   }
 }
