@@ -10,7 +10,6 @@ const Profile = () => import('./views/Profile.vue');
 const ArticleDetail = () => import(/* webpackChunkName: 'article-detail' */ './views/ArticleDetail.vue');
 const AuthorProfile = () => import(/* webpackChunkName: 'author-profile' */ './views/AuthorProfile.vue');
 const SearchPage = () => import(/* webpackChunkName: 'search-page' */ './views/SearchPage.vue');
-const CategoryPage = () => import('./views/CategoryPage.vue');
 const TagPage = () => import('./views/TagPage.vue');
 const CommentsModeration = () => import(/* webpackChunkName: 'comments-moderation' */ './views/CommentsModeration.vue');
 const UserAdmin = () => import(/* webpackChunkName: 'user-admin' */ './views/UserAdmin.vue');
@@ -75,10 +74,10 @@ const routes = [
   { path: '/articles/new', component: NewArticle },
   { path: '/articles/:id/edit', component: NewArticle, props: true, meta: { editMode: true, requiresAuth: true } },
   { path: '/new-article', redirect: '/articles/new' }, // 兼容重定向
-  { path: '/author/:id', component: AuthorProfile, props: true },
-  { path: '/category/:id', component: CategoryPage, props: true },
+  { path: '/author/:id', component: AuthorProfile, props: true, meta: { public: true } },
+  { path: '/category/:id', redirect: '/topics' }, // A5: 旧分类路由并入专题体系
   { path: '/tag/:slug', component: TagPage, props: true },
-  { path: '/categories', component: () => import('./views/CategoriesPage.vue') },
+  { path: '/categories', redirect: '/topics' }, // A5: 并入专题体系
   { path: '/about', component: () => import('./views/About.vue'), meta: { public: true } },
   { path: '/media', component: () => import('./views/MediaGallery.vue') },
   

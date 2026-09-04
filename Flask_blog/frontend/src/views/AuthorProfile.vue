@@ -1,177 +1,47 @@
 <template>
-  <div v-if="loaded" class="modern-author-profile">
-    <!-- 现代化作者头部 -->
-    <header class="modern-author-header">
-      <div class="header-decoration" />
-      <div class="header-content">
-        <div class="avatar-section">
-          <div class="avatar-container">
-            <img v-if="profile.avatar" :src="profile.avatar" class="modern-avatar" loading="lazy">
-            <div v-else class="avatar-placeholder">
-              <el-icon size="48"><User /></el-icon>
-            </div>
-
-            <div class="avatar-ring" />
-          </div>
-        </div>
-        <div class="author-meta">
-          <h1 class="author-name">{{ profile.nickname || ('作者 #' + profile.id) }}</h1>
-          <p v-if="profile.bio" class="author-bio">{{ profile.bio }}</p>
-          <div v-if="statsLoaded" class="quick-stats">
-            <span class="stat-item">
-              <el-icon><Document /></el-icon>
-              {{ stats.articles_count }} 篇文章
-            </span>
-            <span class="stat-item">
-              <el-icon><View /></el-icon>
-              {{ stats.total_views }} 次阅读
-            </span>
-            <span class="stat-item">
-              <el-icon><Star /></el-icon>
-              {{ stats.total_likes }} 点赞
-            </span>
-          </div>
-        </div>
-      </div>
-    </header>
-
-    <!-- 现代化统计卡片 -->
-    <section v-if="statsLoaded" class="modern-stats-section">
-      <div class="stats-grid">
-        <div class="modern-stat-card stat-articles">
-          <div class="stat-icon">
-            <el-icon size="24"><Document /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-number">{{ stats.articles_count }}</div>
-            <div class="stat-label">文章数</div>
-          </div>
-          <div class="stat-decoration" />
-        </div>
-        <div class="modern-stat-card stat-views">
-          <div class="stat-icon">
-            <el-icon size="24"><View /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-number">{{ stats.total_views }}</div>
-            <div class="stat-label">总阅读</div>
-          </div>
-          <div class="stat-decoration" />
-        </div>
-        <div class="modern-stat-card stat-likes">
-          <div class="stat-icon">
-            <el-icon size="24"><Star /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-number">{{ stats.total_likes }}</div>
-            <div class="stat-label">总点赞</div>
-          </div>
-          <div class="stat-decoration" />
-        </div>
-        <div v-if="stats.last_published_at" class="modern-stat-card stat-date">
-          <div class="stat-icon">
-            <el-icon size="24"><Clock /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-number">{{ formatDate(stats.last_published_at) }}</div>
-            <div class="stat-label">最近发布</div>
-          </div>
-          <div class="stat-decoration" />
-        </div>
+  <div v-if="loaded" class="author-page">
+    <section class="page-head">
+      <div class="eyebrow">作者</div>
+      <h1>{{ profile.nickname || ('作者 #' + profile.id) }}</h1>
+      <p v-if="profile.bio">{{ profile.bio }}</p>
+      <div class="meta">
+        <span>{{ total }} 篇文章</span>
+        <span v-if="statsLoaded && stats.articles_count != null">· {{ stats.articles_count }} 篇发布</span>
       </div>
     </section>
-    <!-- 现代化文章列表 -->
-    <section class="modern-article-section">
-      <div class="section-header">
-        <h2 class="section-title">
-          <el-icon class="title-icon"><Collection /></el-icon>
-          发布的文章
-        </h2>
-        <div class="article-count-badge">{{ total }} 篇</div>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>发布文章</h2>
+        <span class="meta">按发布时间排序</span>
       </div>
-      
-      <div class="articles-container">
-        <article 
-          v-for="article in articles" 
-          :key="article.id"
-          class="modern-article-card group"
-        >
-          <router-link :to="'/article/' + article.slug" class="article-link">
-            <div class="article-content">
-              <div class="article-header">
-                <h3 class="article-title">{{ article.title }}</h3>
-                <div class="article-arrow">
-                  <el-icon><ArrowRight /></el-icon>
-                </div>
-              </div>
-              
-              <p v-if="article.summary" class="article-summary">
-                {{ article.summary }}
-              </p>
-              
-              <div class="article-meta">
-                <span class="meta-item">
-                  <el-icon size="14"><View /></el-icon>
-                  {{ article.views_count || 0 }} 次阅读
-                </span>
-                <span class="meta-item">
-                  <el-icon size="14"><Calendar /></el-icon>
-                  {{ formatDate(article.published_at || article.created_at) }}
-                </span>
-                <span v-if="article.category" class="meta-item">
-                  <el-icon size="14"><Folder /></el-icon>
-                  {{ articleCategoryName(article) }}
-                </span>
-              </div>
-            </div>
-            
-            <div class="article-decoration" />
-          </router-link>
-        </article>
-      </div>
-      
-      <!-- 空状态 -->
-      <div v-if="!articles.length" class="modern-empty-state">
-        <el-icon class="empty-icon" size="64"><Document /></el-icon>
-        <h3 class="empty-title">暂无文章</h3>
-        <p class="empty-description">该作者还没有发布任何文章</p>
-      </div>
-      
-      <!-- 现代化分页 -->
-      <div v-if="total > pageSize" class="modern-pagination">
-        <button 
-          :disabled="page === 1" 
-          class="pagination-btn prev-btn"
-          @click="prev"
-        >
-          <el-icon><ArrowLeft /></el-icon>
-          上一页
-        </button>
-        
-        <div class="page-info">
-          <span class="current-page">{{ page }}</span>
-          <span class="page-separator">/</span>
-          <span class="total-pages">{{ Math.ceil(total / pageSize) }}</span>
+
+      <AdminStateBlock
+        v-if="!articles.length"
+        kind="empty"
+        title="暂无文章"
+        description="该作者还没有发布任何文章。"
+        compact
+      />
+      <div v-else class="list">
+        <div v-for="a in articles" :key="a.id" class="row">
+          <time>{{ formatDate(a.published_at || a.created_at) }}</time>
+          <div>
+            <RouterLink :to="'/article/' + a.slug" class="row-title">{{ a.title }}</RouterLink>
+            <small v-if="articleCategoryName(a)" class="row-sub">{{ articleCategoryName(a) }}</small>
+          </div>
+          <span class="arrow">→</span>
         </div>
-        
-        <button 
-          :disabled="page * pageSize >= total" 
-          class="pagination-btn next-btn"
-          @click="next"
-        >
-          下一页
-          <el-icon><ArrowRight /></el-icon>
-        </button>
+      </div>
+
+      <div v-if="total > pageSize" class="pager">
+        <button type="button" class="ghost-btn" :disabled="page === 1" @click="prev">‹ 上一页</button>
+        <span class="pager-info">{{ page }} / {{ Math.max(1, Math.ceil(total / pageSize)) }}</span>
+        <button type="button" class="ghost-btn" :disabled="page * pageSize >= total" @click="next">下一页 ›</button>
       </div>
     </section>
   </div>
-  <!-- 现代化加载状态 -->
-  <div v-else class="modern-loading">
-    <div class="loading-container">
-      <div class="loading-spinner" />
-      <p class="loading-text">加载中...</p>
-    </div>
-  </div>
+  <div v-else class="author-page"><div class="loading">加载中...</div></div>
 </template>
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
@@ -832,5 +702,123 @@ watch(()=>route.params.id, ()=>{ page.value=1; load(); });
   .article-meta {
     gap: 1rem;
   }
+}
+</style>
+
+<style scoped>
+/* 作者公开页(公开站 V2):PageHead + 行列表 */
+.author-page {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+}
+.page-head {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 48px 32px 28px;
+}
+.eyebrow {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.page-head h1 {
+  margin: 0;
+  font-size: 28px;
+  letter-spacing: -0.04em;
+}
+.page-head p {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+.meta {
+  display: flex;
+  gap: 18px;
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 14px;
+}
+.section {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 32px 44px;
+}
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.section-head h2 {
+  font-size: 14px;
+  margin: 0;
+}
+.meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+.list {
+  display: grid;
+}
+.row {
+  display: grid;
+  grid-template-columns: 84px 1fr auto;
+  gap: 14px;
+  align-items: center;
+  min-height: 56px;
+  border-top: 1px solid var(--line);
+  padding: 6px 0;
+}
+.row:first-child {
+  border-top: 0;
+}
+.row time {
+  font-size: 12px;
+  color: var(--muted);
+}
+.row-title {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--text);
+}
+.row-title:hover {
+  color: var(--primary, #2563eb);
+}
+.row-sub {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+.pager-info {
+  font-size: 12px;
+  color: var(--muted);
+}
+.ghost-btn {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  color: var(--text-2, #3f3f46);
+  font-size: 12px;
+  cursor: pointer;
+}
+.ghost-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.loading {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
 }
 </style>
