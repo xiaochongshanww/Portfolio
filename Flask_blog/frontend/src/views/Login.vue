@@ -1,11 +1,14 @@
 <template>
-  <div class="auth-page-container">
-    <div class="auth-form-wrapper">
-      <div class="auth-header">
-        <h1 class="auth-title">登录您的账户</h1>
-        <p class="auth-subtitle">欢迎回来！请登录您的账户以继续</p>
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <span class="brand-mark">山</span>
+        <span class="brand-name">小重山</span>
       </div>
-      
+      <h1 class="auth-title">登录您的账户</h1>
+      <p class="auth-subtitle">欢迎回来！请登录您的账户以继续</p>
+    </div>
+    <div class="auth-form-wrapper">
       <el-card class="auth-card" shadow="always">
         <el-form label-position="top" class="auth-form" @submit.prevent="submit" @keyup.enter="submit">
           <el-form-item label="邮箱地址" class="auth-form-item">
@@ -160,227 +163,82 @@ async function submit() {
 }
 </script>
 
-<style>
-/* 登录成功对话框自定义样式 */
-.login-success-dialog {
-  border-radius: 20px !important;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15) !important;
-  border: none !important;
-  overflow: hidden !important;
-}
-
-.login-success-dialog .el-message-box__header {
-  padding: 24px 24px 0 !important;
-  border-bottom: none !important;
-}
-
-.login-success-dialog .el-message-box__title {
-  font-size: 24px !important;
-  font-weight: 700 !important;
-  color: #059669 !important;
-  text-align: center !important;
-}
-
-.login-success-dialog .el-message-box__content {
-  padding: 0 24px 24px !important;
-}
-
-.login-success-dialog .el-message-box__message {
-  margin: 0 !important;
-  color: inherit !important;
-}
-
-/* 进度条动画 */
-@keyframes progressBar {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-
-/* 成功对话框的背景遮罩 */
-.login-success-dialog + .el-overlay {
-  background-color: rgba(0, 0, 0, 0.6) !important;
-  backdrop-filter: blur(8px) !important;
-}
-</style>
-
 <style scoped>
-/* 认证页面容器 - 渐进式响应设计 */
-.auth-page-container {
-  min-height: 70vh;
+/* 登录页(V2 视觉):居中卡 + 品牌标识,公开站 token */
+.auth-page {
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f1f5f9;
-  padding: 2rem 1rem;
-  position: relative;
+  background: var(--bg);
+  padding: 24px;
 }
-
-/* 背景装饰 */
-.auth-page-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-image: 
-    radial-gradient(circle at 25% 25%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 75% 75%, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
-  pointer-events: none;
-}
-
-/* 表单容器 - 响应式宽度 */
-.auth-form-wrapper {
-  width: 100%;
-  max-width: 420px;
-  position: relative;
-  z-index: 1;
-}
-
-/* 移动端适配 */
-@media (min-width: 640px) {
-  .auth-form-wrapper {
-    max-width: 480px;
-  }
-}
-
-@media (min-width: 768px) {
-  .auth-form-wrapper {
-    max-width: 520px;
-  }
-}
-
-@media (min-width: 1024px) {
-  .auth-form-wrapper {
-    max-width: 560px;
-  }
-}
-
-/* 页面头部 */
-.auth-header {
-  text-align: center;
-  margin-bottom: 2rem;
-}
-
-.auth-title {
-  font-size: 2rem;
-  font-weight: 700;
-  color: rgb(17 24 39);
-  margin-bottom: 0.5rem;
-  letter-spacing: -0.025em;
-}
-
-.auth-subtitle {
-  color: rgb(107 114 128);
-  font-size: 1rem;
-  margin: 0;
-  line-height: 1.5;
-}
-
-/* 认证卡片 */
 .auth-card {
-  border-radius: 1rem;
-  border: 1px solid rgb(229 231 235);
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  padding: 2.5rem;
-  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-}
-
-/* 表单样式 */
-.auth-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.auth-form-item {
-  margin-bottom: 0;
-}
-
-/* 输入框样式 */
-.auth-input :deep(.el-input__wrapper) {
-  border-radius: 0.75rem;
-  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
-  transition: all 0.2s ease;
-}
-
-.auth-input :deep(.el-input__wrapper):hover {
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-}
-
-.auth-input :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 2px rgb(59 130 246 / 0.3), 0 4px 6px -1px rgb(0 0 0 / 0.1);
-}
-
-/* 错误提示 */
-.auth-error-alert {
-  border-radius: 0.75rem;
-  margin: 1rem 0;
-}
-
-/* 提交按钮 */
-.auth-submit-item {
-  margin-top: 1rem;
-  margin-bottom: 0;
-}
-
-.auth-submit-btn {
   width: 100%;
-  border-radius: 0.75rem;
-  font-weight: 600;
-  font-size: 1rem;
-  transition: all 0.2s ease;
-  background: #f1f5f9;
-  border: none;
+  max-width: 400px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 32px 28px;
 }
-
-.auth-submit-btn:hover {
-  background: #f1f5f9;
-  transform: translateY(-1px);
-  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
 }
-
-/* 底部文本 */
+.brand-mark {
+  width: 29px;
+  height: 29px;
+  border-radius: 8px;
+  background: var(--text);
+  color: var(--bg);
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 800;
+}
+.brand-name {
+  font-weight: 750;
+  font-size: 15px;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.auth-title {
+  margin: 0 0 6px;
+  font-size: 24px;
+  letter-spacing: -0.03em;
+  color: var(--text);
+}
+.auth-subtitle {
+  margin: 0 0 22px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.auth-form :deep(.el-form-item__label) {
+  color: var(--muted);
+}
+.auth-form :deep(.el-input__wrapper) {
+  border-radius: 10px;
+}
+.auth-form :deep(.el-button--primary) {
+  width: 100%;
+  height: 40px;
+  border-radius: 10px;
+  font-weight: 650;
+}
 .auth-footer-text {
   text-align: center;
-  margin-top: 1.5rem;
-  color: rgb(107 114 128);
-  font-size: 0.875rem;
+  margin-top: 18px;
+  font-size: 13px;
+  color: var(--muted);
 }
-
 .auth-link {
-  color: rgb(59 130 246);
+  color: var(--primary);
   font-weight: 600;
   text-decoration: none;
-  transition: color 0.2s ease;
 }
-
 .auth-link:hover {
-  color: rgb(37 99 235);
   text-decoration: underline;
-}
-
-/* 移动端优化 */
-@media (max-width: 640px) {
-  .auth-page-container {
-    padding: 1rem 0.75rem;
-  }
-  
-  .auth-card {
-    padding: 1.5rem;
-  }
-  
-  .auth-title {
-    font-size: 1.75rem;
-  }
-  
-  .auth-subtitle {
-    font-size: 0.875rem;
-  }
 }
 </style>
