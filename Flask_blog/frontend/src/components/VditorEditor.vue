@@ -23,9 +23,11 @@
     </div>
 
     <!-- Vditor编辑器容器 -->
+    <!-- 加载占位用 v-show 而非 v-if:Vditor 初始化会接管容器内部 DOM,
+         v-if 的挂载/卸载会让 Vue 跟踪节点被外部夺走,后续补丁触发
+         "Cannot set properties of null (setting '__vnode')" 且中止整个 flush -->
     <div ref="vditorRef" class="vditor-container">
-      <!-- 加载状态 -->
-      <div v-if="!isEditorReady" class="loading-placeholder">
+      <div v-show="!isEditorReady" class="loading-placeholder">
         <div class="loading-content">
           <el-icon class="is-loading"><Loading /></el-icon>
           <p>正在初始化Markdown编辑器...</p>
