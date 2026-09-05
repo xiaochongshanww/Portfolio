@@ -589,6 +589,14 @@ onMounted(() => {
 
 <style scoped>
 .category-selector {
+  /* EP 主色对齐公开站 #2563eb(按钮/选中态) */
+  --el-color-primary: #2563eb;
+  --el-color-primary-light-3: #5a8bef;
+  --el-color-primary-light-5: #8fadf4;
+  --el-color-primary-light-7: #c3d5f8;
+  --el-color-primary-light-8: #dbe5fa;
+  --el-color-primary-light-9: #eef3fd;
+  --el-color-primary-dark-2: #1d4ed8;
   width: 100%;
 }
 
@@ -603,20 +611,19 @@ onMounted(() => {
 }
 
 .select-icon {
-  color: #409eff;
+  color: var(--muted, #6b7280);
 }
 
 .ai-recommend-btn {
   flex-shrink: 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-  transition: all 0.3s ease;
+  background: #2563eb;
+  border: 1px solid #2563eb;
+  transition: background-color 180ms ease, border-color 180ms ease;
 }
 
 .ai-recommend-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  background: #1d4ed8;
+  border-color: #1d4ed8;
 }
 
 /* 选项样式 */
@@ -672,10 +679,9 @@ onMounted(() => {
 /* 推荐面板 */
 .recommendations-panel {
   margin-top: 16px;
-  background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
-  border: 1px solid #e4e7ed;
+  background: var(--surface, #fff);
+  border: 1px solid var(--line, #e3e3df);
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   overflow: hidden;
 }
 
@@ -683,9 +689,10 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  padding: 12px 16px;
+  background: var(--surface-2, #f1f1ee);
+  border-bottom: 1px solid var(--line, #e3e3df);
+  color: var(--text, #171717);
 }
 
 .panel-title {
@@ -814,8 +821,8 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 12px 16px;
-  background: linear-gradient(135deg, #f0f9ff 0%, #e6f7ff 100%);
-  border: 1px solid #b3d8ff;
+  background: var(--blue-soft, #edf3ff);
+  border: 1px solid #bfdbfe;
   border-radius: 8px;
   margin-bottom: 12px;
 }

@@ -22,19 +22,17 @@
       </div>
     </div>
 
-    <!-- Vditor编辑器容器 -->
-    <!-- 加载占位用 v-show 而非 v-if:Vditor 初始化会接管容器内部 DOM,
-         v-if 的挂载/卸载会让 Vue 跟踪节点被外部夺走,后续补丁触发
-         "Cannot set properties of null (setting '__vnode')" 且中止整个 flush -->
-    <div ref="vditorRef" class="vditor-container">
-      <div v-show="!isEditorReady" class="loading-placeholder">
-        <div class="loading-content">
-          <el-icon class="is-loading"><Loading /></el-icon>
-          <p>正在初始化Markdown编辑器...</p>
-          <p class="loading-tip">首次加载可能需要几秒钟</p>
-        </div>
+    <!-- 加载占位:置于容器外(Vditor 初始化会接管容器内部 DOM,占位符放里面会被夺走) -->
+    <div v-if="!isEditorReady" class="loading-placeholder">
+      <div class="loading-content">
+        <el-icon class="is-loading"><Loading /></el-icon>
+        <p>正在初始化Markdown编辑器...</p>
+        <p class="loading-tip">首次加载可能需要几秒钟</p>
       </div>
     </div>
+
+    <!-- Vditor编辑器容器 -->
+    <div ref="vditorRef" class="vditor-container" />
 
     <!-- 原生媒体选择模态框将通过JavaScript动态创建 -->
   </div>
@@ -1100,20 +1098,20 @@ defineExpose({
 
 <style scoped>
 .vditor-editor-container {
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
   overflow: hidden;
-  background: white;
+  background: var(--surface);
 }
 
 .editor-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  background: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
-  font-size: 14px;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
 }
 
 .header-info {
@@ -1143,7 +1141,9 @@ defineExpose({
   align-items: center;
   justify-content: center;
   height: 400px;
-  background: #fafafa;
+  background: var(--surface-2);
+  border: 1px dashed var(--line);
+  border-radius: 12px;
 }
 
 .loading-content {

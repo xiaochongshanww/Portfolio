@@ -1,5 +1,5 @@
 <template>
-  <div class="editor-page">
+  <div class="editor-page shell">
     <!-- 页头 + 三键(05 §25:Save Draft / Preview / Publish) -->
     <header class="editor-top">
       <div class="head-copy">

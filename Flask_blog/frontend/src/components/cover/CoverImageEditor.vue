@@ -1,17 +1,9 @@
 <template>
-  <el-card class="cover-card" shadow="hover">
-    <template #header>
-      <h3 class="card-title">
-        <el-icon class="title-icon"><Picture /></el-icon>
-        封面图片
-      </h3>
-    </template>
-
+  <div class="cover-editor">
     <div class="cover-section">
       <!-- 上传区域 -->
       <div class="upload-section">
-        <el-form-item label="选择封面图">
-          <div class="upload-area">
+        <div class="upload-area">
             <!-- 主要上传选项 -->
             <div class="primary-upload">
               <el-upload
@@ -60,11 +52,11 @@
               </div>
             </div>
           </div>
+
           <div class="input-hint">
             <el-icon class="hint-icon"><InfoFilled /></el-icon>
             支持 JPG、PNG、WebP 格式，建议尺寸 1200x630 像素，文件大小不超过 5MB
           </div>
-        </el-form-item>
       </div>
 
       <!-- URL输入作为高级选项 -->
@@ -117,7 +109,7 @@
       accept="image/*"
       @selected="handleMediaSelected"
     />
-  </el-card>
+  </div>
 </template>
 
 <script setup>
@@ -216,6 +208,24 @@ function onFocal(f) {
 </script>
 
 <style scoped>
+/* EP 主色对齐公开站 #2563eb;成功色按钮改中性 ghost */
+.cover-editor {
+  --el-color-primary: #2563eb;
+  --el-color-primary-light-3: #5a8bef;
+  --el-color-primary-light-5: #8fadf4;
+  --el-color-primary-light-7: #c3d5f8;
+  --el-color-primary-light-8: #dbe5fa;
+  --el-color-primary-light-9: #eef3fd;
+  --el-color-primary-dark-2: #1d4ed8;
+}
+.cover-editor :deep(.el-button--success) {
+  --el-button-bg-color: var(--surface, #fff);
+  --el-button-border-color: var(--line-strong, #d4d4ce);
+  --el-button-text-color: var(--text, #171717);
+  --el-button-hover-bg-color: var(--surface, #fff);
+  --el-button-hover-border-color: var(--text, #171717);
+  --el-button-hover-text-color: var(--text, #171717);
+}
 .cover-section {
   display: flex;
   flex-direction: column;
@@ -243,7 +253,7 @@ function onFocal(f) {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  color: #9ca3af;
+  color: var(--muted, #6b7280);
   font-size: 0.875rem;
 }
 
@@ -252,7 +262,7 @@ function onFocal(f) {
 }
 
 .option-hint {
-  color: #9ca3af;
+  color: var(--muted, #6b7280);
   font-size: 0.875rem;
   margin-top: 0.5rem;
 }
@@ -265,11 +275,11 @@ function onFocal(f) {
   display: block;
   font-weight: 500;
   margin-bottom: 0.5rem;
-  color: #374151;
+  color: var(--text, #171717);
 }
 
 .input-hint {
-  color: #6b7280;
+  color: var(--muted, #6b7280);
   font-size: 0.875rem;
   margin-top: 0.5rem;
   display: flex;
