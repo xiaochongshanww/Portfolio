@@ -71,8 +71,9 @@ const routes = [
   { path: '/login', component: Login },
   { path: '/register', component: Register },
   { path: '/me/profile', component: Profile },
-  { path: '/articles/new', component: NewArticle },
-  { path: '/articles/:id/edit', component: NewArticle, props: true, meta: { editMode: true, requiresAuth: true } },
+  // 创作工具页(公共 V2 壳;编辑器自带认证守卫,未登录跳 /login)
+  { path: '/articles/new', component: NewArticle, meta: { public: true } },
+  { path: '/articles/:id/edit', component: NewArticle, props: true, meta: { editMode: true, public: true, requiresAuth: true } },
   { path: '/new-article', redirect: '/articles/new' }, // 兼容重定向
   { path: '/author/:id', component: AuthorProfile, props: true, meta: { public: true } },
   { path: '/category/:id', redirect: '/topics' }, // A5: 旧分类路由并入专题体系

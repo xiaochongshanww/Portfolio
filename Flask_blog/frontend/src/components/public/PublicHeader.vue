@@ -33,6 +33,36 @@
         >
           {{ themeIcon }}
         </button>
+        <!-- 登录态:写文章 CTA + 账号菜单(未登录不展示,登录/注册不入导航) -->
+        <template v-if="userStore.isAuthenticated">
+          <button type="button" class="write-btn" @click="go('/articles/new')">
+            写文章
+          </button>
+          <div class="user-menu">
+            <button
+              type="button"
+              class="avatar-btn"
+              :aria-label="`账号菜单,${displayName}`"
+              :aria-expanded="userMenuOpen"
+              @click.stop="userMenuOpen = !userMenuOpen"
+            >{{ initial }}</button>
+            <div v-if="userMenuOpen" class="user-sheet">
+              <div class="user-id">
+                <b>{{ displayName }}</b>
+                <small>{{ userStore.user?.email || '' }}</small>
+              </div>
+              <a href="/me/profile" class="user-link" @click.prevent="goMenu('/me/profile')">个人中心</a>
+              <a href="/media" class="user-link" @click.prevent="goMenu('/media')">我的媒体库</a>
+              <a
+                v-if="userStore.canAccessAdmin"
+                href="/admin"
+                class="user-link"
+                @click.prevent="goMenu('/admin')"
+              >管理后台</a>
+              <button type="button" class="user-link logout" @click="logout">退出登录</button>
+            </div>
+          </div>
+        </template>
         <!-- 移动端导航入口(<720px 显示;桌面由 nav 承担) -->
         <button
           type="button"
@@ -73,11 +103,13 @@
  * 公开站 Header(02 号规范第 1 节 / 01 号规范第 4 节)
  * sticky + 轻毛玻璃;当前导航仅文字变色;登录/注册不入导航。
  * P2-D2:搜索按钮触发全局 SearchOverlay;P2-E2:◐ 主题切换。
+ * 登录态:写文章 CTA + 账号菜单(个人中心/媒体库/后台/退出),供创作工具页入公共壳。
  */
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSearchOverlay } from '../../composables/useSearchOverlay'
 import { useTheme } from '../../composables/useTheme'
+import { useUserStore } from '../../stores/user'
 
 export default {
   name: 'PublicHeader',
@@ -86,6 +118,7 @@ export default {
     const router = useRouter()
     const { openOverlay } = useSearchOverlay()
     const { mode, cycleMode } = useTheme()
+    const userStore = useUserStore()
 
     const navItems = [
       { label: '文章', path: '/' },
@@ -119,8 +152,32 @@ export default {
     /** @param {string} path */
     function goMenu(path) {
       menuOpen.value = false
+      userMenuOpen.value = false
       go(path)
     }
+
+    // 登录态账号菜单
+    const userMenuOpen = ref(false)
+    const displayName = computed(() => {
+      /** @type {{ nickname?: string, email?: string }} */
+      const u = userStore.user || {}
+      return u.nickname || u.email || '用户'
+    })
+    const initial = computed(() => (displayName.value || '?').charAt(0).toUpperCase())
+
+    /** 点击菜单外关闭 */
+    function onDocClick() {
+      userMenuOpen.value = false
+    }
+    /** 退出登录并回主页 */
+    function logout() {
+      userMenuOpen.value = false
+      userStore.logout()
+      router.push('/')
+    }
+
+    onMounted(() => document.addEventListener('click', onDocClick))
+    onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
 
     const THEME_META = {
       light: { icon: '☀', label: '亮色' },
@@ -130,7 +187,10 @@ export default {
     const themeIcon = computed(() => THEME_META[mode.value].icon)
     const themeLabel = computed(() => THEME_META[mode.value].label)
 
-    return { navItems, isActive, go, openSearch, themeIcon, themeLabel, cycleTheme: cycleMode, menuOpen, goMenu }
+    return {
+      navItems, isActive, go, openSearch, themeIcon, themeLabel, cycleTheme: cycleMode,
+      menuOpen, goMenu, userStore, userMenuOpen, displayName, initial, logout,
+    }
   },
 }
 </script>
@@ -230,6 +290,100 @@ export default {
 .theme-toggle:hover {
   color: var(--text);
   border-color: var(--line-strong);
+}
+
+/* 登录态:写文章 CTA + 账号菜单 */
+.write-btn {
+  height: 34px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 10px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.write-btn:hover {
+  opacity: 0.85;
+}
+.user-menu {
+  position: relative;
+}
+.avatar-btn {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.avatar-btn:hover {
+  border-color: var(--line-strong);
+}
+.user-sheet {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 200px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 8px 28px rgba(10, 10, 9, 0.1);
+  display: flex;
+  flex-direction: column;
+  z-index: 60;
+}
+.user-id {
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+}
+.user-id b {
+  display: block;
+  font-size: 13px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.user-id small {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.user-link {
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: left;
+  cursor: pointer;
+  display: block;
+}
+.user-link:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.user-link.logout {
+  border-top: 1px solid var(--line);
+  margin-top: 4px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  width: 100%;
 }
 
 @media (max-width: 720px) {
