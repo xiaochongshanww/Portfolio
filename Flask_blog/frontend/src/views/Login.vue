@@ -139,12 +139,10 @@ async function submit() {
       }
     }).catch(() => {
       // 捕获关闭时的rejected promise
-      console.log('MessageBox已关闭');
     });
     
     // 2秒后自动关闭对话框并跳转
     setTimeout(() => {
-      console.log('✅ 用户登录成功，开始跳转到主页');
       
       // 允许关闭MessageBox
       shouldAllowClose = true;

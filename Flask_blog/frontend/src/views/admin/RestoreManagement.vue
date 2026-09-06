@@ -50,7 +50,9 @@
               :loading="starting"
               :disabled="!selectedBackupId"
               @click="startRestore"
-            >开始恢复</el-button>
+            >
+              开始恢复
+            </el-button>
           </div>
         </div>
       </section>
@@ -121,7 +123,9 @@
           class="ghost-danger-btn"
           :disabled="cleaningUp"
           @click="cleanupStuckTasks"
-        >清理卡住的任务</button>
+        >
+          清理卡住的任务
+        </button>
       </template>
     </AdminToolbar>
 
@@ -174,7 +178,9 @@
                   class="edit-btn danger-btn"
                   :disabled="row._cancelling"
                   @click="cancelRestore(row.restore_id)"
-                >取消</button>
+                >
+                  取消
+                </button>
               </div>
             </template>
           </el-table-column>

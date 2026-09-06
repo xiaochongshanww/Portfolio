@@ -97,13 +97,17 @@
                     class="act-btn success"
                     :disabled="moderatingIds.has(row.id)"
                     @click="handleModerate(row, 'approve')"
-                  >通过</button>
+                  >
+                    通过
+                  </button>
                   <button
                     type="button"
                     class="act-btn danger"
                     :disabled="moderatingIds.has(row.id)"
                     @click="handleModerate(row, 'reject')"
-                  >拒绝</button>
+                  >
+                    拒绝
+                  </button>
                 </template>
                 <button
                   v-else
@@ -111,7 +115,9 @@
                   class="edit-btn"
                   :disabled="moderatingIds.has(row.id)"
                   @click="handleModerate(row, row.status === 'approved' ? 'reject' : 'approve')"
-                >{{ row.status === 'approved' ? '撤销' : '恢复' }}</button>
+                >
+                  {{ row.status === 'approved' ? '撤销' : '恢复' }}
+                </button>
                 <AdminActionMenu :test-id="`comment-${row.id}`">
                   <template #menu>
                     <el-dropdown-item @click="viewArticle(row.article_id)">查看文章</el-dropdown-item>

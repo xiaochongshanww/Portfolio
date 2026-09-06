@@ -90,7 +90,6 @@ onMounted(async () => {
   try {
     await userStore.initAuth();
   } catch (error) {
-    console.log('初始化用户状态失败:', error);
   }
   
   // 添加全局消息点击关闭功能

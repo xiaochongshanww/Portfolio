@@ -113,7 +113,9 @@
           v-if="selectedEvent && !selectedEvent.handled"
           type="danger"
           @click="handleEvent(selectedEvent)"
-        >标记已处理</el-button>
+        >
+          标记已处理
+        </el-button>
       </template>
     </el-drawer>
   </div>

@@ -42,14 +42,18 @@
           :class="{ 'view-active': viewMode === 'grid' }"
           aria-label="网格视图"
           @click="viewMode = 'grid'"
-        >▦</button>
+        >
+          ▦
+        </button>
         <button
           type="button"
           class="ghost-btn"
           :class="{ 'view-active': viewMode === 'list' }"
           aria-label="列表视图"
           @click="viewMode = 'list'"
-        >☰</button>
+        >
+          ☰
+        </button>
         <button type="button" class="ghost-btn" @click="showCreateFolderDialog = true">＋ 文件夹</button>
       </template>
       <template #right>

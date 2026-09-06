@@ -89,7 +89,7 @@ export function setMeta({
     if(modifiedTime){
       ensureTag('meta[property="article:modified_time"]', ()=>{ const m=document.createElement('meta'); m.setAttribute('property','article:modified_time'); return m; }).setAttribute('content', modifiedTime);
     }
-  } catch(_e){ /* ignore */ }
+  } catch (_e) { /* ignore */ }
 }
 
 /**
@@ -101,7 +101,7 @@ export function injectJsonLd(obj){
     let script = document.head.querySelector('script[data-jsonld="dynamic"]');
     if(!script){ script = document.createElement('script'); script.type='application/ld+json'; script.dataset.jsonld='dynamic'; document.head.appendChild(script); }
     script.textContent = JSON.stringify(obj);
-  }catch(_e){ /* ignore */ }
+  }catch (_e) { /* ignore */ }
 }
 
 export function resetMeta(){

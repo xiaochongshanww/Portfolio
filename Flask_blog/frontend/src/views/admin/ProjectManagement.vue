@@ -153,8 +153,10 @@
         <el-form-item label="关键设计决策"><el-input v-model="form.design_notes" type="textarea" :rows="3" /></el-form-item>
         <el-form-item label="相关文章 slug"><el-input v-model="form.relatedSlugs" placeholder="逗号分隔,如 rag-intro, jwt-basics" /></el-form-item>
         <el-form-item label="Changelog JSON">
-          <el-input v-model="form.changelog" type="textarea" :rows="3"
-            placeholder='[{"date":"2026-08-20","title":"…","text":"…"},{"date":"…","text":"…","next":true}]' />
+          <el-input
+            v-model="form.changelog" type="textarea" :rows="3"
+            placeholder="[{&quot;date&quot;:&quot;2026-08-20&quot;,&quot;title&quot;:&quot;…&quot;,&quot;text&quot;:&quot;…&quot;},{&quot;date&quot;:&quot;…&quot;,&quot;text&quot;:&quot;…&quot;,&quot;next&quot;:true}]"
+          />
         </el-form-item>
       </el-form>
       <template #footer>

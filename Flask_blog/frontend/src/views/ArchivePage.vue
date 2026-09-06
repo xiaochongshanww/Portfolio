@@ -33,14 +33,18 @@
             type="button"
             :class="{ active: !selectedYear }"
             @click="selectYear('')"
-          >全部</button>
+          >
+            全部
+          </button>
           <button
             v-for="y in years"
             :key="y"
             type="button"
             :class="{ active: selectedYear === y }"
             @click="selectYear(y)"
-          >{{ y }}</button>
+          >
+            {{ y }}
+          </button>
         </div>
       </div>
 

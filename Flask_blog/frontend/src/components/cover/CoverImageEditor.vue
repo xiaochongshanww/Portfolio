@@ -4,59 +4,59 @@
       <!-- 上传区域 -->
       <div class="upload-section">
         <div class="upload-area">
-            <!-- 主要上传选项 -->
-            <div class="primary-upload">
-              <el-upload
-                class="cover-uploader"
-                action="#"
-                :auto-upload="false"
-                :on-change="handleCoverSelect"
-                :show-file-list="false"
-                accept="image/*"
-                :disabled="uploading"
-              >
-                <el-button
-                  type="primary"
-                  size="large"
-                  :loading="uploading"
-                  :icon="uploading ? Loading : UploadFilled"
-                >
-                  {{ uploading ? '上传中...' : '上传新图片' }}
-                </el-button>
-              </el-upload>
-
-              <div v-if="uploading" class="upload-progress">
-                <el-progress :percentage="uploadProgress" />
-              </div>
-            </div>
-
-            <!-- 分隔线 -->
-            <div class="option-divider">
-              <span class="divider-text">或</span>
-            </div>
-
-            <!-- 媒体库选择 -->
-            <div class="media-library-option">
+          <!-- 主要上传选项 -->
+          <div class="primary-upload">
+            <el-upload
+              class="cover-uploader"
+              action="#"
+              :auto-upload="false"
+              :on-change="handleCoverSelect"
+              :show-file-list="false"
+              accept="image/*"
+              :disabled="uploading"
+            >
               <el-button
-                type="success"
+                type="primary"
                 size="large"
-                :icon="Picture"
-                :disabled="uploading"
-                plain
-                @click="showMediaSelector = true"
+                :loading="uploading"
+                :icon="uploading ? Loading : UploadFilled"
               >
-                从媒体库选择
+                {{ uploading ? '上传中...' : '上传新图片' }}
               </el-button>
-              <div class="option-hint">
-                选择已上传的图片作为封面
-              </div>
+            </el-upload>
+
+            <div v-if="uploading" class="upload-progress">
+              <el-progress :percentage="uploadProgress" />
             </div>
           </div>
 
-          <div class="input-hint">
-            <el-icon class="hint-icon"><InfoFilled /></el-icon>
-            支持 JPG、PNG、WebP 格式，建议尺寸 1200x630 像素，文件大小不超过 5MB
+          <!-- 分隔线 -->
+          <div class="option-divider">
+            <span class="divider-text">或</span>
           </div>
+
+          <!-- 媒体库选择 -->
+          <div class="media-library-option">
+            <el-button
+              type="success"
+              size="large"
+              :icon="Picture"
+              :disabled="uploading"
+              plain
+              @click="showMediaSelector = true"
+            >
+              从媒体库选择
+            </el-button>
+            <div class="option-hint">
+              选择已上传的图片作为封面
+            </div>
+          </div>
+        </div>
+
+        <div class="input-hint">
+          <el-icon class="hint-icon"><InfoFilled /></el-icon>
+          支持 JPG、PNG、WebP 格式，建议尺寸 1200x630 像素，文件大小不超过 5MB
+        </div>
       </div>
 
       <!-- URL输入作为高级选项 -->

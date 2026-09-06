@@ -46,7 +46,9 @@
                 type="button"
                 class="so-chip"
                 @click="useWord(w)"
-              >{{ w }}</button>
+              >
+                {{ w }}
+              </button>
             </div>
           </template>
 

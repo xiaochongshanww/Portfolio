@@ -75,14 +75,14 @@ async function loadProfile(){
   try {
     const r = await UsersService.getApiV1UsersPublic(userId.value);
     profile.value = (r.data || r) as Partial<UserPublic>; // 兼容包装
-  } catch(e){ pushError('作者信息获取失败'); }
+  } catch (e) { pushError('作者信息获取失败'); }
 }
 async function loadStats(){
   try {
     const r = await API.getPublicUserStats(userId.value);
     const j = r.data;
     if(j && j.data) stats.value = j.data; statsLoaded.value=true;
-  }catch(e){ statsLoaded.value=true; }
+  }catch (e) { statsLoaded.value=true; }
 }
 async function loadArticles(){
   try {
@@ -91,7 +91,7 @@ async function loadArticles(){
     // data 可能是 ArticleListResponse
     articles.value = (data?.list || []) as unknown as Article[];
     total.value = data?.total || articles.value.length;
-  } catch(e){ pushError('作者文章列表获取失败'); }
+  } catch (e) { pushError('作者文章列表获取失败'); }
 }
 async function load(){
   loaded.value=false;

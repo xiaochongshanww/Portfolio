@@ -201,21 +201,13 @@ function recommendByContent(title, content, summary, categories) {
   /** @type {CategoryRecommendation[]} */
   const recommendations = [];
   
-  console.log('📊 内容推荐分析 - 输入数据:', { 
-    title, 
-    content: content?.substring(0, 100) + '...', 
-    summary,
-    contentLength: content?.length || 0
-  });
-  console.log('📊 可用分类数量:', categories?.length || 0);
-  console.log('📊 分类数据类型:', typeof categories, Array.isArray(categories));
+  
   
   if (!categories || !Array.isArray(categories)) {
     console.error('❌ 分类数据无效:', categories);
     return [];
   }
   
-  console.log('📊 可用分类:', categories.map(cat => `${cat.name}(ID:${cat.id})`));
   
   // 组合所有文本内容，标题权重最高
   const combinedText = [
@@ -224,17 +216,14 @@ function recommendByContent(title, content, summary, categories) {
     content || ''
   ].join(' ');
   
-  console.log('📝 组合文本内容:', combinedText.substring(0, 200) + '...');
   
   Object.entries(CATEGORY_KEYWORDS).forEach(([categoryName, keywords]) => {
     let score = calculateSimilarityScore(combinedText, keywords);
     
-    console.log(`🔍 分析分类 "${categoryName}": 得分=${score}`);
     
     // 应用热门分类权重加成
     if (POPULAR_CATEGORIES_BOOST[categoryName]) {
       score *= POPULAR_CATEGORIES_BOOST[categoryName];
-      console.log(`⭐ 应用权重加成 ${POPULAR_CATEGORIES_BOOST[categoryName]}: 新得分=${score}`);
     }
     
     if (score > 0) {
@@ -262,7 +251,6 @@ function recommendByContent(title, content, summary, categories) {
         const match = exact || contains || reverseContains || specialMatches[categoryName];
         
         if (match) {
-          console.log(`✅ 找到匹配分类: "${cat.name}" 匹配 "${categoryName}"`);
         }
         
         return match;
@@ -274,14 +262,11 @@ function recommendByContent(title, content, summary, categories) {
           score,
           reason: '基于内容分析'
         });
-        console.log(`➕ 添加推荐: ${category.name} (得分: ${score})`);
       } else {
-        console.log(`❌ 未找到对应分类: "${categoryName}"`);
       }
     }
   });
   
-  console.log(`📊 内容推荐结果: ${recommendations.length} 个推荐`);
   return recommendations;
 }
 

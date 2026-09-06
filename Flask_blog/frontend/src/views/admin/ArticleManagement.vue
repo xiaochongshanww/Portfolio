@@ -43,13 +43,17 @@
         type="button"
         class="bulk-btn success"
         @click="handleBulkApprove"
-      >批量通过</button>
+      >
+        批量通过
+      </button>
       <button
         v-if="canBulkReject && userStore.canModerateContent"
         type="button"
         class="bulk-btn danger"
         @click="handleBulkReject"
-      >批量拒绝</button>
+      >
+        批量拒绝
+      </button>
       <button type="button" class="bulk-btn" @click="selectedArticles = []">取消选择</button>
     </div>
 
@@ -128,25 +132,35 @@
                   class="edit-btn"
                   :disabled="!canEdit(row)"
                   @click="handleEdit(row)"
-                >编辑</button>
+                >
+                  编辑
+                </button>
                 <template #menu>
                   <el-dropdown-item
                     v-if="row.status === 'draft'"
                     :disabled="!canSubmit(row)"
                     @click="submitArticle(row)"
-                  >提交审核</el-dropdown-item>
+                  >
+                    提交审核
+                  </el-dropdown-item>
                   <el-dropdown-item
                     v-if="row.status === 'pending' && userStore.canModerateContent"
                     @click="approveArticle(row)"
-                  >审核通过</el-dropdown-item>
+                  >
+                    审核通过
+                  </el-dropdown-item>
                   <el-dropdown-item
                     v-if="row.status === 'pending' && userStore.canModerateContent"
                     @click="showRejectDialog(row)"
-                  >拒绝发布</el-dropdown-item>
+                  >
+                    拒绝发布
+                  </el-dropdown-item>
                   <el-dropdown-item
                     v-if="row.status === 'published' && userStore.canModerateContent"
                     @click="unpublishArticle(row)"
-                  >取消发布</el-dropdown-item>
+                  >
+                    取消发布
+                  </el-dropdown-item>
                   <el-dropdown-item divided danger :disabled="!canDelete(row)" @click="deleteArticle(row)">
                     删除文章
                   </el-dropdown-item>

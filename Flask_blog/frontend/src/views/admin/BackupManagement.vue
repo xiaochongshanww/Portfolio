@@ -107,7 +107,6 @@
 
     <!-- 备份列表 -->
     <div class="backup-list-card">
-
       <BackupRecordList
         :backups="backups"
         :loading="loading"
@@ -438,11 +437,8 @@ const detailDialog = reactive({
 // 获取备份统计
 const getBackupStats = async () => {
   try {
-    console.log('🔄 开始获取备份统计...')
     const response = await API.getBackupStatistics()
-    console.log('✅ 统计数据响应:', response)
     stats.value = response.data?.data || response.data || {}
-    console.log('📊 设置统计数据:', stats.value)
   } catch (error) {
     const err = /** @type {ApiError} */ (error)
     console.error('❌ 获取备份统计失败:', error)
@@ -473,25 +469,20 @@ const getBackupStats = async () => {
 // 获取备份列表
 const getBackupList = async () => {
   try {
-    console.log('🔄 开始获取备份列表...')
     loading.value = true
     const params = {
       page: pagination.page,
       per_page: pagination.per_page,
       ...filters
     }
-    console.log('🔄 请求参数:', params)
     
       const response = await API.getBackupRecords(params)
-    console.log('✅ 备份列表响应:', response)
     
     // 处理不同的响应结构
     const data = response.data?.data || response.data || {}
-    console.log('📋 解析的数据:', data)
     backups.value = data.records || []
     pagination.total = data.total || 0
     pagination.pages = data.pages || 1
-    console.log('📋 设置备份列表:', backups.value.length, '条记录')
   } catch (error) {
     const err = /** @type {ApiError} */ (error)
     console.error('❌ 获取备份列表失败:', error)
@@ -516,7 +507,6 @@ const getBackupList = async () => {
     throw error // 重新抛出错误供上层处理
   } finally {
     loading.value = false
-    console.log('🔄 备份列表请求完成，loading设为false')
   }
 }
 
@@ -524,7 +514,6 @@ const getBackupList = async () => {
 const refreshBackups = async () => {
   // 防止并发更新
   if (isUpdatingBackups.value) {
-    console.log('🔒 备份数据正在更新中，跳过此次刷新请求')
     return
   }
   
@@ -543,7 +532,6 @@ const refreshBackups = async () => {
   }, 15000) // 15秒超时，原来是30秒太长
 
   try {
-    console.log('🔄 开始刷新所有数据...')
     // 同时请求统计和列表数据，但不让任一失败影响整体
     const results = await Promise.allSettled([
       getBackupStats(),
@@ -561,7 +549,6 @@ const refreshBackups = async () => {
     
     // 只要有一个成功就认为刷新成功
     if (statsResult.status === 'fulfilled' || listResult.status === 'fulfilled') {
-      console.log('✅ 数据刷新完成')
     } else {
       console.error('❌ 所有数据请求都失败')
       throw new Error('所有数据请求都失败')
@@ -590,10 +577,8 @@ const showCreateDialog = () => {
 const createBackup = async (createForm) => {
   try {
     creating.value = true
-    console.log('创建备份数据:', createForm)
     
     const response = await API.createBackup(createForm)
-    console.log('创建备份响应:', response)
     
     ElMessage.success('备份创建成功！正在后台执行备份任务...')
     createDialog.visible = false
@@ -629,7 +614,6 @@ const startPolling = () => {
     
     // 如果正在更新数据，跳过此次轮询
     if (isUpdatingBackups.value) {
-      console.log('🔒 备份数据更新中，跳过轮询')
       return
     }
     
@@ -715,7 +699,6 @@ const cancelBackup = async (backup) => {
       }
     )
     
-    console.log('🚫 用户确认取消备份:', backup.backup_id)
     
     const response = await API.cancelBackup(backup.backup_id)
     
@@ -725,7 +708,6 @@ const cancelBackup = async (backup) => {
       // 立即刷新备份列表
       await refreshBackups()
       
-      console.log('✅ 备份取消成功，列表已刷新')
     } else {
       throw new Error(response.data?.message || '取消失败')
     }
@@ -950,7 +932,7 @@ const performRestore = async () => {
     
     const response = await API.restoreBackup(currentRestoreBackup.value.backup_id, options)
     
-    console.log('恢复任务响应:', response.data) // 添加调试日志
+    // 添加调试日志
     
     // 处理测试模式结果
     if (restoreOptions.value.test_mode && response.data?.data?.test_results) {
@@ -1236,43 +1218,29 @@ watch([() => filters.backup_type, () => filters.status], () => {
 
 // 组件挂载和卸载
 onMounted(async () => {
-  console.log('🔄 BackupManagement 组件挂载')
-  console.log('🔄 当前用户信息:', {
-    token: localStorage.getItem('access_token') ? '存在' : '不存在',
-    role: localStorage.getItem('role')
-  })
+  
 
   try {
     // 检查用户store
     const { useUserStore } = await import('@/stores/user.js');
     const userStore = useUserStore();
     
-    console.log('🔄 用户store状态:', {
-      isAuthenticated: userStore.isAuthenticated,
-      user: userStore.user
-    })
+    
     
     // 确保用户已认证
     if (!userStore.isAuthenticated) {
-      console.log('🔄 用户未认证，初始化认证状态...')
       await userStore.initAuth()
-      console.log('🔄 认证状态初始化完成:', userStore.isAuthenticated)
     }
 
-    console.log('🔄 开始刷新备份数据...')
     // 立即开始数据加载，不等待，并提供用户反馈
     console.time('initial-data-load')
     refreshBackups()
       .then(() => {
         console.timeEnd('initial-data-load')
-        console.log('✅ 页面初始化数据加载成功')
         // 如果数据加载成功，给用户视觉反馈
         if (backups.value.length > 0 || Object.keys(stats.value).length > 0) {
           // 轻微的成功反馈，不干扰用户
-          console.log('📊 页面数据加载完成:', {
-            backups: backups.value.length,
-            stats: Object.keys(stats.value).length
-          })
+          
         }
       })
       .catch(error => {

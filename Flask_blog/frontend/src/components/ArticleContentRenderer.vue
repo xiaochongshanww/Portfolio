@@ -182,42 +182,16 @@ const processContent = async (content, type) => {
     // 优先策略：检查是否包含数学公式标记
     const hasMathFormulas = content.includes('$') || content.includes('\\(') || content.includes('\\[');
     
-    console.log('🔍 Content processing pipeline started:', {
-      contentLength: content.length,
-      contentType: type,
-      hasMathFormulas: hasMathFormulas,
-      firstChars: content.substring(0, 100),
-      mathIndicators: {
-        dollars: content.includes('$'),
-        parentheses: content.includes('\\('),
-        brackets: content.includes('\\[')
-      }
-    });
-    
     if (type === 'markdown' || hasMathFormulas) {
       // 使用Markdown处理器，自动处理数学公式和代码高亮
-      console.log('🧮 Processing with Markdown renderer (math formulas detected)');
       const markdownResult = await renderMarkdown(content);
-      
-      console.log('🧮 Markdown processing completed:', {
-        inputLength: content.length,
-        outputLength: markdownResult.length,
-        containsKaTeX: markdownResult.includes('katex'),
-        containsMathML: markdownResult.includes('<math>'),
-        containsMathClass: markdownResult.includes('math-'),
-        containsSpanKatex: markdownResult.includes('<span class="katex">'),
-        firstOutputChars: markdownResult.substring(0, 200)
-      });
       
       // 检查是否需要额外处理
       if (hasMathFormulas && !markdownResult.includes('katex')) {
         console.warn('⚠️ Math formulas detected in input but no KaTeX output found! Attempting client-side KaTeX fallback.');
-        console.log('Input sample:', content.substring(0, 200));
-        console.log('Output sample (before fallback):', markdownResult.substring(0, 200));
 
         try {
           const fallback = renderMathWithKatex(markdownResult);
-          console.log('✅ Client-side KaTeX fallback applied');
           return fallback;
         } catch (e) {
           console.error('Client-side KaTeX fallback failed:', e);
@@ -228,24 +202,10 @@ const processContent = async (content, type) => {
 
       // 检查Shiki代码高亮是否被意外清理
       const hasOriginalColors = markdownResult.includes('<span style="color:');
-      console.log('🎨 Markdown渲染结果检查:', {
-        hasShikiClass: markdownResult.includes('shiki'),
-        hasColorSpans: hasOriginalColors,
-        originalLength: markdownResult.length
-      });
-
       return markdownResult;
     } else {
       // 纯HTML内容，只进行安全清理
-      console.log('🧹 Processing with DOMPurify only (no math formulas)');
       const purifiedResult = DOMPurify.sanitize(content, props.sanitizationOptions);
-      
-      console.log('🧹 DOMPurify processing completed:', {
-        inputLength: content.length,
-        outputLength: purifiedResult.length,
-        containsKaTeX: purifiedResult.includes('katex'),
-        stripped: content.length - purifiedResult.length
-      });
       
       return purifiedResult;
     }
@@ -314,14 +274,6 @@ const renderContent = async () => {
     
     // 调试：检查最终结果是否保留了颜色信息
     const finalHasColors = result.includes('<span style="color:');
-    console.log('🔍 最终渲染结果检查:', {
-      finalLength: result.length,
-      hasShikiClass: result.includes('shiki'),
-      hasColorSpans: finalHasColors,
-      firstColorSpan: finalHasColors ? result.match(/<span style="color:[^"]+"/)?.[0] : 'none',
-      sampleOutput: result.substring(0, 300) + '...'
-    });
-    
     // 通知父组件渲染完成
     emit('content-rendered', {
       contentType: contentAnalysis.value.type,
@@ -393,30 +345,11 @@ const retryRender = async () => {
 // 预加载highlighter
 onBeforeMount(async () => {
   try {
-    console.log('🚀 开始预加载Markdown处理器...')
     await preload();
-    
-    // 获取处理器状态
-    const status = getProcessorStatus()
-    console.log('📊 处理器状态:', status)
-    
-    // 运行快速测试
-    console.log('🧪 运行处理器测试...')
-    const testResult = await testProcessor()
-    
-    if (testResult) {
-      // 检查测试结果中是否有代码高亮
-      const hasHighlighting = testResult.includes('shiki') || testResult.includes('<span style="color:')
-      console.log('🔍 测试结果分析:', {
-        hasResult: !!testResult,
-        length: testResult.length,
-        hasHighlighting,
-        hasCodeBlocks: testResult.includes('<pre'),
-        sample: testResult.substring(0, 200) + '...'
-      })
-    }
-    
-    console.log('✅ Markdown处理器预加载和测试完成')
+
+    // 开发期探活:预热处理器并运行快速测试
+    getProcessorStatus();
+    await testProcessor();
   } catch (error) {
     console.error('❌ 预加载失败:', error);
   }
@@ -443,12 +376,6 @@ onMounted(async () => {
   
   // 性能监控
   if (isDevelopment.value && props.content) {
-    console.log('ContentRenderer mounted:', {
-      contentLength: props.content.length,
-      contentType: contentAnalysis.value.type,
-      confidence: contentAnalysis.value.confidence,
-      features: contentAnalysis.value.features
-    });
   }
   
   // 确保内容被渲染
@@ -463,7 +390,6 @@ onMounted(async () => {
       // 检查页面上的代码块元素
       setTimeout(() => {
         const codeBlocks = document.querySelectorAll('.article-content pre');
-        console.log('🔍 页面上的代码块数量:', codeBlocks.length);
         
         codeBlocks.forEach((block, index) => {
           const hasShikiClass = block.classList.contains('shiki');
@@ -471,20 +397,9 @@ onMounted(async () => {
           const hasColorSpans = block.querySelectorAll('span[style*="color"]').length;
           const allSpans = block.querySelectorAll('span').length;
           
-          console.log(`📋 代码块 ${index + 1}:`, {
-            tagName: block.tagName,
-            classes: Array.from(block.classList),
-            hasShikiClass,
-            hasInlineStyles,
-            hasColorSpans,
-            totalSpans: allSpans,
-            innerHTML: block.innerHTML.substring(0, 200) + '...'
-          });
-          
           // 如果有Shiki类但没有颜色，进行深入分析
           if (hasShikiClass && hasColorSpans === 0 && allSpans > 0) {
             console.warn('🚨 Shiki代码块没有颜色！分析HTML结构:');
-            console.log('完整innerHTML:', block.innerHTML);
             
             // 尝试手动添加一个测试span看是否被过滤
             const testSpan = document.createElement('span');
@@ -495,11 +410,6 @@ onMounted(async () => {
             setTimeout(() => {
               const testExists = block.contains(testSpan);
               const testHasColor = testSpan.style.color === 'red';
-              console.log('🧪 测试span结果:', {
-                exists: testExists,
-                hasColor: testHasColor,
-                actualColor: testSpan.style.color
-              });
             }, 100);
           }
         });

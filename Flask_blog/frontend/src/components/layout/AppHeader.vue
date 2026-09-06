@@ -461,12 +461,10 @@ async function handleLogout() {
         }
       }
     }).catch(() => {
-      console.log('退出确认对话框已关闭');
     });
     
     // 2秒后自动关闭对话框并跳转
     setTimeout(() => {
-      console.log('🚪 用户退出登录，强制刷新主页数据');
       
       shouldAllowClose = true;
       ElMessageBox.close();
@@ -509,35 +507,28 @@ function handleArticleClick(articleSlug) {
 // 处理Logo点击 - 使用原生导航避免组件状态冲突
 /** @param {MouseEvent} e */
 function handleLogoClick(e) {
-  console.log('🏠 AppHeader: Logo点击，检查是否需要原生导航');
   
   // 检查当前路由是否为文章编辑页面
   const currentPath = router.currentRoute.value.path;
   const isOnNewArticlePage = currentPath === '/articles/new';
   
   if (isOnNewArticlePage) {
-    console.log('🏠 AppHeader: 当前在文章编辑页面，使用原生导航避免VNode冲突');
     e.preventDefault();
     
     // 使用原生导航，但手动添加刷新参数
-    console.log('🏠 从编辑页通过Logo原生导航到主页，添加刷新标记');
     window.location.href = `/?_refresh=${Date.now()}`;
     return;
   }
   
   // 其他页面使用正常的Vue Router导航
   e.preventDefault();
-  console.log('🏠 AppHeader: 从其他页面导航到主页，添加刷新标记');
   
   // 添加一个特殊的查询参数来触发数据刷新
   const shouldRefresh = currentPath !== '/' && currentPath !== '/home';
-  console.log('🔍 导航判断:', { currentPath, shouldRefresh });
   
   if (shouldRefresh) {
-    console.log('🏷️ 添加刷新标记进行导航');
     router.push({ path: '/', query: { _refresh: Date.now() } });
   } else {
-    console.log('📍 直接导航到主页');
     router.push('/');
   }
 }
@@ -545,23 +536,19 @@ function handleLogoClick(e) {
 // 处理导航链接点击 - 智能选择导航方式
 /** @param {string} path @param {MouseEvent} e */
 function handleNavClick(path, e) {
-  console.log(`🧭 AppHeader: 导航到 ${path}，检查是否需要原生导航`);
   
   // 检查当前路由是否为文章编辑页面
   const currentPath = router.currentRoute.value.path;
   const isOnNewArticlePage = currentPath === '/articles/new';
   
   if (isOnNewArticlePage) {
-    console.log('🧭 AppHeader: 当前在文章编辑页面，使用原生导航避免VNode冲突');
     e.preventDefault();
     
     // 虽然我们修复了一些VNode问题，但组件卸载时仍有冲突
     // 使用原生导航，但手动添加刷新参数
     if (path === '/' || path === '/home') {
-      console.log('🏠 从编辑页原生导航到主页，添加刷新标记');
       window.location.href = `/?_refresh=${Date.now()}`;
     } else {
-      console.log('🔗 从编辑页原生导航到其他页面');
       window.location.href = path;
     }
     return;
@@ -572,16 +559,12 @@ function handleNavClick(path, e) {
   
   // 如果是导航到主页，应用与Logo点击相同的刷新逻辑
   if (path === '/' || path === '/home') {
-    console.log('🏠 AppHeader: 主页导航，检查是否需要刷新标记');
     
     const shouldRefresh = currentPath !== '/' && currentPath !== '/home';
-    console.log('🔍 导航判断:', { currentPath, shouldRefresh, targetPath: path });
     
     if (shouldRefresh) {
-      console.log('🏷️ 添加刷新标记进行主页导航');
       router.push({ path: '/', query: { _refresh: Date.now() } });
     } else {
-      console.log('📍 直接导航到主页');
       router.push(path);
     }
   } else {
@@ -593,7 +576,6 @@ function handleNavClick(path, e) {
 // 处理移动端主页点击
 /** @param {MouseEvent} e */
 function handleMobileHomeClick(e) {
-  console.log('📱 AppHeader: 移动端主页点击');
   
   // 关闭移动端抽屉
   drawer.value = false;

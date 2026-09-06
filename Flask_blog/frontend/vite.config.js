@@ -6,17 +6,18 @@ import { ElementPlusResolver } from 'unplugin-vue-components/resolvers';
 import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath, URL } from 'node:url';
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [
     vue(),
     tailwindcss(),
     AutoImport({
       resolvers: [ElementPlusResolver()],
-      dts: 'src/auto-imports.d.ts'
+      // dts 仅在 dev server 写入:build 与 dev 并发运行时会争抢文件句柄(Windows 下报 UNKNOWN)
+      dts: command === 'serve' ? 'src/auto-imports.d.ts' : false
     }),
     Components({
       resolvers: [ElementPlusResolver()],
-      dts: 'src/components.d.ts'
+      dts: command === 'serve' ? 'src/components.d.ts' : false
     })
   ],
   resolve: {
@@ -59,4 +60,4 @@ export default defineConfig({
       }
     }
   }
-});
+}));

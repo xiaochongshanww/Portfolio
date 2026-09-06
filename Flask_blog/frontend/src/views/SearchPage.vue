@@ -49,14 +49,18 @@
             type="button"
             :class="{ active: typeFilter === 'all' }"
             @click="typeFilter = 'all'"
-          >全部</button>
+          >
+            全部
+          </button>
           <button
             v-for="f in typeFilters"
             :key="f.value"
             type="button"
             :class="{ active: typeFilter === f.value }"
             @click="typeFilter = f.value"
-          >{{ f.label }} {{ counts[f.value] || 0 }}</button>
+          >
+            {{ f.label }} {{ counts[f.value] || 0 }}
+          </button>
         </div>
         <div class="meta">按相关度</div>
       </div>

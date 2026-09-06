@@ -105,7 +105,6 @@ function setupPasteHandler() {
   }
 
   const handlePaste = async (event: ClipboardEvent) => {
-    console.log('检测到粘贴事件');
     
     const clipboardData = event.clipboardData;
     if (!clipboardData) return;
@@ -115,7 +114,6 @@ function setupPasteHandler() {
     const imageFiles = files.filter(file => file.type.startsWith('image/'));
     
     if (imageFiles.length > 0) {
-      console.log('检测到粘贴的图片文件:', imageFiles.length, '个');
       
       // 阻止默认粘贴行为
       event.preventDefault();
@@ -123,14 +121,12 @@ function setupPasteHandler() {
       // 上传图片文件
       for (const imageFile of imageFiles) {
         try {
-          console.log('正在上传图片:', imageFile.name, imageFile.type);
           message.info(`正在上传图片: ${imageFile.name}`);
           
           const imageUrl = await uploadImageFile(imageFile);
           if (imageUrl) {
             const imageMarkdown = `![${imageFile.name}](${imageUrl})`;
             vditor?.insertValue('\n' + imageMarkdown + '\n');
-            console.log('✅ 图片已插入编辑器:', imageUrl);
           }
         } catch (error) {
           console.error('上传图片失败:', error);
@@ -144,14 +140,12 @@ function setupPasteHandler() {
     // 检查是否有文本内容
     const text = clipboardData.getData('text/plain');
     if (text) {
-      console.log('检测到粘贴的文本内容，长度:', text.length);
       
       // 检查是否包含本地图片路径
       const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
       const hasImages = imageRegex.test(text);
       
       if (hasImages) {
-        console.log('文本内容包含markdown图片语法');
         
         // 阻止默认粘贴行为
         event.preventDefault();
@@ -163,7 +157,6 @@ function setupPasteHandler() {
           // 插入处理后的内容
           vditor?.insertValue(processedText);
           
-          console.log('✅ 已插入处理后的markdown内容');
         } catch (error) {
           console.error('处理markdown内容失败:', error);
           // 如果处理失败，插入原始内容
@@ -176,7 +169,6 @@ function setupPasteHandler() {
 
   // 添加事件监听器
   editorElement.addEventListener('paste', handlePaste);
-  console.log('✅ 粘贴事件监听器已设置');
 
   // 保存清理函数
   if (!window.vditorCleanupFunctions) {
@@ -185,7 +177,6 @@ function setupPasteHandler() {
   
   const cleanup = () => {
     editorElement.removeEventListener('paste', handlePaste);
-    console.log('✅ 粘贴事件监听器已清理');
   };
   
   window.vditorCleanupFunctions.push(cleanup);
@@ -199,7 +190,6 @@ async function initVditor() {
   }
 
   try {
-    console.log('🔄 VditorEditor: 开始初始化Vditor编辑器...');
     
     // 确保容器有ID
     if (!vditorRef.value.id) {
@@ -208,7 +198,6 @@ async function initVditor() {
     
     // 创建原生媒体选择模态框函数
     (window as any).openMediaLibrary = () => {
-      console.log('🚀 打开原生媒体选择模态框');
       createNativeMediaModal();
     };
     
@@ -246,7 +235,6 @@ async function initVditor() {
           className: 'vditor-tooltipped vditor-tooltipped--n',
           icon: '<svg viewBox="0 0 1024 1024"><path d="M853.333 469.333A42.667 42.667 0 0 0 896 426.667v-256A42.667 42.667 0 0 0 853.333 128H170.667A42.667 42.667 0 0 0 128 170.667v256a42.667 42.667 0 0 0 42.667 42.666h682.666z m-42.666-85.333H213.333v-170.667h597.334V384z m42.666 213.333A42.667 42.667 0 0 0 896 554.667v-42.667a42.667 42.667 0 0 0-85.333 0v42.667H213.333v-42.667a42.667 42.667 0 0 0-85.333 0v42.667A42.667 42.667 0 0 0 170.667 640h682.666z m0 256A42.667 42.667 0 0 0 896 832v-42.667a42.667 42.667 0 0 0-85.333 0V832H213.333v-42.667a42.667 42.667 0 0 0-85.333 0V832A42.667 42.667 0 0 0 170.667 896h682.666z"/></svg>',
           click: (event?: Event) => {
-            console.log('📱 媒体库工具栏按钮被点击');
             // 阻止事件冒泡，避免潜在的事件冲突
             if (event) {
               event.preventDefault();
@@ -258,7 +246,6 @@ async function initVditor() {
                 (window as any).openMediaLibrary();
               } else {
                 console.error('❌ 全局媒体库函数未找到或不是函数');
-                console.log('window.openMediaLibrary:', (window as any).openMediaLibrary);
               }
             } catch (error) {
               console.error('❌ 调用媒体库函数失败:', error);
@@ -304,21 +291,17 @@ async function initVditor() {
       }, 300), // 300ms防抖，减少频繁更新
       
       focus: (value: string) => {
-        console.log('编辑器获得焦点，当前内容长度:', value.length);
       },
       
       blur: (value: string) => {
-        console.log('编辑器失去焦点，当前内容长度:', value.length);
       },
       
       after: () => {
-        console.log('✅ Vditor初始化完成');
         
         // 将状态更新延迟到下一个宏任务，避免与Vditor的DOM操作冲突
         setTimeout(() => {
           // 安全检查：如果组件已被卸载，不要设置状态
           if (!vditorRef.value) {
-            console.log('Vditor初始化完成但组件已卸载，跳过状态设置');
             return;
           }
           
@@ -329,7 +312,6 @@ async function initVditor() {
               
               // 设置初始内容
               if (props.modelValue) {
-                console.log('设置初始内容:', props.modelValue.substring(0, 100));
                 try {
                   vditor?.setValue(props.modelValue);
                 } catch (e) {
@@ -891,7 +873,6 @@ function changeMode() {
   if (vditor && isEditorReady.value) {
     // 获取当前内容
     const currentValue = vditor.getValue();
-    console.log(`切换到 ${currentMode.value} 模式，保存内容长度:`, currentValue.length);
     
     // 标记为未准备状态
     isEditorReady.value = false;
@@ -911,7 +892,6 @@ function changeMode() {
         setTimeout(() => {
           if (currentValue && vditor && isEditorReady.value) {
             vditor.setValue(currentValue);
-            console.log('恢复内容完成');
           }
         }, 200);
       });
@@ -933,7 +913,6 @@ watch(() => props.modelValue, (newValue) => {
 
 // 生命周期
 onMounted(() => {
-  console.log('🔀 VditorEditor: 组件onMounted触发');
   
   // 添加Vditor相关的错误处理
   const handleVditorError = (event: PromiseRejectionEvent) => {
@@ -965,10 +944,8 @@ onMounted(() => {
   }, 10000); // 10秒超时
   
   nextTick(() => {
-    console.log('🔀 VditorEditor: nextTick后准备初始化');
     // 添加安全检查，防止在组件即将卸载时初始化
     if (!vditorRef.value) {
-      console.log('🔀 VditorEditor: 容器不存在，跳过初始化');
       clearTimeout(initTimeout);
       return;
     }
@@ -983,7 +960,6 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-  console.log('🔄 VditorEditor: 开始卸载组件');
   
   // 清理全局函数
   if ((window as any).openMediaLibrary) {
@@ -995,9 +971,7 @@ onBeforeUnmount(() => {
   
   if (vditor) {
     try {
-      console.log('🔄 VditorEditor: 销毁Vditor实例');
       vditor.destroy();
-      console.log('🔄 VditorEditor: Vditor实例销毁成功');
     } catch (error) {
       console.error('🔄 VditorEditor: 销毁Vditor失败:', error);
     }
@@ -1024,7 +998,6 @@ onBeforeUnmount(() => {
     delete window.vditorErrorCleanup;
   }
   
-  console.log('🔄 VditorEditor: 组件卸载完成');
 });
 
 // 暴露方法给父组件
@@ -1033,7 +1006,6 @@ defineExpose({
     if (vditor && isEditorReady.value) {
       try {
         const content = vditor.getValue();
-        console.log('VditorEditor syncContent called, content length:', content?.length || 0);
         return content || '';
       } catch (error) {
         console.error('VditorEditor syncContent error:', error);

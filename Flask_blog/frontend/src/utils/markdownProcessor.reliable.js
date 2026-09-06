@@ -20,7 +20,6 @@ const createShikiHighlighter = async () => {
   if (highlighterCache) return highlighterCache
   
   try {
-    console.log('🚀 正在创建Shiki高亮器...')
     
     // 使用最小化的语言集合，只包含确定支持的语言
     highlighterCache = await createHighlighter({
@@ -40,7 +39,6 @@ const createShikiHighlighter = async () => {
       ]
     })
     
-    console.log('✅ Shiki高亮器创建成功')
     
     // 测试高亮器是否工作
     const testCode = 'const hello = "world";'
@@ -50,7 +48,6 @@ const createShikiHighlighter = async () => {
     })
     
     if (testResult && testResult.includes('<span')) {
-      console.log('✅ Shiki高亮器测试通过')
     } else {
       console.warn('⚠️ Shiki高亮器测试失败，但继续使用')
     }
@@ -58,7 +55,6 @@ const createShikiHighlighter = async () => {
     return highlighterCache
   } catch (error) {
     console.error('❌ Shiki高亮器创建失败:', error)
-    console.log('🔄 尝试使用最小配置重新创建...')
     
     // 尝试使用最小配置重新创建
     try {
@@ -66,7 +62,6 @@ const createShikiHighlighter = async () => {
         themes: ['github-light'],
         langs: ['javascript', 'python', 'html', 'css', 'json', 'text']
       })
-      console.log('✅ 使用最小配置创建成功')
       return highlighterCache
     } catch (fallbackError) {
       console.error('❌ 最小配置也失败:', fallbackError)
@@ -82,7 +77,6 @@ const createShikiHighlighter = async () => {
 const createMarkdownProcessor = async () => {
   if (mdCache) return mdCache
   
-  console.log('🔧 创建MarkdownIt处理器...')
   
   const md = MarkdownIt({
     html: true,
@@ -99,7 +93,6 @@ const createMarkdownProcessor = async () => {
       errorColor: '#cc0000',
       strict: 'warn'
     })
-    console.log('✅ KaTeX插件已加载')
   } catch (error) {
     console.error('❌ KaTeX插件加载失败:', error)
   }
@@ -122,15 +115,7 @@ const createMarkdownProcessor = async () => {
       const langName = info.split(/\s+/g)[0]
       
       // 详细调试信息
-      console.log(`🎨 渲染代码块详细信息:`, {
-        tokenType: token.type,
-        tokenInfo: token.info,
-        infoTrimmed: info,
-        langName: langName,
-        codeLength: code.length,
-        codeFirst50: code.substring(0, 50),
-        token: token
-      })
+      
       
       try {
         // 支持的语言映射
@@ -152,7 +137,6 @@ const createMarkdownProcessor = async () => {
         // 如果没有语言信息，尝试从代码内容推断
         let finalLang = mappedLang;
         if (!langName || langName === 'text') {
-          console.log(`🔍 需要推断语言，当前: ${langName || 'empty'}，代码片段:`, code.substring(0, 100));
           
           // Python特征检测
           const pythonPatterns = [
@@ -189,17 +173,13 @@ const createMarkdownProcessor = async () => {
           
           if (pythonPatterns.some(pattern => pattern.test(code))) {
             finalLang = 'python';
-            console.log('✅ 从代码内容推断为 Python');
           } else if (jsPatterns.some(pattern => pattern.test(code))) {
             finalLang = 'javascript';
-            console.log('✅ 从代码内容推断为 JavaScript');
           } else if (htmlPatterns.some(pattern => pattern.test(code))) {
             finalLang = 'html';
-            console.log('✅ 从代码内容推断为 HTML');
           } else {
             // 对于机器学习内容，大概率是Python
             finalLang = 'python';
-            console.log('✅ 无法推断，默认使用 Python (机器学习上下文)');
           }
         }
         
@@ -207,17 +187,14 @@ const createMarkdownProcessor = async () => {
         let html;
         
         // 使用正确的亮色主题
-        console.log(`🎨 使用Shiki渲染 (${finalLang})...`)
         
         html = highlighter.codeToHtml(code, {
           lang: finalLang,
           theme: 'github-light'
         })
         
-        console.log(`🎨 使用主题: github-light`)
         
         // 输出原始HTML用于调试
-        console.log(`🔍 Shiki原始输出:`, html.substring(0, 200))
         
         // 强制设置正确的背景色和标识
         if (html.includes('<pre')) {
@@ -239,22 +216,14 @@ const createMarkdownProcessor = async () => {
           
           const afterModification = html.substring(0, 200)
           
-          console.log(`🔧 HTML修改前:`, beforeModification)
-          console.log(`🔧 HTML修改后:`, afterModification)
         }
         
         // 检查背景色情况
         const hasInlineBackground = html.includes('background-color')
         const backgroundColorMatch = html.match(/background-color:[^;\"]+/)
         
-        console.log(`🎨 背景色分析:`, {
-          hasInlineBackground,
-          backgroundColorMatch: backgroundColorMatch ? backgroundColorMatch[0] : 'none',
-          htmlSample: html.substring(0, 300)
-        })
         
-        console.log(`✅ Shiki渲染成功: "${langName}" → "${finalLang}"`)
-        console.log(`📄 生成HTML长度: ${html.length}, 包含颜色span: ${html.includes('<span style="color:')}`);
+        
         
         return html
         
@@ -268,7 +237,6 @@ const createMarkdownProcessor = async () => {
       }
     }
     
-    console.log('✅ Shiki代码高亮已配置')
   } else {
     console.warn('⚠️ 使用基础代码块渲染')
     
@@ -346,7 +314,6 @@ const createMarkdownProcessor = async () => {
   }
   
   mdCache = md
-  console.log('✅ MarkdownIt处理器创建完成')
   return md
 }
 
@@ -371,13 +338,7 @@ export const renderMarkdown = async (content) => {
     });
   }
   
-  console.log('📝 开始渲染Markdown内容:', {
-    length: content.length,
-    hasMath: content.includes('$'),
-    hasCodeBlocks: content.includes('```'),
-    detectedCodeBlocks: codeBlocks,
-    contentSample: content.substring(0, 300) + '...'
-  })
+  
   
   try {
     const md = await createMarkdownProcessor()
@@ -397,7 +358,6 @@ export const renderMarkdown = async (content) => {
       codeBlockCount: (result.match(/<pre/g) || []).length
     }
     
-    console.log('✅ Markdown渲染完成:', resultAnalysis)
     
     // 如果有代码块但没有语法高亮，输出详细信息
     if (content.includes('```') && !resultAnalysis.hasShikiCode && !resultAnalysis.hasShikiSpans) {
@@ -405,12 +365,10 @@ export const renderMarkdown = async (content) => {
       
       // 提取前500字符的输出用于调试
       const outputSample = result.substring(0, 500)
-      console.log('📄 渲染输出示例:', outputSample)
       
       // 查找所有的代码块
       const codeMatches = result.match(/<pre[^>]*>.*?<\/pre>/gs)
       if (codeMatches) {
-        console.log('🔍 找到的代码块:', codeMatches.map((match, i) => `${i+1}: ${match.substring(0, 100)}...`))
       }
     }
     
@@ -431,11 +389,9 @@ export const renderMarkdown = async (content) => {
  * 预加载资源
  */
 export const preload = async () => {
-  console.log('🔄 预加载Markdown处理器...')
   
   try {
     await createMarkdownProcessor()
-    console.log('✅ Markdown处理器预加载完成')
   } catch (error) {
     console.warn('⚠️ 预加载失败:', error)
   }
@@ -447,7 +403,6 @@ export const preload = async () => {
 export const resetCache = () => {
   highlighterCache = null
   mdCache = null
-  console.log('🔄 缓存已重置')
 }
 
 /**
@@ -465,7 +420,6 @@ export const getProcessorStatus = () => {
  * 测试函数 - 快速验证功能
  */
 export const testProcessor = async () => {
-  console.log('🧪 测试Markdown处理器...')
   
   const testContent = `# 测试文档
 
@@ -480,7 +434,6 @@ $$\\sum_{i=1}^{n} x_i = \\frac{1}{n}\\sum_{i=1}^{n} x_i$$
 ## 代码块
 \`\`\`javascript
 const hello = "world";
-console.log(hello);
 \`\`\`
 
 \`\`\`python
@@ -496,13 +449,7 @@ def hello():
 
   try {
     const result = await renderMarkdown(testContent)
-    console.log('🧪 测试结果:', {
-      success: !!result,
-      length: result.length,
-      hasKaTeX: result.includes('katex'),
-      hasCode: result.includes('<pre'),
-      sample: result.substring(0, 200) + '...'
-    })
+    
     return result
   } catch (error) {
     console.error('🧪 测试失败:', error)
@@ -522,22 +469,14 @@ export const quickTest = async (testContent) => {
 
 \`\`\`javascript
 const hello = "world";
-console.log(hello);
 \`\`\`
 
 数学公式测试：$E = mc^2$
 
 完成！`
 
-  console.log('🚀 快速测试开始...')
   const result = await renderMarkdown(content)
-  console.log('📊 测试结果:', {
-    success: !!result,
-    hasShiki: result.includes('shiki'),
-    hasKaTeX: result.includes('katex'),
-    hasCode: result.includes('<pre'),
-    fullResult: result
-  })
+  
   return result
 }
 
@@ -559,5 +498,4 @@ if (typeof window !== 'undefined') {
     getProcessorStatus,
     testProcessor
   }
-  console.log('🔧 已在 window.markdownTest 中暴露测试函数')
 }

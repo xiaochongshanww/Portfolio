@@ -79,7 +79,6 @@ class MessageManager {
     
     // 检查重复消息
     if (this._isDuplicateMessage(message)) {
-      console.log('🔄 重复消息已忽略:', message.content);
       return null;
     }
     
@@ -177,7 +176,6 @@ class MessageManager {
   _flushBatch() {
     if (this.batchBuffer.length === 0) return;
     
-    console.log('📦 处理消息批次，数量:', this.batchBuffer.length);
     
     // 按优先级排序
     const sortedMessages = [...this.batchBuffer].sort((a, b) => b.priority - a.priority);
@@ -290,7 +288,6 @@ class MessageManager {
       if (oldestMessage && oldestMessage.close) {
         oldestMessage.close();
       }
-      console.log('📤 移除旧消息为新消息腾出空间');
     }
     
     // 构建 ElMessage 配置
@@ -311,7 +308,6 @@ class MessageManager {
     // 添加到活跃列表
     activeList.push(message);
     
-    console.log(`📨 显示${this._getPriorityName(message.priority)}消息:`, message.content);
   }
 
   /**

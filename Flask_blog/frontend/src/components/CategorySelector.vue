@@ -398,9 +398,6 @@ const showRecommendations = async () => {
     return;
   }
   
-  console.log('🤖 开始AI分类推荐...');
-  console.log('📊 可用分类数量:', props.categories.length);
-  console.log('📝 文章数据:', props.articleData);
   
   recommendationLoading.value = true;
   showRecommendationPanel.value = true;
@@ -409,12 +406,7 @@ const showRecommendations = async () => {
     await nextTick();
     
     // 检查输入数据
-    console.log('🔍 检查分类数据:', { 
-      categories: props.categories, 
-      categoriesLength: props.categories?.length,
-      categoriesType: typeof props.categories,
-      isArray: Array.isArray(props.categories)
-    });
+    
     
     // 确保 categories 是数组格式
     const categoriesArray = /** @type {Array<import('@/types').Category>} */ (Array.isArray(props.categories) ? props.categories : []);
@@ -444,20 +436,16 @@ const showRecommendations = async () => {
     // 模拟AI分析延迟
     await new Promise(resolve => setTimeout(resolve, 800));
     
-    console.log('🔍 调用推荐算法...');
     recommendations.value = recommendCategories(
       props.articleData,
       categoriesArray,
       { maxRecommendations: 5, includeReason: true }
     );
     
-    console.log('✨ 推荐结果:', recommendations.value);
     
     if (recommendations.value.length === 0) {
-      console.log('💡 未找到匹配的分类推荐');
       message.info('未找到匹配的分类，请手动选择或创建新分类');
     } else {
-      console.log(`🎯 成功推荐 ${recommendations.value.length} 个分类`);
       message.success(`AI推荐了 ${recommendations.value.length} 个相关分类`);
     }
   } catch (error) {

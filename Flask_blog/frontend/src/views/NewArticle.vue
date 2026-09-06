@@ -265,7 +265,6 @@ const tagsLoading = ref(false);
 
 // 导航修复函数 - 简化版本
 const handleDraftRestored = () => {
-  console.log('📝 草稿恢复事件触发，确保导航状态正常');
   // 简单确认状态重置，不进行复杂操作
   hasUnsavedChanges.value = false;
   isRestoringDraft.value = false;
@@ -378,23 +377,11 @@ function mapErr(code, fallback) {
 
 // 表单验证调试函数
 function debugFormValidation() {
-  console.log('=== 表单验证详细信息 ===');
-  console.log('标题:', form.value.title, '长度:', form.value.title?.length || 0);
-  console.log('内容:', form.value.content_md?.substring(0, 100) + '...', '长度:', form.value.content_md?.length || 0);
-  console.log('摘要:', form.value.summary?.substring(0, 50) + '...', '长度:', form.value.summary?.length || 0);
-  console.log('标签:', form.value.tags_raw, '长度:', form.value.tags_raw?.length || 0);
-  console.log('SEO标题:', form.value.seo_title, '长度:', form.value.seo_title?.length || 0);
-  console.log('SEO描述:', form.value.seo_desc, '长度:', form.value.seo_desc?.length || 0);
-  console.log('链接:', form.value.slug, '长度:', form.value.slug?.length || 0);
-  console.log('封面图:', form.value.featured_image, '长度:', form.value.featured_image?.length || 0);
   
   // 检查编辑器状态
   const editorEl = document.querySelector('.ProseMirror');
   if (editorEl) {
-    console.log('编辑器DOM内容长度:', editorEl.textContent?.length || 0);
-    console.log('编辑器HTML内容长度:', editorEl.innerHTML?.length || 0);
   }
-  console.log('========================');
 }
 
 // 格式化保存时间
@@ -440,7 +427,6 @@ function onFocal(f) {
 /** @param {string} articleId */
 async function loadArticleForEdit(articleId) {
   try {
-    console.log('正在加载文章数据用于编辑:', articleId);
     loading.value = true;
     
     const response = await API.getArticle(articleId);
@@ -473,14 +459,9 @@ async function loadArticleForEdit(articleId) {
         category_id: article.category_id || null
       };
       
-      console.log('✅ 文章数据加载完成');
-      console.log('📝 文章分类ID:', article.category_id);
-      console.log('📝 表单分类ID:', form.value.category_id);
-      console.log('📝 可用分类列表:', categories.value);
       
       // 确保CategorySelector组件能接收到正确的值
       await nextTick();
-      console.log('📝 NextTick后表单分类ID:', form.value.category_id);
       
       message.success('文章数据加载完成，可以开始编辑');
     } else {
@@ -591,7 +572,6 @@ async function submit() {
   
   try {
     // 优化的内容同步逻辑 - 简化为单一可靠的方法
-    console.log('发布前同步编辑器内容...');
     
     const editorRef = blockEditorRef.value;
     if (editorRef && typeof editorRef.syncContent === 'function') {
@@ -599,7 +579,6 @@ async function submit() {
         const syncedContent = editorRef.syncContent();
         if (syncedContent && syncedContent.trim()) {
           form.value.content_md = syncedContent;
-          console.log('成功同步编辑器内容，长度:', syncedContent.length);
         }
       } catch (editorError) {
         console.error('编辑器内容同步失败:', editorError);
@@ -623,7 +602,6 @@ async function submit() {
     
     // 内容安全检查和清理
     try {
-      console.log('🔍 开始内容安全检查...');
       
       // 检查内容长度
       if (form.value.content_md.length > 500000) { // 500KB限制
@@ -654,7 +632,6 @@ async function submit() {
         }
       }
       
-      console.log('✅ 内容安全检查通过');
       
     } catch (validationError) {
       console.error('内容验证失败:', validationError);
@@ -663,14 +640,12 @@ async function submit() {
       return;
     }
     
-    console.log('发布前验证通过，内容长度:', form.value.content_md?.length || 0);
     
     // 简化的表单验证
     if (!validateForm()) {
       const errorFields = Object.keys(formErrors.value);
       const firstErrorMessage = formErrors.value[errorFields[0]];
       
-      console.log('表单验证失败:', formErrors.value);
       
       // 显示清晰的错误信息
       message.error({
@@ -682,7 +657,6 @@ async function submit() {
       return;
     }
     
-    console.log('表单验证通过，开始发布文章...');
     
     // 构建提交数据
     const tags = form.value.tags_raw.split(',').map(s => s.trim()).filter(Boolean);
@@ -696,8 +670,6 @@ async function submit() {
     // 编辑文章时，重新进入审核流程
     if (isEditMode.value) {
       payload.status = 'pending';
-      console.log('编辑模式：文章状态设置为pending，需要重新审核');
-      console.log('📝 提交的payload包含status:', payload.status);
     }
     
     // 可选字段
@@ -723,14 +695,12 @@ async function submit() {
     
     if (isEditMode.value && editingArticleId.value) {
       // 编辑模式：更新现有文章
-      console.log('编辑模式：更新文章', editingArticleId.value);
       resp = await API.updateArticle(editingArticleId.value, payload);
       data = resp.data?.data || resp.data;
       articleId = editingArticleId.value;
       slug = data.slug || originalArticle.value?.slug || articleId;
     } else {
       // 创建模式：新建文章
-      console.log('创建模式：新建文章');
       resp = await API.ArticlesService.postApiV1Articles(payload);
       data = resp.data?.data || resp.data;
       articleId = data.id;
@@ -746,7 +716,6 @@ async function submit() {
       // 新文章需要提交审核
       try {
         await API.submitArticle(articleId);
-        console.log('文章已提交审核');
         publishMessage = '恭喜！您的文章已成功发布并提交审核。';
         publishType = 'success';
       } catch (submitError) {
@@ -758,7 +727,6 @@ async function submit() {
       // 编辑模式：文章已更新，需要重新审核
       publishMessage = '文章已成功更新！修改后的文章已重新提交审核。';
       publishType = 'warning';
-      console.log('文章编辑完成，状态已设置为pending等待审核');
     }
     
     // 清理本地草稿
@@ -767,10 +735,6 @@ async function submit() {
     }
     
     // 调试信息：发布成功
-    console.log('文章发布成功，准备跳转...');
-    console.log('文章ID:', articleId);
-    console.log('文章slug:', slug);
-    console.log('跳转路径:', '/article/' + slug);
     
     // 清除loading状态并立即跳转，避免页面重新渲染
     loading.value = false;
@@ -872,18 +836,15 @@ async function submit() {
       );
       
       // 用户选择查看文章
-      console.log('用户选择查看文章，跳转到:', '/article/' + slug);
       window.location.href = '/article/' + slug;
       
     } catch (action) {
       // 用户选择稍后查看或关闭对话框
       if (action === 'cancel') {
         if (isEditMode.value) {
-          console.log('用户选择继续编辑');
           message.info('您可以继续编辑文章');
           // 在编辑模式下，用户选择继续编辑时留在当前页面
         } else {
-          console.log('用户选择稍后查看文章');
           message.info('您可以在文章管理页面找到您的文章');
           
           // 跳转到首页
@@ -893,7 +854,6 @@ async function submit() {
         }
         
       } else {
-        console.log('用户关闭了对话框');
         // 用户直接关闭对话框，重置编辑器状态或跳转到安全页面
         message.info('文章已发布成功，您可以在首页查看');
         
@@ -947,30 +907,22 @@ async function submit() {
 async function loadCategories() {
   try {
     categoryLoading.value = true;
-    console.log('🔍 开始加载分类列表...');
-    console.log('🔒 当前认证状态:', userStore.isAuthenticated);
-    console.log('👤 当前用户:', userStore.user);
     
     // 优先使用公开接口，不需要认证
     // 注意：不能使用apiClient，因为它有/api/v1的baseURL，需要直接使用axios
     const response = await axios.get('/public/v1/taxonomy');
     
-    console.log('📡 API响应:', response);
-    console.log('📡 响应数据:', response.data);
     
     // 处理公开接口API响应格式 {code: 0, message: 'ok', data: {categories: [...], tags: [...]}}
     let categoryData = [];
     if (response.data) {
       if (response.data.code === 0 && response.data.data?.categories) {
         categoryData = response.data.data.categories;
-        console.log('✅ 公开接口调用成功，返回分类数据');
       } else if (response.data.code === 0 && response.data.data) {
         // 兼容直接返回数组的情况
         categoryData = Array.isArray(response.data.data) ? response.data.data : [];
-        console.log('✅ API调用成功，返回标准格式');
       } else if (Array.isArray(response.data)) {
         categoryData = response.data;
-        console.log('📦 收到数组格式数据');
       } else {
         console.warn('⚠️ 意外的响应格式:', response.data);
         console.warn('⚠️ 响应code:', response.data.code);
@@ -979,13 +931,7 @@ async function loadCategories() {
     }
     
     categories.value = categoryData || [];
-    console.log('📁 分类列表加载成功:', categories.value.length, '个分类');
-    console.log('📁 分类数据:', categories.value);
-    console.log('📁 数据类型检查:', {
-      isArray: Array.isArray(categories.value),
-      type: typeof categories.value,
-      constructor: categories.value.constructor.name
-    });
+    
     
     if (categories.value.length === 0) {
       console.warn('⚠️ 分类列表为空，可能需要先在管理后台创建分类');
@@ -1003,19 +949,12 @@ async function loadCategories() {
     });
     
     // 如果公开接口失败，尝试使用认证接口
-    console.log('🔄 公开接口失败，尝试使用认证接口...');
     try {
       const authResponse = await API.getRootCategories();
-      console.log('📡 认证接口响应:', authResponse.data);
       
       if (authResponse.data.code === 0 && authResponse.data.data) {
         categories.value = Array.isArray(authResponse.data.data) ? authResponse.data.data : [];
-        console.log('✅ 认证接口成功，加载了', categories.value.length, '个分类');
-        console.log('📁 认证接口数据类型检查:', {
-          isArray: Array.isArray(categories.value),
-          type: typeof categories.value,
-          constructor: categories.value.constructor?.name
-        });
+        
         return; // 成功获取数据，直接返回
       }
     } catch (authError) {
@@ -1026,18 +965,12 @@ async function loadCategories() {
     categories.value = [];
     
     // 最后的降级方案
-    console.log('🔄 尝试最后的降级方案...');
     try {
       // 尝试使用生成的API适配器
       const fallbackResponse = await API.TaxonomyService.listCategories();
       const fallbackData = fallbackResponse.data || [];
       categories.value = Array.isArray(fallbackData) ? fallbackData : [];
-      console.log('✅ 降级方案成功，加载了', categories.value.length, '个分类');
-      console.log('📁 降级方案数据类型检查:', {
-        isArray: Array.isArray(categories.value),
-        type: typeof categories.value,
-        constructor: categories.value.constructor?.name
-      });
+      
     } catch (fallbackError) {
       console.error('❌ 降级方案也失败了:', fallbackError);
     }
@@ -1055,7 +988,6 @@ function handleCategoryChange(categoryId) {
   if (categoryId) {
     const selectedCategory = categories.value.find(cat => cat.id === categoryId);
     if (selectedCategory) {
-      console.log('🏷️ 已选择分类:', selectedCategory.name);
       
       // 触发自动保存（如果有其他内容）
       if (form.value.title || form.value.content_md) {
@@ -1073,7 +1005,6 @@ async function loadAvailableTags() {
     
     if (response.data.code === 0) {
       availableTags.value = response.data.data.tags || [];
-      console.log('✅ 标签加载成功，共', availableTags.value.length, '个标签');
     } else {
       console.error('❌ 标签加载失败:', response.data.message);
       message.warning('标签加载失败，但不影响文章创建');
@@ -1091,7 +1022,6 @@ async function loadAvailableTags() {
 function updateTagsRaw(tags) {
   selectedTags.value = tags;
   form.value.tags_raw = tags.join(', ');
-  console.log('🏷️ 标签已更新:', tags);
   
   // 触发自动保存
   if (form.value.title || form.value.content_md) {
@@ -1114,7 +1044,6 @@ function initSelectedTags() {
  * @param {{ category: { id: number, name: string }, confidence?: number, reason?: string }} recommendation
  */
 function handleRecommendationSelected(recommendation) {
-  console.log('🤖 AI推荐分类被选择:', recommendation);
   
   // 统计推荐效果（可用于优化AI模型）
   const analyticsData = {
@@ -1134,7 +1063,6 @@ function handleRecommendationSelected(recommendation) {
   };
   
   // 这里可以发送统计数据到后端用于模型优化
-  console.log('📊 AI推荐统计数据:', analyticsData);
   
   message.success(`已选择AI推荐的分类：${recommendation.category.name}`);
 }
@@ -1219,7 +1147,6 @@ function cleanupOldDrafts() {
 function triggerAutoSave() {
   // 如果正在恢复草稿，忽略触发
   if (isRestoringDraft.value) {
-    console.log('正在恢复草稿，跳过自动保存触发');
     return;
   }
   
@@ -1356,7 +1283,6 @@ async function loadLatestDraft() {
         );
         
         // 用户选择恢复草稿 - 采用更安全的同步方式
-        console.log('用户选择恢复草稿');
         
         try {
           // 立即设置恢复标志
@@ -1403,7 +1329,6 @@ async function loadLatestDraft() {
                 await nextTick();
                 
                 blockEditorRef.value.setContent(draftData.content_md || '');
-                console.log('编辑器内容同步成功');
               } else {
                 console.warn('编辑器引用无效或组件已卸载，跳过内容设置');
               }
@@ -1417,14 +1342,10 @@ async function loadLatestDraft() {
           setTimeout(() => {
             isRestoringDraft.value = false;
             hasUnsavedChanges.value = false;
-            console.log('草稿恢复完成，导航已解锁');
-            console.log('最终状态 - hasUnsavedChanges:', hasUnsavedChanges.value);
-            console.log('最终状态 - isRestoringDraft:', isRestoringDraft.value);
             
             // 草稿恢复完成，编辑器状态稳定
             
             // 显示成功消息，并提示用户现在可以安全导航
-            console.log("📝 草稿恢复完成，用户可以安全导航");
             message.success('📝 草稿已恢复！现在可以安全导航到其他页面。');
           }, 1000);
           
@@ -1442,7 +1363,6 @@ async function loadLatestDraft() {
               // 检查草稿数据是否已实际恢复
               const hasContent = form.value.title || form.value.content_md;
               if (hasContent) {
-                console.log('数据已成功恢复，忽略Vue渲染错误');
                 // 正常完成恢复流程
                 isRestoringDraft.value = false;
                 hasUnsavedChanges.value = false;
@@ -1461,7 +1381,6 @@ async function loadLatestDraft() {
             // 其他类型的错误
             isRestoringDraft.value = false;
             hasUnsavedChanges.value = false;
-            console.log("草稿恢复失败，请重试");
             message.critical('草稿恢复失败，请重试');
           }
         }
@@ -1469,9 +1388,7 @@ async function loadLatestDraft() {
       } catch (action) {
         // 用户选择跳过或关闭
         if (action === 'cancel') {
-          console.log('用户选择跳过草稿恢复');
         } else {
-          console.log('用户关闭了草稿对话框');
         }
         // 不显示任何额外的通知，保持安静
       }
@@ -1482,7 +1399,6 @@ async function loadLatestDraft() {
     if (isRestoringDraft.value) {
       isRestoringDraft.value = false;
       hasUnsavedChanges.value = false;
-      console.log('全局错误处理：重置草稿恢复状态');
     }
   }
 }
@@ -1492,17 +1408,14 @@ async function loadLatestDraft() {
 function handleBeforeUnload(e) {
   // 如果正在恢复草稿，不阻止导航
   if (isRestoringDraft.value) {
-    console.log('正在恢复草稿，允许页面导航');
     return;
   }
   
   if (hasUnsavedChanges.value) {
-    console.log('检测到未保存更改，阻止页面离开');
     e.preventDefault();
     e.returnValue = '您有未保存的更改，确定要离开页面吗？';
     return '您有未保存的更改，确定要离开页面吗？';
   } else {
-    console.log('没有未保存更改，允许页面导航');
   }
 }
 
@@ -1663,21 +1576,13 @@ onMounted(async () => {
   }
   
   // 认证状态检查
-  console.log('📝 NewArticle组件挂载，检查认证状态');
-  console.log('📝 当前认证状态:', userStore.isAuthenticated);
-  console.log('📝 当前用户:', userStore.user);
-  console.log('📝 当前token:', userStore.token ? '已存在' : '不存在');
-  console.log('📝 localStorage token:', localStorage.getItem('access_token') ? '已存在' : '不存在');
   
   // 如果未认证，尝试初始化认证状态
   if (!userStore.isAuthenticated) {
-    console.log('📝 用户未认证，尝试初始化认证状态...');
     await userStore.initAuth();
-    console.log('📝 认证初始化完成，当前状态:', userStore.isAuthenticated);
     
     // 如果仍未认证，重定向到登录页
     if (!userStore.isAuthenticated) {
-      console.log('📝 用户仍未认证，重定向到登录页');
       message.warning('请先登录后再创建文章');
       router.push('/login');
       return;
@@ -1707,7 +1612,6 @@ onMounted(async () => {
   document.addEventListener('keydown', handleKeyDown);
   
   // 组件初始化完成
-  console.log('📝 NewArticle组件初始化完成');
 });
 
 onBeforeUnmount(() => {
@@ -1734,24 +1638,16 @@ onBeforeUnmount(() => {
 
 // 路由离开守卫 - 处理未保存的更改
 onBeforeRouteLeave((to, from, next) => {
-  console.log('🚦 路由守卫检查 - hasUnsavedChanges:', hasUnsavedChanges.value);
-  console.log('🚦 路由守卫检查 - isRestoringDraft:', isRestoringDraft.value);
-  console.log('🚦 路由守卫检查 - 目标路径:', to.path);
-  console.log('🚦 路由守卫检查 - 表单内容:', {
-    title: form.value.title?.length || 0,
-    content: form.value.content_md?.length || 0
-  });
+  
   
   // 如果正在恢复草稿或已完成恢复，直接允许导航
   if (isRestoringDraft.value) {
-    console.log('🚦 正在恢复草稿，允许导航');
     next();
     return;
   }
   
   // 特殊处理：如果导航到主页且表单基本为空，直接允许
   if (to.path === '/' && (!form.value.title?.trim() && (!form.value.content_md?.trim() || form.value.content_md.length < 10))) {
-    console.log('🚦 导航到主页且内容基本为空，强制允许导航');
     hasUnsavedChanges.value = false;
     next();
     return;
@@ -1759,7 +1655,6 @@ onBeforeRouteLeave((to, from, next) => {
   
   // 检查未保存更改（但给一个宽松的判断）
   if (hasUnsavedChanges.value) {
-    console.log('🚦 检测到未保存更改，询问用户');
     try {
       const answer = window.confirm('您有未保存的更改，确定要离开页面吗？');
       next(answer);
@@ -1768,14 +1663,12 @@ onBeforeRouteLeave((to, from, next) => {
       next();
     }
   } else {
-    console.log('🚦 无未保存更改，允许导航');
     next();
   }
 });
 
 // 测试多消息场景处理效果的方法
 function testBatchMessageHandling() {
-  console.log('🧪 开始测试批量消息处理');
   
   // 模拟编辑器初始化时的多个消息
   message.info('编辑器初始化中...');
@@ -1786,7 +1679,6 @@ function testBatchMessageHandling() {
   message.warning('检测到大量HTML标签');
   message.success('分类加载成功');
   
-  console.log('🧪 已触发7条不同优先级的消息，查看效果');
 }
 
 // 在开发模式下暴露测试方法到全局

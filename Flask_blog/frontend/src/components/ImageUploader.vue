@@ -31,7 +31,7 @@ async function onFile(e){
     if(data){
       emit('uploaded', data);
     }
-  } catch(_e){
+  } catch (_e) {
     error.value = '上传失败';
   } finally { uploading.value=false; if(input.value){ input.value.value=''; } }
 }

@@ -62,7 +62,6 @@ export const message = {
   
   // 批量消息测试方法 (开发时使用)
   testBatch: () => {
-    console.log('🧪 测试批量消息处理');
     messageManager.info('编辑器初始化中...');
     messageManager.success('草稿数据加载完成');  
     messageManager.warning('未找到匹配的分类');

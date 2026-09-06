@@ -29,14 +29,14 @@ export default [
     rules: {
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-      'no-console': 'warn',
+      'no-console': ['warn', { allow: ['error', 'warn'] }],
     },
   },
   {
     files: ['src/**/*.js'],
     rules: {
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-      'no-console': 'warn',
+      'no-console': ['warn', { allow: ['error', 'warn'] }],
     },
   },
   {
@@ -55,7 +55,7 @@ export default [
       'vue/singleline-html-element-content-newline': 'off',
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-      'no-console': 'warn',
+      'no-console': ['warn', { allow: ['error', 'warn'] }],
     },
   },
 ]

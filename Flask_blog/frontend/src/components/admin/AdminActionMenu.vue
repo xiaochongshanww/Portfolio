@@ -15,7 +15,9 @@
         :data-testid="`more-${testId}`"
         :aria-label="`更多操作:${testId}`"
         :aria-expanded="open"
-      >···</button>
+      >
+        ···
+      </button>
       <template #dropdown>
         <el-dropdown-menu class="action-menu">
           <slot name="menu" />

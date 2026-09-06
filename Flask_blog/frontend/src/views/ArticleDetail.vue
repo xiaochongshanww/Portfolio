@@ -248,7 +248,6 @@ async function doTransition(target: string){
   
   // 调试信息：检查管理操作前的认证状态
   const tokenBefore = localStorage.getItem('access_token');
-  console.log(`🔧 管理操作${target}前 - Token存在:`, !!tokenBefore);
   
   try {
     const id = article.value.id;
@@ -258,8 +257,6 @@ async function doTransition(target: string){
     
     // 调试信息：检查管理操作后的认证状态
     const tokenAfter = localStorage.getItem('access_token');
-    console.log(`🔧 管理操作${target}后 - Token存在:`, !!tokenAfter);
-    console.log(`🔧 Token状态变化:`, tokenBefore === tokenAfter ? '无变化' : '已变化');
     
     ElMessage.success('操作成功');
     await load();
@@ -282,7 +279,6 @@ async function load(){
     }
     
     // 调试信息：检查用户认证状态
-    console.log('🔍 页面加载 - 用户认证状态:', !!userStore.token, '用户ID:', userStore.user?.id);
     
     const resp = await API.ArticlesService.getArticleBySlug(slug);
     if (!resp || !resp.data) {
@@ -295,17 +291,7 @@ async function load(){
     }
     
     // 调试：检查API返回的内容格式
-    console.log('📊 API返回的文章数据:', {
-      title: data.title,
-      hasContentHtml: !!data.content_html,
-      hasContentMd: !!data.content_md,
-      contentHtmlLength: data.content_html?.length || 0,
-      contentMdLength: data.content_md?.length || 0,
-      contentHtmlSample: data.content_html?.substring(0, 100) + '...',
-      contentMdSample: data.content_md?.substring(0, 100) + '...',
-      actualContentUsed: data.content_md || data.content_html,
-      actualContentLength: (data.content_md || data.content_html)?.length || 0
-    });
+    
     
     article.value = data;
     // D1:记录最近浏览(SearchOverlay 默认态数据源)
@@ -346,14 +332,10 @@ async function load(){
 onMounted(async () => {
   // 调试信息：页面挂载时的认证状态
   const tokenOnMount = localStorage.getItem('access_token');
-  console.log('🚀 页面挂载 - Token存在:', !!tokenOnMount);
-  console.log('🚀 页面挂载 - userStore.token存在:', !!userStore.token);
   
   // 等待用户认证状态初始化完成
   if (userStore.token) {
-    console.log('⏳ 等待用户认证状态初始化...');
     await userStore.initAuth();
-    console.log('✅ 用户认证状态初始化完成');
   }
   
   // 开始加载文章数据
@@ -361,7 +343,6 @@ onMounted(async () => {
   
   // 调试信息：页面加载完成后的认证状态
   const tokenAfterLoad = localStorage.getItem('access_token');
-  console.log('🏁 页面加载完成 - Token存在:', !!tokenAfterLoad);
 });
 
 async function schedule(){
@@ -383,14 +364,12 @@ async function unschedule(){
 async function highlightLater(){
   await nextTick();
   
-  console.log('🎨 ArticleDetail: 开始应用代码高亮');
   
   // 使用默认代码主题
   updateGlobalCodeTheme('default');
   
   // 检查代码块，但优先保留Shiki渲染
   const codeBlocks = document.querySelectorAll('.article-content pre code');
-  console.log(`🔍 发现 ${codeBlocks.length} 个代码块`);
   
   codeBlocks.forEach((block, index) => {
     const pre = block.parentElement;
@@ -402,11 +381,9 @@ async function highlightLater(){
         pre.classList.contains('fallback-code-block') ||
         pre.querySelector('.shiki') ||
         pre.style.backgroundColor) { // Shiki通常会添加背景色
-      console.log(`✅ 第 ${index + 1} 个代码块已由现代处理器渲染，跳过传统highlight.js处理`);
       return;
     }
     
-    console.log(`⚠️ 第 ${index + 1} 个代码块未被现代处理器渲染，可能需要降级处理`);
     // 但是现在我们不做降级处理，让用户知道有问题
     
     // 暂时跳过传统highlight.js处理，让新的Shiki处理器处理所有代码块
@@ -430,7 +407,6 @@ async function highlightLater(){
     }
   });
   
-  console.log(`✅ 语法高亮完成`);
 }
 
 

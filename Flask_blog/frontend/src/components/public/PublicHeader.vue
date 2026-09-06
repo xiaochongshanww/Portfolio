@@ -45,7 +45,9 @@
               :aria-label="`账号菜单,${displayName}`"
               :aria-expanded="userMenuOpen"
               @click.stop="userMenuOpen = !userMenuOpen"
-            >{{ initial }}</button>
+            >
+              {{ initial }}
+            </button>
             <div v-if="userMenuOpen" class="user-sheet">
               <div class="user-id">
                 <b>{{ displayName }}</b>

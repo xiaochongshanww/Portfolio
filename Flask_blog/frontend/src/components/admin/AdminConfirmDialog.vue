@@ -19,7 +19,9 @@
           :loading="loading"
           data-testid="confirm-danger"
           @click="$emit('confirm')"
-        >{{ confirmText }}</el-button>
+        >
+          {{ confirmText }}
+        </el-button>
       </div>
     </template>
   </el-dialog>

@@ -147,7 +147,7 @@ async function load(){
   try { 
     const r = await API.getArticleComments(props.articleId); 
     tree.value = r.data?.data || []; 
-  } catch(e){ 
+  } catch (e) { 
     ElMessage.error('评论加载失败'); 
   } finally { 
     loading.value=false; 
@@ -169,7 +169,7 @@ async function submit(){
     content.value=''; 
     replyTo.value=null; 
     await load(); 
-  } catch(e){ 
+  } catch (e) { 
     ElMessage.error('提交失败'); 
   } finally { 
     submitting.value=false; 

@@ -24,14 +24,17 @@
         class="tab"
         :class="{ active: tab === 'pending' }"
         @click="switchTab('pending')"
-      >待审核 {{ pendingCount }}</button>
+      >
+        待审核 {{ pendingCount }}
+      </button>
       <button
         type="button"
         class="tab"
         :class="{ active: tab === 'recent' }"
         @click="switchTab('recent')"
-      >最近处理</button>
-
+      >
+        最近处理
+      </button>
     </div>
 
     <!-- Toolbar -->
@@ -115,7 +118,9 @@
                 v-if="tab === 'pending'"
                 :to="`/admin/reviews/${row.id}`"
                 class="primary-btn-sm"
-              >开始审核</RouterLink>
+              >
+                开始审核
+              </RouterLink>
               <RouterLink v-else :to="`/admin/reviews/${row.id}`" class="edit-btn">查看</RouterLink>
             </template>
           </el-table-column>

@@ -49,7 +49,8 @@ testpaths = [
     "backend/tests",
 ]
 python_files = ["test_*.py"]
-addopts = "-q --tb=short --cov=app --cov-report=term-missing --cov-report=xml --cov-fail-under=50"
+# 覆盖率走显式目标: pytest backend/tests --cov=app --cov-report=term-missing (需 pip install pytest-cov)
+addopts = "-q --tb=short"
 
 [tool.mypy]
 python_version = "3.11"

@@ -12,7 +12,6 @@ const AuthorProfile = () => import(/* webpackChunkName: 'author-profile' */ './v
 const SearchPage = () => import(/* webpackChunkName: 'search-page' */ './views/SearchPage.vue');
 const TagPage = () => import('./views/TagPage.vue');
 const CommentsModeration = () => import(/* webpackChunkName: 'comments-moderation' */ './views/CommentsModeration.vue');
-const UserAdmin = () => import(/* webpackChunkName: 'user-admin' */ './views/UserAdmin.vue');
 const SearchSynonymsAdmin = () => import('./views/SearchSynonymsAdmin.vue');
 const MetricsDashboard = () => import('./views/MetricsDashboard.vue');
 import { resetMeta } from './composables/useMeta';
@@ -115,7 +114,6 @@ const routes = [
   
   // 兼容旧的管理路由
   { path: '/moderation/comments', component: CommentsModeration },
-  { path: '/admin/users', component: UserAdmin },
   { path: '/admin/search/synonyms', component: SearchSynonymsAdmin }
 ];
 

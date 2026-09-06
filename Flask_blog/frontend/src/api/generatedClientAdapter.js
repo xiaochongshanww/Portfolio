@@ -144,7 +144,7 @@ export function createServices(Services){
       const { page, page_size, tag, category_id, author_id, sort } = (opts||{});
       try {
         return await Services.ArticlesService.getApiV1ArticlesPublic(page, page_size, tag, category_id, author_id, sort);
-      } catch(_e){
+      } catch (_e) {
         // fallback to legacy public API when generated endpoint not available
         const r = await api.get('/public/v1/articles', { params: { page, page_size, tag, category_id, author_id, sort }, baseURL: '' });
         return r.data;

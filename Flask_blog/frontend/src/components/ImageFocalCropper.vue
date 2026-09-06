@@ -135,7 +135,6 @@ const dotStyle = computed(() => ({
 // 方法
 function onLoad() {
   // 图片加载完成，可以计算natural尺寸
-  console.log('Image loaded');
 }
 
 /** @param {MouseEvent} e */

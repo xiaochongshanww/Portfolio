@@ -50,7 +50,7 @@ async function load(){
     const resp = await API.getPublicArticles({ tag: String(tagSlug.value) });
     const j = resp.data;
     articles.value = j.data?.list || [];
-  }catch(e){ articles.value=[]; }
+  }catch (e) { articles.value=[]; }
   const url = window.location.href;
   setMeta({ title: `标签: ${tagSlug.value}`, description: `标签 ${tagSlug.value} 下的文章`, image: articles.value[0]?.featured_image, url });
   injectJsonLd({ '@context':'https://schema.org', '@type':'CollectionPage', name:`标签: ${tagSlug.value}` , url, mainEntity:{ '@type':'ItemList', itemListElement: articles.value.map((a,i)=>({ '@type':'ListItem', position:i+1, url: window.location.origin + '/article/' + a.slug, name:a.title })) }});

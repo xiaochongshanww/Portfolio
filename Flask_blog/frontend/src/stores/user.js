@@ -68,7 +68,6 @@ export const useUserStore = defineStore('user', {
         // 但要区分是初始化调用还是正常使用中的调用
         const err = /** @type {{ response?: { status?: number } }} */ (error);
         if (err.response?.status === 401) {
-          console.log('🔐 API返回401，token可能已失效');
           // 可以在这里添加更智能的处理逻辑
           // 比如尝试刷新token，或者只在用户主动操作时才logout
           this.logout();
@@ -106,30 +105,21 @@ export const useUserStore = defineStore('user', {
     
     // 初始化认证状态
     async initAuth() {
-      console.log('🔐 初始化认证状态...');
-      console.log('🔐 当前token:', this.token ? '已存在' : '不存在');
-      console.log('🔐 localStorage中的token:', localStorage.getItem('access_token') ? '已存在' : '不存在');
       
       if (this.token) {
-        console.log('🔐 开始获取用户信息...');
         try {
           await this.fetchUserInfo();
-          console.log('🔐 用户信息获取完成，认证状态:', this.isAuthenticated);
-          console.log('🔐 用户信息:', this.user);
         } catch (error) {
           const err = /** @type {{ message?: string }} */ (error);
-          console.log('🔐 初始化时获取用户信息失败，保持当前认证状态:', err.message);
           // 不在初始化时自动logout，让用户有机会正常使用
           // 实际的API调用失败时会处理认证问题
         }
       } else {
-        console.log('🔐 无token，跳过用户信息获取');
       }
     },
     
     // 强制重新加载用户信息
     async refreshUserInfo() {
-      console.log('🔄 强制刷新用户信息...');
       this.user = null;
       await this.fetchUserInfo();
     }

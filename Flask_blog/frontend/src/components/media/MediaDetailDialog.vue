@@ -336,7 +336,6 @@ export default {
     // 图片加载完成
     /** @param {Event} event */
     const handleImageLoad = (event) => {
-      console.log('图片加载成功')
     }
 
     // 图片加载错误

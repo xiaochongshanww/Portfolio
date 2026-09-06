@@ -37,7 +37,7 @@ async function load(){
   try {
     const r = await API.getSearchSynonyms();
     list.value = r.data?.data || [];
-  } catch(e){ pushError('加载失败'); }
+  } catch (e) { pushError('加载失败'); }
 }
 async function add(){
   loading.value=true; error.value='';
@@ -45,7 +45,7 @@ async function add(){
     const syns = synonymsRaw.value.split(',').map(s=>s.trim()).filter(Boolean);
     const r = await API.createSearchSynonym({ term: term.value, synonyms: syns });
     pushSuccess('已更新'); term.value=''; synonymsRaw.value=''; await load();
-  } catch(e){ pushError('提交失败'); }
+  } catch (e) { pushError('提交失败'); }
   finally { loading.value=false; }
 }
 /** @param {string} t */
@@ -53,7 +53,7 @@ async function del(t){
   if(!confirm('确定删除该同义词组?')) return;
   loading.value=true; error.value='';
   try { await API.deleteSearchSynonym(t); pushSuccess('已删除'); await load(); }
-  catch(e){ pushError('删除失败'); }
+  catch (e) { pushError('删除失败'); }
   finally { loading.value=false; }
 }
 onMounted(()=>{ setMeta({ title:'同义词管理' }); load(); });
