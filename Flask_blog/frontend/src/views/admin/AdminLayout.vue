@@ -91,7 +91,7 @@ import { useRoute, useRouter } from 'vue-router';
 import {
   DataBoard, Document, View, ChatLineRound, Collection, PriceTag, Box,
   Picture, User, Lock, Memo, Setting, FolderOpened, RefreshLeft, Odometer,
-  TrendCharts,
+  TrendCharts, Connection,
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import zhCn from 'element-plus/es/locale/lang/zh-cn.mjs';
@@ -151,6 +151,7 @@ const NAV_GROUPS: NavGroup[] = [
       { label: '备份', path: '/admin/backup', icon: FolderOpened, roles: ['admin'] },
       { label: '恢复', path: '/admin/restore', icon: RefreshLeft, roles: ['admin'] },
       { label: '性能', path: '/admin/performance', icon: Odometer, roles: ['editor', 'admin'] },
+      { label: '同义词', path: '/admin/search/synonyms', icon: Connection, roles: ['editor', 'admin'] },
       { label: '设置', path: '/admin/settings/general', icon: Setting, roles: ['admin'] },
     ],
   },

@@ -11,9 +11,8 @@ const ArticleDetail = () => import(/* webpackChunkName: 'article-detail' */ './v
 const AuthorProfile = () => import(/* webpackChunkName: 'author-profile' */ './views/AuthorProfile.vue');
 const SearchPage = () => import(/* webpackChunkName: 'search-page' */ './views/SearchPage.vue');
 const TagPage = () => import('./views/TagPage.vue');
-const CommentsModeration = () => import(/* webpackChunkName: 'comments-moderation' */ './views/CommentsModeration.vue');
-const SearchSynonymsAdmin = () => import('./views/SearchSynonymsAdmin.vue');
 const MetricsDashboard = () => import('./views/MetricsDashboard.vue');
+const SearchSynonymsAdmin = () => import('./views/SearchSynonymsAdmin.vue');
 import { resetMeta } from './composables/useMeta';
 
 // CMS后台相关路由
@@ -67,9 +66,9 @@ const routes = [
   },
 
   // ===== 未迁移页面(暂走旧壳)=====
-  { path: '/login', component: Login },
-  { path: '/register', component: Register },
-  { path: '/me/profile', component: Profile },
+  { path: '/login', component: Login, meta: { public: true } },
+  { path: '/register', component: Register, meta: { public: true } },
+  { path: '/me/profile', component: Profile, meta: { public: true, requiresAuth: true } },
   // 创作工具页(公共 V2 壳;编辑器自带认证守卫,未登录跳 /login)
   { path: '/articles/new', component: NewArticle, meta: { public: true } },
   { path: '/articles/:id/edit', component: NewArticle, props: true, meta: { editMode: true, public: true, requiresAuth: true } },
@@ -80,7 +79,7 @@ const routes = [
   { path: '/categories', redirect: '/topics' }, // A5: 并入专题体系
   { path: '/tags', redirect: '/topics' }, // 旧"标签云"入口同样并入专题(页脚链接防死链)
   { path: '/about', component: () => import('./views/About.vue'), meta: { public: true } },
-  { path: '/media', component: () => import('./views/MediaGallery.vue') },
+  { path: '/media', component: () => import('./views/MediaGallery.vue'), meta: { public: true, requiresAuth: true } },
   
   // CMS后台路由
   {
@@ -102,6 +101,7 @@ const routes = [
       { path: 'users', component: UserManagement, meta: { requiresRole: ['admin'], content: 'standard' } },
       { path: 'security', component: SecurityMonitoring, meta: { requiresRole: ['editor', 'admin'], content: 'standard' } },
       { path: 'logs', component: LogManagement, meta: { requiresRole: ['editor', 'admin'], content: 'data' } },
+      { path: 'search/synonyms', component: SearchSynonymsAdmin, meta: { requiresRole: ['editor', 'admin'], content: 'standard' } },
       { path: 'performance', component: SystemPerformance, meta: { requiresRole: ['editor', 'admin'] } },
       { path: 'settings/general', component: SystemSettings, meta: { requiresRole: ['admin'], content: 'narrow' } },
       { path: 'backup', component: BackupManagement, meta: { requiresRole: ['admin'], content: 'data' } },
@@ -110,11 +110,7 @@ const routes = [
       { path: 'restore-management', redirect: 'restore' },
       { path: 'media', component: MediaManagement, meta: { requiresRole: ['author', 'editor', 'admin'], content: 'data' } },
     ]
-  },
-  
-  // 兼容旧的管理路由
-  { path: '/moderation/comments', component: CommentsModeration },
-  { path: '/admin/search/synonyms', component: SearchSynonymsAdmin }
+  }
 ];
 
 const router = createRouter({

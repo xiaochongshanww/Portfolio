@@ -3,13 +3,11 @@ import vue from '@vitejs/plugin-vue';
 import AutoImport from 'unplugin-auto-import/vite';
 import Components from 'unplugin-vue-components/vite';
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers';
-import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig(({ command }) => ({
   plugins: [
     vue(),
-    tailwindcss(),
     AutoImport({
       resolvers: [ElementPlusResolver()],
       // dts 仅在 dev server 写入:build 与 dev 并发运行时会争抢文件句柄(Windows 下报 UNKNOWN)
