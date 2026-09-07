@@ -163,6 +163,7 @@
 import { ref, computed, watch, inject } from 'vue'
 import { ElMessage } from 'element-plus'
 import { API } from '@/api'
+import { UploadFilled } from '@element-plus/icons-vue';
 
 export default {
   name: 'MediaUploadDialog',

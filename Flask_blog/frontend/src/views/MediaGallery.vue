@@ -251,6 +251,7 @@ import { useUserStore } from '@/stores/user'
 import { API } from '@/api'
 import { formatFileSize, getMediaTypeName, getMediaIcon } from '@/utils/mediaUtils'
 import MediaUploadDialog from '@/components/media/MediaUploadDialog.vue'
+import { Download, Upload, View } from '@element-plus/icons-vue';
 
 export default {
   name: 'MediaGallery',

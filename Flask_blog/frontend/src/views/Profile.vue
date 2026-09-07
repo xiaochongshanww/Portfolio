@@ -263,6 +263,7 @@ import { setMeta } from '../composables/useMeta';
 import { getUserDisplayName } from '../utils/userDisplay';
 import { ElMessage } from 'element-plus';
 import { useUserStore } from '../stores/user';
+import { User } from '@element-plus/icons-vue';
 
 const { pushError } = useNotify();
 const userStore = useUserStore();

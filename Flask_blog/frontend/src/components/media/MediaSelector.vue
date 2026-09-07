@@ -278,6 +278,7 @@ import { ElMessage } from 'element-plus'
 import { API } from '@/api'
 import { formatFileSize, getMediaTypeName, getMediaIcon } from '@/utils/mediaUtils'
 import MediaUploadDialog from './MediaUploadDialog.vue'
+import { Search } from '@element-plus/icons-vue';
 
 export default {
   name: 'MediaSelector',

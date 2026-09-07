@@ -3,7 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 // 关键首页等核心路由可直接静态导入；体量较大的视图按需分包
 import Home from './views/Home.vue';
 import Login from './views/Login.vue';
-import NewArticle from './views/NewArticle.vue';
+const NewArticle = () => import('./views/NewArticle.vue');
 const Register = () => import('./views/Register.vue');
 const Profile = () => import('./views/Profile.vue');
 // 其余延迟加载

@@ -192,6 +192,7 @@ import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { API } from '@/api'
 import { formatFileSize, getMediaTypeName, getMediaIcon } from '@/utils/mediaUtils'
+import { Lock, Share, View } from '@element-plus/icons-vue';
 
 export default {
   name: 'MediaEditDialog',

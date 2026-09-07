@@ -82,6 +82,7 @@
 import { ref, computed, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import { API } from '@/api'
+import { Lock, Share, View } from '@element-plus/icons-vue';
 
 export default {
   name: 'FolderCreateDialog',
