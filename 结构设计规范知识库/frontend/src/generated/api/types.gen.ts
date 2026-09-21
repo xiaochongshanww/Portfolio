@@ -458,6 +458,18 @@ export type EvaluateRequest = {
 };
 
 /**
+ * EvaluationCaseMutationRequest
+ */
+export type EvaluationCaseMutationRequest = {
+    /**
+     * Case
+     */
+    case: {
+        [key: string]: unknown;
+    };
+};
+
+/**
  * EvaluationCaseResponse
  */
 export type EvaluationCaseResponse = {
@@ -564,6 +576,357 @@ export type EvaluationCasesResponse = {
 };
 
 /**
+ * EvaluationDiffResponse
+ */
+export type EvaluationDiffResponse = {
+    /**
+     * Added
+     */
+    added: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Base Revision Id
+     */
+    base_revision_id: string;
+    /**
+     * Changed Count
+     */
+    changed_count: number;
+    /**
+     * Draft Content Hash
+     */
+    draft_content_hash: string;
+    /**
+     * Evaluation Set Id
+     */
+    evaluation_set_id: 'regular' | 'structured' | 'answer';
+    /**
+     * Modified
+     */
+    modified: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Removed
+     */
+    removed: Array<{
+        [key: string]: unknown;
+    }>;
+};
+
+/**
+ * EvaluationDraftRequest
+ */
+export type EvaluationDraftRequest = {
+    /**
+     * Reset
+     */
+    reset?: boolean;
+};
+
+/**
+ * EvaluationDraftResponse
+ */
+export type EvaluationDraftResponse = {
+    /**
+     * Case Count
+     */
+    case_count: number;
+    /**
+     * Cases
+     */
+    cases: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Deleted Case Id
+     */
+    deleted_case_id?: string | null;
+    draft?: EvaluationRevisionSummary | null;
+    /**
+     * Draft Status
+     */
+    draft_status: string;
+    /**
+     * Evaluation Set Id
+     */
+    evaluation_set_id: 'regular' | 'structured' | 'answer';
+    /**
+     * Type Counts
+     */
+    type_counts: {
+        [key: string]: number;
+    };
+};
+
+/**
+ * EvaluationPublishResponse
+ */
+export type EvaluationPublishResponse = {
+    /**
+     * Affected Report Types
+     */
+    affected_report_types: Array<string>;
+    /**
+     * Evaluation Set Id
+     */
+    evaluation_set_id: 'regular' | 'structured' | 'answer';
+    /**
+     * Previous Revision Id
+     */
+    previous_revision_id: string;
+    revision: EvaluationRevisionSummary;
+};
+
+/**
+ * EvaluationRefreshItem
+ */
+export type EvaluationRefreshItem = {
+    /**
+     * Actor
+     */
+    actor: string;
+    /**
+     * Affected Report Types
+     */
+    affected_report_types: Array<string>;
+    /**
+     * Content Hash
+     */
+    content_hash: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Evaluation Set Id
+     */
+    evaluation_set_id: 'regular' | 'structured' | 'answer';
+    /**
+     * Event Id
+     */
+    event_id: string;
+    /**
+     * Missing Report Types
+     */
+    missing_report_types: Array<string>;
+    /**
+     * Previous Revision Id
+     */
+    previous_revision_id?: string | null;
+    /**
+     * Revision Id
+     */
+    revision_id: string;
+    /**
+     * Status
+     */
+    status: 'pending' | 'completed';
+};
+
+/**
+ * EvaluationRefreshSummary
+ */
+export type EvaluationRefreshSummary = {
+    /**
+     * Items
+     */
+    items: Array<EvaluationRefreshItem>;
+    /**
+     * Pending Count
+     */
+    pending_count: number;
+};
+
+/**
+ * EvaluationRevisionResponse
+ */
+export type EvaluationRevisionResponse = {
+    /**
+     * Cases
+     */
+    cases: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Evaluation Set Id
+     */
+    evaluation_set_id: 'regular' | 'structured' | 'answer';
+    revision: EvaluationRevisionSummary;
+};
+
+/**
+ * EvaluationRevisionSummary
+ */
+export type EvaluationRevisionSummary = {
+    /**
+     * Case Count
+     */
+    case_count: number;
+    /**
+     * Content Hash
+     */
+    content_hash: string;
+    /**
+     * Created At
+     */
+    created_at?: string | null;
+    /**
+     * Created By
+     */
+    created_by: string;
+    /**
+     * Evaluation Set Id
+     */
+    evaluation_set_id: 'regular' | 'structured' | 'answer';
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Parent Revision Id
+     */
+    parent_revision_id?: string | null;
+    /**
+     * Published At
+     */
+    published_at?: string | null;
+    /**
+     * Revision Id
+     */
+    revision_id: string;
+    /**
+     * Schema Version
+     */
+    schema_version: string;
+    /**
+     * Source
+     */
+    source: string;
+    /**
+     * Status
+     */
+    status: string;
+    /**
+     * Type Counts
+     */
+    type_counts: {
+        [key: string]: number;
+    };
+    /**
+     * Validation Summary
+     */
+    validation_summary?: {
+        [key: string]: unknown;
+    } | null;
+};
+
+/**
+ * EvaluationRevisionsResponse
+ */
+export type EvaluationRevisionsResponse = {
+    /**
+     * Evaluation Set Id
+     */
+    evaluation_set_id: 'regular' | 'structured' | 'answer';
+    /**
+     * Revisions
+     */
+    revisions: Array<EvaluationRevisionSummary>;
+};
+
+/**
+ * EvaluationRollbackRequest
+ */
+export type EvaluationRollbackRequest = {
+    /**
+     * Revision Id
+     */
+    revision_id: string;
+};
+
+/**
+ * EvaluationSetResponse
+ */
+export type EvaluationSetResponse = {
+    /**
+     * Case Count
+     */
+    case_count: number;
+    /**
+     * Cases
+     */
+    cases: Array<{
+        [key: string]: unknown;
+    }>;
+    draft?: EvaluationRevisionSummary | null;
+    /**
+     * Draft Cases
+     */
+    draft_cases: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Evaluation Set Id
+     */
+    evaluation_set_id: 'regular' | 'structured' | 'answer';
+    /**
+     * Kind
+     */
+    kind: 'retrieval' | 'answer';
+    /**
+     * Name
+     */
+    name: string;
+    published_revision: EvaluationRevisionSummary;
+    /**
+     * Type Counts
+     */
+    type_counts: {
+        [key: string]: number;
+    };
+};
+
+/**
+ * EvaluationSetSummary
+ */
+export type EvaluationSetSummary = {
+    /**
+     * Case Count
+     */
+    case_count: number;
+    draft?: EvaluationRevisionSummary | null;
+    /**
+     * Evaluation Set Id
+     */
+    evaluation_set_id: 'regular' | 'structured' | 'answer';
+    /**
+     * Kind
+     */
+    kind: 'retrieval' | 'answer';
+    /**
+     * Name
+     */
+    name: string;
+    published_revision: EvaluationRevisionSummary;
+    /**
+     * Updated At
+     */
+    updated_at?: string | null;
+};
+
+/**
+ * EvaluationSetsResponse
+ */
+export type EvaluationSetsResponse = {
+    /**
+     * Sets
+     */
+    sets: Array<EvaluationSetSummary>;
+};
+
+/**
  * EvaluationStatusResponse
  */
 export type EvaluationStatusResponse = {
@@ -647,6 +1010,26 @@ export type EvaluationSummary = {
      * Structured Table Hit Rate
      */
     structured_table_hit_rate?: number | null;
+};
+
+/**
+ * EvaluationValidationResponse
+ */
+export type EvaluationValidationResponse = {
+    /**
+     * Draft Status
+     */
+    draft_status: string;
+    /**
+     * Evaluation Set Id
+     */
+    evaluation_set_id: 'regular' | 'structured' | 'answer';
+    /**
+     * Validation
+     */
+    validation: {
+        [key: string]: unknown;
+    };
 };
 
 /**
@@ -908,6 +1291,24 @@ export type JobRequest = {
 };
 
 /**
+ * JobResolutionRequest
+ */
+export type JobResolutionRequest = {
+    /**
+     * Note
+     */
+    note: string;
+    /**
+     * Related Job Id
+     */
+    related_job_id?: string;
+    /**
+     * Status
+     */
+    status: 'acknowledged' | 'superseded';
+};
+
+/**
  * JobResponse
  */
 export type JobResponse = {
@@ -968,6 +1369,12 @@ export type JobResponse = {
      * Request Id
      */
     request_id?: string;
+    /**
+     * Resolution
+     */
+    resolution?: {
+        [key: string]: unknown;
+    };
     /**
      * Started At
      */
@@ -1454,6 +1861,60 @@ export type ProviderProbesResponse = {
 };
 
 /**
+ * QualityReportCompareResponse
+ */
+export type QualityReportCompareResponse = {
+    /**
+     * Comparison
+     */
+    comparison: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * QualityRunSummary
+ */
+export type QualityRunSummary = {
+    /**
+     * Completed At
+     */
+    completed_at: string;
+    /**
+     * Data Version Hash
+     */
+    data_version_hash?: string | null;
+    /**
+     * Evaluation Set Revisions
+     */
+    evaluation_set_revisions: {
+        [key: string]: string | null;
+    };
+    /**
+     * Passed
+     */
+    passed: boolean;
+    /**
+     * Runtime Config Hash
+     */
+    runtime_config_hash?: string | null;
+    /**
+     * Verification Run Id
+     */
+    verification_run_id: string;
+};
+
+/**
+ * QualityRunsResponse
+ */
+export type QualityRunsResponse = {
+    /**
+     * Runs
+     */
+    runs: Array<QualityRunSummary>;
+};
+
+/**
  * QualityStatusResponse
  */
 export type QualityStatusResponse = {
@@ -1469,6 +1930,7 @@ export type QualityStatusResponse = {
     draft_statuses: {
         [key: string]: number;
     };
+    evaluation_refresh: EvaluationRefreshSummary;
     /**
      * External Dependencies
      */
@@ -1656,6 +2118,267 @@ export type ReviewRequest = {
 };
 
 /**
+ * SourceBootstrapResponse
+ */
+export type SourceBootstrapResponse = {
+    /**
+     * Imported Count
+     */
+    imported_count: number;
+    /**
+     * Revision Id
+     */
+    revision_id: string;
+};
+
+/**
+ * SourceBuildRequest
+ */
+export type SourceBuildRequest = {
+    /**
+     * Apply Corrections
+     */
+    apply_corrections?: boolean;
+    /**
+     * Mode
+     */
+    mode?: string;
+    /**
+     * Parser Backend
+     */
+    parser_backend?: string;
+};
+
+/**
+ * SourceBuildResponse
+ */
+export type SourceBuildResponse = {
+    /**
+     * Job
+     */
+    job: {
+        [key: string]: unknown;
+    };
+    /**
+     * Revision Id
+     */
+    revision_id: string;
+};
+
+/**
+ * SourceChangesResponse
+ */
+export type SourceChangesResponse = {
+    /**
+     * Active Revision Id
+     */
+    active_revision_id: string;
+    /**
+     * Blockers
+     */
+    blockers: Array<{
+        [key: string]: string;
+    }>;
+    /**
+     * Catalog Revision
+     */
+    catalog_revision: number;
+    /**
+     * Changes
+     */
+    changes: {
+        [key: string]: Array<string>;
+    };
+    /**
+     * Desired Source Count
+     */
+    desired_source_count: number;
+    /**
+     * Ready
+     */
+    ready: boolean;
+};
+
+/**
+ * SourceDeleteResponse
+ */
+export type SourceDeleteResponse = {
+    /**
+     * Deleted
+     */
+    deleted: boolean;
+    /**
+     * Source Id
+     */
+    source_id: string;
+};
+
+/**
+ * SourceListResponse
+ */
+export type SourceListResponse = {
+    /**
+     * Active Revision Id
+     */
+    active_revision_id: string;
+    /**
+     * Catalog Revision
+     */
+    catalog_revision: number;
+    /**
+     * Pending Count
+     */
+    pending_count: number;
+    /**
+     * Source Count
+     */
+    source_count: number;
+    /**
+     * Sources
+     */
+    sources: Array<SourceResponse>;
+};
+
+/**
+ * SourceMutationResponse
+ */
+export type SourceMutationResponse = {
+    source: SourceResponse | null;
+};
+
+/**
+ * SourceResponse
+ */
+export type SourceResponse = {
+    /**
+     * Active Asset Version Id
+     */
+    active_asset_version_id?: string;
+    /**
+     * Active Governance
+     */
+    active_governance?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Active Metadata
+     */
+    active_metadata?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Created At
+     */
+    created_at?: string;
+    /**
+     * Governance
+     */
+    governance: {
+        [key: string]: unknown;
+    };
+    /**
+     * Lifecycle Status
+     */
+    lifecycle_status: string;
+    /**
+     * Metadata
+     */
+    metadata: {
+        [key: string]: unknown;
+    };
+    /**
+     * Pending Action
+     */
+    pending_action?: string;
+    /**
+     * Pending Asset Version Id
+     */
+    pending_asset_version_id?: string;
+    /**
+     * Source Id
+     */
+    source_id: string;
+    /**
+     * Updated At
+     */
+    updated_at?: string;
+    /**
+     * Versions
+     */
+    versions: Array<{
+        [key: string]: unknown;
+    }>;
+};
+
+/**
+ * SourceRevisionResponse
+ */
+export type SourceRevisionResponse = {
+    /**
+     * Changes
+     */
+    changes: {
+        [key: string]: Array<string>;
+    };
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Data Version Hash
+     */
+    data_version_hash?: string;
+    /**
+     * Error
+     */
+    error?: string;
+    /**
+     * Revision Id
+     */
+    revision_id: string;
+    /**
+     * Source Count
+     */
+    source_count: number;
+    /**
+     * Status
+     */
+    status: string;
+};
+
+/**
+ * SourceRevisionsResponse
+ */
+export type SourceRevisionsResponse = {
+    /**
+     * Active Revision Id
+     */
+    active_revision_id: string;
+    /**
+     * Revisions
+     */
+    revisions: Array<SourceRevisionResponse>;
+};
+
+/**
+ * SourceUpdateRequest
+ */
+export type SourceUpdateRequest = {
+    /**
+     * Governance
+     */
+    governance?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Metadata
+     */
+    metadata?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
  * StructuringSuggestionBatchRequest
  */
 export type StructuringSuggestionBatchRequest = {
@@ -1746,6 +2469,10 @@ export type VersionCleanupCandidate = {
      * Version Id
      */
     version_id: string;
+    /**
+     * Version Label
+     */
+    version_label?: string;
 };
 
 /**
@@ -1827,6 +2554,10 @@ export type VersionInventoryResponse = {
      */
     active_version_id: string | null;
     /**
+     * Active Version Label
+     */
+    active_version_label?: string | null;
+    /**
      * Cleanup Candidate Bytes
      */
     cleanup_candidate_bytes: number;
@@ -1838,6 +2569,18 @@ export type VersionInventoryResponse = {
      * Generated At
      */
     generated_at: string;
+    /**
+     * Matched Version Count
+     */
+    matched_version_count?: number;
+    /**
+     * Page Limit
+     */
+    page_limit?: number;
+    /**
+     * Page Offset
+     */
+    page_offset?: number;
     /**
      * Policy
      */
@@ -1894,6 +2637,10 @@ export type VersionRetentionResponse = {
      * Version Id
      */
     version_id: string;
+    /**
+     * Version Label
+     */
+    version_label?: string;
 };
 
 /**
@@ -1986,6 +2733,10 @@ export type VersionSummary = {
      * Version Id
      */
     version_id: string;
+    /**
+     * Version Label
+     */
+    version_label?: string;
 };
 
 /**
@@ -2377,6 +3128,367 @@ export type AdminEvaluationCasesAdminEvaluationCasesGetResponses = {
 
 export type AdminEvaluationCasesAdminEvaluationCasesGetResponse = AdminEvaluationCasesAdminEvaluationCasesGetResponses[keyof AdminEvaluationCasesAdminEvaluationCasesGetResponses];
 
+export type AdminEvaluationSetsAdminEvaluationSetsGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/evaluation/sets';
+};
+
+export type AdminEvaluationSetsAdminEvaluationSetsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: EvaluationSetsResponse;
+};
+
+export type AdminEvaluationSetsAdminEvaluationSetsGetResponse = AdminEvaluationSetsAdminEvaluationSetsGetResponses[keyof AdminEvaluationSetsAdminEvaluationSetsGetResponses];
+
+export type AdminEvaluationSetAdminEvaluationSetsEvaluationSetIdGetData = {
+    body?: never;
+    path: {
+        /**
+         * Evaluation Set Id
+         */
+        evaluation_set_id: string;
+    };
+    query?: never;
+    url: '/admin/evaluation/sets/{evaluation_set_id}';
+};
+
+export type AdminEvaluationSetAdminEvaluationSetsEvaluationSetIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AdminEvaluationSetAdminEvaluationSetsEvaluationSetIdGetError = AdminEvaluationSetAdminEvaluationSetsEvaluationSetIdGetErrors[keyof AdminEvaluationSetAdminEvaluationSetsEvaluationSetIdGetErrors];
+
+export type AdminEvaluationSetAdminEvaluationSetsEvaluationSetIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: EvaluationSetResponse;
+};
+
+export type AdminEvaluationSetAdminEvaluationSetsEvaluationSetIdGetResponse = AdminEvaluationSetAdminEvaluationSetsEvaluationSetIdGetResponses[keyof AdminEvaluationSetAdminEvaluationSetsEvaluationSetIdGetResponses];
+
+export type AdminEvaluationSetDiffAdminEvaluationSetsEvaluationSetIdDiffGetData = {
+    body?: never;
+    path: {
+        /**
+         * Evaluation Set Id
+         */
+        evaluation_set_id: string;
+    };
+    query?: never;
+    url: '/admin/evaluation/sets/{evaluation_set_id}/diff';
+};
+
+export type AdminEvaluationSetDiffAdminEvaluationSetsEvaluationSetIdDiffGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AdminEvaluationSetDiffAdminEvaluationSetsEvaluationSetIdDiffGetError = AdminEvaluationSetDiffAdminEvaluationSetsEvaluationSetIdDiffGetErrors[keyof AdminEvaluationSetDiffAdminEvaluationSetsEvaluationSetIdDiffGetErrors];
+
+export type AdminEvaluationSetDiffAdminEvaluationSetsEvaluationSetIdDiffGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: EvaluationDiffResponse;
+};
+
+export type AdminEvaluationSetDiffAdminEvaluationSetsEvaluationSetIdDiffGetResponse = AdminEvaluationSetDiffAdminEvaluationSetsEvaluationSetIdDiffGetResponses[keyof AdminEvaluationSetDiffAdminEvaluationSetsEvaluationSetIdDiffGetResponses];
+
+export type AdminEvaluationSetCreateDraftAdminEvaluationSetsEvaluationSetIdDraftsPostData = {
+    /**
+     * Request
+     */
+    body?: EvaluationDraftRequest | null;
+    path: {
+        /**
+         * Evaluation Set Id
+         */
+        evaluation_set_id: string;
+    };
+    query?: never;
+    url: '/admin/evaluation/sets/{evaluation_set_id}/drafts';
+};
+
+export type AdminEvaluationSetCreateDraftAdminEvaluationSetsEvaluationSetIdDraftsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AdminEvaluationSetCreateDraftAdminEvaluationSetsEvaluationSetIdDraftsPostError = AdminEvaluationSetCreateDraftAdminEvaluationSetsEvaluationSetIdDraftsPostErrors[keyof AdminEvaluationSetCreateDraftAdminEvaluationSetsEvaluationSetIdDraftsPostErrors];
+
+export type AdminEvaluationSetCreateDraftAdminEvaluationSetsEvaluationSetIdDraftsPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: EvaluationDraftResponse;
+};
+
+export type AdminEvaluationSetCreateDraftAdminEvaluationSetsEvaluationSetIdDraftsPostResponse = AdminEvaluationSetCreateDraftAdminEvaluationSetsEvaluationSetIdDraftsPostResponses[keyof AdminEvaluationSetCreateDraftAdminEvaluationSetsEvaluationSetIdDraftsPostResponses];
+
+export type AdminEvaluationSetAddCaseAdminEvaluationSetsEvaluationSetIdDraftsCasesPostData = {
+    body: EvaluationCaseMutationRequest;
+    path: {
+        /**
+         * Evaluation Set Id
+         */
+        evaluation_set_id: string;
+    };
+    query?: never;
+    url: '/admin/evaluation/sets/{evaluation_set_id}/drafts/cases';
+};
+
+export type AdminEvaluationSetAddCaseAdminEvaluationSetsEvaluationSetIdDraftsCasesPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AdminEvaluationSetAddCaseAdminEvaluationSetsEvaluationSetIdDraftsCasesPostError = AdminEvaluationSetAddCaseAdminEvaluationSetsEvaluationSetIdDraftsCasesPostErrors[keyof AdminEvaluationSetAddCaseAdminEvaluationSetsEvaluationSetIdDraftsCasesPostErrors];
+
+export type AdminEvaluationSetAddCaseAdminEvaluationSetsEvaluationSetIdDraftsCasesPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: EvaluationDraftResponse;
+};
+
+export type AdminEvaluationSetAddCaseAdminEvaluationSetsEvaluationSetIdDraftsCasesPostResponse = AdminEvaluationSetAddCaseAdminEvaluationSetsEvaluationSetIdDraftsCasesPostResponses[keyof AdminEvaluationSetAddCaseAdminEvaluationSetsEvaluationSetIdDraftsCasesPostResponses];
+
+export type AdminEvaluationSetDeleteCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Evaluation Set Id
+         */
+        evaluation_set_id: string;
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/admin/evaluation/sets/{evaluation_set_id}/drafts/{case_id}';
+};
+
+export type AdminEvaluationSetDeleteCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AdminEvaluationSetDeleteCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdDeleteError = AdminEvaluationSetDeleteCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdDeleteErrors[keyof AdminEvaluationSetDeleteCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdDeleteErrors];
+
+export type AdminEvaluationSetDeleteCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: EvaluationDraftResponse;
+};
+
+export type AdminEvaluationSetDeleteCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdDeleteResponse = AdminEvaluationSetDeleteCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdDeleteResponses[keyof AdminEvaluationSetDeleteCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdDeleteResponses];
+
+export type AdminEvaluationSetUpdateCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdPatchData = {
+    body: EvaluationCaseMutationRequest;
+    path: {
+        /**
+         * Evaluation Set Id
+         */
+        evaluation_set_id: string;
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/admin/evaluation/sets/{evaluation_set_id}/drafts/{case_id}';
+};
+
+export type AdminEvaluationSetUpdateCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AdminEvaluationSetUpdateCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdPatchError = AdminEvaluationSetUpdateCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdPatchErrors[keyof AdminEvaluationSetUpdateCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdPatchErrors];
+
+export type AdminEvaluationSetUpdateCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: EvaluationDraftResponse;
+};
+
+export type AdminEvaluationSetUpdateCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdPatchResponse = AdminEvaluationSetUpdateCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdPatchResponses[keyof AdminEvaluationSetUpdateCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdPatchResponses];
+
+export type AdminEvaluationSetPublishAdminEvaluationSetsEvaluationSetIdPublishPostData = {
+    body?: never;
+    path: {
+        /**
+         * Evaluation Set Id
+         */
+        evaluation_set_id: string;
+    };
+    query?: never;
+    url: '/admin/evaluation/sets/{evaluation_set_id}/publish';
+};
+
+export type AdminEvaluationSetPublishAdminEvaluationSetsEvaluationSetIdPublishPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AdminEvaluationSetPublishAdminEvaluationSetsEvaluationSetIdPublishPostError = AdminEvaluationSetPublishAdminEvaluationSetsEvaluationSetIdPublishPostErrors[keyof AdminEvaluationSetPublishAdminEvaluationSetsEvaluationSetIdPublishPostErrors];
+
+export type AdminEvaluationSetPublishAdminEvaluationSetsEvaluationSetIdPublishPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: EvaluationPublishResponse;
+};
+
+export type AdminEvaluationSetPublishAdminEvaluationSetsEvaluationSetIdPublishPostResponse = AdminEvaluationSetPublishAdminEvaluationSetsEvaluationSetIdPublishPostResponses[keyof AdminEvaluationSetPublishAdminEvaluationSetsEvaluationSetIdPublishPostResponses];
+
+export type AdminEvaluationSetRevisionsAdminEvaluationSetsEvaluationSetIdRevisionsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Evaluation Set Id
+         */
+        evaluation_set_id: string;
+    };
+    query?: never;
+    url: '/admin/evaluation/sets/{evaluation_set_id}/revisions';
+};
+
+export type AdminEvaluationSetRevisionsAdminEvaluationSetsEvaluationSetIdRevisionsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AdminEvaluationSetRevisionsAdminEvaluationSetsEvaluationSetIdRevisionsGetError = AdminEvaluationSetRevisionsAdminEvaluationSetsEvaluationSetIdRevisionsGetErrors[keyof AdminEvaluationSetRevisionsAdminEvaluationSetsEvaluationSetIdRevisionsGetErrors];
+
+export type AdminEvaluationSetRevisionsAdminEvaluationSetsEvaluationSetIdRevisionsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: EvaluationRevisionsResponse;
+};
+
+export type AdminEvaluationSetRevisionsAdminEvaluationSetsEvaluationSetIdRevisionsGetResponse = AdminEvaluationSetRevisionsAdminEvaluationSetsEvaluationSetIdRevisionsGetResponses[keyof AdminEvaluationSetRevisionsAdminEvaluationSetsEvaluationSetIdRevisionsGetResponses];
+
+export type AdminEvaluationSetRevisionAdminEvaluationSetsEvaluationSetIdRevisionsRevisionIdGetData = {
+    body?: never;
+    path: {
+        /**
+         * Evaluation Set Id
+         */
+        evaluation_set_id: string;
+        /**
+         * Revision Id
+         */
+        revision_id: string;
+    };
+    query?: never;
+    url: '/admin/evaluation/sets/{evaluation_set_id}/revisions/{revision_id}';
+};
+
+export type AdminEvaluationSetRevisionAdminEvaluationSetsEvaluationSetIdRevisionsRevisionIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AdminEvaluationSetRevisionAdminEvaluationSetsEvaluationSetIdRevisionsRevisionIdGetError = AdminEvaluationSetRevisionAdminEvaluationSetsEvaluationSetIdRevisionsRevisionIdGetErrors[keyof AdminEvaluationSetRevisionAdminEvaluationSetsEvaluationSetIdRevisionsRevisionIdGetErrors];
+
+export type AdminEvaluationSetRevisionAdminEvaluationSetsEvaluationSetIdRevisionsRevisionIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: EvaluationRevisionResponse;
+};
+
+export type AdminEvaluationSetRevisionAdminEvaluationSetsEvaluationSetIdRevisionsRevisionIdGetResponse = AdminEvaluationSetRevisionAdminEvaluationSetsEvaluationSetIdRevisionsRevisionIdGetResponses[keyof AdminEvaluationSetRevisionAdminEvaluationSetsEvaluationSetIdRevisionsRevisionIdGetResponses];
+
+export type AdminEvaluationSetRollbackAdminEvaluationSetsEvaluationSetIdRollbackPostData = {
+    body: EvaluationRollbackRequest;
+    path: {
+        /**
+         * Evaluation Set Id
+         */
+        evaluation_set_id: string;
+    };
+    query?: never;
+    url: '/admin/evaluation/sets/{evaluation_set_id}/rollback';
+};
+
+export type AdminEvaluationSetRollbackAdminEvaluationSetsEvaluationSetIdRollbackPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AdminEvaluationSetRollbackAdminEvaluationSetsEvaluationSetIdRollbackPostError = AdminEvaluationSetRollbackAdminEvaluationSetsEvaluationSetIdRollbackPostErrors[keyof AdminEvaluationSetRollbackAdminEvaluationSetsEvaluationSetIdRollbackPostErrors];
+
+export type AdminEvaluationSetRollbackAdminEvaluationSetsEvaluationSetIdRollbackPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: EvaluationPublishResponse;
+};
+
+export type AdminEvaluationSetRollbackAdminEvaluationSetsEvaluationSetIdRollbackPostResponse = AdminEvaluationSetRollbackAdminEvaluationSetsEvaluationSetIdRollbackPostResponses[keyof AdminEvaluationSetRollbackAdminEvaluationSetsEvaluationSetIdRollbackPostResponses];
+
+export type AdminEvaluationSetValidateAdminEvaluationSetsEvaluationSetIdValidatePostData = {
+    body?: never;
+    path: {
+        /**
+         * Evaluation Set Id
+         */
+        evaluation_set_id: string;
+    };
+    query?: never;
+    url: '/admin/evaluation/sets/{evaluation_set_id}/validate';
+};
+
+export type AdminEvaluationSetValidateAdminEvaluationSetsEvaluationSetIdValidatePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AdminEvaluationSetValidateAdminEvaluationSetsEvaluationSetIdValidatePostError = AdminEvaluationSetValidateAdminEvaluationSetsEvaluationSetIdValidatePostErrors[keyof AdminEvaluationSetValidateAdminEvaluationSetsEvaluationSetIdValidatePostErrors];
+
+export type AdminEvaluationSetValidateAdminEvaluationSetsEvaluationSetIdValidatePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: EvaluationValidationResponse;
+};
+
+export type AdminEvaluationSetValidateAdminEvaluationSetsEvaluationSetIdValidatePostResponse = AdminEvaluationSetValidateAdminEvaluationSetsEvaluationSetIdValidatePostResponses[keyof AdminEvaluationSetValidateAdminEvaluationSetsEvaluationSetIdValidatePostResponses];
+
 export type AdminEvaluationStatusAdminEvaluationStatusGetData = {
     body?: never;
     path?: never;
@@ -2639,6 +3751,36 @@ export type GetJobLogsAdminJobsJobIdLogsGetResponses = {
 };
 
 export type GetJobLogsAdminJobsJobIdLogsGetResponse = GetJobLogsAdminJobsJobIdLogsGetResponses[keyof GetJobLogsAdminJobsJobIdLogsGetResponses];
+
+export type ResolveJobAdminJobsJobIdResolvePostData = {
+    body: JobResolutionRequest;
+    path: {
+        /**
+         * Job Id
+         */
+        job_id: string;
+    };
+    query?: never;
+    url: '/admin/jobs/{job_id}/resolve';
+};
+
+export type ResolveJobAdminJobsJobIdResolvePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ResolveJobAdminJobsJobIdResolvePostError = ResolveJobAdminJobsJobIdResolvePostErrors[keyof ResolveJobAdminJobsJobIdResolvePostErrors];
+
+export type ResolveJobAdminJobsJobIdResolvePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: JobResponse;
+};
+
+export type ResolveJobAdminJobsJobIdResolvePostResponse = ResolveJobAdminJobsJobIdResolvePostResponses[keyof ResolveJobAdminJobsJobIdResolvePostResponses];
 
 export type AdminManifestAdminManifestGetData = {
     body?: never;
@@ -3131,6 +4273,70 @@ export type AdminProviderProbesAdminProviderProbesPostResponses = {
 
 export type AdminProviderProbesAdminProviderProbesPostResponse = AdminProviderProbesAdminProviderProbesPostResponses[keyof AdminProviderProbesAdminProviderProbesPostResponses];
 
+export type AdminQualityRunsAdminQualityRunsGetData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/admin/quality/runs';
+};
+
+export type AdminQualityRunsAdminQualityRunsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AdminQualityRunsAdminQualityRunsGetError = AdminQualityRunsAdminQualityRunsGetErrors[keyof AdminQualityRunsAdminQualityRunsGetErrors];
+
+export type AdminQualityRunsAdminQualityRunsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: QualityRunsResponse;
+};
+
+export type AdminQualityRunsAdminQualityRunsGetResponse = AdminQualityRunsAdminQualityRunsGetResponses[keyof AdminQualityRunsAdminQualityRunsGetResponses];
+
+export type AdminQualityRunsCompareAdminQualityRunsCompareGetData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Baseline Run Id
+         */
+        baseline_run_id: string;
+        /**
+         * Candidate Run Id
+         */
+        candidate_run_id: string;
+    };
+    url: '/admin/quality/runs/compare';
+};
+
+export type AdminQualityRunsCompareAdminQualityRunsCompareGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AdminQualityRunsCompareAdminQualityRunsCompareGetError = AdminQualityRunsCompareAdminQualityRunsCompareGetErrors[keyof AdminQualityRunsCompareAdminQualityRunsCompareGetErrors];
+
+export type AdminQualityRunsCompareAdminQualityRunsCompareGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: QualityReportCompareResponse;
+};
+
+export type AdminQualityRunsCompareAdminQualityRunsCompareGetResponse = AdminQualityRunsCompareAdminQualityRunsCompareGetResponses[keyof AdminQualityRunsCompareAdminQualityRunsCompareGetResponses];
+
 export type AdminQualityStatusAdminQualityStatusGetData = {
     body?: never;
     path?: never;
@@ -3188,6 +4394,370 @@ export type AdminRetrievalReloadAdminRetrievalReloadPostResponses = {
 
 export type AdminRetrievalReloadAdminRetrievalReloadPostResponse = AdminRetrievalReloadAdminRetrievalReloadPostResponses[keyof AdminRetrievalReloadAdminRetrievalReloadPostResponses];
 
+export type ListSourcesAdminSourcesGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/sources';
+};
+
+export type ListSourcesAdminSourcesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: SourceListResponse;
+};
+
+export type ListSourcesAdminSourcesGetResponse = ListSourcesAdminSourcesGetResponses[keyof ListSourcesAdminSourcesGetResponses];
+
+export type BootstrapSourcesAdminSourcesBootstrapPostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/sources/bootstrap';
+};
+
+export type BootstrapSourcesAdminSourcesBootstrapPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: SourceBootstrapResponse;
+};
+
+export type BootstrapSourcesAdminSourcesBootstrapPostResponse = BootstrapSourcesAdminSourcesBootstrapPostResponses[keyof BootstrapSourcesAdminSourcesBootstrapPostResponses];
+
+export type RepublishSourceCandidateAdminSourcesCandidatesJobIdRepublishPostData = {
+    body?: never;
+    path: {
+        /**
+         * Job Id
+         */
+        job_id: string;
+    };
+    query?: never;
+    url: '/admin/sources/candidates/{job_id}/republish';
+};
+
+export type RepublishSourceCandidateAdminSourcesCandidatesJobIdRepublishPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RepublishSourceCandidateAdminSourcesCandidatesJobIdRepublishPostError = RepublishSourceCandidateAdminSourcesCandidatesJobIdRepublishPostErrors[keyof RepublishSourceCandidateAdminSourcesCandidatesJobIdRepublishPostErrors];
+
+export type RepublishSourceCandidateAdminSourcesCandidatesJobIdRepublishPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: SourceBuildResponse;
+};
+
+export type RepublishSourceCandidateAdminSourcesCandidatesJobIdRepublishPostResponse = RepublishSourceCandidateAdminSourcesCandidatesJobIdRepublishPostResponses[keyof RepublishSourceCandidateAdminSourcesCandidatesJobIdRepublishPostResponses];
+
+export type BuildSourceChangesAdminSourcesChangesBuildPostData = {
+    body: SourceBuildRequest;
+    path?: never;
+    query?: never;
+    url: '/admin/sources/changes/build';
+};
+
+export type BuildSourceChangesAdminSourcesChangesBuildPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type BuildSourceChangesAdminSourcesChangesBuildPostError = BuildSourceChangesAdminSourcesChangesBuildPostErrors[keyof BuildSourceChangesAdminSourcesChangesBuildPostErrors];
+
+export type BuildSourceChangesAdminSourcesChangesBuildPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: SourceBuildResponse;
+};
+
+export type BuildSourceChangesAdminSourcesChangesBuildPostResponse = BuildSourceChangesAdminSourcesChangesBuildPostResponses[keyof BuildSourceChangesAdminSourcesChangesBuildPostResponses];
+
+export type PlanSourceChangesAdminSourcesChangesPlanPostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/sources/changes/plan';
+};
+
+export type PlanSourceChangesAdminSourcesChangesPlanPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: SourceChangesResponse;
+};
+
+export type PlanSourceChangesAdminSourcesChangesPlanPostResponse = PlanSourceChangesAdminSourcesChangesPlanPostResponses[keyof PlanSourceChangesAdminSourcesChangesPlanPostResponses];
+
+export type ListSourceRevisionsAdminSourcesRevisionsGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/sources/revisions';
+};
+
+export type ListSourceRevisionsAdminSourcesRevisionsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: SourceRevisionsResponse;
+};
+
+export type ListSourceRevisionsAdminSourcesRevisionsGetResponse = ListSourceRevisionsAdminSourcesRevisionsGetResponses[keyof ListSourceRevisionsAdminSourcesRevisionsGetResponses];
+
+export type UploadSourceAdminSourcesUploadsPostData = {
+    body: Blob | File;
+    path?: never;
+    query: {
+        /**
+         * Filename
+         */
+        filename: string;
+    };
+    url: '/admin/sources/uploads';
+};
+
+export type UploadSourceAdminSourcesUploadsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UploadSourceAdminSourcesUploadsPostError = UploadSourceAdminSourcesUploadsPostErrors[keyof UploadSourceAdminSourcesUploadsPostErrors];
+
+export type UploadSourceAdminSourcesUploadsPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: SourceMutationResponse;
+};
+
+export type UploadSourceAdminSourcesUploadsPostResponse = UploadSourceAdminSourcesUploadsPostResponses[keyof UploadSourceAdminSourcesUploadsPostResponses];
+
+export type GetSourceAdminSourcesSourceIdGetData = {
+    body?: never;
+    path: {
+        /**
+         * Source Id
+         */
+        source_id: string;
+    };
+    query?: never;
+    url: '/admin/sources/{source_id}';
+};
+
+export type GetSourceAdminSourcesSourceIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetSourceAdminSourcesSourceIdGetError = GetSourceAdminSourcesSourceIdGetErrors[keyof GetSourceAdminSourcesSourceIdGetErrors];
+
+export type GetSourceAdminSourcesSourceIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: SourceResponse;
+};
+
+export type GetSourceAdminSourcesSourceIdGetResponse = GetSourceAdminSourcesSourceIdGetResponses[keyof GetSourceAdminSourcesSourceIdGetResponses];
+
+export type UpdateSourceAdminSourcesSourceIdPatchData = {
+    body: SourceUpdateRequest;
+    path: {
+        /**
+         * Source Id
+         */
+        source_id: string;
+    };
+    query?: never;
+    url: '/admin/sources/{source_id}';
+};
+
+export type UpdateSourceAdminSourcesSourceIdPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateSourceAdminSourcesSourceIdPatchError = UpdateSourceAdminSourcesSourceIdPatchErrors[keyof UpdateSourceAdminSourcesSourceIdPatchErrors];
+
+export type UpdateSourceAdminSourcesSourceIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: SourceMutationResponse;
+};
+
+export type UpdateSourceAdminSourcesSourceIdPatchResponse = UpdateSourceAdminSourcesSourceIdPatchResponses[keyof UpdateSourceAdminSourcesSourceIdPatchResponses];
+
+export type DiscardPendingSourceAdminSourcesSourceIdDiscardPendingPostData = {
+    body?: never;
+    path: {
+        /**
+         * Source Id
+         */
+        source_id: string;
+    };
+    query?: never;
+    url: '/admin/sources/{source_id}/discard-pending';
+};
+
+export type DiscardPendingSourceAdminSourcesSourceIdDiscardPendingPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DiscardPendingSourceAdminSourcesSourceIdDiscardPendingPostError = DiscardPendingSourceAdminSourcesSourceIdDiscardPendingPostErrors[keyof DiscardPendingSourceAdminSourcesSourceIdDiscardPendingPostErrors];
+
+export type DiscardPendingSourceAdminSourcesSourceIdDiscardPendingPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: SourceMutationResponse;
+};
+
+export type DiscardPendingSourceAdminSourcesSourceIdDiscardPendingPostResponse = DiscardPendingSourceAdminSourcesSourceIdDiscardPendingPostResponses[keyof DiscardPendingSourceAdminSourcesSourceIdDiscardPendingPostResponses];
+
+export type DeleteDraftSourceAdminSourcesSourceIdDraftDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Source Id
+         */
+        source_id: string;
+    };
+    query?: never;
+    url: '/admin/sources/{source_id}/draft';
+};
+
+export type DeleteDraftSourceAdminSourcesSourceIdDraftDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteDraftSourceAdminSourcesSourceIdDraftDeleteError = DeleteDraftSourceAdminSourcesSourceIdDraftDeleteErrors[keyof DeleteDraftSourceAdminSourcesSourceIdDraftDeleteErrors];
+
+export type DeleteDraftSourceAdminSourcesSourceIdDraftDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: SourceDeleteResponse;
+};
+
+export type DeleteDraftSourceAdminSourcesSourceIdDraftDeleteResponse = DeleteDraftSourceAdminSourcesSourceIdDraftDeleteResponses[keyof DeleteDraftSourceAdminSourcesSourceIdDraftDeleteResponses];
+
+export type RetireSourceAdminSourcesSourceIdRetirePostData = {
+    body?: never;
+    path: {
+        /**
+         * Source Id
+         */
+        source_id: string;
+    };
+    query?: never;
+    url: '/admin/sources/{source_id}/retire';
+};
+
+export type RetireSourceAdminSourcesSourceIdRetirePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RetireSourceAdminSourcesSourceIdRetirePostError = RetireSourceAdminSourcesSourceIdRetirePostErrors[keyof RetireSourceAdminSourcesSourceIdRetirePostErrors];
+
+export type RetireSourceAdminSourcesSourceIdRetirePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: SourceMutationResponse;
+};
+
+export type RetireSourceAdminSourcesSourceIdRetirePostResponse = RetireSourceAdminSourcesSourceIdRetirePostResponses[keyof RetireSourceAdminSourcesSourceIdRetirePostResponses];
+
+export type ValidateSourceAdminSourcesSourceIdValidatePostData = {
+    body?: never;
+    path: {
+        /**
+         * Source Id
+         */
+        source_id: string;
+    };
+    query?: never;
+    url: '/admin/sources/{source_id}/validate';
+};
+
+export type ValidateSourceAdminSourcesSourceIdValidatePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ValidateSourceAdminSourcesSourceIdValidatePostError = ValidateSourceAdminSourcesSourceIdValidatePostErrors[keyof ValidateSourceAdminSourcesSourceIdValidatePostErrors];
+
+export type ValidateSourceAdminSourcesSourceIdValidatePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: SourceMutationResponse;
+};
+
+export type ValidateSourceAdminSourcesSourceIdValidatePostResponse = ValidateSourceAdminSourcesSourceIdValidatePostResponses[keyof ValidateSourceAdminSourcesSourceIdValidatePostResponses];
+
+export type ReplaceSourceAdminSourcesSourceIdVersionsPostData = {
+    body: Blob | File;
+    path: {
+        /**
+         * Source Id
+         */
+        source_id: string;
+    };
+    query: {
+        /**
+         * Filename
+         */
+        filename: string;
+    };
+    url: '/admin/sources/{source_id}/versions';
+};
+
+export type ReplaceSourceAdminSourcesSourceIdVersionsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReplaceSourceAdminSourcesSourceIdVersionsPostError = ReplaceSourceAdminSourcesSourceIdVersionsPostErrors[keyof ReplaceSourceAdminSourcesSourceIdVersionsPostErrors];
+
+export type ReplaceSourceAdminSourcesSourceIdVersionsPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: SourceMutationResponse;
+};
+
+export type ReplaceSourceAdminSourcesSourceIdVersionsPostResponse = ReplaceSourceAdminSourcesSourceIdVersionsPostResponses[keyof ReplaceSourceAdminSourcesSourceIdVersionsPostResponses];
+
 export type AdminStatusAdminStatusGetData = {
     body?: never;
     path?: never;
@@ -3207,9 +4777,49 @@ export type AdminStatusAdminStatusGetResponse = AdminStatusAdminStatusGetRespons
 export type AdminVersionsAdminVersionsGetData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Q
+         *
+         * 匹配版本 ID、错误或保护原因
+         */
+        q?: string;
+        /**
+         * State
+         *
+         * 按版本状态筛选
+         */
+        state?: '' | 'active' | 'running' | 'passed' | 'failed_gate' | 'invalid_gate' | 'legacy_complete' | 'incomplete' | 'unsafe';
+        /**
+         * Scope
+         *
+         * 按治理范围筛选
+         */
+        scope?: '' | 'cleanup' | 'protected' | 'pinned';
+        /**
+         * Offset
+         *
+         * 匹配结果的起始偏移量
+         */
+        offset?: number;
+        /**
+         * Limit
+         *
+         * 返回条数；0 表示返回全部
+         */
+        limit?: number;
+    };
     url: '/admin/versions';
 };
+
+export type AdminVersionsAdminVersionsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AdminVersionsAdminVersionsGetError = AdminVersionsAdminVersionsGetErrors[keyof AdminVersionsAdminVersionsGetErrors];
 
 export type AdminVersionsAdminVersionsGetResponses = {
     /**

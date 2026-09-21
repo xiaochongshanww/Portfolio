@@ -174,6 +174,28 @@ def test_parser_records_cli_compatibility_in_artifact_index(
     assert artifact_index["metadata"]["parser_cli"]["resolved_binary"] == resolved
 
 
+def test_parser_preserves_cli_log_when_magic_pdf_swallows_parse_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    resolved = str((tmp_path / "magic-pdf").resolve())
+    monkeypatch.setattr("src.pipeline.parsers.mineru.shutil.which", lambda _binary: resolved)
+
+    def fake_run(command: list[str], **_kwargs):
+        if command[-1] == "--version":
+            return _completed(stdout="magic-pdf, version 1.3.12")
+        return _completed(stderr="original mineru parse failure")
+
+    monkeypatch.setattr("src.pipeline.parsers.mineru.subprocess.run", fake_run)
+    parser = MineruParser(tmp_path / "mineru")
+
+    with pytest.raises(RuntimeError, match="original mineru parse failure") as exc_info:
+        parser.parse(tmp_path / "document.pdf", tmp_path / "images")
+
+    assert "content_list" in str(exc_info.value)
+    assert "markdown" in str(exc_info.value)
+
+
 def test_unverified_parser_run_is_audited_in_artifact_index(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

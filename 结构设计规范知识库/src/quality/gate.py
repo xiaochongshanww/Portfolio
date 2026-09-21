@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any
 
 from src.evaluation.answer_runner import ANSWER_EVAL_PATH
+from src.evaluation.assets import resolve_evaluation_asset
+from src.evaluation.management import EvaluationSetError, published_revision_id
 from src.evaluation.runner import DEFAULT_EVAL_PATH, STRUCTURED_EVAL_PATH
 from src.pipeline.paths import ACTIVE_DB_PATH, AUDIT_DIR, DATA_DIR, MANIFEST_PATH
 
@@ -24,6 +26,7 @@ MIN_STRUCTURED_CASES = 12
 MIN_TOP1_SOURCE_HIT_RATE = 0.95
 MIN_AUTHORITY_HIT_RATE = 0.95
 MIN_STRUCTURED_TABLE_HIT_RATE = 0.95
+RESOLVED_JOB_STATUSES = {"acknowledged", "superseded"}
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -32,8 +35,8 @@ def _read_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _file_hash(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest() if path.exists() else ""
+def _file_hash(path: Path | None) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest() if path and path.exists() else ""
 
 
 def _parse_time(value: Any) -> datetime | None:
@@ -66,6 +69,14 @@ def summarize_jobs(
 ) -> dict[str, Any]:
     now = (now or datetime.now(UTC)).astimezone(UTC)
     historical_failures = [job for job in jobs if job.get("status") == "failed"]
+    resolved_failures = [
+        job
+        for job in historical_failures
+        if isinstance(job.get("resolution"), dict)
+        and job["resolution"].get("status") in RESOLVED_JOB_STATUSES
+        and str(job["resolution"].get("note") or "").strip()
+        and str(job["resolution"].get("resolved_at") or "").strip()
+    ]
     latest_by_type: dict[str, dict[str, Any]] = {}
     for job in jobs:
         job_type = str(job.get("type") or "unknown")
@@ -80,7 +91,11 @@ def summarize_jobs(
         )
         if current is None or (timestamp and (current_time is None or timestamp > current_time)):
             latest_by_type[job_type] = job
-    unresolved = [job for job in latest_by_type.values() if job.get("status") == "failed"]
+    unresolved = [
+        job
+        for job in latest_by_type.values()
+        if job.get("status") == "failed" and job not in resolved_failures
+    ]
     stale = []
     for job in jobs:
         if job.get("status") not in {"queued", "running"}:
@@ -92,6 +107,7 @@ def summarize_jobs(
             stale.append(job)
     return {
         "historical_failed_count": len(historical_failures),
+        "resolved_failed_count": len(resolved_failures),
         "unresolved_failed_count": len(unresolved),
         "stale_active_count": len(stale),
         "unresolved_failures": [
@@ -131,9 +147,9 @@ def evaluate_quality_gate(
     regular_report_path: Path | None = None,
     structured_report_path: Path | None = None,
     answer_report_path: Path | None = None,
-    regular_eval_path: Path = DEFAULT_EVAL_PATH,
-    structured_eval_path: Path = STRUCTURED_EVAL_PATH,
-    answer_eval_path: Path = ANSWER_EVAL_PATH,
+    regular_eval_path: Path | None = None,
+    structured_eval_path: Path | None = None,
+    answer_eval_path: Path | None = None,
     active_db_path: Path = ACTIVE_DB_PATH,
     jobs: list[dict[str, Any]] | None = None,
     runtime_collection_count: int | None = None,
@@ -148,6 +164,35 @@ def evaluate_quality_gate(
         raise ValueError("max_report_age 必须大于 0")
     if job_stale_after <= timedelta(0):
         raise ValueError("job_stale_after 必须大于 0")
+    evaluation_paths: dict[str, Path | None] = {}
+    evaluation_revision_ids: dict[str, str | None] = {}
+    evaluation_resolution_errors: dict[str, str] = {}
+    for evaluation_set_id, supplied_path, fallback_path in (
+        ("regular", regular_eval_path, DEFAULT_EVAL_PATH),
+        ("structured", structured_eval_path, STRUCTURED_EVAL_PATH),
+        ("answer", answer_eval_path, ANSWER_EVAL_PATH),
+    ):
+        if supplied_path is not None:
+            evaluation_paths[evaluation_set_id] = supplied_path
+            evaluation_revision_ids[evaluation_set_id] = None
+            continue
+        try:
+            evaluation_paths[evaluation_set_id] = resolve_evaluation_asset(
+                evaluation_set_id,
+                allowed_ids=frozenset({evaluation_set_id}),
+            )
+            evaluation_revision_ids[evaluation_set_id] = published_revision_id(evaluation_set_id)
+        except EvaluationSetError as exc:
+            evaluation_paths[evaluation_set_id] = None
+            evaluation_revision_ids[evaluation_set_id] = None
+            evaluation_resolution_errors[evaluation_set_id] = str(exc)
+        if evaluation_paths[evaluation_set_id] is None and not evaluation_resolution_errors.get(
+            evaluation_set_id
+        ):
+            evaluation_paths[evaluation_set_id] = fallback_path
+    regular_eval_path = evaluation_paths["regular"]
+    structured_eval_path = evaluation_paths["structured"]
+    answer_eval_path = evaluation_paths["answer"]
     manifest = _read_json(manifest_path)
     active_db = _read_json(active_db_path)
     active_manifest_path = Path(str(active_db.get("manifest") or manifest_path))
@@ -204,9 +249,9 @@ def evaluate_quality_gate(
         )
 
     report_errors = {
-        "regular": regular_error,
-        "structured": structured_error,
-        "answer": answer_error,
+        "regular": regular_error or evaluation_resolution_errors.get("regular"),
+        "structured": structured_error or evaluation_resolution_errors.get("structured"),
+        "answer": answer_error or evaluation_resolution_errors.get("answer"),
     }
     report_integrity_ok = not any(report_errors.values())
     check(
@@ -360,7 +405,7 @@ def evaluate_quality_gate(
     data_version = manifest_version
 
     def report_is_fresh(
-        report: dict[str, Any], evaluation_path: Path
+        report: dict[str, Any], evaluation_path: Path | None, revision_id: str | None
     ) -> tuple[bool, datetime | None]:
         generated_at = _parse_time(report.get("generated_at"))
         age = gate_time - generated_at if generated_at else None
@@ -368,12 +413,15 @@ def evaluate_quality_gate(
             bool(data_version)
             and report.get("data_version_hash") == data_version
             and report.get("evaluation_set_hash") == _file_hash(evaluation_path)
+            and (not revision_id or report.get("evaluation_set_revision_id") == revision_id)
             and age is not None
             and timedelta(0) <= age <= max_report_age
         )
         return fresh, generated_at
 
-    regular_fresh, regular_generated_at = report_is_fresh(regular, regular_eval_path)
+    regular_fresh, regular_generated_at = report_is_fresh(
+        regular, regular_eval_path, evaluation_revision_ids["regular"]
+    )
     check(
         "regular_report_freshness",
         regular_fresh,
@@ -381,7 +429,9 @@ def evaluate_quality_gate(
         generated_at=regular_generated_at.isoformat() if regular_generated_at else None,
         max_age_seconds=int(max_report_age.total_seconds()),
     )
-    structured_fresh, structured_generated_at = report_is_fresh(structured, structured_eval_path)
+    structured_fresh, structured_generated_at = report_is_fresh(
+        structured, structured_eval_path, evaluation_revision_ids["structured"]
+    )
     check(
         "structured_report_freshness",
         structured_fresh,
@@ -389,7 +439,9 @@ def evaluate_quality_gate(
         generated_at=structured_generated_at.isoformat() if structured_generated_at else None,
         max_age_seconds=int(max_report_age.total_seconds()),
     )
-    answer_fresh, answer_generated_at = report_is_fresh(answer, answer_eval_path)
+    answer_fresh, answer_generated_at = report_is_fresh(
+        answer, answer_eval_path, evaluation_revision_ids["answer"]
+    )
     check(
         "answer_report_freshness",
         answer_fresh,
@@ -446,6 +498,7 @@ def render_quality_gate_markdown(result: dict[str, Any]) -> str:
             "## 任务审计",
             "",
             f"- 历史失败：{jobs.get('historical_failed_count', 0)}",
+            f"- 已处置失败：{jobs.get('resolved_failed_count', 0)}",
             f"- 未解决失败：{jobs.get('unresolved_failed_count', 0)}",
             f"- 卡住任务：{jobs.get('stale_active_count', 0)}",
             "",

@@ -83,6 +83,42 @@ def test_source_access_policy_matches_source_and_image_and_fails_closed(
     )
 
 
+def test_active_source_catalog_policy_overrides_legacy_metadata(tmp_path: Path, monkeypatch):
+    policy = tmp_path / "specs.json"
+    _write_policy(policy)
+    catalog = {
+        "schema_version": 1,
+        "revision": 1,
+        "active_revision_id": "src-active",
+        "sources": [
+            {
+                "source_id": "source-1",
+                "active_asset_version_id": "asset-1",
+                "active_metadata": {
+                    "source_file": "06.建筑地基基础设计规范 GB 50007-2011.pdf",
+                    "page_image_access": "disabled",
+                    "image_access": "disabled",
+                },
+            }
+        ],
+        "revisions": [],
+    }
+    catalog_path = tmp_path / "data" / "source_catalog" / "catalog.json"
+    catalog_path.parent.mkdir(parents=True)
+    catalog_path.write_text(json.dumps(catalog, ensure_ascii=False), encoding="utf-8")
+    monkeypatch.setattr(
+        content_access,
+        "settings",
+        SimpleNamespace(source_metadata_path=policy, data_dir=tmp_path / "data"),
+    )
+    content_access._cached_document_records.cache_clear()
+
+    assert (
+        content_access.asset_access_scope("page_image", "06.建筑地基基础设计规范 GB 50007-2011.pdf")
+        == "disabled"
+    )
+
+
 def test_signed_asset_url_rejects_expiry_and_tampering(monkeypatch):
     configured = SimpleNamespace(
         asset_signing_key="s" * 32,

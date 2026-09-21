@@ -128,11 +128,7 @@ def load_dense_vector_store(
     if expected_ids is not None and set(ids) != set(expected_ids):
         raise ValueError("向量索引 ID 集合与运行数据不一致")
     if embedding_model is not None and model != embedding_model:
-        raise ValueError(
-            f"向量索引模型不一致: expected={embedding_model}, actual={model}"
-        )
+        raise ValueError(f"向量索引模型不一致: expected={embedding_model}, actual={model}")
     if dimensions is not None and stored_dimensions != dimensions:
-        raise ValueError(
-            f"向量索引维度不一致: expected={dimensions}, actual={stored_dimensions}"
-        )
+        raise ValueError(f"向量索引维度不一致: expected={dimensions}, actual={stored_dimensions}")
     return DenseVectorStore(ids, vectors, model, stored_dimensions)

@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AdminActiveDbAdminActiveDbGetData, AdminActiveDbAdminActiveDbGetResponses, AdminAddApprovedAdminCorrectionsApprovedDocPostData, AdminAddApprovedAdminCorrectionsApprovedDocPostErrors, AdminAddApprovedAdminCorrectionsApprovedDocPostResponses, AdminCandidateDetailAdminCorrectionsCandidatesDocGetData, AdminCandidateDetailAdminCorrectionsCandidatesDocGetErrors, AdminCandidateDetailAdminCorrectionsCandidatesDocGetResponses, AdminCandidateFilesAdminCorrectionsCandidatesGetData, AdminCandidateFilesAdminCorrectionsCandidatesGetResponses, AdminCandidateUpdateAdminCorrectionsCandidatesDocCandidateIdPatchData, AdminCandidateUpdateAdminCorrectionsCandidatesDocCandidateIdPatchErrors, AdminCandidateUpdateAdminCorrectionsCandidatesDocCandidateIdPatchResponses, AdminDeleteApprovedAdminCorrectionsApprovedDocCorrectionIdDeleteData, AdminDeleteApprovedAdminCorrectionsApprovedDocCorrectionIdDeleteErrors, AdminDeleteApprovedAdminCorrectionsApprovedDocCorrectionIdDeleteResponses, AdminDocumentsAdminDocumentsGetData, AdminDocumentsAdminDocumentsGetResponses, AdminElementAdminElementsDocElementIndexGetData, AdminElementAdminElementsDocElementIndexGetErrors, AdminElementAdminElementsDocElementIndexGetResponses, AdminElementsAdminElementsDocGetData, AdminElementsAdminElementsDocGetErrors, AdminElementsAdminElementsDocGetResponses, AdminEvaluationCasesAdminEvaluationCasesGetData, AdminEvaluationCasesAdminEvaluationCasesGetErrors, AdminEvaluationCasesAdminEvaluationCasesGetResponses, AdminEvaluationStatusAdminEvaluationStatusGetData, AdminEvaluationStatusAdminEvaluationStatusGetResponses, AdminGetApprovedAdminCorrectionsApprovedDocGetData, AdminGetApprovedAdminCorrectionsApprovedDocGetErrors, AdminGetApprovedAdminCorrectionsApprovedDocGetResponses, AdminManifestAdminManifestGetData, AdminManifestAdminManifestGetResponses, AdminManualStructuringBatchSuggestionsAdminManualStructuringAiSuggestionsBatchPostData, AdminManualStructuringBatchSuggestionsAdminManualStructuringAiSuggestionsBatchPostErrors, AdminManualStructuringBatchSuggestionsAdminManualStructuringAiSuggestionsBatchPostResponses, AdminManualStructuringBuildDraftAdminManualStructuringDocItemIdDraftPostData, AdminManualStructuringBuildDraftAdminManualStructuringDocItemIdDraftPostErrors, AdminManualStructuringBuildDraftAdminManualStructuringDocItemIdDraftPostResponses, AdminManualStructuringDetailAdminManualStructuringDocGetData, AdminManualStructuringDetailAdminManualStructuringDocGetErrors, AdminManualStructuringDetailAdminManualStructuringDocGetResponses, AdminManualStructuringFilesAdminManualStructuringGetData, AdminManualStructuringFilesAdminManualStructuringGetResponses, AdminManualStructuringPublishAdminManualStructuringDocItemIdPublishPostData, AdminManualStructuringPublishAdminManualStructuringDocItemIdPublishPostErrors, AdminManualStructuringPublishAdminManualStructuringDocItemIdPublishPostResponses, AdminManualStructuringReadDraftAdminManualStructuringDocItemIdDraftGetData, AdminManualStructuringReadDraftAdminManualStructuringDocItemIdDraftGetErrors, AdminManualStructuringReadDraftAdminManualStructuringDocItemIdDraftGetResponses, AdminManualStructuringReadSuggestionAdminManualStructuringDocItemIdAiSuggestionGetData, AdminManualStructuringReadSuggestionAdminManualStructuringDocItemIdAiSuggestionGetErrors, AdminManualStructuringReadSuggestionAdminManualStructuringDocItemIdAiSuggestionGetResponses, AdminManualStructuringRollbackAdminManualStructuringDocItemIdRollbackPostData, AdminManualStructuringRollbackAdminManualStructuringDocItemIdRollbackPostErrors, AdminManualStructuringRollbackAdminManualStructuringDocItemIdRollbackPostResponses, AdminManualStructuringSaveDraftAdminManualStructuringDocItemIdDraftPutData, AdminManualStructuringSaveDraftAdminManualStructuringDocItemIdDraftPutErrors, AdminManualStructuringSaveDraftAdminManualStructuringDocItemIdDraftPutResponses, AdminManualStructuringScanAdminManualStructuringScanPostData, AdminManualStructuringScanAdminManualStructuringScanPostResponses, AdminManualStructuringStartSuggestionAdminManualStructuringDocItemIdAiSuggestionPostData, AdminManualStructuringStartSuggestionAdminManualStructuringDocItemIdAiSuggestionPostErrors, AdminManualStructuringStartSuggestionAdminManualStructuringDocItemIdAiSuggestionPostResponses, AdminManualStructuringUpdateAdminManualStructuringDocItemIdPatchData, AdminManualStructuringUpdateAdminManualStructuringDocItemIdPatchErrors, AdminManualStructuringUpdateAdminManualStructuringDocItemIdPatchResponses, AdminManualStructuringValidateAdminManualStructuringDocItemIdValidatePostData, AdminManualStructuringValidateAdminManualStructuringDocItemIdValidatePostErrors, AdminManualStructuringValidateAdminManualStructuringDocItemIdValidatePostResponses, AdminManualStructuringVersionsAdminManualStructuringDocItemIdVersionsGetData, AdminManualStructuringVersionsAdminManualStructuringDocItemIdVersionsGetErrors, AdminManualStructuringVersionsAdminManualStructuringDocItemIdVersionsGetResponses, AdminPageImageAdminPageImageDocPageGetData, AdminPageImageAdminPageImageDocPageGetErrors, AdminPageImageAdminPageImageDocPageGetResponses, AdminPromoteAdminCorrectionsPromoteDocPostData, AdminPromoteAdminCorrectionsPromoteDocPostErrors, AdminPromoteAdminCorrectionsPromoteDocPostResponses, AdminProviderProbesAdminProviderProbesPostData, AdminProviderProbesAdminProviderProbesPostResponses, AdminQualityStatusAdminQualityStatusGetData, AdminQualityStatusAdminQualityStatusGetResponses, AdminRebuildPlanAdminRebuildPlanPostData, AdminRebuildPlanAdminRebuildPlanPostErrors, AdminRebuildPlanAdminRebuildPlanPostResponses, AdminRetrievalReloadAdminRetrievalReloadPostData, AdminRetrievalReloadAdminRetrievalReloadPostResponses, AdminStatusAdminStatusGetData, AdminStatusAdminStatusGetResponses, AdminVersionCleanupPlanAdminVersionsCleanupPlansPostData, AdminVersionCleanupPlanAdminVersionsCleanupPlansPostResponses, AdminVersionRetentionAdminVersionsVersionIdRetentionPutData, AdminVersionRetentionAdminVersionsVersionIdRetentionPutErrors, AdminVersionRetentionAdminVersionsVersionIdRetentionPutResponses, AdminVersionsAdminVersionsGetData, AdminVersionsAdminVersionsGetResponses, ChatCompletionsChatCompletionsPostData, ChatCompletionsChatCompletionsPostErrors, ChatCompletionsChatCompletionsPostResponses, ChatCompletionsV1ChatCompletionsPostData, ChatCompletionsV1ChatCompletionsPostErrors, ChatCompletionsV1ChatCompletionsPostResponses, CorrectionCandidateDetailCorrectionsCandidatesDocGetData, CorrectionCandidateDetailCorrectionsCandidatesDocGetErrors, CorrectionCandidateDetailCorrectionsCandidatesDocGetResponses, CorrectionCandidatesCorrectionsCandidatesGetData, CorrectionCandidatesCorrectionsCandidatesGetResponses, CorrectionCandidateUpdateCorrectionsCandidatesDocCandidateIdPatchData, CorrectionCandidateUpdateCorrectionsCandidatesDocCandidateIdPatchErrors, CorrectionCandidateUpdateCorrectionsCandidatesDocCandidateIdPatchResponses, CorrectionPromoteCorrectionsPromoteDocPostData, CorrectionPromoteCorrectionsPromoteDocPostErrors, CorrectionPromoteCorrectionsPromoteDocPostResponses, EvaluationStatusEvaluationStatusGetData, EvaluationStatusEvaluationStatusGetResponses, GetJobAdminJobsJobIdGetData, GetJobAdminJobsJobIdGetErrors, GetJobAdminJobsJobIdGetResponses, GetJobLogsAdminJobsJobIdLogsGetData, GetJobLogsAdminJobsJobIdLogsGetErrors, GetJobLogsAdminJobsJobIdLogsGetResponses, HarnessPageIntegrationsDeepseekHarnessPageGetData, HarnessPageIntegrationsDeepseekHarnessPageGetErrors, HarnessPageIntegrationsDeepseekHarnessPageGetResponses, HarnessReadyIntegrationsDeepseekHarnessReadyGetData, HarnessReadyIntegrationsDeepseekHarnessReadyGetResponses, HarnessSearchIntegrationsDeepseekHarnessSearchPostData, HarnessSearchIntegrationsDeepseekHarnessSearchPostErrors, HarnessSearchIntegrationsDeepseekHarnessSearchPostResponses, HealthHealthGetData, HealthHealthGetResponses, KnowledgeDocumentsKnowledgeDocumentsGetData, KnowledgeDocumentsKnowledgeDocumentsGetResponses, ListJobsAdminJobsGetData, ListJobsAdminJobsGetResponses, ListModelsModelsGetData, ListModelsModelsGetResponses, ListModelsV1ModelsGetData, ListModelsV1ModelsGetResponses, MetricsEndpointMetricsGetData, MetricsEndpointMetricsGetResponses, ReadyReadyGetData, ReadyReadyGetErrors, ReadyReadyGetResponses, RootGetData, RootGetResponses, ServeImageImagesFilenameGetData, ServeImageImagesFilenameGetErrors, ServeImageImagesFilenameGetResponses, ServePageImagePageImagesDocPageGetData, ServePageImagePageImagesDocPageGetErrors, ServePageImagePageImagesDocPageGetResponses, StartAnswerEvaluateAdminJobsEvaluateAnswersPostData, StartAnswerEvaluateAdminJobsEvaluateAnswersPostErrors, StartAnswerEvaluateAdminJobsEvaluateAnswersPostResponses, StartAuditAdminJobsAuditPostData, StartAuditAdminJobsAuditPostResponses, StartDryRunAdminJobsDryRunPostData, StartDryRunAdminJobsDryRunPostErrors, StartDryRunAdminJobsDryRunPostResponses, StartEvaluateAdminJobsEvaluatePostData, StartEvaluateAdminJobsEvaluatePostErrors, StartEvaluateAdminJobsEvaluatePostResponses, StartRebuildAdminJobsRebuildPostData, StartRebuildAdminJobsRebuildPostErrors, StartRebuildAdminJobsRebuildPostResponses, StartReviewAdminJobsReviewPostData, StartReviewAdminJobsReviewPostErrors, StartReviewAdminJobsReviewPostResponses, StartVersionCleanupAdminJobsCleanupVersionsPostData, StartVersionCleanupAdminJobsCleanupVersionsPostErrors, StartVersionCleanupAdminJobsCleanupVersionsPostResponses } from './types.gen';
+import type { AdminActiveDbAdminActiveDbGetData, AdminActiveDbAdminActiveDbGetResponses, AdminAddApprovedAdminCorrectionsApprovedDocPostData, AdminAddApprovedAdminCorrectionsApprovedDocPostErrors, AdminAddApprovedAdminCorrectionsApprovedDocPostResponses, AdminCandidateDetailAdminCorrectionsCandidatesDocGetData, AdminCandidateDetailAdminCorrectionsCandidatesDocGetErrors, AdminCandidateDetailAdminCorrectionsCandidatesDocGetResponses, AdminCandidateFilesAdminCorrectionsCandidatesGetData, AdminCandidateFilesAdminCorrectionsCandidatesGetResponses, AdminCandidateUpdateAdminCorrectionsCandidatesDocCandidateIdPatchData, AdminCandidateUpdateAdminCorrectionsCandidatesDocCandidateIdPatchErrors, AdminCandidateUpdateAdminCorrectionsCandidatesDocCandidateIdPatchResponses, AdminDeleteApprovedAdminCorrectionsApprovedDocCorrectionIdDeleteData, AdminDeleteApprovedAdminCorrectionsApprovedDocCorrectionIdDeleteErrors, AdminDeleteApprovedAdminCorrectionsApprovedDocCorrectionIdDeleteResponses, AdminDocumentsAdminDocumentsGetData, AdminDocumentsAdminDocumentsGetResponses, AdminElementAdminElementsDocElementIndexGetData, AdminElementAdminElementsDocElementIndexGetErrors, AdminElementAdminElementsDocElementIndexGetResponses, AdminElementsAdminElementsDocGetData, AdminElementsAdminElementsDocGetErrors, AdminElementsAdminElementsDocGetResponses, AdminEvaluationCasesAdminEvaluationCasesGetData, AdminEvaluationCasesAdminEvaluationCasesGetErrors, AdminEvaluationCasesAdminEvaluationCasesGetResponses, AdminEvaluationSetAddCaseAdminEvaluationSetsEvaluationSetIdDraftsCasesPostData, AdminEvaluationSetAddCaseAdminEvaluationSetsEvaluationSetIdDraftsCasesPostErrors, AdminEvaluationSetAddCaseAdminEvaluationSetsEvaluationSetIdDraftsCasesPostResponses, AdminEvaluationSetAdminEvaluationSetsEvaluationSetIdGetData, AdminEvaluationSetAdminEvaluationSetsEvaluationSetIdGetErrors, AdminEvaluationSetAdminEvaluationSetsEvaluationSetIdGetResponses, AdminEvaluationSetCreateDraftAdminEvaluationSetsEvaluationSetIdDraftsPostData, AdminEvaluationSetCreateDraftAdminEvaluationSetsEvaluationSetIdDraftsPostErrors, AdminEvaluationSetCreateDraftAdminEvaluationSetsEvaluationSetIdDraftsPostResponses, AdminEvaluationSetDeleteCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdDeleteData, AdminEvaluationSetDeleteCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdDeleteErrors, AdminEvaluationSetDeleteCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdDeleteResponses, AdminEvaluationSetDiffAdminEvaluationSetsEvaluationSetIdDiffGetData, AdminEvaluationSetDiffAdminEvaluationSetsEvaluationSetIdDiffGetErrors, AdminEvaluationSetDiffAdminEvaluationSetsEvaluationSetIdDiffGetResponses, AdminEvaluationSetPublishAdminEvaluationSetsEvaluationSetIdPublishPostData, AdminEvaluationSetPublishAdminEvaluationSetsEvaluationSetIdPublishPostErrors, AdminEvaluationSetPublishAdminEvaluationSetsEvaluationSetIdPublishPostResponses, AdminEvaluationSetRevisionAdminEvaluationSetsEvaluationSetIdRevisionsRevisionIdGetData, AdminEvaluationSetRevisionAdminEvaluationSetsEvaluationSetIdRevisionsRevisionIdGetErrors, AdminEvaluationSetRevisionAdminEvaluationSetsEvaluationSetIdRevisionsRevisionIdGetResponses, AdminEvaluationSetRevisionsAdminEvaluationSetsEvaluationSetIdRevisionsGetData, AdminEvaluationSetRevisionsAdminEvaluationSetsEvaluationSetIdRevisionsGetErrors, AdminEvaluationSetRevisionsAdminEvaluationSetsEvaluationSetIdRevisionsGetResponses, AdminEvaluationSetRollbackAdminEvaluationSetsEvaluationSetIdRollbackPostData, AdminEvaluationSetRollbackAdminEvaluationSetsEvaluationSetIdRollbackPostErrors, AdminEvaluationSetRollbackAdminEvaluationSetsEvaluationSetIdRollbackPostResponses, AdminEvaluationSetsAdminEvaluationSetsGetData, AdminEvaluationSetsAdminEvaluationSetsGetResponses, AdminEvaluationSetUpdateCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdPatchData, AdminEvaluationSetUpdateCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdPatchErrors, AdminEvaluationSetUpdateCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdPatchResponses, AdminEvaluationSetValidateAdminEvaluationSetsEvaluationSetIdValidatePostData, AdminEvaluationSetValidateAdminEvaluationSetsEvaluationSetIdValidatePostErrors, AdminEvaluationSetValidateAdminEvaluationSetsEvaluationSetIdValidatePostResponses, AdminEvaluationStatusAdminEvaluationStatusGetData, AdminEvaluationStatusAdminEvaluationStatusGetResponses, AdminGetApprovedAdminCorrectionsApprovedDocGetData, AdminGetApprovedAdminCorrectionsApprovedDocGetErrors, AdminGetApprovedAdminCorrectionsApprovedDocGetResponses, AdminManifestAdminManifestGetData, AdminManifestAdminManifestGetResponses, AdminManualStructuringBatchSuggestionsAdminManualStructuringAiSuggestionsBatchPostData, AdminManualStructuringBatchSuggestionsAdminManualStructuringAiSuggestionsBatchPostErrors, AdminManualStructuringBatchSuggestionsAdminManualStructuringAiSuggestionsBatchPostResponses, AdminManualStructuringBuildDraftAdminManualStructuringDocItemIdDraftPostData, AdminManualStructuringBuildDraftAdminManualStructuringDocItemIdDraftPostErrors, AdminManualStructuringBuildDraftAdminManualStructuringDocItemIdDraftPostResponses, AdminManualStructuringDetailAdminManualStructuringDocGetData, AdminManualStructuringDetailAdminManualStructuringDocGetErrors, AdminManualStructuringDetailAdminManualStructuringDocGetResponses, AdminManualStructuringFilesAdminManualStructuringGetData, AdminManualStructuringFilesAdminManualStructuringGetResponses, AdminManualStructuringPublishAdminManualStructuringDocItemIdPublishPostData, AdminManualStructuringPublishAdminManualStructuringDocItemIdPublishPostErrors, AdminManualStructuringPublishAdminManualStructuringDocItemIdPublishPostResponses, AdminManualStructuringReadDraftAdminManualStructuringDocItemIdDraftGetData, AdminManualStructuringReadDraftAdminManualStructuringDocItemIdDraftGetErrors, AdminManualStructuringReadDraftAdminManualStructuringDocItemIdDraftGetResponses, AdminManualStructuringReadSuggestionAdminManualStructuringDocItemIdAiSuggestionGetData, AdminManualStructuringReadSuggestionAdminManualStructuringDocItemIdAiSuggestionGetErrors, AdminManualStructuringReadSuggestionAdminManualStructuringDocItemIdAiSuggestionGetResponses, AdminManualStructuringRollbackAdminManualStructuringDocItemIdRollbackPostData, AdminManualStructuringRollbackAdminManualStructuringDocItemIdRollbackPostErrors, AdminManualStructuringRollbackAdminManualStructuringDocItemIdRollbackPostResponses, AdminManualStructuringSaveDraftAdminManualStructuringDocItemIdDraftPutData, AdminManualStructuringSaveDraftAdminManualStructuringDocItemIdDraftPutErrors, AdminManualStructuringSaveDraftAdminManualStructuringDocItemIdDraftPutResponses, AdminManualStructuringScanAdminManualStructuringScanPostData, AdminManualStructuringScanAdminManualStructuringScanPostResponses, AdminManualStructuringStartSuggestionAdminManualStructuringDocItemIdAiSuggestionPostData, AdminManualStructuringStartSuggestionAdminManualStructuringDocItemIdAiSuggestionPostErrors, AdminManualStructuringStartSuggestionAdminManualStructuringDocItemIdAiSuggestionPostResponses, AdminManualStructuringUpdateAdminManualStructuringDocItemIdPatchData, AdminManualStructuringUpdateAdminManualStructuringDocItemIdPatchErrors, AdminManualStructuringUpdateAdminManualStructuringDocItemIdPatchResponses, AdminManualStructuringValidateAdminManualStructuringDocItemIdValidatePostData, AdminManualStructuringValidateAdminManualStructuringDocItemIdValidatePostErrors, AdminManualStructuringValidateAdminManualStructuringDocItemIdValidatePostResponses, AdminManualStructuringVersionsAdminManualStructuringDocItemIdVersionsGetData, AdminManualStructuringVersionsAdminManualStructuringDocItemIdVersionsGetErrors, AdminManualStructuringVersionsAdminManualStructuringDocItemIdVersionsGetResponses, AdminPageImageAdminPageImageDocPageGetData, AdminPageImageAdminPageImageDocPageGetErrors, AdminPageImageAdminPageImageDocPageGetResponses, AdminPromoteAdminCorrectionsPromoteDocPostData, AdminPromoteAdminCorrectionsPromoteDocPostErrors, AdminPromoteAdminCorrectionsPromoteDocPostResponses, AdminProviderProbesAdminProviderProbesPostData, AdminProviderProbesAdminProviderProbesPostResponses, AdminQualityRunsAdminQualityRunsGetData, AdminQualityRunsAdminQualityRunsGetErrors, AdminQualityRunsAdminQualityRunsGetResponses, AdminQualityRunsCompareAdminQualityRunsCompareGetData, AdminQualityRunsCompareAdminQualityRunsCompareGetErrors, AdminQualityRunsCompareAdminQualityRunsCompareGetResponses, AdminQualityStatusAdminQualityStatusGetData, AdminQualityStatusAdminQualityStatusGetResponses, AdminRebuildPlanAdminRebuildPlanPostData, AdminRebuildPlanAdminRebuildPlanPostErrors, AdminRebuildPlanAdminRebuildPlanPostResponses, AdminRetrievalReloadAdminRetrievalReloadPostData, AdminRetrievalReloadAdminRetrievalReloadPostResponses, AdminStatusAdminStatusGetData, AdminStatusAdminStatusGetResponses, AdminVersionCleanupPlanAdminVersionsCleanupPlansPostData, AdminVersionCleanupPlanAdminVersionsCleanupPlansPostResponses, AdminVersionRetentionAdminVersionsVersionIdRetentionPutData, AdminVersionRetentionAdminVersionsVersionIdRetentionPutErrors, AdminVersionRetentionAdminVersionsVersionIdRetentionPutResponses, AdminVersionsAdminVersionsGetData, AdminVersionsAdminVersionsGetErrors, AdminVersionsAdminVersionsGetResponses, BootstrapSourcesAdminSourcesBootstrapPostData, BootstrapSourcesAdminSourcesBootstrapPostResponses, BuildSourceChangesAdminSourcesChangesBuildPostData, BuildSourceChangesAdminSourcesChangesBuildPostErrors, BuildSourceChangesAdminSourcesChangesBuildPostResponses, ChatCompletionsChatCompletionsPostData, ChatCompletionsChatCompletionsPostErrors, ChatCompletionsChatCompletionsPostResponses, ChatCompletionsV1ChatCompletionsPostData, ChatCompletionsV1ChatCompletionsPostErrors, ChatCompletionsV1ChatCompletionsPostResponses, CorrectionCandidateDetailCorrectionsCandidatesDocGetData, CorrectionCandidateDetailCorrectionsCandidatesDocGetErrors, CorrectionCandidateDetailCorrectionsCandidatesDocGetResponses, CorrectionCandidatesCorrectionsCandidatesGetData, CorrectionCandidatesCorrectionsCandidatesGetResponses, CorrectionCandidateUpdateCorrectionsCandidatesDocCandidateIdPatchData, CorrectionCandidateUpdateCorrectionsCandidatesDocCandidateIdPatchErrors, CorrectionCandidateUpdateCorrectionsCandidatesDocCandidateIdPatchResponses, CorrectionPromoteCorrectionsPromoteDocPostData, CorrectionPromoteCorrectionsPromoteDocPostErrors, CorrectionPromoteCorrectionsPromoteDocPostResponses, DeleteDraftSourceAdminSourcesSourceIdDraftDeleteData, DeleteDraftSourceAdminSourcesSourceIdDraftDeleteErrors, DeleteDraftSourceAdminSourcesSourceIdDraftDeleteResponses, DiscardPendingSourceAdminSourcesSourceIdDiscardPendingPostData, DiscardPendingSourceAdminSourcesSourceIdDiscardPendingPostErrors, DiscardPendingSourceAdminSourcesSourceIdDiscardPendingPostResponses, EvaluationStatusEvaluationStatusGetData, EvaluationStatusEvaluationStatusGetResponses, GetJobAdminJobsJobIdGetData, GetJobAdminJobsJobIdGetErrors, GetJobAdminJobsJobIdGetResponses, GetJobLogsAdminJobsJobIdLogsGetData, GetJobLogsAdminJobsJobIdLogsGetErrors, GetJobLogsAdminJobsJobIdLogsGetResponses, GetSourceAdminSourcesSourceIdGetData, GetSourceAdminSourcesSourceIdGetErrors, GetSourceAdminSourcesSourceIdGetResponses, HarnessPageIntegrationsDeepseekHarnessPageGetData, HarnessPageIntegrationsDeepseekHarnessPageGetErrors, HarnessPageIntegrationsDeepseekHarnessPageGetResponses, HarnessReadyIntegrationsDeepseekHarnessReadyGetData, HarnessReadyIntegrationsDeepseekHarnessReadyGetResponses, HarnessSearchIntegrationsDeepseekHarnessSearchPostData, HarnessSearchIntegrationsDeepseekHarnessSearchPostErrors, HarnessSearchIntegrationsDeepseekHarnessSearchPostResponses, HealthHealthGetData, HealthHealthGetResponses, KnowledgeDocumentsKnowledgeDocumentsGetData, KnowledgeDocumentsKnowledgeDocumentsGetResponses, ListJobsAdminJobsGetData, ListJobsAdminJobsGetResponses, ListModelsModelsGetData, ListModelsModelsGetResponses, ListModelsV1ModelsGetData, ListModelsV1ModelsGetResponses, ListSourceRevisionsAdminSourcesRevisionsGetData, ListSourceRevisionsAdminSourcesRevisionsGetResponses, ListSourcesAdminSourcesGetData, ListSourcesAdminSourcesGetResponses, MetricsEndpointMetricsGetData, MetricsEndpointMetricsGetResponses, PlanSourceChangesAdminSourcesChangesPlanPostData, PlanSourceChangesAdminSourcesChangesPlanPostResponses, ReadyReadyGetData, ReadyReadyGetErrors, ReadyReadyGetResponses, ReplaceSourceAdminSourcesSourceIdVersionsPostData, ReplaceSourceAdminSourcesSourceIdVersionsPostErrors, ReplaceSourceAdminSourcesSourceIdVersionsPostResponses, RepublishSourceCandidateAdminSourcesCandidatesJobIdRepublishPostData, RepublishSourceCandidateAdminSourcesCandidatesJobIdRepublishPostErrors, RepublishSourceCandidateAdminSourcesCandidatesJobIdRepublishPostResponses, ResolveJobAdminJobsJobIdResolvePostData, ResolveJobAdminJobsJobIdResolvePostErrors, ResolveJobAdminJobsJobIdResolvePostResponses, RetireSourceAdminSourcesSourceIdRetirePostData, RetireSourceAdminSourcesSourceIdRetirePostErrors, RetireSourceAdminSourcesSourceIdRetirePostResponses, RootGetData, RootGetResponses, ServeImageImagesFilenameGetData, ServeImageImagesFilenameGetErrors, ServeImageImagesFilenameGetResponses, ServePageImagePageImagesDocPageGetData, ServePageImagePageImagesDocPageGetErrors, ServePageImagePageImagesDocPageGetResponses, StartAnswerEvaluateAdminJobsEvaluateAnswersPostData, StartAnswerEvaluateAdminJobsEvaluateAnswersPostErrors, StartAnswerEvaluateAdminJobsEvaluateAnswersPostResponses, StartAuditAdminJobsAuditPostData, StartAuditAdminJobsAuditPostResponses, StartDryRunAdminJobsDryRunPostData, StartDryRunAdminJobsDryRunPostErrors, StartDryRunAdminJobsDryRunPostResponses, StartEvaluateAdminJobsEvaluatePostData, StartEvaluateAdminJobsEvaluatePostErrors, StartEvaluateAdminJobsEvaluatePostResponses, StartRebuildAdminJobsRebuildPostData, StartRebuildAdminJobsRebuildPostErrors, StartRebuildAdminJobsRebuildPostResponses, StartReviewAdminJobsReviewPostData, StartReviewAdminJobsReviewPostErrors, StartReviewAdminJobsReviewPostResponses, StartVersionCleanupAdminJobsCleanupVersionsPostData, StartVersionCleanupAdminJobsCleanupVersionsPostErrors, StartVersionCleanupAdminJobsCleanupVersionsPostResponses, UpdateSourceAdminSourcesSourceIdPatchData, UpdateSourceAdminSourcesSourceIdPatchErrors, UpdateSourceAdminSourcesSourceIdPatchResponses, UploadSourceAdminSourcesUploadsPostData, UploadSourceAdminSourcesUploadsPostErrors, UploadSourceAdminSourcesUploadsPostResponses, ValidateSourceAdminSourcesSourceIdValidatePostData, ValidateSourceAdminSourcesSourceIdValidatePostErrors, ValidateSourceAdminSourcesSourceIdValidatePostResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -144,6 +144,130 @@ export const adminEvaluationCasesAdminEvaluationCasesGet = <ThrowOnError extends
 });
 
 /**
+ * Admin Evaluation Sets
+ */
+export const adminEvaluationSetsAdminEvaluationSetsGet = <ThrowOnError extends boolean = true>(options?: Options<AdminEvaluationSetsAdminEvaluationSetsGetData, ThrowOnError>) => (options?.client ?? client).get<AdminEvaluationSetsAdminEvaluationSetsGetResponses, unknown, ThrowOnError, 'data'>({
+    responseStyle: 'data',
+    url: '/admin/evaluation/sets',
+    ...options
+});
+
+/**
+ * Admin Evaluation Set
+ */
+export const adminEvaluationSetAdminEvaluationSetsEvaluationSetIdGet = <ThrowOnError extends boolean = true>(options: Options<AdminEvaluationSetAdminEvaluationSetsEvaluationSetIdGetData, ThrowOnError>) => (options.client ?? client).get<AdminEvaluationSetAdminEvaluationSetsEvaluationSetIdGetResponses, AdminEvaluationSetAdminEvaluationSetsEvaluationSetIdGetErrors, ThrowOnError, 'data'>({
+    responseStyle: 'data',
+    url: '/admin/evaluation/sets/{evaluation_set_id}',
+    ...options
+});
+
+/**
+ * Admin Evaluation Set Diff
+ */
+export const adminEvaluationSetDiffAdminEvaluationSetsEvaluationSetIdDiffGet = <ThrowOnError extends boolean = true>(options: Options<AdminEvaluationSetDiffAdminEvaluationSetsEvaluationSetIdDiffGetData, ThrowOnError>) => (options.client ?? client).get<AdminEvaluationSetDiffAdminEvaluationSetsEvaluationSetIdDiffGetResponses, AdminEvaluationSetDiffAdminEvaluationSetsEvaluationSetIdDiffGetErrors, ThrowOnError, 'data'>({
+    responseStyle: 'data',
+    url: '/admin/evaluation/sets/{evaluation_set_id}/diff',
+    ...options
+});
+
+/**
+ * Admin Evaluation Set Create Draft
+ */
+export const adminEvaluationSetCreateDraftAdminEvaluationSetsEvaluationSetIdDraftsPost = <ThrowOnError extends boolean = true>(options: Options<AdminEvaluationSetCreateDraftAdminEvaluationSetsEvaluationSetIdDraftsPostData, ThrowOnError>) => (options.client ?? client).post<AdminEvaluationSetCreateDraftAdminEvaluationSetsEvaluationSetIdDraftsPostResponses, AdminEvaluationSetCreateDraftAdminEvaluationSetsEvaluationSetIdDraftsPostErrors, ThrowOnError, 'data'>({
+    responseStyle: 'data',
+    url: '/admin/evaluation/sets/{evaluation_set_id}/drafts',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Admin Evaluation Set Add Case
+ */
+export const adminEvaluationSetAddCaseAdminEvaluationSetsEvaluationSetIdDraftsCasesPost = <ThrowOnError extends boolean = true>(options: Options<AdminEvaluationSetAddCaseAdminEvaluationSetsEvaluationSetIdDraftsCasesPostData, ThrowOnError>) => (options.client ?? client).post<AdminEvaluationSetAddCaseAdminEvaluationSetsEvaluationSetIdDraftsCasesPostResponses, AdminEvaluationSetAddCaseAdminEvaluationSetsEvaluationSetIdDraftsCasesPostErrors, ThrowOnError, 'data'>({
+    responseStyle: 'data',
+    url: '/admin/evaluation/sets/{evaluation_set_id}/drafts/cases',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Admin Evaluation Set Delete Case
+ */
+export const adminEvaluationSetDeleteCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdDelete = <ThrowOnError extends boolean = true>(options: Options<AdminEvaluationSetDeleteCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdDeleteData, ThrowOnError>) => (options.client ?? client).delete<AdminEvaluationSetDeleteCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdDeleteResponses, AdminEvaluationSetDeleteCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdDeleteErrors, ThrowOnError, 'data'>({
+    responseStyle: 'data',
+    url: '/admin/evaluation/sets/{evaluation_set_id}/drafts/{case_id}',
+    ...options
+});
+
+/**
+ * Admin Evaluation Set Update Case
+ */
+export const adminEvaluationSetUpdateCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdPatch = <ThrowOnError extends boolean = true>(options: Options<AdminEvaluationSetUpdateCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdPatchData, ThrowOnError>) => (options.client ?? client).patch<AdminEvaluationSetUpdateCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdPatchResponses, AdminEvaluationSetUpdateCaseAdminEvaluationSetsEvaluationSetIdDraftsCaseIdPatchErrors, ThrowOnError, 'data'>({
+    responseStyle: 'data',
+    url: '/admin/evaluation/sets/{evaluation_set_id}/drafts/{case_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Admin Evaluation Set Publish
+ */
+export const adminEvaluationSetPublishAdminEvaluationSetsEvaluationSetIdPublishPost = <ThrowOnError extends boolean = true>(options: Options<AdminEvaluationSetPublishAdminEvaluationSetsEvaluationSetIdPublishPostData, ThrowOnError>) => (options.client ?? client).post<AdminEvaluationSetPublishAdminEvaluationSetsEvaluationSetIdPublishPostResponses, AdminEvaluationSetPublishAdminEvaluationSetsEvaluationSetIdPublishPostErrors, ThrowOnError, 'data'>({
+    responseStyle: 'data',
+    url: '/admin/evaluation/sets/{evaluation_set_id}/publish',
+    ...options
+});
+
+/**
+ * Admin Evaluation Set Revisions
+ */
+export const adminEvaluationSetRevisionsAdminEvaluationSetsEvaluationSetIdRevisionsGet = <ThrowOnError extends boolean = true>(options: Options<AdminEvaluationSetRevisionsAdminEvaluationSetsEvaluationSetIdRevisionsGetData, ThrowOnError>) => (options.client ?? client).get<AdminEvaluationSetRevisionsAdminEvaluationSetsEvaluationSetIdRevisionsGetResponses, AdminEvaluationSetRevisionsAdminEvaluationSetsEvaluationSetIdRevisionsGetErrors, ThrowOnError, 'data'>({
+    responseStyle: 'data',
+    url: '/admin/evaluation/sets/{evaluation_set_id}/revisions',
+    ...options
+});
+
+/**
+ * Admin Evaluation Set Revision
+ */
+export const adminEvaluationSetRevisionAdminEvaluationSetsEvaluationSetIdRevisionsRevisionIdGet = <ThrowOnError extends boolean = true>(options: Options<AdminEvaluationSetRevisionAdminEvaluationSetsEvaluationSetIdRevisionsRevisionIdGetData, ThrowOnError>) => (options.client ?? client).get<AdminEvaluationSetRevisionAdminEvaluationSetsEvaluationSetIdRevisionsRevisionIdGetResponses, AdminEvaluationSetRevisionAdminEvaluationSetsEvaluationSetIdRevisionsRevisionIdGetErrors, ThrowOnError, 'data'>({
+    responseStyle: 'data',
+    url: '/admin/evaluation/sets/{evaluation_set_id}/revisions/{revision_id}',
+    ...options
+});
+
+/**
+ * Admin Evaluation Set Rollback
+ */
+export const adminEvaluationSetRollbackAdminEvaluationSetsEvaluationSetIdRollbackPost = <ThrowOnError extends boolean = true>(options: Options<AdminEvaluationSetRollbackAdminEvaluationSetsEvaluationSetIdRollbackPostData, ThrowOnError>) => (options.client ?? client).post<AdminEvaluationSetRollbackAdminEvaluationSetsEvaluationSetIdRollbackPostResponses, AdminEvaluationSetRollbackAdminEvaluationSetsEvaluationSetIdRollbackPostErrors, ThrowOnError, 'data'>({
+    responseStyle: 'data',
+    url: '/admin/evaluation/sets/{evaluation_set_id}/rollback',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Admin Evaluation Set Validate
+ */
+export const adminEvaluationSetValidateAdminEvaluationSetsEvaluationSetIdValidatePost = <ThrowOnError extends boolean = true>(options: Options<AdminEvaluationSetValidateAdminEvaluationSetsEvaluationSetIdValidatePostData, ThrowOnError>) => (options.client ?? client).post<AdminEvaluationSetValidateAdminEvaluationSetsEvaluationSetIdValidatePostResponses, AdminEvaluationSetValidateAdminEvaluationSetsEvaluationSetIdValidatePostErrors, ThrowOnError, 'data'>({
+    responseStyle: 'data',
+    url: '/admin/evaluation/sets/{evaluation_set_id}/validate',
+    ...options
+});
+
+/**
  * Admin Evaluation Status
  */
 export const adminEvaluationStatusAdminEvaluationStatusGet = <ThrowOnError extends boolean = true>(options?: Options<AdminEvaluationStatusAdminEvaluationStatusGetData, ThrowOnError>) => (options?.client ?? client).get<AdminEvaluationStatusAdminEvaluationStatusGetResponses, unknown, ThrowOnError, 'data'>({
@@ -264,6 +388,19 @@ export const getJobLogsAdminJobsJobIdLogsGet = <ThrowOnError extends boolean = t
     responseStyle: 'data',
     url: '/admin/jobs/{job_id}/logs',
     ...options
+});
+
+/**
+ * Resolve Job
+ */
+export const resolveJobAdminJobsJobIdResolvePost = <ThrowOnError extends boolean = true>(options: Options<ResolveJobAdminJobsJobIdResolvePostData, ThrowOnError>) => (options.client ?? client).post<ResolveJobAdminJobsJobIdResolvePostResponses, ResolveJobAdminJobsJobIdResolvePostErrors, ThrowOnError, 'data'>({
+    responseStyle: 'data',
+    url: '/admin/jobs/{job_id}/resolve',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
 });
 
 /**
@@ -432,6 +569,24 @@ export const adminProviderProbesAdminProviderProbesPost = <ThrowOnError extends 
 });
 
 /**
+ * Admin Quality Runs
+ */
+export const adminQualityRunsAdminQualityRunsGet = <ThrowOnError extends boolean = true>(options?: Options<AdminQualityRunsAdminQualityRunsGetData, ThrowOnError>) => (options?.client ?? client).get<AdminQualityRunsAdminQualityRunsGetResponses, AdminQualityRunsAdminQualityRunsGetErrors, ThrowOnError, 'data'>({
+    responseStyle: 'data',
+    url: '/admin/quality/runs',
+    ...options
+});
+
+/**
+ * Admin Quality Runs Compare
+ */
+export const adminQualityRunsCompareAdminQualityRunsCompareGet = <ThrowOnError extends boolean = true>(options: Options<AdminQualityRunsCompareAdminQualityRunsCompareGetData, ThrowOnError>) => (options.client ?? client).get<AdminQualityRunsCompareAdminQualityRunsCompareGetResponses, AdminQualityRunsCompareAdminQualityRunsCompareGetErrors, ThrowOnError, 'data'>({
+    responseStyle: 'data',
+    url: '/admin/quality/runs/compare',
+    ...options
+});
+
+/**
  * Admin Quality Status
  */
 export const adminQualityStatusAdminQualityStatusGet = <ThrowOnError extends boolean = true>(options?: Options<AdminQualityStatusAdminQualityStatusGetData, ThrowOnError>) => (options?.client ?? client).get<AdminQualityStatusAdminQualityStatusGetResponses, unknown, ThrowOnError, 'data'>({
@@ -463,6 +618,152 @@ export const adminRetrievalReloadAdminRetrievalReloadPost = <ThrowOnError extend
 });
 
 /**
+ * List Sources
+ */
+export const listSourcesAdminSourcesGet = <ThrowOnError extends boolean = true>(options?: Options<ListSourcesAdminSourcesGetData, ThrowOnError>) => (options?.client ?? client).get<ListSourcesAdminSourcesGetResponses, unknown, ThrowOnError, 'data'>({
+    responseStyle: 'data',
+    url: '/admin/sources',
+    ...options
+});
+
+/**
+ * Bootstrap Sources
+ */
+export const bootstrapSourcesAdminSourcesBootstrapPost = <ThrowOnError extends boolean = true>(options?: Options<BootstrapSourcesAdminSourcesBootstrapPostData, ThrowOnError>) => (options?.client ?? client).post<BootstrapSourcesAdminSourcesBootstrapPostResponses, unknown, ThrowOnError, 'data'>({
+    responseStyle: 'data',
+    url: '/admin/sources/bootstrap',
+    ...options
+});
+
+/**
+ * Republish Source Candidate
+ *
+ * Re-publish a failed candidate after re-running its activation gate only.
+ */
+export const republishSourceCandidateAdminSourcesCandidatesJobIdRepublishPost = <ThrowOnError extends boolean = true>(options: Options<RepublishSourceCandidateAdminSourcesCandidatesJobIdRepublishPostData, ThrowOnError>) => (options.client ?? client).post<RepublishSourceCandidateAdminSourcesCandidatesJobIdRepublishPostResponses, RepublishSourceCandidateAdminSourcesCandidatesJobIdRepublishPostErrors, ThrowOnError, 'data'>({
+    responseStyle: 'data',
+    url: '/admin/sources/candidates/{job_id}/republish',
+    ...options
+});
+
+/**
+ * Build Source Changes
+ */
+export const buildSourceChangesAdminSourcesChangesBuildPost = <ThrowOnError extends boolean = true>(options: Options<BuildSourceChangesAdminSourcesChangesBuildPostData, ThrowOnError>) => (options.client ?? client).post<BuildSourceChangesAdminSourcesChangesBuildPostResponses, BuildSourceChangesAdminSourcesChangesBuildPostErrors, ThrowOnError, 'data'>({
+    responseStyle: 'data',
+    url: '/admin/sources/changes/build',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Plan Source Changes
+ */
+export const planSourceChangesAdminSourcesChangesPlanPost = <ThrowOnError extends boolean = true>(options?: Options<PlanSourceChangesAdminSourcesChangesPlanPostData, ThrowOnError>) => (options?.client ?? client).post<PlanSourceChangesAdminSourcesChangesPlanPostResponses, unknown, ThrowOnError, 'data'>({
+    responseStyle: 'data',
+    url: '/admin/sources/changes/plan',
+    ...options
+});
+
+/**
+ * List Source Revisions
+ */
+export const listSourceRevisionsAdminSourcesRevisionsGet = <ThrowOnError extends boolean = true>(options?: Options<ListSourceRevisionsAdminSourcesRevisionsGetData, ThrowOnError>) => (options?.client ?? client).get<ListSourceRevisionsAdminSourcesRevisionsGetResponses, unknown, ThrowOnError, 'data'>({
+    responseStyle: 'data',
+    url: '/admin/sources/revisions',
+    ...options
+});
+
+/**
+ * Upload Source
+ */
+export const uploadSourceAdminSourcesUploadsPost = <ThrowOnError extends boolean = true>(options: Options<UploadSourceAdminSourcesUploadsPostData, ThrowOnError>) => (options.client ?? client).post<UploadSourceAdminSourcesUploadsPostResponses, UploadSourceAdminSourcesUploadsPostErrors, ThrowOnError, 'data'>({
+    bodySerializer: null,
+    responseStyle: 'data',
+    url: '/admin/sources/uploads',
+    ...options,
+    headers: {
+        'Content-Type': 'application/pdf',
+        ...options.headers
+    }
+});
+
+/**
+ * Get Source
+ */
+export const getSourceAdminSourcesSourceIdGet = <ThrowOnError extends boolean = true>(options: Options<GetSourceAdminSourcesSourceIdGetData, ThrowOnError>) => (options.client ?? client).get<GetSourceAdminSourcesSourceIdGetResponses, GetSourceAdminSourcesSourceIdGetErrors, ThrowOnError, 'data'>({
+    responseStyle: 'data',
+    url: '/admin/sources/{source_id}',
+    ...options
+});
+
+/**
+ * Update Source
+ */
+export const updateSourceAdminSourcesSourceIdPatch = <ThrowOnError extends boolean = true>(options: Options<UpdateSourceAdminSourcesSourceIdPatchData, ThrowOnError>) => (options.client ?? client).patch<UpdateSourceAdminSourcesSourceIdPatchResponses, UpdateSourceAdminSourcesSourceIdPatchErrors, ThrowOnError, 'data'>({
+    responseStyle: 'data',
+    url: '/admin/sources/{source_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Discard Pending Source
+ */
+export const discardPendingSourceAdminSourcesSourceIdDiscardPendingPost = <ThrowOnError extends boolean = true>(options: Options<DiscardPendingSourceAdminSourcesSourceIdDiscardPendingPostData, ThrowOnError>) => (options.client ?? client).post<DiscardPendingSourceAdminSourcesSourceIdDiscardPendingPostResponses, DiscardPendingSourceAdminSourcesSourceIdDiscardPendingPostErrors, ThrowOnError, 'data'>({
+    responseStyle: 'data',
+    url: '/admin/sources/{source_id}/discard-pending',
+    ...options
+});
+
+/**
+ * Delete Draft Source
+ */
+export const deleteDraftSourceAdminSourcesSourceIdDraftDelete = <ThrowOnError extends boolean = true>(options: Options<DeleteDraftSourceAdminSourcesSourceIdDraftDeleteData, ThrowOnError>) => (options.client ?? client).delete<DeleteDraftSourceAdminSourcesSourceIdDraftDeleteResponses, DeleteDraftSourceAdminSourcesSourceIdDraftDeleteErrors, ThrowOnError, 'data'>({
+    responseStyle: 'data',
+    url: '/admin/sources/{source_id}/draft',
+    ...options
+});
+
+/**
+ * Retire Source
+ */
+export const retireSourceAdminSourcesSourceIdRetirePost = <ThrowOnError extends boolean = true>(options: Options<RetireSourceAdminSourcesSourceIdRetirePostData, ThrowOnError>) => (options.client ?? client).post<RetireSourceAdminSourcesSourceIdRetirePostResponses, RetireSourceAdminSourcesSourceIdRetirePostErrors, ThrowOnError, 'data'>({
+    responseStyle: 'data',
+    url: '/admin/sources/{source_id}/retire',
+    ...options
+});
+
+/**
+ * Validate Source
+ */
+export const validateSourceAdminSourcesSourceIdValidatePost = <ThrowOnError extends boolean = true>(options: Options<ValidateSourceAdminSourcesSourceIdValidatePostData, ThrowOnError>) => (options.client ?? client).post<ValidateSourceAdminSourcesSourceIdValidatePostResponses, ValidateSourceAdminSourcesSourceIdValidatePostErrors, ThrowOnError, 'data'>({
+    responseStyle: 'data',
+    url: '/admin/sources/{source_id}/validate',
+    ...options
+});
+
+/**
+ * Replace Source
+ */
+export const replaceSourceAdminSourcesSourceIdVersionsPost = <ThrowOnError extends boolean = true>(options: Options<ReplaceSourceAdminSourcesSourceIdVersionsPostData, ThrowOnError>) => (options.client ?? client).post<ReplaceSourceAdminSourcesSourceIdVersionsPostResponses, ReplaceSourceAdminSourcesSourceIdVersionsPostErrors, ThrowOnError, 'data'>({
+    bodySerializer: null,
+    responseStyle: 'data',
+    url: '/admin/sources/{source_id}/versions',
+    ...options,
+    headers: {
+        'Content-Type': 'application/pdf',
+        ...options.headers
+    }
+});
+
+/**
  * Admin Status
  */
 export const adminStatusAdminStatusGet = <ThrowOnError extends boolean = true>(options?: Options<AdminStatusAdminStatusGetData, ThrowOnError>) => (options?.client ?? client).get<AdminStatusAdminStatusGetResponses, unknown, ThrowOnError, 'data'>({
@@ -474,7 +775,7 @@ export const adminStatusAdminStatusGet = <ThrowOnError extends boolean = true>(o
 /**
  * Admin Versions
  */
-export const adminVersionsAdminVersionsGet = <ThrowOnError extends boolean = true>(options?: Options<AdminVersionsAdminVersionsGetData, ThrowOnError>) => (options?.client ?? client).get<AdminVersionsAdminVersionsGetResponses, unknown, ThrowOnError, 'data'>({
+export const adminVersionsAdminVersionsGet = <ThrowOnError extends boolean = true>(options?: Options<AdminVersionsAdminVersionsGetData, ThrowOnError>) => (options?.client ?? client).get<AdminVersionsAdminVersionsGetResponses, AdminVersionsAdminVersionsGetErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     url: '/admin/versions',
     ...options

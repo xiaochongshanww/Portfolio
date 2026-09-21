@@ -49,9 +49,7 @@ def _matching_structured_files(spec: SpecMetadata) -> list[Path]:
     if not code_token or not STRUCTURED_TABLES_DIR.is_dir():
         return []
     return sorted(
-        path
-        for path in STRUCTURED_TABLES_DIR.glob(f"{code_token}*.json")
-        if path.is_file()
+        path for path in STRUCTURED_TABLES_DIR.glob(f"{code_token}*.json") if path.is_file()
     )
 
 
@@ -70,13 +68,12 @@ def document_fingerprint(
         "corrections_sha256": (
             file_sha256(correction_path)
             if apply_corrections and correction_path.is_file()
-            else "disabled" if not apply_corrections else "none"
+            else "disabled"
+            if not apply_corrections
+            else "none"
         ),
         "structured_revision": _stable_hash(
-            [
-                {"name": path.name, "sha256": file_sha256(path)}
-                for path in structured_files
-            ]
+            [{"name": path.name, "sha256": file_sha256(path)} for path in structured_files]
         ),
     }
     return {**payload, "fingerprint": _stable_hash(payload)}
@@ -350,7 +347,9 @@ def load_reused_document(
     }
 
 
-def _active_quality_entry(source_file: str, chunk_count: int, payload: dict[str, Any]) -> dict[str, Any]:
+def _active_quality_entry(
+    source_file: str, chunk_count: int, payload: dict[str, Any]
+) -> dict[str, Any]:
     quality_path = active_processed_dir(ACTIVE_DB_PATH) / "build_quality.json"
     if quality_path.is_file():
         quality = json.loads(quality_path.read_text(encoding="utf-8"))

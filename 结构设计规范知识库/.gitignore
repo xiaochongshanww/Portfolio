@@ -41,6 +41,10 @@ Thumbs.db
 /data/manual_structuring/suggestions/
 /data/db_versions/
 /data/document_cache/
+/data/source_assets/
+/data/source_catalog/
+/data/evaluation_sets/
+/data/runtime-logs/
 /data/active_db.json
 /data/manifest.json
 /db/

@@ -17,6 +17,7 @@ except ImportError:
 from src.app.core.config import settings
 from src.app.core.embeddings import embedding_request_kwargs
 from src.app.retrieval.dense_vector_store import build_dense_vector_store
+from src.pipeline.progress import ProgressCallback, emit_progress
 
 load_dotenv()
 
@@ -56,8 +57,18 @@ def _metadata_for_chroma(chunk: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def load_chunks_to_db(chunks_by_file: dict[str, list[dict[str, Any]]], db_dir: Path) -> int:
-    result = load_chunks_to_db_incremental(chunks_by_file, db_dir, reusable_embeddings={})
+def load_chunks_to_db(
+    chunks_by_file: dict[str, list[dict[str, Any]]],
+    db_dir: Path,
+    *,
+    progress_callback: ProgressCallback | None = None,
+) -> int:
+    result = load_chunks_to_db_incremental(
+        chunks_by_file,
+        db_dir,
+        reusable_embeddings={},
+        progress_callback=progress_callback,
+    )
     return int(result["loaded_chunks"])
 
 
@@ -66,6 +77,7 @@ def load_chunks_to_db_incremental(
     db_dir: Path,
     *,
     reusable_embeddings: dict[str, list[float]],
+    progress_callback: ProgressCallback | None = None,
 ) -> dict[str, int]:
     try:
         import chromadb
@@ -93,6 +105,7 @@ def load_chunks_to_db_incremental(
         zhipu,
         chunks_by_file,
         reusable_embeddings=reusable_embeddings,
+        progress_callback=progress_callback,
     )
     total = sum(len(item[0]) for item in pending_additions)
     ids = [item for batch in pending_additions for item in batch[0]]
@@ -105,6 +118,14 @@ def load_chunks_to_db_incremental(
         metadatas=metadatas,
         ids=ids,
     )
+    emit_progress(
+        progress_callback,
+        "write_vector_db",
+        "向量已写入候选集合，正在生成精确索引",
+        chunk_count=total,
+        generated_embedding_count=embedding_stats["generated_embedding_count"],
+        reused_embedding_count=embedding_stats["reused_embedding_count"],
+    )
     build_dense_vector_store(
         db_dir,
         ids,
@@ -112,16 +133,32 @@ def load_chunks_to_db_incremental(
         embedding_model=settings.embedding_model,
         dimensions=settings.embedding_dimensions,
     )
+    emit_progress(
+        progress_callback,
+        "write_vector_db",
+        "精确向量索引生成完成，正在等待 Chroma 持久化",
+        chunk_count=total,
+    )
     logging.info("入库完成: %s 条, 集合总条目: %s", total, collection.count())
-    _wait_for_hnsw_sync(db_dir)
     try:
-        db._system.stop()
-    except Exception:
-        logging.warning("ChromaDB flush/stop 未显式完成", exc_info=True)
-    _clear_chroma_system_cache()
+        _wait_for_persisted_records(db_dir, expected_count=total)
+    finally:
+        try:
+            db._system.stop()
+        except Exception:
+            logging.warning("ChromaDB flush/stop 未显式完成", exc_info=True)
+        _clear_chroma_system_cache()
     _verify_persisted_chroma_index(
         db_dir,
         expected_count=total,
+    )
+    emit_progress(
+        progress_callback,
+        "write_vector_db",
+        "向量库写入完成",
+        chunk_count=total,
+        generated_embedding_count=embedding_stats["generated_embedding_count"],
+        reused_embedding_count=embedding_stats["reused_embedding_count"],
     )
     return {"loaded_chunks": total, **embedding_stats}
 
@@ -175,12 +212,14 @@ def migrate_collection_embeddings(
         dimensions=settings.embedding_dimensions,
     )
     logging.info("向量迁移完成: %s 条, 集合总条目: %s", len(ids), collection.count())
-    _wait_for_hnsw_sync(target_db_dir)
     try:
-        db._system.stop()
-    except Exception:
-        logging.warning("目标 Chroma flush/stop 未显式完成", exc_info=True)
-    _clear_chroma_system_cache()
+        _wait_for_persisted_records(target_db_dir, expected_count=len(ids))
+    finally:
+        try:
+            db._system.stop()
+        except Exception:
+            logging.warning("目标 Chroma flush/stop 未显式完成", exc_info=True)
+        _clear_chroma_system_cache()
     _verify_persisted_chroma_index(
         target_db_dir,
         expected_count=len(ids),
@@ -214,15 +253,31 @@ def _embed_chunks_with_reuse(
     chunks_by_file: dict[str, list[dict[str, Any]]],
     *,
     reusable_embeddings: dict[str, list[float]],
+    progress_callback: ProgressCallback | None = None,
 ) -> tuple[
     list[tuple[list[str], list[str], list[dict[str, Any]], list[list[float]]]],
     dict[str, int],
 ]:
-    pending_additions: list[tuple[list[str], list[str], list[dict[str, Any]], list[list[float]]]] = []
+    pending_additions: list[
+        tuple[list[str], list[str], list[dict[str, Any]], list[list[float]]]
+    ] = []
     reused_count = 0
     generated_count = 0
-    for source_file, chunks in chunks_by_file.items():
+    total_chunks = sum(len(chunks) for chunks in chunks_by_file.values())
+    processed_chunks = 0
+    document_total = len(chunks_by_file)
+    for document_index, (source_file, chunks) in enumerate(chunks_by_file.items(), start=1):
         logging.info("入库 %s: %s 个 chunk", source_file, len(chunks))
+        emit_progress(
+            progress_callback,
+            "embedding",
+            "开始处理文档向量",
+            document=source_file,
+            document_index=document_index,
+            document_total=document_total,
+            chunk_current=processed_chunks,
+            chunk_total=total_chunks,
+        )
         for index in range(0, len(chunks), 10):
             batch = chunks[index : index + 10]
             generated_batch = [
@@ -260,6 +315,20 @@ def _embed_chunks_with_reuse(
                 pending_additions.append((ids, texts, metadatas, embeddings))
                 generated_count += len(generated_batch)
                 reused_count += len(batch) - len(generated_batch)
+                processed_chunks += len(batch)
+                emit_progress(
+                    progress_callback,
+                    "embedding",
+                    "正在生成或复用向量",
+                    document=source_file,
+                    document_index=document_index,
+                    document_total=document_total,
+                    chunk_current=processed_chunks,
+                    chunk_total=total_chunks,
+                    generated_embedding_count=generated_count,
+                    reused_embedding_count=reused_count,
+                    batch_size=len(batch),
+                )
             except Exception as exc:
                 raise PipelineError(
                     f"{source_file} 批次 {index // 10 + 1} 入库失败: {exc}"
@@ -302,26 +371,17 @@ def _clear_chroma_system_cache() -> None:
         logging.debug("当前 Chroma 版本不提供 SharedSystemClient 缓存清理", exc_info=True)
 
 
-def _pending_embedding_count(db_dir: Path) -> int | None:
-    database_path = db_dir / "chroma.sqlite3"
-    if not database_path.is_file():
-        return None
-    try:
-        with sqlite3.connect(database_path, timeout=5) as connection:
-            row = connection.execute(
-                "SELECT COUNT(*) FROM embeddings_queue"
-            ).fetchone()
-    except sqlite3.Error:
-        return None
-    return int(row[0]) if row else None
-
-
-def _wait_for_hnsw_sync(db_dir: Path, *, timeout_seconds: float = 600.0) -> None:
+def _wait_for_persisted_records(
+    db_dir: Path, *, expected_count: int, timeout_seconds: float = 60.0
+) -> None:
+    # Chroma retains replay logs below its HNSW sync threshold. They are not
+    # outstanding writes; serving uses durable records plus our exact index.
     deadline = time.monotonic() + timeout_seconds
     while True:
-        pending = _pending_embedding_count(db_dir)
-        if pending in {None, 0, 1}:
+        try:
+            _verify_persisted_chroma_index(db_dir, expected_count=expected_count)
             return
-        if time.monotonic() >= deadline:
-            raise PipelineError(f"Chroma HNSW 索引队列未清空，剩余 {pending} 条")
+        except PipelineError as exc:
+            if time.monotonic() >= deadline:
+                raise PipelineError(f"Chroma 持久化记录等待超时: {exc}") from exc
         time.sleep(0.5)

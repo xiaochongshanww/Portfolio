@@ -10,9 +10,11 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 from scripts import export_openapi
-from src.app.api import admin
+from src.app.api import admin, sources
 from src.app.main import app
 from src.app.schemas import admin as admin_schemas
+from src.app.schemas import source as source_schemas
+from src.evaluation import management as evaluation_management
 from starlette.responses import Response
 
 
@@ -24,6 +26,7 @@ class RuntimeCase:
     path: str
     body: dict[str, Any] | None = None
     media_type: str = "application/json"
+    content: bytes | None = None
 
 
 SAMPLE_JOB = {
@@ -144,6 +147,13 @@ RUNTIME_CASES = (
         "/admin/jobs/contract-job",
     ),
     RuntimeCase(
+        "resolve_job_admin_jobs__job_id__resolve_post",
+        "post",
+        "/admin/jobs/{job_id}/resolve",
+        "/admin/jobs/contract-job/resolve",
+        {"status": "acknowledged", "note": "contract disposition"},
+    ),
+    RuntimeCase(
         "get_job_logs_admin_jobs__job_id__logs_get",
         "get",
         "/admin/jobs/{job_id}/logs",
@@ -162,10 +172,115 @@ RUNTIME_CASES = (
         "/admin/evaluation/cases?evaluation_set=regular&limit=10",
     ),
     RuntimeCase(
+        "admin_evaluation_sets_admin_evaluation_sets_get",
+        "get",
+        "/admin/evaluation/sets",
+        "/admin/evaluation/sets",
+    ),
+    RuntimeCase(
+        "admin_evaluation_set_revisions_admin_evaluation_sets__evaluation_set_id__revisions_get",
+        "get",
+        "/admin/evaluation/sets/{evaluation_set_id}/revisions",
+        "/admin/evaluation/sets/structured/revisions",
+    ),
+    RuntimeCase(
+        "admin_evaluation_set_revision_admin_evaluation_sets__evaluation_set_id__revisions__revision_id__get",
+        "get",
+        "/admin/evaluation/sets/{evaluation_set_id}/revisions/{revision_id}",
+        "/admin/evaluation/sets/structured/revisions/builtin-4b496d1a8282",
+    ),
+    RuntimeCase(
+        "admin_evaluation_set_admin_evaluation_sets__evaluation_set_id__get",
+        "get",
+        "/admin/evaluation/sets/{evaluation_set_id}",
+        "/admin/evaluation/sets/structured",
+    ),
+    RuntimeCase(
+        "admin_evaluation_set_create_draft_admin_evaluation_sets__evaluation_set_id__drafts_post",
+        "post",
+        "/admin/evaluation/sets/{evaluation_set_id}/drafts",
+        "/admin/evaluation/sets/structured/drafts",
+    ),
+    RuntimeCase(
+        "admin_evaluation_set_update_case_admin_evaluation_sets__evaluation_set_id__drafts__case_id__patch",
+        "patch",
+        "/admin/evaluation/sets/{evaluation_set_id}/drafts/{case_id}",
+        "/admin/evaluation/sets/structured/drafts/structured-live-load-office",
+        {
+            "case": {
+                "id": "structured-live-load-office",
+                "query": "办公楼楼面活荷载标准值取多少（契约测试）",
+                "type": "structured_table",
+                "expected_table_id": "5.1.1",
+                "keyword_required": False,
+                "top1_source_required": False,
+            }
+        },
+    ),
+    RuntimeCase(
+        "admin_evaluation_set_delete_case_admin_evaluation_sets__evaluation_set_id__drafts__case_id__delete",
+        "delete",
+        "/admin/evaluation/sets/{evaluation_set_id}/drafts/{case_id}",
+        "/admin/evaluation/sets/structured/drafts/structured-live-load-office",
+    ),
+    RuntimeCase(
+        "admin_evaluation_set_add_case_admin_evaluation_sets__evaluation_set_id__drafts_cases_post",
+        "post",
+        "/admin/evaluation/sets/{evaluation_set_id}/drafts/cases",
+        "/admin/evaluation/sets/structured/drafts/cases",
+        {
+            "case": {
+                "id": "runtime-added",
+                "query": "契约测试新增结构化问题",
+                "type": "structured_table",
+                "expected_table_id": "5.1.1",
+                "keyword_required": False,
+                "top1_source_required": False,
+            }
+        },
+    ),
+    RuntimeCase(
+        "admin_evaluation_set_validate_admin_evaluation_sets__evaluation_set_id__validate_post",
+        "post",
+        "/admin/evaluation/sets/{evaluation_set_id}/validate",
+        "/admin/evaluation/sets/structured/validate",
+    ),
+    RuntimeCase(
+        "admin_evaluation_set_diff_admin_evaluation_sets__evaluation_set_id__diff_get",
+        "get",
+        "/admin/evaluation/sets/{evaluation_set_id}/diff",
+        "/admin/evaluation/sets/structured/diff",
+    ),
+    RuntimeCase(
+        "admin_evaluation_set_publish_admin_evaluation_sets__evaluation_set_id__publish_post",
+        "post",
+        "/admin/evaluation/sets/{evaluation_set_id}/publish",
+        "/admin/evaluation/sets/structured/publish",
+    ),
+    RuntimeCase(
+        "admin_evaluation_set_rollback_admin_evaluation_sets__evaluation_set_id__rollback_post",
+        "post",
+        "/admin/evaluation/sets/{evaluation_set_id}/rollback",
+        "/admin/evaluation/sets/structured/rollback",
+        {"revision_id": "builtin-4b496d1a8282"},
+    ),
+    RuntimeCase(
         "admin_quality_status_admin_quality_status_get",
         "get",
         "/admin/quality/status",
         "/admin/quality/status",
+    ),
+    RuntimeCase(
+        "admin_quality_runs_admin_quality_runs_get",
+        "get",
+        "/admin/quality/runs",
+        "/admin/quality/runs?limit=1",
+    ),
+    RuntimeCase(
+        "admin_quality_runs_compare_admin_quality_runs_compare_get",
+        "get",
+        "/admin/quality/runs/compare",
+        "/admin/quality/runs/compare?baseline_run_id=0123456789abcdef0123456789abcdef&candidate_run_id=fedcba9876543210fedcba9876543210",
     ),
     RuntimeCase(
         "admin_candidate_files_admin_corrections_candidates_get",
@@ -322,6 +437,89 @@ RUNTIME_CASES = (
         "/admin/page-image/contract-doc/1",
         media_type="image/png",
     ),
+    RuntimeCase("list_sources_admin_sources_get", "get", "/admin/sources", "/admin/sources"),
+    RuntimeCase(
+        "bootstrap_sources_admin_sources_bootstrap_post",
+        "post",
+        "/admin/sources/bootstrap",
+        "/admin/sources/bootstrap",
+    ),
+    RuntimeCase(
+        "upload_source_admin_sources_uploads_post",
+        "post",
+        "/admin/sources/uploads",
+        "/admin/sources/uploads?filename=contract.pdf",
+        content=b"%PDF-contract",
+    ),
+    RuntimeCase(
+        "plan_source_changes_admin_sources_changes_plan_post",
+        "post",
+        "/admin/sources/changes/plan",
+        "/admin/sources/changes/plan",
+    ),
+    RuntimeCase(
+        "build_source_changes_admin_sources_changes_build_post",
+        "post",
+        "/admin/sources/changes/build",
+        "/admin/sources/changes/build",
+        {"parser_backend": "pymupdf", "mode": "incremental"},
+    ),
+    RuntimeCase(
+        "republish_source_candidate_admin_sources_candidates__job_id__republish_post",
+        "post",
+        "/admin/sources/candidates/{job_id}/republish",
+        "/admin/sources/candidates/candidate-job/republish",
+    ),
+    RuntimeCase(
+        "list_source_revisions_admin_sources_revisions_get",
+        "get",
+        "/admin/sources/revisions",
+        "/admin/sources/revisions",
+    ),
+    RuntimeCase(
+        "get_source_admin_sources__source_id__get",
+        "get",
+        "/admin/sources/{source_id}",
+        "/admin/sources/source-1",
+    ),
+    RuntimeCase(
+        "update_source_admin_sources__source_id__patch",
+        "patch",
+        "/admin/sources/{source_id}",
+        "/admin/sources/source-1",
+        {"metadata": {"name": "contract"}, "governance": {}},
+    ),
+    RuntimeCase(
+        "replace_source_admin_sources__source_id__versions_post",
+        "post",
+        "/admin/sources/{source_id}/versions",
+        "/admin/sources/source-1/versions?filename=replacement.pdf",
+        content=b"%PDF-replacement",
+    ),
+    RuntimeCase(
+        "retire_source_admin_sources__source_id__retire_post",
+        "post",
+        "/admin/sources/{source_id}/retire",
+        "/admin/sources/source-1/retire",
+    ),
+    RuntimeCase(
+        "validate_source_admin_sources__source_id__validate_post",
+        "post",
+        "/admin/sources/{source_id}/validate",
+        "/admin/sources/source-1/validate",
+    ),
+    RuntimeCase(
+        "discard_pending_source_admin_sources__source_id__discard_pending_post",
+        "post",
+        "/admin/sources/{source_id}/discard-pending",
+        "/admin/sources/source-1/discard-pending",
+    ),
+    RuntimeCase(
+        "delete_draft_source_admin_sources__source_id__draft_delete",
+        "delete",
+        "/admin/sources/{source_id}/draft",
+        "/admin/sources/source-1/draft",
+    ),
 )
 
 
@@ -330,13 +528,46 @@ class FakeJobStore:
         return [dict(SAMPLE_JOB)]
 
     def read(self, job_id: str) -> dict[str, Any] | None:
+        if job_id == "candidate-job":
+            return {
+                "job_id": "candidate-job",
+                "type": "source_rebuild",
+                "status": "failed",
+                "params": {"source_catalog_revision": "src-contract"},
+            }
         return dict(SAMPLE_JOB) if job_id == SAMPLE_JOB["job_id"] else None
 
     def logs(self, job_id: str, limit: int = 200) -> list[dict[str, Any]]:
         return [{"level": "info", "message": "contract", "limit": limit}]
 
+    def resolve_failed(
+        self,
+        job_id: str,
+        *,
+        status: str,
+        note: str,
+        related_job_id: str = "",
+    ) -> dict[str, Any]:
+        assert job_id == "contract-job"
+        return {
+            **SAMPLE_JOB,
+            "status": "failed",
+            "error": "contract failure",
+            "resolution": {
+                "schema_version": 1,
+                "status": status,
+                "note": note,
+                "resolved_at": "2026-08-12T00:00:00Z",
+                "resolved_by": "contract",
+                "related_job_id": related_job_id,
+            },
+        }
+
 
 class FakeJobManager:
+    def __init__(self) -> None:
+        self.store = FakeJobStore()
+
     def submit(self, job_type: str, params: dict[str, Any], workflow: Any) -> SimpleNamespace:
         payload = {**SAMPLE_JOB, "type": job_type, "params": params}
         return SimpleNamespace(to_dict=lambda: payload)
@@ -354,6 +585,107 @@ class FakeRetrievalState:
 
     def chroma_count(self) -> int:
         return 1
+
+
+def _source_record() -> dict[str, Any]:
+    return {
+        "source_id": "source-1",
+        "lifecycle_status": "ready",
+        "pending_action": "add",
+        "active_asset_version_id": "",
+        "pending_asset_version_id": "asset-1",
+        "metadata": {"source_file": "contract.pdf", "code": "GB 1", "name": "contract"},
+        "governance": {"rights_status": "B"},
+        "versions": [{"asset_version_id": "asset-1", "sha256": "a" * 64}],
+        "created_at": "2026-08-12T00:00:00Z",
+        "updated_at": "2026-08-12T00:00:00Z",
+    }
+
+
+class FakeSourceStore:
+    def __init__(self, data_dir: Path) -> None:
+        self.data_dir = data_dir
+        self.staging_dir = data_dir / "source_assets" / "staging"
+
+    def list_sources(self):
+        return {
+            "catalog_revision": 1,
+            "active_revision_id": "",
+            "source_count": 1,
+            "pending_count": 1,
+            "sources": [_source_record()],
+        }
+
+    def bootstrap_legacy(self, *_args):
+        return {"imported_count": 1, "revision_id": "src-contract"}
+
+    def register_upload(self, *_args, **_kwargs):
+        return _source_record()
+
+    def plan_changes(self):
+        return {
+            "catalog_revision": 1,
+            "active_revision_id": "",
+            "changes": {"added": ["source-1"], "replaced": [], "retired": [], "unchanged": []},
+            "desired_source_count": 1,
+            "blockers": [],
+            "ready": True,
+            "desired": [],
+        }
+
+    def create_revision(self):
+        input_dir = self.data_dir / "source_catalog" / "revisions" / "src-contract" / "input"
+        input_dir.mkdir(parents=True, exist_ok=True)
+        metadata_path = input_dir.parent / "specs.json"
+        metadata_path.write_text('{"documents":[]}', encoding="utf-8")
+        return {
+            "revision_id": "src-contract",
+            "input_dir": input_dir.relative_to(self.data_dir).as_posix(),
+            "metadata_path": metadata_path.relative_to(self.data_dir).as_posix(),
+        }
+
+    def read(self):
+        return {
+            "active_revision_id": "",
+            "revisions": [
+                {
+                    "revision_id": "src-contract",
+                    "status": "candidate",
+                    "created_at": "2026-08-12T00:00:00Z",
+                    "source_count": 1,
+                    "changes": {
+                        "added": ["source-1"],
+                        "replaced": [],
+                        "retired": [],
+                        "unchanged": [],
+                    },
+                    "error": "",
+                    "data_version_hash": "",
+                }
+            ],
+        }
+
+    def validate_republish_revision(self, revision_id: str):
+        assert revision_id == "src-contract"
+        return {"revision_id": revision_id}
+
+    def get_source(self, _source_id):
+        return _source_record()
+
+    def update_source(self, *_args):
+        return _source_record()
+
+    def retire(self, _source_id):
+        return _source_record()
+
+    def validate_source(self, _source_id):
+        return _source_record()
+
+    def discard_pending(self, _source_id):
+        return _source_record()
+
+    def delete_draft(self, _source_id):
+        return None
 
 
 def _version_inventory() -> dict[str, Any]:
@@ -507,8 +839,16 @@ def runtime_client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> TestClien
     monkeypatch.setattr(admin, "MANUAL_STRUCTURING_DIR", manual_dir)
     monkeypatch.setattr(admin, "STRUCTURED_TABLES_DIR", tables_dir)
     monkeypatch.setattr(admin, "AUDIT_DIR", audit_dir)
+    monkeypatch.setattr(evaluation_management, "EVALUATION_SETS_DIR", tmp_path / "evaluation-sets")
     monkeypatch.setattr(admin, "job_store", FakeJobStore())
     monkeypatch.setattr(admin, "job_manager", FakeJobManager())
+    monkeypatch.setattr(sources, "job_manager", FakeJobManager())
+    monkeypatch.setattr(sources, "source_catalog_store", FakeSourceStore(tmp_path / "source-data"))
+    monkeypatch.setattr(
+        sources,
+        "read_manifest",
+        lambda _path: {"build_params": {"source_catalog_revision": "src-contract"}},
+    )
     monkeypatch.setattr(admin, "retrieval_state", fake_state)
     monkeypatch.setattr(admin, "probe_model_providers", _provider_probes)
     monkeypatch.setattr(
@@ -732,6 +1072,88 @@ def runtime_client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> TestClien
             },
         },
     )
+    monkeypatch.setattr(admin, "list_complete_quality_runs", lambda *args, **kwargs: [])
+    monkeypatch.setattr(
+        admin,
+        "compare_quality_runs",
+        lambda *args, **kwargs: {"schema_version": 1, "summary": {}, "evaluation_sets": {}},
+    )
+
+    structured_set = evaluation_management.read_set("structured")
+    structured_revision = structured_set["published_revision"]
+    structured_cases = structured_set["cases"]
+    draft_summary = {
+        **structured_revision,
+        "revision_id": "draft",
+        "status": "draft",
+        "source": "draft",
+        "created_at": "2026-08-12T00:00:00Z",
+        "published_at": None,
+        "parent_revision_id": structured_revision["revision_id"],
+        "validation_summary": None,
+    }
+    draft_response = {
+        "evaluation_set_id": "structured",
+        "draft_status": "draft",
+        "draft": draft_summary,
+        "case_count": len(structured_cases),
+        "type_counts": {"structured_table": len(structured_cases)},
+        "cases": structured_cases,
+    }
+    monkeypatch.setattr(admin, "create_evaluation_draft", lambda *args, **kwargs: draft_response)
+    monkeypatch.setattr(admin, "update_evaluation_case", lambda *args, **kwargs: draft_response)
+    monkeypatch.setattr(admin, "add_evaluation_case", lambda *args, **kwargs: draft_response)
+    monkeypatch.setattr(admin, "delete_evaluation_case", lambda *args, **kwargs: draft_response)
+    monkeypatch.setattr(
+        admin,
+        "validate_evaluation_draft",
+        lambda *args, **kwargs: {
+            "evaluation_set_id": "structured",
+            "draft_status": "validated",
+            "validation": {
+                "ok": True,
+                "errors": [],
+                "warnings": [],
+                "case_count": len(structured_cases),
+                "type_counts": {"structured_table": len(structured_cases)},
+                "content_hash": "contract",
+                "validated_at": "2026-08-12T00:00:00Z",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        admin,
+        "diff_evaluation_draft",
+        lambda *args, **kwargs: {
+            "evaluation_set_id": "structured",
+            "base_revision_id": structured_revision["revision_id"],
+            "draft_content_hash": "contract",
+            "added": [],
+            "removed": [],
+            "modified": [],
+            "changed_count": 0,
+        },
+    )
+    monkeypatch.setattr(
+        admin,
+        "publish_evaluation_draft",
+        lambda *args, **kwargs: {
+            "evaluation_set_id": "structured",
+            "previous_revision_id": structured_revision["revision_id"],
+            "revision": structured_revision,
+            "affected_report_types": ["structured"],
+        },
+    )
+    monkeypatch.setattr(
+        admin,
+        "rollback_evaluation_set",
+        lambda *args, **kwargs: {
+            "evaluation_set_id": "structured",
+            "previous_revision_id": structured_revision["revision_id"],
+            "revision": structured_revision,
+            "affected_report_types": ["structured"],
+        },
+    )
 
     return TestClient(app)
 
@@ -774,14 +1196,15 @@ def _assert_complete_runtime_coverage(
 
 def test_runtime_case_inventory_covers_every_admin_operation_exactly_once() -> None:
     _assert_complete_runtime_coverage(RUNTIME_CASES, export_openapi.build_openapi_document())
-    assert len(RUNTIME_CASES) == 47
+    assert len(RUNTIME_CASES) == 76
 
 
 @pytest.mark.parametrize("case", RUNTIME_CASES, ids=lambda case: case.operation_id)
 def test_admin_operation_success_response_matches_runtime_contract(
     case: RuntimeCase, runtime_client: TestClient
 ) -> None:
-    response: Response = runtime_client.request(case.method, case.path, json=case.body)
+    request_kwargs = {"content": case.content} if case.content is not None else {"json": case.body}
+    response: Response = runtime_client.request(case.method, case.path, **request_kwargs)
 
     assert response.status_code == 200, response.text
     assert response.headers["content-type"].split(";", 1)[0] == case.media_type
@@ -791,7 +1214,9 @@ def test_admin_operation_success_response_matches_runtime_contract(
 
     document = export_openapi.build_openapi_document()
     model_name = _operation_map(document)[case.operation_id][3]
-    response_model = getattr(admin_schemas, str(model_name))
+    response_model = getattr(admin_schemas, str(model_name), None) or getattr(
+        source_schemas, str(model_name)
+    )
     assert issubclass(response_model, BaseModel)
     response_model.model_validate(response.json())
 

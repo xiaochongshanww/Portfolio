@@ -10,7 +10,9 @@ from typing import Any
 from src.app.core.config import Settings, settings
 from src.app.core.embeddings import embedding_request_kwargs
 from src.app.retrieval.hybrid_search import RetrievalState
-from src.evaluation.runner import DEFAULT_EVAL_PATH, STRUCTURED_EVAL_PATH, run_evaluation
+from src.evaluation.assets import resolve_evaluation_asset
+from src.evaluation.management import published_revision_id
+from src.evaluation.runner import run_evaluation
 from src.pipeline.manifest import read_manifest
 
 from .gate import (
@@ -41,10 +43,18 @@ def assess_candidate_activation(
     processed_dir: Path | None = None,
     images_dir: Path | None = None,
     config: Settings = settings,
-    regular_eval_path: Path = DEFAULT_EVAL_PATH,
-    structured_eval_path: Path = STRUCTURED_EVAL_PATH,
+    regular_eval_path: Path | None = None,
+    structured_eval_path: Path | None = None,
     top_k: int = 5,
 ) -> CandidateActivationAssessment:
+    managed_regular = regular_eval_path is None
+    managed_structured = structured_eval_path is None
+    regular_eval_path = regular_eval_path or resolve_evaluation_asset(
+        "regular", allowed_ids=frozenset({"regular"})
+    )
+    structured_eval_path = structured_eval_path or resolve_evaluation_asset(
+        "structured", allowed_ids=frozenset({"structured"})
+    )
     manifest = read_manifest(manifest_path) or {}
     checks: list[dict[str, Any]] = []
 
@@ -166,9 +176,7 @@ def assess_candidate_activation(
             check(
                 "vector_query",
                 bool(probe_ids),
-                "候选精确向量索引可返回结果"
-                if probe_ids
-                else "候选向量索引未返回结果",
+                "候选精确向量索引可返回结果" if probe_ids else "候选向量索引未返回结果",
                 result_count=len(probe_ids),
                 vector_dimension=len(probe_vector),
             )
@@ -246,6 +254,12 @@ def assess_candidate_activation(
         "db_dir": str(db_dir),
         "regular_evaluation_set": str(regular_eval_path),
         "structured_evaluation_set": str(structured_eval_path),
+        "regular_evaluation_set_revision_id": (
+            published_revision_id("regular") if managed_regular else None
+        ),
+        "structured_evaluation_set_revision_id": (
+            published_revision_id("structured") if managed_structured else None
+        ),
         "answer_evaluation_included": False,
         "answer_evaluation_note": "回答级盲测依赖隔离 API 与 LLM，继续由发布质量门禁独立执行。",
     }

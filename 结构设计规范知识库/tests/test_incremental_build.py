@@ -248,9 +248,7 @@ def test_embedding_stage_reuses_valid_vectors_and_only_calls_provider_for_delta(
         "invalid": [0.0] * settings.embedding_dimensions,
     }
 
-    batches, stats = load_to_db._embed_chunks_with_reuse(
-        client, chunks, reusable_embeddings=cached
-    )
+    batches, stats = load_to_db._embed_chunks_with_reuse(client, chunks, reusable_embeddings=cached)
 
     assert embeddings.inputs == [["new text", "invalid cached text"]]
     assert stats == {"reused_embedding_count": 1, "generated_embedding_count": 2}
@@ -410,5 +408,7 @@ def test_incremental_rebuild_reuses_a_complete_active_version_end_to_end(
     assert second_manifest["build_params"]["mode"] == "incremental"
     assert second_manifest["incremental_plan"]["counts"]["reused"] == 1
     assert second_manifest["build_params"]["generated_embedding_count"] == 0
-    assert second_manifest["build_params"]["reused_embedding_count"] == first_manifest["chunk_count"]
+    assert (
+        second_manifest["build_params"]["reused_embedding_count"] == first_manifest["chunk_count"]
+    )
     assert calls == []

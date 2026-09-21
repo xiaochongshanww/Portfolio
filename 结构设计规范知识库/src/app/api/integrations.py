@@ -66,7 +66,9 @@ def _page_assets(source_file: str, pages: list[int], include_assets: bool) -> li
     return assets
 
 
-def _result_from_retrieval(result: Any, rank: int, request: HarnessSearchRequest) -> HarnessSearchResult:
+def _result_from_retrieval(
+    result: Any, rank: int, request: HarnessSearchRequest
+) -> HarnessSearchResult:
     meta = dict(result.meta)
     pages = _parse_pages(meta.get("pages"))
     section_type = infer_section_type(meta, result.text)
@@ -94,7 +96,9 @@ def _result_from_retrieval(result: Any, rank: int, request: HarnessSearchRequest
     )
 
 
-def _result_from_table(match: StructuredTableMatch, rank: int, request: HarnessSearchRequest) -> HarnessSearchResult:
+def _result_from_table(
+    match: StructuredTableMatch, rank: int, request: HarnessSearchRequest
+) -> HarnessSearchResult:
     source = dict(match.table.get("source") or {})
     source_file = str(source.get("source_file") or "")
     pages = _parse_pages(source.get("pages"))
@@ -112,7 +116,9 @@ def _result_from_table(match: StructuredTableMatch, rank: int, request: HarnessS
         table_id=str(source.get("table_id") or ""),
         table_name=str(source.get("table_name") or ""),
         pages=pages,
-        excerpt="\n".join(f"{key}: {value}" for key, value in match.row.items() if key != "aliases")[:4000],
+        excerpt="\n".join(
+            f"{key}: {value}" for key, value in match.row.items() if key != "aliases"
+        )[:4000],
         score=float(match.score),
         reason=match.reason,
         matched_terms=list(match.matched_terms),
@@ -187,14 +193,24 @@ async def harness_search(request: HarnessSearchRequest) -> Any:
             break
         if kind == "table":
             source = item.table.get("source") or {}
-            identity = ("table", str(source.get("source_file")), str(source.get("table_id")), repr(item.row))
+            identity = (
+                "table",
+                str(source.get("source_file")),
+                str(source.get("table_id")),
+                repr(item.row),
+            )
             if identity in seen:
                 continue
             seen.add(identity)
             results.append(_result_from_table(item, len(results) + 1, request))
         else:
             meta = item.meta
-            identity = ("retrieval", str(meta.get("source_file")), str(meta.get("chunk_id")), item.text[:80])
+            identity = (
+                "retrieval",
+                str(meta.get("source_file")),
+                str(meta.get("chunk_id")),
+                item.text[:80],
+            )
             if identity in seen:
                 continue
             seen.add(identity)

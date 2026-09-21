@@ -35,5 +35,7 @@ MANIFEST_PATH = DATA_DIR / "manifest.json"
 DB_VERSIONS_DIR = DATA_DIR / "db_versions"
 DOCUMENT_CACHE_DIR = DATA_DIR / "document_cache"
 ACTIVE_DB_PATH = DATA_DIR / "active_db.json"
+SOURCE_ASSETS_DIR = DATA_DIR / "source_assets"
+SOURCE_CATALOG_DIR = DATA_DIR / "source_catalog"
 DB_DIR = configured_project_path("DB_DIR", "db")
 LOGS_DIR = PROJECT_ROOT / "logs"

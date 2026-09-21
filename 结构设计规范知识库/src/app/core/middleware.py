@@ -35,7 +35,13 @@ class ServiceMiddleware(BaseHTTPMiddleware):
             metrics.request_started(path)
             request_metric_started = True
             content_length = int(request.headers.get("content-length") or 0)
-            if content_length > settings.max_request_bytes:
+            request_limit = (
+                settings.source_upload_max_bytes
+                if path.startswith("/admin/sources/uploads")
+                or (path.startswith("/admin/sources/") and path.endswith("/versions"))
+                else settings.max_request_bytes
+            )
+            if content_length > request_limit:
                 error_code = ErrorCode.INVALID_REQUEST
                 response = error_response(413, ErrorCode.INVALID_REQUEST, "请求体过大")
                 return response

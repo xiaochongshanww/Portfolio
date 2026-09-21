@@ -21,6 +21,20 @@ VERSION_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 PIN_FILENAME = ".retention.json"
 GATE_PATH = Path("quality") / "candidate_activation_gate.json"
 AUDIT_LOCK = Lock()
+PROTECTION_REASON_LABELS = {
+    "active": "活动版本",
+    "running": "运行任务",
+    "pinned": "人工固定",
+    "invalid_pin_marker": "固定标记异常",
+    "unsafe": "路径异常",
+    "minimum_age": "最短保护期",
+    "recent_rollback": "近期回滚",
+}
+CLEANUP_REASON_LABELS = {
+    "expired_failed_or_incomplete": "失败或不完整版本已过期",
+    "expired_successful": "成功版本已过期",
+    "disk_pressure": "磁盘高水位回收",
+}
 
 
 class VersionRetentionError(RuntimeError):
@@ -179,6 +193,32 @@ def _read_json(path: Path) -> dict[str, Any]:
     return payload if isinstance(payload, dict) else {}
 
 
+def _parse_timestamp(value: Any) -> datetime | None:
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    try:
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+
+
+def _version_label(
+    version_id: str,
+    manifest: dict[str, Any] | None = None,
+    modified_at: str = "",
+) -> str:
+    """Return a stable human-readable label without changing the internal version ID."""
+    explicit = str((manifest or {}).get("version_label") or "").strip()
+    if explicit:
+        return explicit
+    timestamp = _parse_timestamp((manifest or {}).get("built_at")) or _parse_timestamp(modified_at)
+    if timestamp:
+        return f"KB-{timestamp.astimezone(UTC):%Y%m%d-%H%M%S}"
+    return f"KB-{version_id[:12]}"
+
+
 def _active_version_id(versions_dir: Path, pointer_path: Path) -> str:
     try:
         active = active_db_dir(pointer_path).resolve()
@@ -216,6 +256,21 @@ def _version_state(path: Path, active: bool, running: bool) -> tuple[str, dict[s
     return state, gate
 
 
+def _matches_version_query(item: dict[str, Any], normalized_query: str) -> bool:
+    if not normalized_query:
+        return True
+    values = [
+        str(item.get(field) or "")
+        for field in ("version_id", "version_label", "scan_error", "cleanup_reason")
+    ]
+    values.extend(
+        PROTECTION_REASON_LABELS.get(reason, reason)
+        for reason in item.get("protection_reasons") or []
+    )
+    values.append(CLEANUP_REASON_LABELS.get(str(item.get("cleanup_reason") or ""), ""))
+    return normalized_query in " ".join(values).casefold()
+
+
 def inventory_versions(
     *,
     policy: VersionRetentionPolicy,
@@ -223,8 +278,33 @@ def inventory_versions(
     pointer_path: Path = ACTIVE_DB_PATH,
     jobs: Iterable[dict[str, Any]] = (),
     now: datetime | None = None,
+    query: str = "",
+    state: str = "",
+    scope: str = "",
+    offset: int = 0,
+    limit: int = 0,
 ) -> dict[str, Any]:
     policy.validate()
+    if offset < 0:
+        raise ValueError("offset 不能为负数")
+    if limit < 0:
+        raise ValueError("limit 不能为负数")
+    valid_states = {
+        "",
+        "active",
+        "running",
+        "passed",
+        "failed_gate",
+        "invalid_gate",
+        "legacy_complete",
+        "incomplete",
+        "unsafe",
+    }
+    if state not in valid_states:
+        raise ValueError(f"未知版本状态: {state}")
+    valid_scopes = {"", "cleanup", "protected", "pinned"}
+    if scope not in valid_scopes:
+        raise ValueError(f"未知版本范围: {scope}")
     current_time = now or _utc_now()
     versions_dir.mkdir(parents=True, exist_ok=True)
     active_id = _active_version_id(versions_dir, pointer_path)
@@ -239,7 +319,8 @@ def inventory_versions(
             safe_path = _safe_version_path(versions_dir, path.name)
             scan = _scan_directory(safe_path)
             modified_at = datetime.fromtimestamp(scan["newest_mtime_ns"] / 1_000_000_000, UTC)
-            state, gate = _version_state(
+            manifest = _read_json(safe_path / "manifest.json")
+            item_state, gate = _version_state(
                 safe_path,
                 path.name == active_id,
                 path.name in running_ids,
@@ -251,8 +332,9 @@ def inventory_versions(
                     "size_bytes": scan["size_bytes"],
                     "file_count": scan["file_count"],
                     "modified_at": _iso(modified_at),
+                    "version_label": _version_label(path.name, manifest, _iso(modified_at)),
                     "age_hours": max(0.0, (current_time - modified_at).total_seconds() / 3600),
-                    "state": state,
+                    "state": item_state,
                     "gate_passed": gate.get("passed"),
                     "pinned": pin.get("pinned") is True,
                     "pin_marker_invalid": pin_marker_invalid,
@@ -272,6 +354,7 @@ def inventory_versions(
                     "size_bytes": 0,
                     "file_count": 0,
                     "modified_at": "",
+                    "version_label": _version_label(path.name),
                     "age_hours": 0.0,
                     "state": "unsafe",
                     "gate_passed": None,
@@ -362,10 +445,39 @@ def inventory_versions(
         [*age_candidates, *pressure_added],
         key=lambda item: (item.get("modified_at") or "", item["version_id"]),
     )
+    active_version_label = (
+        next(
+            (
+                str(item.get("version_label") or "")
+                for item in versions
+                if item.get("version_id") == active_id
+            ),
+            "",
+        )
+        or None
+    )
+    normalized_query = query.strip().casefold()
+    matched_versions = [
+        item
+        for item in versions
+        if (not state or item.get("state") == state)
+        and (
+            not scope
+            or (scope == "cleanup" and item.get("cleanup_eligible"))
+            or (scope == "protected" and item.get("protected"))
+            or (scope == "pinned" and item.get("pinned"))
+        )
+        and (_matches_version_query(item, normalized_query))
+    ]
+    if limit:
+        page_versions = matched_versions[offset : offset + limit]
+    else:
+        page_versions = matched_versions[offset:]
     return {
         "schema_version": 1,
         "generated_at": _iso(current_time),
         "active_version_id": active_id,
+        "active_version_label": active_version_label,
         "policy": asdict(policy),
         "version_count": len(versions),
         "total_bytes": total_bytes,
@@ -375,7 +487,10 @@ def inventory_versions(
         "target_unmet_bytes": max(0, projected_bytes - policy.low_watermark_bytes)
         if total_bytes > policy.high_watermark_bytes
         else 0,
-        "versions": versions,
+        "matched_version_count": len(matched_versions),
+        "page_offset": offset,
+        "page_limit": limit,
+        "versions": page_versions,
     }
 
 
@@ -400,6 +515,7 @@ def create_cleanup_plan(
     candidates = [
         {
             "version_id": item["version_id"],
+            "version_label": item.get("version_label", ""),
             "fingerprint": item["fingerprint"],
             "size_bytes": item["size_bytes"],
             "modified_at": item["modified_at"],
@@ -619,4 +735,8 @@ def set_version_pin(
             "note": payload["note"],
         },
     )
-    return {"version_id": version_id, **payload}
+    return {
+        "version_id": version_id,
+        "version_label": _version_label(version_id, _read_json(version_path / "manifest.json")),
+        **payload,
+    }

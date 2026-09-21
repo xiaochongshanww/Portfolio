@@ -730,6 +730,21 @@
         "title": "EvaluateRequest",
         "type": "object"
       },
+      "EvaluationCaseMutationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "case": {
+            "additionalProperties": true,
+            "title": "Case",
+            "type": "object"
+          }
+        },
+        "required": [
+          "case"
+        ],
+        "title": "EvaluationCaseMutationRequest",
+        "type": "object"
+      },
       "EvaluationCaseResponse": {
         "additionalProperties": false,
         "properties": {
@@ -894,6 +909,629 @@
         "title": "EvaluationCasesResponse",
         "type": "object"
       },
+      "EvaluationDiffResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "added": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Added",
+            "type": "array"
+          },
+          "base_revision_id": {
+            "title": "Base Revision Id",
+            "type": "string"
+          },
+          "changed_count": {
+            "title": "Changed Count",
+            "type": "integer"
+          },
+          "draft_content_hash": {
+            "title": "Draft Content Hash",
+            "type": "string"
+          },
+          "evaluation_set_id": {
+            "enum": [
+              "regular",
+              "structured",
+              "answer"
+            ],
+            "title": "Evaluation Set Id",
+            "type": "string"
+          },
+          "modified": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Modified",
+            "type": "array"
+          },
+          "removed": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Removed",
+            "type": "array"
+          }
+        },
+        "required": [
+          "evaluation_set_id",
+          "base_revision_id",
+          "draft_content_hash",
+          "added",
+          "removed",
+          "modified",
+          "changed_count"
+        ],
+        "title": "EvaluationDiffResponse",
+        "type": "object"
+      },
+      "EvaluationDraftRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "reset": {
+            "default": false,
+            "title": "Reset",
+            "type": "boolean"
+          }
+        },
+        "title": "EvaluationDraftRequest",
+        "type": "object"
+      },
+      "EvaluationDraftResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "case_count": {
+            "title": "Case Count",
+            "type": "integer"
+          },
+          "cases": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Cases",
+            "type": "array"
+          },
+          "deleted_case_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted Case Id"
+          },
+          "draft": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvaluationRevisionSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "draft_status": {
+            "title": "Draft Status",
+            "type": "string"
+          },
+          "evaluation_set_id": {
+            "enum": [
+              "regular",
+              "structured",
+              "answer"
+            ],
+            "title": "Evaluation Set Id",
+            "type": "string"
+          },
+          "type_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Type Counts",
+            "type": "object"
+          }
+        },
+        "required": [
+          "evaluation_set_id",
+          "draft_status",
+          "case_count",
+          "type_counts",
+          "cases"
+        ],
+        "title": "EvaluationDraftResponse",
+        "type": "object"
+      },
+      "EvaluationPublishResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "affected_report_types": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Affected Report Types",
+            "type": "array"
+          },
+          "evaluation_set_id": {
+            "enum": [
+              "regular",
+              "structured",
+              "answer"
+            ],
+            "title": "Evaluation Set Id",
+            "type": "string"
+          },
+          "previous_revision_id": {
+            "title": "Previous Revision Id",
+            "type": "string"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/EvaluationRevisionSummary"
+          }
+        },
+        "required": [
+          "evaluation_set_id",
+          "previous_revision_id",
+          "revision",
+          "affected_report_types"
+        ],
+        "title": "EvaluationPublishResponse",
+        "type": "object"
+      },
+      "EvaluationRefreshItem": {
+        "additionalProperties": false,
+        "properties": {
+          "actor": {
+            "title": "Actor",
+            "type": "string"
+          },
+          "affected_report_types": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Affected Report Types",
+            "type": "array"
+          },
+          "content_hash": {
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "evaluation_set_id": {
+            "enum": [
+              "regular",
+              "structured",
+              "answer"
+            ],
+            "title": "Evaluation Set Id",
+            "type": "string"
+          },
+          "event_id": {
+            "title": "Event Id",
+            "type": "string"
+          },
+          "missing_report_types": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Report Types",
+            "type": "array"
+          },
+          "previous_revision_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Revision Id"
+          },
+          "revision_id": {
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "completed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_id",
+          "created_at",
+          "evaluation_set_id",
+          "revision_id",
+          "content_hash",
+          "affected_report_types",
+          "actor",
+          "status",
+          "missing_report_types"
+        ],
+        "title": "EvaluationRefreshItem",
+        "type": "object"
+      },
+      "EvaluationRefreshSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/EvaluationRefreshItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "pending_count": {
+            "title": "Pending Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pending_count",
+          "items"
+        ],
+        "title": "EvaluationRefreshSummary",
+        "type": "object"
+      },
+      "EvaluationRevisionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "cases": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Cases",
+            "type": "array"
+          },
+          "evaluation_set_id": {
+            "enum": [
+              "regular",
+              "structured",
+              "answer"
+            ],
+            "title": "Evaluation Set Id",
+            "type": "string"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/EvaluationRevisionSummary"
+          }
+        },
+        "required": [
+          "evaluation_set_id",
+          "revision",
+          "cases"
+        ],
+        "title": "EvaluationRevisionResponse",
+        "type": "object"
+      },
+      "EvaluationRevisionSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "case_count": {
+            "title": "Case Count",
+            "type": "integer"
+          },
+          "content_hash": {
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "evaluation_set_id": {
+            "enum": [
+              "regular",
+              "structured",
+              "answer"
+            ],
+            "title": "Evaluation Set Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "parent_revision_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Revision Id"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "revision_id": {
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "type_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Type Counts",
+            "type": "object"
+          },
+          "validation_summary": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validation Summary"
+          }
+        },
+        "required": [
+          "revision_id",
+          "evaluation_set_id",
+          "name",
+          "status",
+          "case_count",
+          "type_counts",
+          "content_hash",
+          "schema_version",
+          "created_by",
+          "source"
+        ],
+        "title": "EvaluationRevisionSummary",
+        "type": "object"
+      },
+      "EvaluationRevisionsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "evaluation_set_id": {
+            "enum": [
+              "regular",
+              "structured",
+              "answer"
+            ],
+            "title": "Evaluation Set Id",
+            "type": "string"
+          },
+          "revisions": {
+            "items": {
+              "$ref": "#/components/schemas/EvaluationRevisionSummary"
+            },
+            "title": "Revisions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "evaluation_set_id",
+          "revisions"
+        ],
+        "title": "EvaluationRevisionsResponse",
+        "type": "object"
+      },
+      "EvaluationRollbackRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "revision_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Revision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision_id"
+        ],
+        "title": "EvaluationRollbackRequest",
+        "type": "object"
+      },
+      "EvaluationSetResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "case_count": {
+            "title": "Case Count",
+            "type": "integer"
+          },
+          "cases": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Cases",
+            "type": "array"
+          },
+          "draft": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvaluationRevisionSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "draft_cases": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Draft Cases",
+            "type": "array"
+          },
+          "evaluation_set_id": {
+            "enum": [
+              "regular",
+              "structured",
+              "answer"
+            ],
+            "title": "Evaluation Set Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "retrieval",
+              "answer"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "published_revision": {
+            "$ref": "#/components/schemas/EvaluationRevisionSummary"
+          },
+          "type_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Type Counts",
+            "type": "object"
+          }
+        },
+        "required": [
+          "evaluation_set_id",
+          "name",
+          "kind",
+          "published_revision",
+          "case_count",
+          "type_counts",
+          "cases",
+          "draft_cases"
+        ],
+        "title": "EvaluationSetResponse",
+        "type": "object"
+      },
+      "EvaluationSetSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "case_count": {
+            "title": "Case Count",
+            "type": "integer"
+          },
+          "draft": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvaluationRevisionSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evaluation_set_id": {
+            "enum": [
+              "regular",
+              "structured",
+              "answer"
+            ],
+            "title": "Evaluation Set Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "retrieval",
+              "answer"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "published_revision": {
+            "$ref": "#/components/schemas/EvaluationRevisionSummary"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "evaluation_set_id",
+          "name",
+          "kind",
+          "published_revision",
+          "case_count"
+        ],
+        "title": "EvaluationSetSummary",
+        "type": "object"
+      },
+      "EvaluationSetsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "sets": {
+            "items": {
+              "$ref": "#/components/schemas/EvaluationSetSummary"
+            },
+            "title": "Sets",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sets"
+        ],
+        "title": "EvaluationSetsResponse",
+        "type": "object"
+      },
       "EvaluationStatusResponse": {
         "additionalProperties": false,
         "properties": {
@@ -1054,6 +1692,36 @@
           }
         },
         "title": "EvaluationSummary",
+        "type": "object"
+      },
+      "EvaluationValidationResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "draft_status": {
+            "title": "Draft Status",
+            "type": "string"
+          },
+          "evaluation_set_id": {
+            "enum": [
+              "regular",
+              "structured",
+              "answer"
+            ],
+            "title": "Evaluation Set Id",
+            "type": "string"
+          },
+          "validation": {
+            "additionalProperties": true,
+            "title": "Validation",
+            "type": "object"
+          }
+        },
+        "required": [
+          "evaluation_set_id",
+          "draft_status",
+          "validation"
+        ],
+        "title": "EvaluationValidationResponse",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -1443,6 +2111,37 @@
         "title": "JobRequest",
         "type": "object"
       },
+      "JobResolutionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Note",
+            "type": "string"
+          },
+          "related_job_id": {
+            "default": "",
+            "maxLength": 64,
+            "title": "Related Job Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "acknowledged",
+              "superseded"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "note"
+        ],
+        "title": "JobResolutionRequest",
+        "type": "object"
+      },
       "JobResponse": {
         "additionalProperties": false,
         "properties": {
@@ -1513,6 +2212,11 @@
             "default": "",
             "title": "Request Id",
             "type": "string"
+          },
+          "resolution": {
+            "additionalProperties": true,
+            "title": "Resolution",
+            "type": "object"
           },
           "started_at": {
             "default": "",
@@ -2252,6 +2956,99 @@
         "title": "ProviderProbesResponse",
         "type": "object"
       },
+      "QualityReportCompareResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "comparison": {
+            "additionalProperties": true,
+            "title": "Comparison",
+            "type": "object"
+          }
+        },
+        "required": [
+          "comparison"
+        ],
+        "title": "QualityReportCompareResponse",
+        "type": "object"
+      },
+      "QualityRunSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "completed_at": {
+            "title": "Completed At",
+            "type": "string"
+          },
+          "data_version_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Version Hash"
+          },
+          "evaluation_set_revisions": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Evaluation Set Revisions",
+            "type": "object"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "boolean"
+          },
+          "runtime_config_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runtime Config Hash"
+          },
+          "verification_run_id": {
+            "title": "Verification Run Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "verification_run_id",
+          "completed_at",
+          "passed",
+          "evaluation_set_revisions"
+        ],
+        "title": "QualityRunSummary",
+        "type": "object"
+      },
+      "QualityRunsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/QualityRunSummary"
+            },
+            "title": "Runs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "runs"
+        ],
+        "title": "QualityRunsResponse",
+        "type": "object"
+      },
       "QualityStatusResponse": {
         "additionalProperties": false,
         "properties": {
@@ -2271,6 +3068,9 @@
             },
             "title": "Draft Statuses",
             "type": "object"
+          },
+          "evaluation_refresh": {
+            "$ref": "#/components/schemas/EvaluationRefreshSummary"
           },
           "external_dependencies": {
             "additionalProperties": {
@@ -2352,7 +3152,8 @@
           "regular_evaluation",
           "structured_evaluation",
           "answer_evaluation",
-          "external_dependencies"
+          "external_dependencies",
+          "evaluation_refresh"
         ],
         "title": "QualityStatusResponse",
         "type": "object"
@@ -2546,6 +3347,359 @@
         "title": "ReviewRequest",
         "type": "object"
       },
+      "SourceBootstrapResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "imported_count": {
+            "title": "Imported Count",
+            "type": "integer"
+          },
+          "revision_id": {
+            "title": "Revision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "imported_count",
+          "revision_id"
+        ],
+        "title": "SourceBootstrapResponse",
+        "type": "object"
+      },
+      "SourceBuildRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "apply_corrections": {
+            "default": true,
+            "title": "Apply Corrections",
+            "type": "boolean"
+          },
+          "mode": {
+            "default": "incremental",
+            "pattern": "^(incremental|full)$",
+            "title": "Mode",
+            "type": "string"
+          },
+          "parser_backend": {
+            "default": "mineru",
+            "title": "Parser Backend",
+            "type": "string"
+          }
+        },
+        "title": "SourceBuildRequest",
+        "type": "object"
+      },
+      "SourceBuildResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "job": {
+            "additionalProperties": true,
+            "title": "Job",
+            "type": "object"
+          },
+          "revision_id": {
+            "title": "Revision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision_id",
+          "job"
+        ],
+        "title": "SourceBuildResponse",
+        "type": "object"
+      },
+      "SourceChangesResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "active_revision_id": {
+            "title": "Active Revision Id",
+            "type": "string"
+          },
+          "blockers": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "title": "Blockers",
+            "type": "array"
+          },
+          "catalog_revision": {
+            "title": "Catalog Revision",
+            "type": "integer"
+          },
+          "changes": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Changes",
+            "type": "object"
+          },
+          "desired_source_count": {
+            "title": "Desired Source Count",
+            "type": "integer"
+          },
+          "ready": {
+            "title": "Ready",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "catalog_revision",
+          "active_revision_id",
+          "changes",
+          "desired_source_count",
+          "blockers",
+          "ready"
+        ],
+        "title": "SourceChangesResponse",
+        "type": "object"
+      },
+      "SourceDeleteResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "deleted": {
+            "title": "Deleted",
+            "type": "boolean"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "deleted",
+          "source_id"
+        ],
+        "title": "SourceDeleteResponse",
+        "type": "object"
+      },
+      "SourceListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "active_revision_id": {
+            "title": "Active Revision Id",
+            "type": "string"
+          },
+          "catalog_revision": {
+            "title": "Catalog Revision",
+            "type": "integer"
+          },
+          "pending_count": {
+            "title": "Pending Count",
+            "type": "integer"
+          },
+          "source_count": {
+            "title": "Source Count",
+            "type": "integer"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceResponse"
+            },
+            "title": "Sources",
+            "type": "array"
+          }
+        },
+        "required": [
+          "catalog_revision",
+          "active_revision_id",
+          "source_count",
+          "pending_count",
+          "sources"
+        ],
+        "title": "SourceListResponse",
+        "type": "object"
+      },
+      "SourceMutationResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SourceResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "title": "SourceMutationResponse",
+        "type": "object"
+      },
+      "SourceResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "active_asset_version_id": {
+            "default": "",
+            "title": "Active Asset Version Id",
+            "type": "string"
+          },
+          "active_governance": {
+            "additionalProperties": true,
+            "title": "Active Governance",
+            "type": "object"
+          },
+          "active_metadata": {
+            "additionalProperties": true,
+            "title": "Active Metadata",
+            "type": "object"
+          },
+          "created_at": {
+            "default": "",
+            "title": "Created At",
+            "type": "string"
+          },
+          "governance": {
+            "additionalProperties": true,
+            "title": "Governance",
+            "type": "object"
+          },
+          "lifecycle_status": {
+            "title": "Lifecycle Status",
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "pending_action": {
+            "default": "",
+            "title": "Pending Action",
+            "type": "string"
+          },
+          "pending_asset_version_id": {
+            "default": "",
+            "title": "Pending Asset Version Id",
+            "type": "string"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "updated_at": {
+            "default": "",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "versions": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "source_id",
+          "lifecycle_status",
+          "metadata",
+          "governance",
+          "versions"
+        ],
+        "title": "SourceResponse",
+        "type": "object"
+      },
+      "SourceRevisionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "changes": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Changes",
+            "type": "object"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "data_version_hash": {
+            "default": "",
+            "title": "Data Version Hash",
+            "type": "string"
+          },
+          "error": {
+            "default": "",
+            "title": "Error",
+            "type": "string"
+          },
+          "revision_id": {
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "source_count": {
+            "title": "Source Count",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision_id",
+          "status",
+          "created_at",
+          "source_count",
+          "changes"
+        ],
+        "title": "SourceRevisionResponse",
+        "type": "object"
+      },
+      "SourceRevisionsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "active_revision_id": {
+            "title": "Active Revision Id",
+            "type": "string"
+          },
+          "revisions": {
+            "items": {
+              "$ref": "#/components/schemas/SourceRevisionResponse"
+            },
+            "title": "Revisions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "active_revision_id",
+          "revisions"
+        ],
+        "title": "SourceRevisionsResponse",
+        "type": "object"
+      },
+      "SourceUpdateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "governance": {
+            "additionalProperties": true,
+            "title": "Governance",
+            "type": "object"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          }
+        },
+        "title": "SourceUpdateRequest",
+        "type": "object"
+      },
       "StructuringSuggestionBatchRequest": {
         "properties": {
           "documents": {
@@ -2681,6 +3835,11 @@
           "version_id": {
             "title": "Version Id",
             "type": "string"
+          },
+          "version_label": {
+            "default": "",
+            "title": "Version Label",
+            "type": "string"
           }
         },
         "required": [
@@ -2801,6 +3960,17 @@
             ],
             "title": "Active Version Id"
           },
+          "active_version_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Version Label"
+          },
           "cleanup_candidate_bytes": {
             "title": "Cleanup Candidate Bytes",
             "type": "integer"
@@ -2812,6 +3982,21 @@
           "generated_at": {
             "title": "Generated At",
             "type": "string"
+          },
+          "matched_version_count": {
+            "default": 0,
+            "title": "Matched Version Count",
+            "type": "integer"
+          },
+          "page_limit": {
+            "default": 0,
+            "title": "Page Limit",
+            "type": "integer"
+          },
+          "page_offset": {
+            "default": 0,
+            "title": "Page Offset",
+            "type": "integer"
           },
           "policy": {
             "additionalProperties": true,
@@ -2883,6 +4068,11 @@
           },
           "version_id": {
             "title": "Version Id",
+            "type": "string"
+          },
+          "version_label": {
+            "default": "",
+            "title": "Version Label",
             "type": "string"
           }
         },
@@ -3013,6 +4203,11 @@
           },
           "version_id": {
             "title": "Version Id",
+            "type": "string"
+          },
+          "version_label": {
+            "default": "",
+            "title": "Version Label",
             "type": "string"
           }
         },
@@ -3637,6 +4832,561 @@
         ]
       }
     },
+    "/admin/evaluation/sets": {
+      "get": {
+        "operationId": "admin_evaluation_sets_admin_evaluation_sets_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationSetsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Evaluation Sets",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/evaluation/sets/{evaluation_set_id}": {
+      "get": {
+        "operationId": "admin_evaluation_set_admin_evaluation_sets__evaluation_set_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "evaluation_set_id",
+            "required": true,
+            "schema": {
+              "title": "Evaluation Set Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationSetResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Evaluation Set",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/evaluation/sets/{evaluation_set_id}/diff": {
+      "get": {
+        "operationId": "admin_evaluation_set_diff_admin_evaluation_sets__evaluation_set_id__diff_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "evaluation_set_id",
+            "required": true,
+            "schema": {
+              "title": "Evaluation Set Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationDiffResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Evaluation Set Diff",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/evaluation/sets/{evaluation_set_id}/drafts": {
+      "post": {
+        "operationId": "admin_evaluation_set_create_draft_admin_evaluation_sets__evaluation_set_id__drafts_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "evaluation_set_id",
+            "required": true,
+            "schema": {
+              "title": "Evaluation Set Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/EvaluationDraftRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationDraftResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Evaluation Set Create Draft",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/evaluation/sets/{evaluation_set_id}/drafts/cases": {
+      "post": {
+        "operationId": "admin_evaluation_set_add_case_admin_evaluation_sets__evaluation_set_id__drafts_cases_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "evaluation_set_id",
+            "required": true,
+            "schema": {
+              "title": "Evaluation Set Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvaluationCaseMutationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationDraftResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Evaluation Set Add Case",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/evaluation/sets/{evaluation_set_id}/drafts/{case_id}": {
+      "delete": {
+        "operationId": "admin_evaluation_set_delete_case_admin_evaluation_sets__evaluation_set_id__drafts__case_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "evaluation_set_id",
+            "required": true,
+            "schema": {
+              "title": "Evaluation Set Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationDraftResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Evaluation Set Delete Case",
+        "tags": [
+          "admin"
+        ]
+      },
+      "patch": {
+        "operationId": "admin_evaluation_set_update_case_admin_evaluation_sets__evaluation_set_id__drafts__case_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "evaluation_set_id",
+            "required": true,
+            "schema": {
+              "title": "Evaluation Set Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvaluationCaseMutationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationDraftResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Evaluation Set Update Case",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/evaluation/sets/{evaluation_set_id}/publish": {
+      "post": {
+        "operationId": "admin_evaluation_set_publish_admin_evaluation_sets__evaluation_set_id__publish_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "evaluation_set_id",
+            "required": true,
+            "schema": {
+              "title": "Evaluation Set Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationPublishResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Evaluation Set Publish",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/evaluation/sets/{evaluation_set_id}/revisions": {
+      "get": {
+        "operationId": "admin_evaluation_set_revisions_admin_evaluation_sets__evaluation_set_id__revisions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "evaluation_set_id",
+            "required": true,
+            "schema": {
+              "title": "Evaluation Set Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationRevisionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Evaluation Set Revisions",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/evaluation/sets/{evaluation_set_id}/revisions/{revision_id}": {
+      "get": {
+        "operationId": "admin_evaluation_set_revision_admin_evaluation_sets__evaluation_set_id__revisions__revision_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "evaluation_set_id",
+            "required": true,
+            "schema": {
+              "title": "Evaluation Set Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "revision_id",
+            "required": true,
+            "schema": {
+              "title": "Revision Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationRevisionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Evaluation Set Revision",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/evaluation/sets/{evaluation_set_id}/rollback": {
+      "post": {
+        "operationId": "admin_evaluation_set_rollback_admin_evaluation_sets__evaluation_set_id__rollback_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "evaluation_set_id",
+            "required": true,
+            "schema": {
+              "title": "Evaluation Set Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvaluationRollbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationPublishResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Evaluation Set Rollback",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/evaluation/sets/{evaluation_set_id}/validate": {
+      "post": {
+        "operationId": "admin_evaluation_set_validate_admin_evaluation_sets__evaluation_set_id__validate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "evaluation_set_id",
+            "required": true,
+            "schema": {
+              "title": "Evaluation Set Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationValidationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Evaluation Set Validate",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/admin/evaluation/status": {
       "get": {
         "operationId": "admin_evaluation_status_admin_evaluation_status_get",
@@ -4035,6 +5785,58 @@
           }
         },
         "summary": "Get Job Logs",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/jobs/{job_id}/resolve": {
+      "post": {
+        "operationId": "resolve_job_admin_jobs__job_id__resolve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobResolutionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolve Job",
         "tags": [
           "admin"
         ]
@@ -4778,6 +6580,108 @@
         ]
       }
     },
+    "/admin/quality/runs": {
+      "get": {
+        "operationId": "admin_quality_runs_admin_quality_runs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualityRunsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Quality Runs",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/quality/runs/compare": {
+      "get": {
+        "operationId": "admin_quality_runs_compare_admin_quality_runs_compare_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "baseline_run_id",
+            "required": true,
+            "schema": {
+              "maxLength": 32,
+              "minLength": 32,
+              "pattern": "^[0-9a-f]{32}$",
+              "title": "Baseline Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "candidate_run_id",
+            "required": true,
+            "schema": {
+              "maxLength": 32,
+              "minLength": 32,
+              "pattern": "^[0-9a-f]{32}$",
+              "title": "Candidate Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualityReportCompareResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Quality Runs Compare",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/admin/quality/status": {
       "get": {
         "operationId": "admin_quality_status_admin_quality_status_get",
@@ -4861,6 +6765,553 @@
         ]
       }
     },
+    "/admin/sources": {
+      "get": {
+        "operationId": "list_sources_admin_sources_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Sources",
+        "tags": [
+          "source-management"
+        ]
+      }
+    },
+    "/admin/sources/bootstrap": {
+      "post": {
+        "operationId": "bootstrap_sources_admin_sources_bootstrap_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceBootstrapResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Bootstrap Sources",
+        "tags": [
+          "source-management"
+        ]
+      }
+    },
+    "/admin/sources/candidates/{job_id}/republish": {
+      "post": {
+        "description": "Re-publish a failed candidate after re-running its activation gate only.",
+        "operationId": "republish_source_candidate_admin_sources_candidates__job_id__republish_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceBuildResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Republish Source Candidate",
+        "tags": [
+          "source-management"
+        ]
+      }
+    },
+    "/admin/sources/changes/build": {
+      "post": {
+        "operationId": "build_source_changes_admin_sources_changes_build_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SourceBuildRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceBuildResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Build Source Changes",
+        "tags": [
+          "source-management"
+        ]
+      }
+    },
+    "/admin/sources/changes/plan": {
+      "post": {
+        "operationId": "plan_source_changes_admin_sources_changes_plan_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceChangesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Plan Source Changes",
+        "tags": [
+          "source-management"
+        ]
+      }
+    },
+    "/admin/sources/revisions": {
+      "get": {
+        "operationId": "list_source_revisions_admin_sources_revisions_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceRevisionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Source Revisions",
+        "tags": [
+          "source-management"
+        ]
+      }
+    },
+    "/admin/sources/uploads": {
+      "post": {
+        "operationId": "upload_source_admin_sources_uploads_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "filename",
+            "required": true,
+            "schema": {
+              "maxLength": 255,
+              "minLength": 5,
+              "title": "Filename",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/pdf": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceMutationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Source",
+        "tags": [
+          "source-management"
+        ]
+      }
+    },
+    "/admin/sources/{source_id}": {
+      "get": {
+        "operationId": "get_source_admin_sources__source_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "title": "Source Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Source",
+        "tags": [
+          "source-management"
+        ]
+      },
+      "patch": {
+        "operationId": "update_source_admin_sources__source_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "title": "Source Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SourceUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceMutationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Source",
+        "tags": [
+          "source-management"
+        ]
+      }
+    },
+    "/admin/sources/{source_id}/discard-pending": {
+      "post": {
+        "operationId": "discard_pending_source_admin_sources__source_id__discard_pending_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "title": "Source Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceMutationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Discard Pending Source",
+        "tags": [
+          "source-management"
+        ]
+      }
+    },
+    "/admin/sources/{source_id}/draft": {
+      "delete": {
+        "operationId": "delete_draft_source_admin_sources__source_id__draft_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "title": "Source Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceDeleteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Draft Source",
+        "tags": [
+          "source-management"
+        ]
+      }
+    },
+    "/admin/sources/{source_id}/retire": {
+      "post": {
+        "operationId": "retire_source_admin_sources__source_id__retire_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "title": "Source Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceMutationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Retire Source",
+        "tags": [
+          "source-management"
+        ]
+      }
+    },
+    "/admin/sources/{source_id}/validate": {
+      "post": {
+        "operationId": "validate_source_admin_sources__source_id__validate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "title": "Source Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceMutationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Validate Source",
+        "tags": [
+          "source-management"
+        ]
+      }
+    },
+    "/admin/sources/{source_id}/versions": {
+      "post": {
+        "operationId": "replace_source_admin_sources__source_id__versions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "title": "Source Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filename",
+            "required": true,
+            "schema": {
+              "maxLength": 255,
+              "minLength": 5,
+              "title": "Filename",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/pdf": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceMutationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Replace Source",
+        "tags": [
+          "source-management"
+        ]
+      }
+    },
     "/admin/status": {
       "get": {
         "operationId": "admin_status_admin_status_get",
@@ -4885,6 +7336,89 @@
     "/admin/versions": {
       "get": {
         "operationId": "admin_versions_admin_versions_get",
+        "parameters": [
+          {
+            "description": "匹配版本 ID、错误或保护原因",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "匹配版本 ID、错误或保护原因",
+              "maxLength": 256,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "description": "按版本状态筛选",
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "按版本状态筛选",
+              "enum": [
+                "",
+                "active",
+                "running",
+                "passed",
+                "failed_gate",
+                "invalid_gate",
+                "legacy_complete",
+                "incomplete",
+                "unsafe"
+              ],
+              "title": "State",
+              "type": "string"
+            }
+          },
+          {
+            "description": "按治理范围筛选",
+            "in": "query",
+            "name": "scope",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "按治理范围筛选",
+              "enum": [
+                "",
+                "cleanup",
+                "protected",
+                "pinned"
+              ],
+              "title": "Scope",
+              "type": "string"
+            }
+          },
+          {
+            "description": "匹配结果的起始偏移量",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "匹配结果的起始偏移量",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "返回条数；0 表示返回全部",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "返回条数；0 表示返回全部",
+              "maximum": 200,
+              "minimum": 0,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -4895,6 +7429,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Admin Versions",

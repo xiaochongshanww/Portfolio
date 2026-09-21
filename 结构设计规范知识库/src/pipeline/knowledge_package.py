@@ -752,9 +752,7 @@ def validate_runtime_package(
             warnings.append(
                 f"Embedding 模型不同: package={compatibility.get('embedding_model')}, local={settings.embedding_model}"
             )
-        package_embedding_dimensions = int(
-            compatibility.get("embedding_dimensions", 1024)
-        )
+        package_embedding_dimensions = int(compatibility.get("embedding_dimensions", 1024))
         if package_embedding_dimensions != settings.embedding_dimensions:
             warnings.append(
                 "Embedding 维度不同: "

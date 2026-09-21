@@ -7,8 +7,51 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.evaluation.answer_runner import ANSWER_EVAL_PATH, load_answer_cases
-from src.evaluation.runner import DEFAULT_EVAL_PATH, STRUCTURED_EVAL_PATH, load_cases
+from src.evaluation.answer_runner import load_answer_cases
+from src.evaluation.management import (
+    EvaluationSetConflict,
+    EvaluationSetError,
+    EvaluationSetNotFound,
+    list_quality_refresh_events,
+    resolve_published_asset,
+)
+from src.evaluation.management import (
+    add_case as add_evaluation_case,
+)
+from src.evaluation.management import (
+    create_draft as create_evaluation_draft,
+)
+from src.evaluation.management import (
+    delete_case as delete_evaluation_case,
+)
+from src.evaluation.management import (
+    diff_draft as diff_evaluation_draft,
+)
+from src.evaluation.management import (
+    list_revisions as list_evaluation_revisions,
+)
+from src.evaluation.management import (
+    list_sets as list_evaluation_sets,
+)
+from src.evaluation.management import (
+    publish_draft as publish_evaluation_draft,
+)
+from src.evaluation.management import (
+    read_revision as read_evaluation_revision,
+)
+from src.evaluation.management import (
+    read_set as read_evaluation_set,
+)
+from src.evaluation.management import (
+    rollback as rollback_evaluation_set,
+)
+from src.evaluation.management import (
+    update_case as update_evaluation_case,
+)
+from src.evaluation.management import (
+    validate_draft as validate_evaluation_draft,
+)
+from src.evaluation.runner import load_cases
 from src.pipeline import builder
 from src.pipeline.active_db import (
     active_processed_dir,
@@ -54,10 +97,13 @@ from src.pipeline.version_retention import (
 )
 from src.quality import (
     QualityReportStoreError,
+    compare_quality_runs,
     current_evidence_context,
     evaluate_quality_gate,
+    list_complete_quality_runs,
     read_json_object,
     resolve_latest_quality_artifacts,
+    validate_verification_run_id,
 )
 
 from ..admin.job_diagnostics import diagnose_job, diagnose_jobs
@@ -81,6 +127,79 @@ from ..schemas import admin as admin_schemas
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 QUALITY_REPORTS_DIR = AUDIT_DIR / "reports"
+
+
+def _quality_refresh_report_matches(
+    report: dict[str, Any] | None,
+    *,
+    evaluation_set_id: str,
+    revision_id: str,
+    content_hash: str,
+    data_version_hash: str,
+) -> bool:
+    if not isinstance(report, dict):
+        return False
+    if not all((evaluation_set_id, revision_id, content_hash, data_version_hash)):
+        return False
+    if report.get("evaluation_set_id") != evaluation_set_id:
+        return False
+    if report.get("evaluation_set_revision_id") != revision_id:
+        return False
+    if report.get("evaluation_set_hash") != content_hash:
+        return False
+    if report.get("data_version_hash") != data_version_hash:
+        return False
+    try:
+        validate_verification_run_id(str(report.get("verification_run_id") or ""))
+    except ValueError:
+        return False
+    return True
+
+
+def _quality_refresh_status() -> dict[str, Any]:
+    reports, _ = _read_latest_quality_reports(("regular_json", "structured_json", "answer_json"))
+    try:
+        active_manifest = read_active_manifest()
+    except (OSError, TypeError, ValueError):
+        active_manifest = {}
+    active_data_version_hash = str(active_manifest.get("data_version_hash") or "")
+    latest_by_type = {
+        name: reports[key]
+        for name, key in {
+            "regular": "regular_json",
+            "structured": "structured_json",
+            "answer": "answer_json",
+        }.items()
+    }
+    latest_events: dict[str, dict[str, Any]] = {}
+    for event in list_quality_refresh_events(limit=500):
+        set_id = str(event.get("evaluation_set_id") or "")
+        if set_id in {"regular", "structured", "answer"} and set_id not in latest_events:
+            latest_events[set_id] = event
+    items: list[dict[str, Any]] = []
+    for set_id, event in latest_events.items():
+        report = latest_by_type.get(set_id)
+        revision_id = str(event.get("revision_id") or "")
+        content_hash = str(event.get("content_hash") or "")
+        current = _quality_refresh_report_matches(
+            report,
+            evaluation_set_id=set_id,
+            revision_id=revision_id,
+            content_hash=content_hash,
+            data_version_hash=active_data_version_hash,
+        )
+        items.append(
+            {
+                **event,
+                "status": "completed" if current else "pending",
+                "missing_report_types": [] if current else [set_id],
+            }
+        )
+    pending = [item for item in items if item["status"] == "pending"]
+    return {
+        "pending_count": len(pending),
+        "items": sorted(items, key=lambda item: str(item.get("created_at") or ""), reverse=True),
+    }
 
 
 def _read_latest_quality_reports(
@@ -270,10 +389,33 @@ async def start_rebuild(request: JobRequest):
 
 
 @router.get("/versions", response_model=admin_schemas.VersionInventoryResponse)
-def admin_versions():
+def admin_versions(
+    q: str = Query(default="", max_length=256, description="匹配版本 ID、错误或保护原因"),
+    state: Literal[
+        "",
+        "active",
+        "running",
+        "passed",
+        "failed_gate",
+        "invalid_gate",
+        "legacy_complete",
+        "incomplete",
+        "unsafe",
+    ] = Query(default="", description="按版本状态筛选"),
+    scope: Literal["", "cleanup", "protected", "pinned"] = Query(
+        default="", description="按治理范围筛选"
+    ),
+    offset: int = Query(default=0, ge=0, description="匹配结果的起始偏移量"),
+    limit: int = Query(default=0, ge=0, le=200, description="返回条数；0 表示返回全部"),
+):
     return inventory_versions(
         policy=retention_policy_from_settings(settings),
         jobs=job_store.list(),
+        query=q,
+        state=state,
+        scope=scope,
+        offset=offset,
+        limit=limit,
     )
 
 
@@ -350,6 +492,26 @@ async def get_job(job_id: str):
     )
 
 
+@router.post("/jobs/{job_id}/resolve", response_model=admin_schemas.JobResponse)
+async def resolve_job(job_id: str, request: admin_schemas.JobResolutionRequest):
+    try:
+        job = job_store.resolve_failed(
+            job_id,
+            status=request.status,
+            note=request.note,
+            related_job_id=request.related_job_id,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return diagnose_job(
+        job,
+        stale_after_seconds=settings.job_stale_after_seconds,
+        heartbeat_timeout_seconds=max(60, settings.job_heartbeat_seconds * 3),
+    )
+
+
 @router.get("/jobs/{job_id}/logs", response_model=admin_schemas.JobLogsResponse)
 async def get_job_logs(job_id: str, limit: int = 200):
     try:
@@ -361,7 +523,10 @@ async def get_job_logs(job_id: str, limit: int = 200):
 
 @router.get("/evaluation/status", response_model=admin_schemas.EvaluationStatusResponse)
 async def admin_evaluation_status():
-    cases = load_cases(DEFAULT_EVAL_PATH)
+    regular_path = resolve_published_asset("regular")
+    structured_path = resolve_published_asset("structured")
+    answer_path = resolve_published_asset("answer")
+    cases = load_cases(regular_path)
     by_type: dict[str, int] = {}
     for case in cases:
         by_type[case.type] = by_type.get(case.type, 0) + 1
@@ -369,9 +534,9 @@ async def admin_evaluation_status():
         ("regular_json", "structured_json", "answer_json")
     )
     latest = reports["regular_json"]
-    structured_cases = load_cases(STRUCTURED_EVAL_PATH)
+    structured_cases = load_cases(structured_path)
     structured_latest = reports["structured_json"]
-    answer_cases = load_answer_cases(ANSWER_EVAL_PATH)
+    answer_cases = load_answer_cases(answer_path)
     answer_latest = reports["answer_json"]
     return {
         "case_count": len(cases),
@@ -396,11 +561,12 @@ async def admin_evaluation_status():
 def _load_evaluation_cases(
     evaluation_set: Literal["regular", "structured", "answer"],
 ):
+    path = resolve_published_asset(evaluation_set)
     if evaluation_set == "structured":
-        return load_cases(STRUCTURED_EVAL_PATH)
+        return load_cases(path)
     if evaluation_set == "answer":
-        return load_answer_cases(ANSWER_EVAL_PATH)
-    return load_cases(DEFAULT_EVAL_PATH)
+        return load_answer_cases(path)
+    return load_cases(path)
 
 
 def _evaluation_case_search_text(case: Any) -> str:
@@ -438,7 +604,9 @@ def _serialize_evaluation_case(case: Any) -> dict[str, Any]:
         "expected_any_groups": [list(group) for group in getattr(case, "expected_any_groups", [])],
         "forbidden_terms": list(getattr(case, "forbidden_terms", [])),
         "expected_citations": list(getattr(case, "expected_citations", [])),
-        "expected_unit_groups": [list(group) for group in getattr(case, "expected_unit_groups", [])],
+        "expected_unit_groups": [
+            list(group) for group in getattr(case, "expected_unit_groups", [])
+        ],
         "requires_refusal": bool(getattr(case, "requires_refusal", False)),
         "requires_image": bool(getattr(case, "requires_image", True)),
     }
@@ -471,6 +639,184 @@ async def admin_evaluation_cases(
         "type_counts": dict(sorted(type_counts.items())),
         "cases": [_serialize_evaluation_case(case) for case in filtered[offset : offset + limit]],
     }
+
+
+def _evaluation_set_error(exc: EvaluationSetError) -> HTTPException:
+    if isinstance(exc, EvaluationSetNotFound):
+        return HTTPException(status_code=404, detail=str(exc))
+    if isinstance(exc, EvaluationSetConflict):
+        return HTTPException(status_code=409, detail=str(exc))
+    return HTTPException(status_code=400, detail=str(exc))
+
+
+@router.get("/evaluation/sets", response_model=admin_schemas.EvaluationSetsResponse)
+async def admin_evaluation_sets():
+    try:
+        return {"sets": list_evaluation_sets()}
+    except EvaluationSetError as exc:
+        raise _evaluation_set_error(exc) from exc
+
+
+@router.get(
+    "/evaluation/sets/{evaluation_set_id}/revisions",
+    response_model=admin_schemas.EvaluationRevisionsResponse,
+)
+async def admin_evaluation_set_revisions(evaluation_set_id: str):
+    try:
+        return {
+            "evaluation_set_id": evaluation_set_id,
+            "revisions": list_evaluation_revisions(evaluation_set_id),
+        }
+    except EvaluationSetError as exc:
+        raise _evaluation_set_error(exc) from exc
+
+
+@router.get(
+    "/evaluation/sets/{evaluation_set_id}/revisions/{revision_id}",
+    response_model=admin_schemas.EvaluationRevisionResponse,
+)
+async def admin_evaluation_set_revision(evaluation_set_id: str, revision_id: str):
+    try:
+        revision, cases = read_evaluation_revision(evaluation_set_id, revision_id)
+        return {"evaluation_set_id": evaluation_set_id, "revision": revision, "cases": cases}
+    except EvaluationSetError as exc:
+        raise _evaluation_set_error(exc) from exc
+
+
+@router.get(
+    "/evaluation/sets/{evaluation_set_id}", response_model=admin_schemas.EvaluationSetResponse
+)
+async def admin_evaluation_set(evaluation_set_id: str):
+    try:
+        return read_evaluation_set(evaluation_set_id)
+    except EvaluationSetError as exc:
+        raise _evaluation_set_error(exc) from exc
+
+
+@router.post(
+    "/evaluation/sets/{evaluation_set_id}/drafts",
+    response_model=admin_schemas.EvaluationDraftResponse,
+)
+async def admin_evaluation_set_create_draft(
+    evaluation_set_id: str, request: admin_schemas.EvaluationDraftRequest | None = None
+):
+    try:
+        return create_evaluation_draft(evaluation_set_id, reset=bool(request and request.reset))
+    except EvaluationSetError as exc:
+        raise _evaluation_set_error(exc) from exc
+
+
+@router.patch(
+    "/evaluation/sets/{evaluation_set_id}/drafts/{case_id}",
+    response_model=admin_schemas.EvaluationDraftResponse,
+)
+async def admin_evaluation_set_update_case(
+    evaluation_set_id: str,
+    case_id: str,
+    request: admin_schemas.EvaluationCaseMutationRequest,
+):
+    try:
+        return update_evaluation_case(evaluation_set_id, case_id, request.case)
+    except EvaluationSetError as exc:
+        raise _evaluation_set_error(exc) from exc
+
+
+@router.post(
+    "/evaluation/sets/{evaluation_set_id}/drafts/cases",
+    response_model=admin_schemas.EvaluationDraftResponse,
+)
+async def admin_evaluation_set_add_case(
+    evaluation_set_id: str, request: admin_schemas.EvaluationCaseMutationRequest
+):
+    try:
+        return add_evaluation_case(evaluation_set_id, request.case)
+    except EvaluationSetError as exc:
+        raise _evaluation_set_error(exc) from exc
+
+
+@router.delete(
+    "/evaluation/sets/{evaluation_set_id}/drafts/{case_id}",
+    response_model=admin_schemas.EvaluationDraftResponse,
+)
+async def admin_evaluation_set_delete_case(evaluation_set_id: str, case_id: str):
+    try:
+        return delete_evaluation_case(evaluation_set_id, case_id)
+    except EvaluationSetError as exc:
+        raise _evaluation_set_error(exc) from exc
+
+
+@router.post(
+    "/evaluation/sets/{evaluation_set_id}/validate",
+    response_model=admin_schemas.EvaluationValidationResponse,
+)
+async def admin_evaluation_set_validate(evaluation_set_id: str):
+    try:
+        return validate_evaluation_draft(evaluation_set_id)
+    except EvaluationSetError as exc:
+        raise _evaluation_set_error(exc) from exc
+
+
+@router.get(
+    "/evaluation/sets/{evaluation_set_id}/diff",
+    response_model=admin_schemas.EvaluationDiffResponse,
+)
+async def admin_evaluation_set_diff(evaluation_set_id: str):
+    try:
+        return diff_evaluation_draft(evaluation_set_id)
+    except EvaluationSetError as exc:
+        raise _evaluation_set_error(exc) from exc
+
+
+@router.post(
+    "/evaluation/sets/{evaluation_set_id}/publish",
+    response_model=admin_schemas.EvaluationPublishResponse,
+)
+async def admin_evaluation_set_publish(evaluation_set_id: str):
+    try:
+        return publish_evaluation_draft(evaluation_set_id)
+    except EvaluationSetError as exc:
+        raise _evaluation_set_error(exc) from exc
+
+
+@router.post(
+    "/evaluation/sets/{evaluation_set_id}/rollback",
+    response_model=admin_schemas.EvaluationPublishResponse,
+)
+async def admin_evaluation_set_rollback(
+    evaluation_set_id: str, request: admin_schemas.EvaluationRollbackRequest
+):
+    try:
+        return rollback_evaluation_set(evaluation_set_id, request.revision_id)
+    except EvaluationSetError as exc:
+        raise _evaluation_set_error(exc) from exc
+
+
+@router.get("/quality/runs", response_model=admin_schemas.QualityRunsResponse)
+async def admin_quality_runs(limit: int = Query(default=50, ge=1, le=200)):
+    try:
+        return {"runs": list_complete_quality_runs(QUALITY_REPORTS_DIR, limit=limit)}
+    except (OSError, QualityReportStoreError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get(
+    "/quality/runs/compare",
+    response_model=admin_schemas.QualityReportCompareResponse,
+)
+async def admin_quality_runs_compare(
+    baseline_run_id: str = Query(..., min_length=32, max_length=32, pattern=r"^[0-9a-f]{32}$"),
+    candidate_run_id: str = Query(..., min_length=32, max_length=32, pattern=r"^[0-9a-f]{32}$"),
+):
+    try:
+        return {
+            "comparison": compare_quality_runs(
+                QUALITY_REPORTS_DIR,
+                baseline_run_id,
+                candidate_run_id,
+            )
+        }
+    except (OSError, QualityReportStoreError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/quality/status", response_model=admin_schemas.QualityStatusResponse)
@@ -579,6 +925,7 @@ async def admin_quality_status():
             ),
             "parser_upgrade": "external_infrastructure",
         },
+        "evaluation_refresh": _quality_refresh_status(),
     }
 
 

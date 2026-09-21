@@ -8,6 +8,7 @@ from typing import Any
 
 from src.app.core.config import settings
 from src.pipeline.paths import AUDIT_DIR, CORRECTIONS_DIR, PROCESSED_DIR, RAW_DIR
+from src.pipeline.source_catalog import SourceCatalogStore
 
 
 def parse_pages(value: str) -> list[int]:
@@ -34,6 +35,14 @@ def find_source_pdf(doc: str, source_dir: Path = RAW_DIR) -> Path | None:
     for pdf in candidates:
         if doc in pdf.name or doc in pdf.stem:
             return pdf
+    # Source management stores active uploads outside the legacy raw directory.
+    # Explicit build directories stay isolated to the directory selected by the caller.
+    try:
+        is_default_raw_dir = source_dir.resolve() == RAW_DIR.resolve()
+    except OSError:
+        is_default_raw_dir = False
+    if is_default_raw_dir:
+        return SourceCatalogStore(source_dir.parent).resolve_source_pdf(doc)
     return None
 
 

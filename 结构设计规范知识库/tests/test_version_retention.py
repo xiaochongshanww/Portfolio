@@ -119,6 +119,82 @@ def test_inventory_classifies_and_protects_operational_versions(tmp_path: Path):
     assert result["cleanup_candidate_count"] == 2
 
 
+def test_inventory_filters_and_paginates_after_retention_classification(tmp_path: Path):
+    versions, pointer, _audit = paths(tmp_path)
+    make_version(versions, "passed-old", gate_passed=True, days_old=40)
+    make_version(versions, "failed-old", gate_passed=False, days_old=10)
+    make_version(versions, "incomplete", complete=False, days_old=10)
+
+    result = inventory_versions(
+        policy=policy(keep_recent_passed=0),
+        versions_dir=versions,
+        pointer_path=pointer,
+        now=NOW,
+        state="failed_gate",
+        offset=0,
+        limit=1,
+    )
+
+    assert result["version_count"] == 3
+    assert result["matched_version_count"] == 1
+    assert result["page_offset"] == 0
+    assert result["page_limit"] == 1
+    assert [item["version_id"] for item in result["versions"]] == ["failed-old"]
+
+    query_result = inventory_versions(
+        policy=policy(keep_recent_passed=0),
+        versions_dir=versions,
+        pointer_path=pointer,
+        now=NOW,
+        query="passed-old",
+        limit=20,
+    )
+    assert query_result["matched_version_count"] == 1
+    assert [item["version_id"] for item in query_result["versions"]] == ["passed-old"]
+
+    label_result = inventory_versions(
+        policy=policy(keep_recent_passed=0),
+        versions_dir=versions,
+        pointer_path=pointer,
+        now=NOW,
+        query="失败或不完整版本已过期",
+        limit=20,
+    )
+    assert label_result["matched_version_count"] == 2
+    assert {item["version_id"] for item in label_result["versions"]} == {
+        "failed-old",
+        "incomplete",
+    }
+
+
+def test_inventory_exposes_readable_version_label_without_changing_internal_id(tmp_path: Path):
+    versions, pointer, _audit = paths(tmp_path)
+    version = make_version(versions, "c3b499dc4c42", gate_passed=True, days_old=1)
+    (version / "manifest.json").write_text(
+        json.dumps(
+            {
+                "built_at": "2026-08-08T01:02:03+00:00",
+                "data_version_hash": "content-hash",
+            }
+        ),
+        encoding="utf-8",
+    )
+    write_active_db(
+        {"active_db_dir": str(version / "db"), "manifest": str(version / "manifest.json")},
+        pointer,
+    )
+
+    result = inventory_versions(
+        policy=policy(), versions_dir=versions, pointer_path=pointer, now=NOW
+    )
+
+    item = by_id(result)["c3b499dc4c42"]
+    assert item["version_id"] == "c3b499dc4c42"
+    assert item["version_label"] == "KB-20260808-010203"
+    assert result["active_version_id"] == "c3b499dc4c42"
+    assert result["active_version_label"] == "KB-20260808-010203"
+
+
 def test_disk_pressure_reclaims_to_low_watermark(tmp_path: Path):
     versions, pointer, _audit = paths(tmp_path)
     for index in range(3):
@@ -162,6 +238,7 @@ def test_plan_execution_deletes_only_planned_unchanged_versions(tmp_path: Path):
         audit_dir=audit,
         now=NOW,
     )
+    assert plan["candidates"][0]["version_label"].startswith("KB-")
 
     result = execute_cleanup_plan(
         plan["plan_id"],

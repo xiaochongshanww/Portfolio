@@ -106,6 +106,58 @@ def test_backup_round_trip_preserves_complete_inventory_and_metadata(tmp_path: P
     assert "GET /ready" in restored["post_restore_checks"]
 
 
+def test_backup_round_trip_includes_evaluation_set_lifecycle_records(tmp_path: Path):
+    source = _runtime_data(tmp_path)
+    evaluation_sets = source / "evaluation_sets"
+    _write_json(
+        evaluation_sets / "structured" / "manifest.json",
+        {
+            "schema_version": 1,
+            "evaluation_set_id": "structured",
+            "published_revision_id": "r-1",
+            "draft_status": "none",
+        },
+    )
+    (evaluation_sets / "structured" / "revisions" / "r-1.jsonl").parent.mkdir(
+        parents=True, exist_ok=True
+    )
+    (evaluation_sets / "structured" / "revisions" / "r-1.jsonl").write_text(
+        '{"id":"table-1","query":"表格问题","type":"structured_table"}\n',
+        encoding="utf-8",
+    )
+    (evaluation_sets / "structured" / "draft.jsonl").write_text(
+        '{"id":"table-2","query":"草稿问题","type":"structured_table"}\n',
+        encoding="utf-8",
+    )
+    (evaluation_sets / "audit.jsonl").write_text(
+        '{"operation":"draft_publish","status":"succeeded"}\n', encoding="utf-8"
+    )
+    (evaluation_sets / "quality_refresh_queue.jsonl").write_text(
+        '{"evaluation_set_id":"structured","status":"pending"}\n', encoding="utf-8"
+    )
+
+    backup = tmp_path / "evaluation-sets-backup.zip"
+    create_runtime_backup(backup, data_dir=source, maintenance_window=True)
+    target = tmp_path / "restored-data"
+    restore_runtime_backup(
+        backup,
+        data_dir=target,
+        actor="recovery-operator",
+        maintenance_window=True,
+    )
+
+    source_inventory, _ = runtime_backup._scan_inventory(source)
+    target_inventory, _ = runtime_backup._scan_inventory(target)
+    assert target_inventory == source_inventory
+    assert (target / "evaluation_sets" / "structured" / "revisions" / "r-1.jsonl").read_text(
+        encoding="utf-8"
+    ) == (source / "evaluation_sets" / "structured" / "revisions" / "r-1.jsonl").read_text(
+        encoding="utf-8"
+    )
+    assert (target / "evaluation_sets" / "audit.jsonl").exists()
+    assert (target / "evaluation_sets" / "quality_refresh_queue.jsonl").exists()
+
+
 def test_backup_id_is_deterministic_across_archive_metadata(tmp_path: Path):
     source = _runtime_data(tmp_path)
     first = create_runtime_backup(

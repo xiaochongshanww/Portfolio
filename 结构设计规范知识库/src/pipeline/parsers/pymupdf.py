@@ -1,6 +1,8 @@
 import re
 from pathlib import Path
 
+from src.pipeline.progress import ProgressCallback, emit_progress
+
 from .base import ParseResult, ParserUnavailableError
 
 CLAUSE_RE = re.compile(r"^(\d+\.\d+[\d\.\-]*(\s+[A-Z]|\s+[一-鿿])?)")
@@ -34,7 +36,13 @@ def is_title_block(text: str, lines_in_block: int, font_size: float) -> bool:
 class PyMuPdfParser:
     name = "pymupdf"
 
-    def parse(self, pdf_path: Path, image_dir: Path) -> ParseResult:
+    def parse(
+        self,
+        pdf_path: Path,
+        image_dir: Path,
+        *,
+        progress_callback: ProgressCallback | None = None,
+    ) -> ParseResult:
         try:
             import fitz
         except ImportError as exc:
@@ -49,6 +57,15 @@ class PyMuPdfParser:
 
         try:
             for page_index in range(len(doc)):
+                emit_progress(
+                    progress_callback,
+                    "parse_document",
+                    "正在解析 PDF 页面",
+                    document=pdf_path.name,
+                    page_current=page_index + 1,
+                    page_total=len(doc),
+                    parser_backend=self.name,
+                )
                 page = doc[page_index]
                 image_name = f"{basename}_p{page_index + 1:04d}.png"
                 pix = page.get_pixmap(matrix=fitz.Matrix(3, 3))

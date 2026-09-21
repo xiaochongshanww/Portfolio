@@ -28,6 +28,7 @@ class Job:
     progress_at: str = field(default_factory=utc_now)
     updated_at: str = field(default_factory=utc_now)
     recovery: dict[str, Any] = field(default_factory=dict)
+    resolution: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

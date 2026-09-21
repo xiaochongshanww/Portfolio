@@ -25,6 +25,7 @@ from .paths import (
     PROCESSED_DIR,
     RAW_DIR,
 )
+from .progress import ProgressCallback, emit_progress
 
 
 class BuildPreflightError(RuntimeError):
@@ -85,10 +86,13 @@ def clean_generated_outputs(
 
 
 def dry_run(
-    source_dir: Path = RAW_DIR, *, parser_backend: str = DEFAULT_PARSER_BACKEND
+    source_dir: Path = RAW_DIR,
+    *,
+    parser_backend: str = DEFAULT_PARSER_BACKEND,
+    metadata_path: Path = METADATA_DIR / "specs.json",
 ) -> dict[str, Any]:
     pdf_files = list_pdf_files(source_dir)
-    metadata = load_spec_metadata(pdf_files, METADATA_DIR / "specs.json")
+    metadata = load_spec_metadata(pdf_files, metadata_path)
     pdf_files, excluded_test_sources = select_production_sources(pdf_files, metadata)
     return {
         "mode": "dry-run",
@@ -106,12 +110,13 @@ def incremental_plan(
     parser_backend: str = DEFAULT_PARSER_BACKEND,
     apply_corrections: bool = True,
     requested_mode: str = "incremental",
+    metadata_path: Path = METADATA_DIR / "specs.json",
 ) -> dict[str, Any]:
     from .incremental import plan_incremental_build
 
     source_dir = source_dir.resolve()
     pdf_files = list_pdf_files(source_dir)
-    metadata = load_spec_metadata(pdf_files, METADATA_DIR / "specs.json")
+    metadata = load_spec_metadata(pdf_files, metadata_path)
     pdf_files, excluded_test_sources = select_production_sources(pdf_files, metadata)
     metadata = {pdf.name: metadata[pdf.name] for pdf in pdf_files}
     parser_environment = validate_parser_backend(parser_backend)
@@ -175,18 +180,30 @@ def rebuild(
     mineru_output_dir: Path = MINERU_DIR,
     audit_dir: Path = AUDIT_DIR,
     build_mode: str = "full",
+    metadata_path: Path = METADATA_DIR / "specs.json",
+    source_catalog_revision: str = "",
+    progress_callback: ProgressCallback | None = None,
 ) -> dict[str, Any]:
     configure_pipeline_logging()
     source_dir = source_dir.resolve()
     pdf_files = list_pdf_files(source_dir)
-    metadata = load_spec_metadata(pdf_files, METADATA_DIR / "specs.json")
+    metadata = load_spec_metadata(pdf_files, metadata_path)
     pdf_files, excluded_test_sources = select_production_sources(pdf_files, metadata)
     metadata = {pdf.name: metadata[pdf.name] for pdf in pdf_files}
+    emit_progress(
+        progress_callback,
+        "preflight",
+        "构建输入检查完成",
+        document_total=len(pdf_files),
+        excluded_test_source_count=len(excluded_test_sources),
+        parser_backend=parser_backend,
+        mode=build_mode,
+    )
     if excluded_test_sources:
         logging.info("生产构建排除测试来源: %s", ", ".join(excluded_test_sources))
 
     if dry_run_only:
-        return dry_run(source_dir, parser_backend=parser_backend)
+        return dry_run(source_dir, parser_backend=parser_backend, metadata_path=metadata_path)
 
     parser_environment = validate_parser_backend(parser_backend)
     if not os.environ.get("ZHIPUAI_API_KEY"):
@@ -199,6 +216,13 @@ def rebuild(
         images_dir=images_dir,
         mineru_dir=mineru_output_dir,
         audit_dir=audit_dir,
+    )
+    emit_progress(
+        progress_callback,
+        "prepare_workspace",
+        "临时构建目录已准备完成",
+        document_total=len(pdf_files),
+        db_dir=str(db_dir),
     )
 
     from .incremental import build_contract, document_fingerprint
@@ -213,11 +237,23 @@ def rebuild(
         parser_backend=parser_backend,
         mineru_output_dir=mineru_output_dir,
         apply_corrections=apply_corrections,
+        progress_callback=progress_callback,
     )
     chunks_by_file = {
         source_file: result["chunks"] for source_file, result in processed_by_file.items()
     }
-    total_loaded = load_chunks_to_db(chunks_by_file, db_dir)
+    emit_progress(
+        progress_callback,
+        "embedding",
+        "文档结构化完成，开始生成向量",
+        document_total=len(pdf_files),
+        chunk_total=sum(len(chunks) for chunks in chunks_by_file.values()),
+    )
+    total_loaded = load_chunks_to_db(
+        chunks_by_file,
+        db_dir,
+        progress_callback=progress_callback,
+    )
     contract = build_contract(
         parser_backend=parser_backend,
         parser_environment=parser_environment,
@@ -225,6 +261,13 @@ def rebuild(
     )
     chunk_counts = {source_file: len(chunks) for source_file, chunks in chunks_by_file.items()}
     image_count = len([path for path in images_dir.glob("*") if path.is_file()])
+    emit_progress(
+        progress_callback,
+        "write_manifest",
+        "正在生成候选版本清单",
+        document_total=len(pdf_files),
+        chunk_count=total_loaded,
+    )
     manifest = build_manifest(
         pdf_files=pdf_files,
         metadata=metadata,
@@ -277,9 +320,19 @@ def rebuild(
             "corrections_dir": str(CORRECTIONS_DIR),
             "loaded_chunks": total_loaded,
             "excluded_test_sources": excluded_test_sources,
+            "metadata_path": str(metadata_path),
+            "source_catalog_revision": source_catalog_revision,
         },
     )
     write_manifest(manifest_path, manifest)
+    emit_progress(
+        progress_callback,
+        "write_manifest",
+        "候选版本清单生成完成",
+        document_total=len(pdf_files),
+        chunk_count=total_loaded,
+        image_count=image_count,
+    )
     return manifest
 
 
@@ -295,11 +348,14 @@ def incremental_rebuild(
     images_dir: Path = IMAGES_DIR,
     mineru_output_dir: Path = MINERU_DIR,
     audit_dir: Path = AUDIT_DIR,
+    metadata_path: Path = METADATA_DIR / "specs.json",
+    source_catalog_revision: str = "",
+    progress_callback: ProgressCallback | None = None,
 ) -> dict[str, Any]:
     configure_pipeline_logging()
     source_dir = source_dir.resolve()
     pdf_files = list_pdf_files(source_dir)
-    metadata = load_spec_metadata(pdf_files, METADATA_DIR / "specs.json")
+    metadata = load_spec_metadata(pdf_files, metadata_path)
     pdf_files, excluded_test_sources = select_production_sources(pdf_files, metadata)
     metadata = {pdf.name: metadata[pdf.name] for pdf in pdf_files}
     parser_environment = validate_parser_backend(parser_backend)
@@ -322,7 +378,24 @@ def incremental_rebuild(
         requested_mode=requested_mode,
     )
     plan_payload = plan.to_dict()
+    emit_progress(
+        progress_callback,
+        "analyze_changes",
+        "增量变更分析完成",
+        document_total=len(pdf_files),
+        added_count=sum(change.action == "added" for change in plan.documents),
+        changed_count=sum(change.action == "changed" for change in plan.documents),
+        reused_count=sum(change.action == "reused" for change in plan.documents),
+        removed_count=sum(change.action == "removed" for change in plan.documents),
+        fallback_to_full=plan.fallback_to_full,
+    )
     if plan.fallback_to_full:
+        emit_progress(
+            progress_callback,
+            "fallback_full",
+            "增量条件不满足，回退为全量构建",
+            fallback_reasons=plan.fallback_reasons,
+        )
         manifest = rebuild(
             source_dir,
             parser_backend=parser_backend,
@@ -334,6 +407,9 @@ def incremental_rebuild(
             mineru_output_dir=mineru_output_dir,
             audit_dir=audit_dir,
             build_mode="incremental_fallback_full",
+            metadata_path=metadata_path,
+            source_catalog_revision=source_catalog_revision,
+            progress_callback=progress_callback,
         )
         manifest["incremental_plan"] = plan_payload
         write_manifest(manifest_path, manifest)
@@ -348,11 +424,16 @@ def incremental_rebuild(
         audit_dir=audit_dir,
     )
     action_by_file = {
-        change.source_file: change.action
-        for change in plan.documents
-        if change.action != "removed"
+        change.source_file: change.action for change in plan.documents if change.action != "removed"
     }
     changed_files = [pdf for pdf in pdf_files if action_by_file[pdf.name] != "reused"]
+    emit_progress(
+        progress_callback,
+        "prepare_workspace",
+        "增量候选临时目录已准备完成",
+        document_total=len(pdf_files),
+        changed_document_count=len(changed_files),
+    )
     processed_by_file: dict[str, dict[str, Any]] = {}
     if changed_files:
         from .process_documents import process_pdfs
@@ -366,10 +447,18 @@ def incremental_rebuild(
                 parser_backend=parser_backend,
                 mineru_output_dir=mineru_output_dir,
                 apply_corrections=apply_corrections,
+                progress_callback=progress_callback,
             )
         )
     for pdf in pdf_files:
         if action_by_file[pdf.name] == "reused":
+            emit_progress(
+                progress_callback,
+                "reuse_documents",
+                "复用已验证的文档产物",
+                document=pdf.name,
+                document_total=len(pdf_files),
+            )
             processed_by_file[pdf.name] = load_reused_document(
                 pdf.name,
                 target_processed_dir=processed_dir,
@@ -383,10 +472,19 @@ def incremental_rebuild(
     }
     from .load_to_db import load_chunks_to_db_incremental
 
+    emit_progress(
+        progress_callback,
+        "embedding",
+        "开始生成增量候选向量",
+        document_total=len(pdf_files),
+        changed_document_count=len(changed_files),
+        chunk_total=sum(len(chunks) for chunks in chunks_by_file.values()),
+    )
     embedding_stats = load_chunks_to_db_incremental(
         chunks_by_file,
         db_dir,
         reusable_embeddings=reusable_embedding_map(),
+        progress_callback=progress_callback,
     )
     _write_combined_quality_report(
         processed_dir,
@@ -399,6 +497,13 @@ def incremental_rebuild(
         source_file: len(result["chunks"]) for source_file, result in processed_by_file.items()
     }
     image_count = sum(1 for path in images_dir.rglob("*") if path.is_file())
+    emit_progress(
+        progress_callback,
+        "write_manifest",
+        "正在生成增量候选版本清单",
+        document_total=len(pdf_files),
+        chunk_count=sum(len(chunks) for chunks in chunks_by_file.values()),
+    )
     manifest = build_manifest(
         pdf_files=pdf_files,
         metadata=metadata,
@@ -453,10 +558,21 @@ def incremental_rebuild(
             "reused_embedding_count": embedding_stats["reused_embedding_count"],
             "generated_embedding_count": embedding_stats["generated_embedding_count"],
             "excluded_test_sources": excluded_test_sources,
+            "metadata_path": str(metadata_path),
+            "source_catalog_revision": source_catalog_revision,
         },
     )
     manifest["incremental_plan"] = plan_payload
     write_manifest(manifest_path, manifest)
+    emit_progress(
+        progress_callback,
+        "write_manifest",
+        "增量候选版本清单生成完成",
+        document_total=len(pdf_files),
+        chunk_count=sum(len(chunks) for chunks in chunks_by_file.values()),
+        generated_embedding_count=embedding_stats["generated_embedding_count"],
+        reused_embedding_count=embedding_stats["reused_embedding_count"],
+    )
     return manifest
 
 

@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import pytest
 from src.app.admin.models import Job
 from src.app.admin.storage import JobStore
 from src.app.admin.workflows import dry_run_workflow
@@ -23,6 +24,43 @@ def test_job_store_persists_status_and_logs(tmp_path: Path):
     assert store.read(job.job_id)["type"] == "audit"
     assert store.logs(job.job_id)[0]["message"] == "started"
     assert store.list()[0]["job_id"] == job.job_id
+
+
+def test_job_store_resolves_failed_job_without_rewriting_original_result(tmp_path: Path):
+    store = JobStore(tmp_path)
+    failed = Job(type="answer_evaluate", status="failed", error="old failure")
+    successful = Job(type="answer_evaluate", status="succeeded")
+    store.save(failed)
+    store.save(successful)
+
+    resolved = store.resolve_failed(
+        failed.job_id,
+        status="superseded",
+        note="已由受控质量运行替代验证。",
+        related_job_id=successful.job_id,
+    )
+
+    assert resolved["status"] == "failed"
+    assert resolved["error"] == "old failure"
+    assert resolved["resolution"]["status"] == "superseded"
+    assert resolved["resolution"]["related_job_id"] == successful.job_id
+    assert store.logs(failed.job_id)[-1]["error_code"] == "JOB_FAILURE_RESOLVED"
+
+
+def test_job_store_rejects_superseded_without_successful_related_job(tmp_path: Path):
+    store = JobStore(tmp_path)
+    failed = Job(type="rebuild", status="failed")
+    queued = Job(type="rebuild", status="queued")
+    store.save(failed)
+    store.save(queued)
+
+    with pytest.raises(ValueError, match="只能关联 succeeded"):
+        store.resolve_failed(
+            failed.job_id,
+            status="superseded",
+            note="关联任务尚未成功。",
+            related_job_id=queued.job_id,
+        )
 
 
 def test_dry_run_workflow_returns_document_summary(tmp_path: Path):

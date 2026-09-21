@@ -82,9 +82,7 @@ def main() -> None:
     )
     plan_parser = subparsers.add_parser("rebuild-plan", help="预览增量候选重建的变更分类")
     plan_parser.add_argument("--source", default=str(RAW_DIR), help="PDF 源目录")
-    plan_parser.add_argument(
-        "--parser-backend", default="mineru", choices=["mineru", "pymupdf"]
-    )
+    plan_parser.add_argument("--parser-backend", default="mineru", choices=["mineru", "pymupdf"])
     plan_parser.add_argument("--no-corrections", action="store_true")
     plan_parser.add_argument("--mode", default="incremental", choices=["incremental", "full"])
 

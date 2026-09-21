@@ -498,6 +498,21 @@ def test_provider_capability_probe_keeps_only_non_secret_contract(monkeypatch):
     assert "private generated output" not in rendered
 
 
+def test_verification_markdown_includes_data_version_identity():
+    markdown = verify_quality._render_verification_markdown(
+        {
+            "passed": True,
+            "generated_at": "2026-08-31T00:00:00+00:00",
+            "verification_run_id": "a" * 32,
+            "data_version_hash": "b" * 64,
+            "runtime_config_hash": "c" * 64,
+            "steps": [],
+        }
+    )
+
+    assert f"- 数据版本：`{'b' * 64}`" in markdown
+
+
 def test_full_verification_does_not_call_evaluations_after_provider_probe_failure(
     monkeypatch, tmp_path: Path
 ):

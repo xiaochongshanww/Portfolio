@@ -2,6 +2,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
 
+from src.pipeline.progress import ProgressCallback
+
 
 class ParserUnavailableError(RuntimeError):
     pass
@@ -19,4 +21,10 @@ class ParseResult:
 class PdfParser(Protocol):
     name: str
 
-    def parse(self, pdf_path: Path, image_dir: Path) -> ParseResult: ...
+    def parse(
+        self,
+        pdf_path: Path,
+        image_dir: Path,
+        *,
+        progress_callback: ProgressCallback | None = None,
+    ) -> ParseResult: ...

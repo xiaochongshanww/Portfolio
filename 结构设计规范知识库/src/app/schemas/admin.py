@@ -33,6 +33,12 @@ class JobDiagnostics(AdminResponse):
     heartbeat_timeout_seconds: int = 0
 
 
+class JobResolutionRequest(AdminResponse):
+    status: Literal["acknowledged", "superseded"]
+    note: str = Field(min_length=1, max_length=2000)
+    related_job_id: str = Field(default="", max_length=64)
+
+
 class JobResponse(AdminResponse):
     type: str
     params: JsonObject = Field(default_factory=dict)
@@ -52,6 +58,7 @@ class JobResponse(AdminResponse):
     progress_at: str = ""
     updated_at: str = ""
     recovery: JsonObject = Field(default_factory=dict)
+    resolution: JsonObject = Field(default_factory=dict)
     diagnostics: JobDiagnostics | None = None
 
 
@@ -140,6 +147,7 @@ class RetrievalReloadResponse(AdminResponse):
 
 class VersionSummary(AdminResponse):
     version_id: str
+    version_label: str = ""
     path: str
     size_bytes: int = 0
     file_count: int = 0
@@ -163,6 +171,7 @@ class VersionInventoryResponse(AdminResponse):
     schema_version: int
     generated_at: str
     active_version_id: str | None
+    active_version_label: str | None = None
     policy: JsonObject
     version_count: int
     total_bytes: int
@@ -170,11 +179,15 @@ class VersionInventoryResponse(AdminResponse):
     cleanup_candidate_bytes: int
     projected_bytes: int
     target_unmet_bytes: int
+    matched_version_count: int = 0
+    page_offset: int = 0
+    page_limit: int = 0
     versions: list[VersionSummary]
 
 
 class VersionRetentionResponse(AdminResponse):
     version_id: str
+    version_label: str = ""
     schema_version: int
     pinned: bool
     note: str
@@ -183,6 +196,7 @@ class VersionRetentionResponse(AdminResponse):
 
 class VersionCleanupCandidate(AdminResponse):
     version_id: str
+    version_label: str = ""
     fingerprint: str
     size_bytes: int
     modified_at: str
@@ -245,6 +259,105 @@ class EvaluationCasesResponse(AdminResponse):
     cases: list[EvaluationCaseResponse]
 
 
+class EvaluationRevisionSummary(AdminResponse):
+    revision_id: str
+    evaluation_set_id: Literal["regular", "structured", "answer"]
+    name: str
+    status: str
+    case_count: int
+    type_counts: dict[str, int]
+    content_hash: str
+    schema_version: str
+    created_at: str | None = None
+    published_at: str | None = None
+    created_by: str
+    parent_revision_id: str | None = None
+    source: str
+    validation_summary: JsonObject | None = None
+
+
+class EvaluationSetSummary(AdminResponse):
+    evaluation_set_id: Literal["regular", "structured", "answer"]
+    name: str
+    kind: Literal["retrieval", "answer"]
+    published_revision: EvaluationRevisionSummary
+    draft: EvaluationRevisionSummary | None = None
+    case_count: int
+    updated_at: str | None = None
+
+
+class EvaluationSetsResponse(AdminResponse):
+    sets: list[EvaluationSetSummary]
+
+
+class EvaluationRevisionsResponse(AdminResponse):
+    evaluation_set_id: Literal["regular", "structured", "answer"]
+    revisions: list[EvaluationRevisionSummary]
+
+
+class EvaluationRevisionResponse(AdminResponse):
+    evaluation_set_id: Literal["regular", "structured", "answer"]
+    revision: EvaluationRevisionSummary
+    cases: list[JsonObject]
+
+
+class EvaluationSetResponse(AdminResponse):
+    evaluation_set_id: Literal["regular", "structured", "answer"]
+    name: str
+    kind: Literal["retrieval", "answer"]
+    published_revision: EvaluationRevisionSummary
+    draft: EvaluationRevisionSummary | None = None
+    case_count: int
+    type_counts: dict[str, int]
+    cases: list[JsonObject]
+    draft_cases: list[JsonObject]
+
+
+class EvaluationDraftRequest(AdminResponse):
+    reset: bool = False
+
+
+class EvaluationCaseMutationRequest(AdminResponse):
+    case: JsonObject
+
+
+class EvaluationDraftResponse(AdminResponse):
+    evaluation_set_id: Literal["regular", "structured", "answer"]
+    draft_status: str
+    draft: EvaluationRevisionSummary | None = None
+    case_count: int
+    type_counts: dict[str, int]
+    cases: list[JsonObject]
+    deleted_case_id: str | None = None
+
+
+class EvaluationValidationResponse(AdminResponse):
+    evaluation_set_id: Literal["regular", "structured", "answer"]
+    draft_status: str
+    validation: JsonObject
+
+
+class EvaluationDiffResponse(AdminResponse):
+    evaluation_set_id: Literal["regular", "structured", "answer"]
+    base_revision_id: str
+    draft_content_hash: str
+    added: list[JsonObject]
+    removed: list[JsonObject]
+    modified: list[JsonObject]
+    changed_count: int
+
+
+class EvaluationPublishResponse(AdminResponse):
+    evaluation_set_id: Literal["regular", "structured", "answer"]
+    previous_revision_id: str
+    revision: EvaluationRevisionSummary
+    affected_report_types: list[str]
+
+
+class EvaluationRollbackRequest(AdminResponse):
+    revision_id: str = Field(min_length=1, max_length=160)
+
+
 class CandidateActivationSummary(AdminResponse):
     available: bool
     passed: bool | None = None
@@ -263,6 +376,24 @@ class EvaluationSummary(AdminResponse):
     citation_grounded_rate: float | None = None
     image_http_rate: float | None = None
     refusal_pass_rate: float | None = None
+
+
+class EvaluationRefreshItem(AdminResponse):
+    event_id: str
+    created_at: str
+    evaluation_set_id: Literal["regular", "structured", "answer"]
+    revision_id: str
+    content_hash: str
+    previous_revision_id: str | None = None
+    affected_report_types: list[str]
+    actor: str
+    status: Literal["pending", "completed"]
+    missing_report_types: list[str]
+
+
+class EvaluationRefreshSummary(AdminResponse):
+    pending_count: int
+    items: list[EvaluationRefreshItem]
 
 
 class QualityStatusResponse(AdminResponse):
@@ -284,6 +415,24 @@ class QualityStatusResponse(AdminResponse):
     structured_evaluation: EvaluationSummary
     answer_evaluation: EvaluationSummary
     external_dependencies: dict[str, str]
+    evaluation_refresh: EvaluationRefreshSummary
+
+
+class QualityRunSummary(AdminResponse):
+    verification_run_id: str
+    completed_at: str
+    passed: bool
+    data_version_hash: str | None = None
+    runtime_config_hash: str | None = None
+    evaluation_set_revisions: dict[str, str | None]
+
+
+class QualityRunsResponse(AdminResponse):
+    runs: list[QualityRunSummary]
+
+
+class QualityReportCompareResponse(AdminResponse):
+    comparison: JsonObject
 
 
 class CandidateDocumentSummary(AdminResponse):

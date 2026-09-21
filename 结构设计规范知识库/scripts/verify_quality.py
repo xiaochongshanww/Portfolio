@@ -28,6 +28,7 @@ from src.evaluation.answer_runner import (  # noqa: E402
     run_answer_evaluation,
 )
 from src.evaluation.api_target import probe_api_readiness  # noqa: E402
+from src.evaluation.management import published_revision_id  # noqa: E402
 from src.evaluation.runner import (  # noqa: E402
     DEFAULT_EVAL_PATH,
     STRUCTURED_EVAL_PATH,
@@ -745,6 +746,7 @@ def _run_answer_evaluation_against_api(
     if verification_run_id:
         result["verification_run_id"] = validate_verification_run_id(verification_run_id)
     result["evaluation_set_id"] = "answer"
+    result["evaluation_set_revision_id"] = published_revision_id("answer")
     report_path, markdown_path = write_quality_report(
         REPORTS_DIR,
         "answer",
@@ -793,6 +795,7 @@ def _render_verification_markdown(result: dict[str, Any]) -> str:
         f"- 结论：{'通过' if result.get('passed') else '未通过'}",
         f"- 生成时间：{result.get('generated_at')}",
         f"- 验证运行：`{result.get('verification_run_id') or '-'}`",
+        f"- 数据版本：`{result.get('data_version_hash') or '-'}`",
         f"- 运行配置指纹：`{result.get('runtime_config_hash') or '-'}`",
         "",
         "| 步骤 | 状态 | 耗时 |",
@@ -1498,6 +1501,7 @@ def main() -> None:
         "generated_at": datetime.now(UTC).isoformat(),
         "passed": all(step.get("ok") for step in steps),
         "verification_run_id": verification_run_id,
+        "data_version_hash": str(gate_result.get("data_version_hash") or ""),
         "runtime_config_hash": runtime_hash,
         "steps": steps,
     }

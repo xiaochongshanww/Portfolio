@@ -13,6 +13,7 @@ from src.pipeline.artifacts import (
     scan_mineru_artifacts,
     write_artifact_index,
 )
+from src.pipeline.progress import ProgressCallback, emit_progress
 
 from .base import ParseResult, ParserUnavailableError
 
@@ -22,10 +23,16 @@ DEFAULT_MINERU_BINARY = "magic-pdf"
 DEFAULT_MINERU_COMPATIBILITY_POLICY = "strict"
 MINERU_COMPATIBILITY_POLICIES = {"strict", "allow-unverified"}
 VERIFIED_MINERU_IMPLEMENTATIONS = {("magic-pdf", "1.3.12")}
-MINERU_VERSION_TIMEOUT_SECONDS = 10
+# Windows cold starts can spend tens of seconds importing the parser's ML stack.
+MINERU_VERSION_TIMEOUT_SECONDS = 60
+MINERU_PROGRESS_LINE_LIMIT = 500
 MINERU_VERSION_PATTERN = re.compile(
     r"\b(?P<implementation>magic-pdf|mineru)\b\s*,?\s*(?:version\s*)?v?"
     r"(?P<version>\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)",
+    re.IGNORECASE,
+)
+MINERU_PAGE_PROGRESS_PATTERN = re.compile(
+    r"(?:page|页(?:面)?)\D{0,12}(?P<current>\d+)\D{0,4}(?:/|of|共)\D{0,4}(?P<total>\d+)",
     re.IGNORECASE,
 )
 
@@ -279,7 +286,13 @@ class MineruParser:
             self._cli_probe = probe_mineru_cli(self.binary, policy=self.compatibility_policy)
         return self._cli_probe
 
-    def parse(self, pdf_path: Path, image_dir: Path) -> ParseResult:
+    def parse(
+        self,
+        pdf_path: Path,
+        image_dir: Path,
+        *,
+        progress_callback: ProgressCallback | None = None,
+    ) -> ParseResult:
         cli_probe = self.probe()
 
         doc_dir = self.output_dir / doc_id_for_pdf(pdf_path)
@@ -296,20 +309,24 @@ class MineruParser:
             str(raw_dir),
             *self.extra_args,
         ]
-        completed = subprocess.run(
-            command,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            capture_output=True,
-            check=False,
+        completed = _run_mineru_command(
+            command, progress_callback=progress_callback, document=pdf_path.name
         )
         if completed.returncode != 0:
             detail = (completed.stderr or completed.stdout).strip()
             raise RuntimeError(f"MinerU 解析失败: {detail}")
 
         artifacts = scan_mineru_artifacts(doc_dir)
-        require_artifacts(artifacts)
+        try:
+            require_artifacts(artifacts)
+        except RuntimeError as exc:
+            # magic-pdf 1.3.12 logs parse exceptions but still exits with code 0.
+            cli_log = "\n".join(
+                part.strip() for part in (completed.stdout, completed.stderr) if part.strip()
+            )
+            if cli_log:
+                raise RuntimeError(f"{exc}\nMinerU CLI 日志:\n{cli_log[-12000:]}") from exc
+            raise
         write_artifact_index(
             doc_dir / "artifacts.json",
             pdf_path.name,
@@ -347,3 +364,58 @@ class MineruParser:
                 "parser_cli": cli_probe.to_dict(),
             },
         )
+
+
+def _run_mineru_command(
+    command: list[str],
+    *,
+    progress_callback: ProgressCallback | None,
+    document: str,
+) -> subprocess.CompletedProcess[str]:
+    """Run MinerU with live output when the build pipeline has a progress sink."""
+    if progress_callback is None:
+        return subprocess.run(
+            command,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            capture_output=True,
+            check=False,
+        )
+
+    process = subprocess.Popen(
+        command,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        bufsize=1,
+    )
+    output: list[str] = []
+    if process.stdout is not None:
+        for line in process.stdout:
+            rendered = line.rstrip()
+            if rendered:
+                output.append(rendered)
+                details: dict[str, Any] = {
+                    "document": document,
+                    "parser_backend": "mineru",
+                    "parser_output": rendered[-MINERU_PROGRESS_LINE_LIMIT:],
+                }
+                match = MINERU_PAGE_PROGRESS_PATTERN.search(rendered)
+                if match:
+                    details.update(
+                        {
+                            "page_current": int(match.group("current")),
+                            "page_total": int(match.group("total")),
+                        }
+                    )
+                emit_progress(progress_callback, "parse_document", "MinerU 解析中", **details)
+    returncode = process.wait()
+    return subprocess.CompletedProcess(
+        command,
+        returncode,
+        stdout="\n".join(output),
+        stderr="",
+    )

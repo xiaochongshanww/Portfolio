@@ -24,11 +24,12 @@ def test_vue_console_contains_required_workflows():
 
     assert "Vue" in package_json or '"vue"' in package_json
     assert "tailwindcss" in package_json
-    assert "构建任务" in app
-    assert 'main class="flex min-h-0 min-w-0 flex-1 flex-col"' in app
-    assert "校对工作台" in app
-    assert "结构化队列" in app
+    assert "app-shell" in app
+    assert 'main class="app-main"' in app
+    assert "内容校对工作台" in app
+    assert "复杂表结构化队列" in app
     assert "问答验证" in app
+    assert "OverviewTab" in app
     assert "/knowledge/documents" in app
     assert "getAdminEvaluationStatus" in app
     assert "listCorrectionCandidateDocuments" in app
@@ -43,7 +44,7 @@ def test_vue_console_contains_required_workflows():
     assert "最终修正文" in review
     assert "原 PDF 页面" in review
     assert "scanManualStructuringQueue" in manual
-    assert "人工结构化" in manual
+    assert "复杂表队列" in manual
     assert "buildManualStructuringDraft" in manual
     assert "结构化 JSON 草稿" in manual
     assert "保存草稿" in manual
@@ -77,7 +78,8 @@ def test_vue_console_contains_required_workflows():
     assert "截图可访问" in evaluation
     assert "evaluation_set: 'structured'" in evaluation
     assert "complex_structured_tables.jsonl" not in evaluation
-    assert "质量运营" in overview
+    assert "知识库生产流程" in overview
+    assert "机器审计" in overview
     assert "自动质量门禁" in overview
     assert "未解决失败任务" in overview
     assert "getAdminQualityStatus" in app

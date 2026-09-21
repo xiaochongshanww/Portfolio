@@ -18,6 +18,7 @@ JOBS_DIR = DATA_DIR / "jobs"
 JOB_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
 INTERRUPTED_ERROR_CODE = "PROCESS_RESTARTED"
 INVALID_RECORD_ERROR_CODE = "JOB_RECORD_INVALID"
+JOB_RESOLUTION_STATUSES = {"acknowledged", "superseded"}
 
 
 class JobStore:
@@ -174,6 +175,90 @@ class JobStore:
                     }
                 result.append(payload if isinstance(payload, dict) else {"message": str(payload)})
             return result
+
+    def resolve_failed(
+        self,
+        job_id: str,
+        *,
+        status: str,
+        note: str,
+        related_job_id: str = "",
+    ) -> dict[str, Any]:
+        """Record an auditable disposition without changing the original failure."""
+        self._validate_job_id(job_id)
+        if status not in JOB_RESOLUTION_STATUSES:
+            raise ValueError(f"不支持的失败任务处置状态: {status}")
+        normalized_note = note.strip()
+        if not normalized_note:
+            raise ValueError("失败任务处置说明不能为空")
+        if len(normalized_note) > 2000:
+            raise ValueError("失败任务处置说明不能超过 2000 个字符")
+
+        normalized_related_job_id = related_job_id.strip()
+        if normalized_related_job_id:
+            self._validate_job_id(normalized_related_job_id)
+            if normalized_related_job_id == job_id:
+                raise ValueError("关联任务不能是当前失败任务")
+        if status == "superseded" and not normalized_related_job_id:
+            raise ValueError("已替代处置必须关联一个已成功任务")
+
+        with self._lock:
+            path = self.job_path(job_id)
+            if not path.exists():
+                raise FileNotFoundError(f"任务不存在: {job_id}")
+            try:
+                payload = self._read_job_payload(path)
+            except (OSError, json.JSONDecodeError, ValueError) as exc:
+                raise ValueError(f"任务记录不可处置: {job_id}") from exc
+            if payload.get("status") != "failed":
+                raise ValueError("只有 failed 任务可以记录处置")
+
+            existing = payload.get("resolution")
+            if isinstance(existing, dict) and existing.get("status"):
+                same_request = (
+                    existing.get("status") == status
+                    and existing.get("note") == normalized_note
+                    and str(existing.get("related_job_id") or "") == normalized_related_job_id
+                )
+                if same_request:
+                    return payload
+                raise ValueError("失败任务已经完成处置，不能覆盖原处置记录")
+
+            related_payload: dict[str, Any] | None = None
+            if normalized_related_job_id:
+                related_path = self.job_path(normalized_related_job_id)
+                if not related_path.exists():
+                    raise ValueError(f"关联任务不存在: {normalized_related_job_id}")
+                try:
+                    related_payload = self._read_job_payload(related_path)
+                except (OSError, json.JSONDecodeError, ValueError) as exc:
+                    raise ValueError(f"关联任务记录不可读取: {normalized_related_job_id}") from exc
+                if related_payload.get("status") != "succeeded":
+                    raise ValueError("已替代处置只能关联 succeeded 任务")
+
+            resolved_at = utc_now()
+            resolution = {
+                "schema_version": 1,
+                "status": status,
+                "note": normalized_note,
+                "resolved_at": resolved_at,
+                "resolved_by": current_request_id() or "operator",
+                "related_job_id": normalized_related_job_id,
+            }
+            payload["resolution"] = resolution
+            payload["updated_at"] = resolved_at
+            self._atomic_write(path, payload)
+            self._append_log_locked(
+                job_id,
+                {
+                    "ts": resolved_at,
+                    "level": "warning",
+                    "message": "失败任务已记录处置，原始失败结果保留",
+                    "error_code": "JOB_FAILURE_RESOLVED",
+                    "resolution": resolution,
+                },
+            )
+            return payload
 
     def heartbeat(self, job_id: str, worker_id: str, *, at: str | None = None) -> bool:
         with self._lock:

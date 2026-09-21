@@ -1,8 +1,10 @@
+import hashlib
 import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import src.quality.gate as quality_gate_module
+from src.evaluation import management
 from src.quality.gate import evaluate_quality_gate, render_quality_gate_markdown, summarize_jobs
 
 
@@ -55,6 +57,49 @@ def test_job_summary_detects_unresolved_and_stale_jobs():
 
     assert result["unresolved_failed_count"] == 1
     assert result["stale_active_count"] == 1
+
+
+def test_job_summary_accepts_explicit_failure_disposition():
+    now = datetime.now(UTC)
+    result = summarize_jobs(
+        [
+            {
+                "job_id": "resolved",
+                "type": "answer_evaluate",
+                "status": "failed",
+                "finished_at": (now - timedelta(days=1)).isoformat(),
+                "resolution": {
+                    "status": "acknowledged",
+                    "note": "已由新的受控回答评估替代。",
+                    "resolved_at": (now - timedelta(hours=2)).isoformat(),
+                },
+            }
+        ],
+        now=now,
+    )
+
+    assert result["historical_failed_count"] == 1
+    assert result["resolved_failed_count"] == 1
+    assert result["unresolved_failed_count"] == 0
+
+
+def test_job_summary_does_not_accept_incomplete_failure_disposition():
+    now = datetime.now(UTC)
+    result = summarize_jobs(
+        [
+            {
+                "job_id": "unresolved",
+                "type": "rebuild",
+                "status": "failed",
+                "finished_at": now.isoformat(),
+                "resolution": {"status": "acknowledged", "note": "缺少处置时间"},
+            }
+        ],
+        now=now,
+    )
+
+    assert result["resolved_failed_count"] == 0
+    assert result["unresolved_failed_count"] == 1
 
 
 def test_quality_gate_passes_matching_artifacts(tmp_path: Path):
@@ -294,3 +339,90 @@ def test_quality_gate_rejects_corrupt_latest_run_pointer(tmp_path: Path, monkeyp
     )
     assert integrity["status"] == "failed"
     assert set(integrity["details"]["errors"].values()) == {"latest_pointer_invalid"}
+
+
+def test_quality_gate_binds_managed_evaluation_revision(tmp_path: Path, monkeypatch):
+    evaluation_store = tmp_path / "evaluation_sets"
+    monkeypatch.setattr(management, "EVALUATION_SETS_DIR", evaluation_store)
+    manifest = tmp_path / "manifest.json"
+    active_db = tmp_path / "active_db.json"
+    data_version = "version-1"
+    _write_json(
+        manifest,
+        {
+            "document_count": 1,
+            "chunk_count": 1,
+            "data_version_hash": data_version,
+            "artifact_status": {"missing_required_count": 0},
+            "audit_status": {"high_risk_count": 0},
+        },
+    )
+    _write_json(
+        active_db,
+        {"manifest": str(manifest), "data_version_hash": data_version, "chunk_count": 1},
+    )
+
+    reports: dict[str, Path] = {}
+    for evaluation_set_id, case_count in (("regular", 100), ("structured", 12), ("answer", 24)):
+        evaluation_path = management.resolve_published_asset(evaluation_set_id)
+        revision_id = management.published_revision_id(evaluation_set_id)
+        report = {
+            "ok": True,
+            "generated_at": datetime.now(UTC).isoformat(),
+            "data_version_hash": data_version,
+            "evidence_context_schema": 1,
+            "verification_run_id": "a" * 32,
+            "runtime_config_hash": "b" * 64,
+            "evaluation_set_revision_id": revision_id,
+            "evaluation_set_hash": hashlib.sha256(evaluation_path.read_bytes()).hexdigest(),
+            "case_count": case_count,
+            "failures": [],
+            "top1_source_hit_rate": 1.0,
+            "authority_hit_rate": 1.0,
+            "structured_table_hit_rate": 1.0,
+            "pass_rate": 1.0,
+            "refusal_pass_rate": 1.0,
+            "check_rates": {
+                "citations": 1.0,
+                "citation_grounded": 1.0,
+                "image_routes": 1.0,
+                "image_offered": 1.0,
+                "image_http": 1.0,
+            },
+        }
+        report_path = tmp_path / f"{evaluation_set_id}.json"
+        _write_json(report_path, report)
+        reports[evaluation_set_id] = report_path
+
+    result = evaluate_quality_gate(
+        manifest_path=manifest,
+        regular_report_path=reports["regular"],
+        structured_report_path=reports["structured"],
+        answer_report_path=reports["answer"],
+        active_db_path=active_db,
+        jobs=[],
+        expected_verification_run_id="a" * 32,
+        expected_runtime_config_hash="b" * 64,
+    )
+    assert result["passed"] is True
+
+    old_revision_id = management.published_revision_id("structured")
+    management.create_draft("structured")
+    edited = dict(management.read_set("structured")["draft_cases"][0])
+    edited["query"] = "修订后的结构化评估问题"
+    management.update_case("structured", str(edited["id"]), edited)
+    management.validate_draft("structured")
+    management.publish_draft("structured")
+    assert management.published_revision_id("structured") != old_revision_id
+
+    stale_result = evaluate_quality_gate(
+        manifest_path=manifest,
+        regular_report_path=reports["regular"],
+        structured_report_path=reports["structured"],
+        answer_report_path=reports["answer"],
+        active_db_path=active_db,
+        jobs=[],
+        expected_verification_run_id="a" * 32,
+        expected_runtime_config_hash="b" * 64,
+    )
+    assert "structured_report_freshness" in stale_result["failed_checks"]

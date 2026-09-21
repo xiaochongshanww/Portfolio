@@ -137,6 +137,9 @@ class Settings:
         default_factory=lambda: _env_int("ASSET_URL_TTL_SECONDS", "3600")
     )
     max_request_bytes: int = field(default_factory=lambda: _env_int("MAX_REQUEST_BYTES", "1048576"))
+    source_upload_max_bytes: int = field(
+        default_factory=lambda: _env_int("SOURCE_UPLOAD_MAX_BYTES", str(512 * 1024**2))
+    )
     rate_limit_enabled: bool = field(
         default_factory=lambda: _env_bool("RATE_LIMIT_ENABLED", "true")
     )
@@ -232,6 +235,8 @@ class Settings:
             issues.append("RETRIEVAL_DENSE_WEIGHT 与 RETRIEVAL_BM25_WEIGHT 不能同时为 0")
         if self.max_request_bytes <= 0:
             issues.append("MAX_REQUEST_BYTES 必须大于 0")
+        if self.source_upload_max_bytes <= 0:
+            issues.append("SOURCE_UPLOAD_MAX_BYTES 必须大于 0")
         if self.rate_limit_enabled and self.rate_limit_per_minute <= 0:
             issues.append("启用限流时 RATE_LIMIT_PER_MINUTE 必须大于 0")
         if not 1 <= self.job_heartbeat_seconds <= 300:

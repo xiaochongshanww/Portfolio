@@ -1,3 +1,5 @@
+import logging
+import time
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +15,8 @@ from src.evaluation.assets import (
     RETRIEVAL_EVALUATION_SET_IDS,
     resolve_evaluation_asset,
 )
-from src.evaluation.runner import STRUCTURED_EVAL_PATH, render_evaluation_markdown, run_evaluation
+from src.evaluation.management import published_revision_id
+from src.evaluation.runner import render_evaluation_markdown, run_evaluation
 from src.pipeline import builder
 from src.pipeline.active_db import active_processed_dir, write_active_db
 from src.pipeline.audit.manual_structuring import (
@@ -26,7 +29,7 @@ from src.pipeline.audit.structuring_ai import (
     generate_structuring_suggestion,
     read_structuring_suggestion,
 )
-from src.pipeline.manifest import write_manifest
+from src.pipeline.manifest import read_manifest, write_manifest
 from src.pipeline.paths import ACTIVE_DB_PATH, AUDIT_DIR, DB_VERSIONS_DIR, MANIFEST_PATH, RAW_DIR
 from src.pipeline.version_retention import execute_cleanup_plan, retention_policy_from_settings
 from src.quality import (
@@ -39,6 +42,7 @@ from src.quality import (
 )
 
 from .models import Job, utc_now
+from .source_management import source_catalog_store
 from .storage import JobStore
 
 
@@ -85,34 +89,50 @@ def _raise_evaluation_failure(
 
 def _set_step(job: Job, store: JobStore, step: str, message: str, **progress: Any) -> None:
     job.step = step
-    job.progress = {"message": message, **progress}
+    job.progress = {"stage": step, "message": message, **progress}
     job.progress_at = utc_now()
     store.save(job)
     store.append_log(job.job_id, "info", message, step=step, progress=job.progress)
 
 
+class _JobProgressReporter:
+    """Persist structured pipeline progress without writing one record per parser line."""
+
+    def __init__(self, job: Job, store: JobStore, *, min_interval_seconds: float = 1.0):
+        self.job = job
+        self.store = store
+        self.min_interval_seconds = min_interval_seconds
+        self._last_emit_at = 0.0
+        self._last_step = ""
+
+    def __call__(self, step: str, message: str, details: dict[str, Any]) -> None:
+        now = time.monotonic()
+        if step == self._last_step and now - self._last_emit_at < self.min_interval_seconds:
+            return
+        self._last_emit_at = now
+        self._last_step = step
+        _set_step(self.job, self.store, step, message, **details)
+
+
 def dry_run_workflow(job: Job, store: JobStore) -> dict[str, Any]:
     source = Path(job.params.get("source", RAW_DIR))
+    metadata_path = Path(job.params.get("metadata_path", settings.source_metadata_path))
     parser_backend = str(job.params.get("parser_backend", builder.DEFAULT_PARSER_BACKEND))
     _set_step(job, store, "dry_run", "检查待处理 PDF")
-    return builder.dry_run(source, parser_backend=parser_backend)
+    return builder.dry_run(source, parser_backend=parser_backend, metadata_path=metadata_path)
 
 
-def rebuild_workflow(job: Job, store: JobStore) -> dict[str, Any]:
-    source = Path(job.params.get("source", RAW_DIR))
-    parser_backend = str(job.params.get("parser_backend", builder.DEFAULT_PARSER_BACKEND))
-    apply_corrections = bool(job.params.get("apply_corrections", True))
-    rebuild_mode = str(job.params.get("mode", "full"))
-    _set_step(
-        job,
-        store,
-        "rebuild",
-        "开始重建知识库",
-        source=str(source),
-        parser_backend=parser_backend,
-        mode=rebuild_mode,
-    )
-    version_dir = DB_VERSIONS_DIR / job.job_id
+def _activate_candidate_version(
+    job: Job,
+    store: JobStore,
+    *,
+    version_dir: Path,
+    manifest: dict[str, Any],
+    source_catalog_revision: str,
+    rebuild_mode: str,
+    version_job_id: str,
+) -> dict[str, Any]:
+    """Gate and atomically activate an already assembled candidate version."""
     db_dir = version_dir / "db"
     processed_dir = version_dir / "processed"
     images_dir = version_dir / "images"
@@ -120,25 +140,7 @@ def rebuild_workflow(job: Job, store: JobStore) -> dict[str, Any]:
     audit_dir = version_dir / "audit"
     quality_dir = version_dir / "quality"
     manifest_path = version_dir / "manifest.json"
-    _set_step(job, store, "build_version", "构建到临时版本目录", db_dir=str(db_dir))
-    build_kwargs = {
-        "parser_backend": parser_backend,
-        "apply_corrections": apply_corrections,
-        "db_dir": db_dir,
-        "manifest_path": manifest_path,
-        "processed_dir": processed_dir,
-        "images_dir": images_dir,
-        "mineru_output_dir": mineru_dir,
-        "audit_dir": audit_dir,
-    }
-    if rebuild_mode == "incremental":
-        manifest = builder.incremental_rebuild(
-            source,
-            requested_mode=rebuild_mode,
-            **build_kwargs,
-        )
-    else:
-        manifest = builder.rebuild(source, build_mode="full", **build_kwargs)
+
     _set_step(
         job,
         store,
@@ -146,6 +148,7 @@ def rebuild_workflow(job: Job, store: JobStore) -> dict[str, Any]:
         "验证候选运行时并执行预激活评估",
         regular_cases=100,
         structured_cases=12,
+        candidate_job_id=version_job_id,
     )
     assessment = assess_candidate_activation(
         manifest_path=manifest_path,
@@ -163,7 +166,10 @@ def rebuild_workflow(job: Job, store: JobStore) -> dict[str, Any]:
             failed_checks=assessment.result.get("failed_checks", []),
             gate_report=gate_artifacts["gate_report"],
         )
-        raise CandidateActivationBlocked(f"候选版本未通过预激活门禁: {failed}")
+        error = f"候选版本未通过预激活门禁: {failed}"
+        if source_catalog_revision:
+            source_catalog_store.fail_revision(source_catalog_revision, error)
+        raise CandidateActivationBlocked(error)
 
     pointer_payload = {
         "active_db_dir": str(db_dir),
@@ -172,31 +178,51 @@ def rebuild_workflow(job: Job, store: JobStore) -> dict[str, Any]:
         "mineru_dir": str(mineru_dir),
         "audit_dir": str(audit_dir),
         "manifest": str(manifest_path),
-        "job_id": job.job_id,
+        "job_id": version_job_id,
+        "activation_job_id": job.job_id,
         "data_version_hash": manifest.get("data_version_hash", ""),
         "chunk_count": manifest.get("chunk_count", 0),
         "activated_at": assessment.result.get("generated_at", ""),
         "candidate_gate_report": gate_artifacts["gate_report"],
+        "source_catalog_revision": source_catalog_revision,
     }
     old_manifest = _snapshot_file(MANIFEST_PATH)
     old_pointer = _snapshot_file(ACTIVE_DB_PATH)
-    _set_step(job, store, "activate_version", "提交候选版本并切换活动指针", db_dir=str(db_dir))
+    old_retrieval_state = retrieval_state.snapshot()
+    _set_step(
+        job,
+        store,
+        "activate_version",
+        "提交候选版本并切换活动指针",
+        db_dir=str(db_dir),
+        candidate_job_id=version_job_id,
+    )
     try:
         write_manifest(MANIFEST_PATH, manifest)
         write_active_db(pointer_payload, ACTIVE_DB_PATH)
         retrieval_state.adopt(assessment.retrieval_state)
+        if source_catalog_revision:
+            source_catalog_store.activate_revision(
+                source_catalog_revision, str(manifest.get("data_version_hash", ""))
+            )
     except Exception:
         _restore_file(ACTIVE_DB_PATH, old_pointer)
         _restore_file(MANIFEST_PATH, old_manifest)
+        retrieval_state.restore(old_retrieval_state)
+        if source_catalog_revision:
+            try:
+                source_catalog_store.fail_revision(
+                    source_catalog_revision, "候选版本激活失败，已恢复旧在线版本"
+                )
+            except Exception:
+                logging.exception("source_revision_failure_status_update_failed")
         raise
 
     cache_index = ""
     try:
         from src.pipeline.incremental import publish_cache_index
 
-        cache_index = str(
-            publish_cache_index(manifest, manifest.get("incremental_plan", {}))
-        )
+        cache_index = str(publish_cache_index(manifest, manifest.get("incremental_plan", {})))
     except Exception as exc:
         store.append_log(
             job.job_id,
@@ -229,7 +255,14 @@ def rebuild_workflow(job: Job, store: JobStore) -> dict[str, Any]:
             "活动版本已切换，但复杂表人工队列刷新失败",
             error=str(exc),
         )
-    _set_step(job, store, "active", "候选版本已通过门禁并成为活动版本", db_dir=str(db_dir))
+    _set_step(
+        job,
+        store,
+        "active",
+        "候选版本已通过门禁并成为活动版本",
+        db_dir=str(db_dir),
+        candidate_job_id=version_job_id,
+    )
     return {
         "manifest": str(MANIFEST_PATH),
         "version_manifest": str(manifest_path),
@@ -246,7 +279,114 @@ def rebuild_workflow(job: Job, store: JobStore) -> dict[str, Any]:
         "rebuild_mode": manifest.get("build_params", {}).get("mode", rebuild_mode),
         "incremental_plan": manifest.get("incremental_plan", {}),
         "cache_index": cache_index,
+        "source_catalog_revision": source_catalog_revision,
+        "candidate_job_id": version_job_id,
+        "activation_job_id": job.job_id,
+        "parsing_reused": True,
     }
+
+
+def rebuild_workflow(job: Job, store: JobStore) -> dict[str, Any]:
+    source = Path(job.params.get("source", RAW_DIR))
+    parser_backend = str(job.params.get("parser_backend", builder.DEFAULT_PARSER_BACKEND))
+    apply_corrections = bool(job.params.get("apply_corrections", True))
+    rebuild_mode = str(job.params.get("mode", "full"))
+    metadata_path = Path(job.params.get("metadata_path", settings.source_metadata_path))
+    source_catalog_revision = str(job.params.get("source_catalog_revision", ""))
+    progress = _JobProgressReporter(job, store)
+    _set_step(
+        job,
+        store,
+        "rebuild",
+        "开始重建知识库",
+        source=str(source),
+        parser_backend=parser_backend,
+        mode=rebuild_mode,
+    )
+    version_dir = DB_VERSIONS_DIR / job.job_id
+    db_dir = version_dir / "db"
+    processed_dir = version_dir / "processed"
+    images_dir = version_dir / "images"
+    mineru_dir = version_dir / "mineru"
+    audit_dir = version_dir / "audit"
+    manifest_path = version_dir / "manifest.json"
+    _set_step(job, store, "build_version", "构建到临时版本目录", db_dir=str(db_dir))
+    build_kwargs = {
+        "parser_backend": parser_backend,
+        "apply_corrections": apply_corrections,
+        "db_dir": db_dir,
+        "manifest_path": manifest_path,
+        "processed_dir": processed_dir,
+        "images_dir": images_dir,
+        "mineru_output_dir": mineru_dir,
+        "audit_dir": audit_dir,
+        "metadata_path": metadata_path,
+        "source_catalog_revision": source_catalog_revision,
+    }
+    try:
+        if rebuild_mode == "incremental":
+            manifest = builder.incremental_rebuild(
+                source,
+                requested_mode=rebuild_mode,
+                progress_callback=progress,
+                **build_kwargs,
+            )
+        else:
+            manifest = builder.rebuild(
+                source,
+                build_mode="full",
+                progress_callback=progress,
+                **build_kwargs,
+            )
+    except Exception as exc:
+        if source_catalog_revision:
+            source_catalog_store.fail_revision(source_catalog_revision, str(exc))
+        raise
+    return _activate_candidate_version(
+        job,
+        store,
+        version_dir=version_dir,
+        manifest=manifest,
+        source_catalog_revision=source_catalog_revision,
+        rebuild_mode=rebuild_mode,
+        version_job_id=job.job_id,
+    )
+
+
+def republish_candidate_workflow(job: Job, store: JobStore) -> dict[str, Any]:
+    """Re-validate and publish an existing candidate without invoking the parser."""
+    candidate_job_id = str(job.params.get("candidate_job_id") or "")
+    source_catalog_revision = str(job.params.get("source_catalog_revision") or "")
+    if not candidate_job_id or not source_catalog_revision:
+        raise RuntimeError("候选重试发布缺少 candidate_job_id 或 source_catalog_revision")
+
+    source_catalog_store.validate_republish_revision(source_catalog_revision)
+    version_dir = DB_VERSIONS_DIR / candidate_job_id
+    manifest_path = version_dir / "manifest.json"
+    manifest = read_manifest(manifest_path)
+    if not manifest:
+        raise RuntimeError(f"候选版本 manifest 不存在: {manifest_path}")
+    recorded_revision = str(manifest.get("build_params", {}).get("source_catalog_revision") or "")
+    if recorded_revision != source_catalog_revision:
+        raise RuntimeError("候选版本与来源 revision 不一致，拒绝发布")
+
+    _set_step(
+        job,
+        store,
+        "candidate_revalidate",
+        "重新验证已有候选版本（不重新解析）",
+        candidate_job_id=candidate_job_id,
+        source_catalog_revision=source_catalog_revision,
+    )
+    return _activate_candidate_version(
+        job,
+        store,
+        version_dir=version_dir,
+        manifest=manifest,
+        source_catalog_revision=source_catalog_revision,
+        rebuild_mode="candidate_republish",
+        version_job_id=candidate_job_id,
+    )
 
 
 def cleanup_versions_workflow(job: Job, store: JobStore) -> dict[str, Any]:
@@ -396,12 +536,13 @@ def evaluate_workflow(job: Job, store: JobStore) -> dict[str, Any]:
         **run_evaluation(eval_file, top_k=top_k),
         **current_evidence_context(),
         "evaluation_set_id": evaluation_set_id,
+        "evaluation_set_revision_id": published_revision_id(evaluation_set_id),
     }
     run_id = str(job.params.get("verification_run_id") or "")
     if run_id:
         result["verification_run_id"] = validate_verification_run_id(run_id)
     out_dir = AUDIT_DIR / "reports"
-    is_structured = eval_file.resolve() == STRUCTURED_EVAL_PATH.resolve()
+    is_structured = evaluation_set_id == "structured"
     out_path, markdown_path = write_quality_report(
         out_dir,
         "structured" if is_structured else "regular",
@@ -487,6 +628,7 @@ def answer_evaluate_workflow(job: Job, store: JobStore) -> dict[str, Any]:
         }
     result.update(current_evidence_context())
     result["evaluation_set_id"] = evaluation_set_id
+    result["evaluation_set_revision_id"] = published_revision_id(evaluation_set_id)
     run_id = str(job.params.get("verification_run_id") or "")
     if run_id:
         result["verification_run_id"] = validate_verification_run_id(run_id)

@@ -52,6 +52,10 @@ def test_expected_routes_exist():
     assert "/admin/elements/{doc}/{element_index}" in paths
     assert "/admin/page-image/{doc}/{page}" in paths
     assert "/admin/quality/status" in paths
+    assert "/admin/sources" in paths
+    assert "/admin/sources/uploads" in paths
+    assert "/admin/sources/changes/plan" in paths
+    assert "/admin/sources/changes/build" in paths
 
     admin_source = __import__("pathlib").Path("src/app/api/admin.py").read_text(encoding="utf-8")
     assert "unresolved_failed_job_count" in admin_source

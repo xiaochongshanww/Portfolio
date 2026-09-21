@@ -7,7 +7,8 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from .admin.jobs import job_manager
-from .api import admin, chat, health, images, integrations, knowledge
+from .admin.source_management import reconcile_interrupted_source_revisions
+from .api import admin, chat, health, images, integrations, knowledge, sources
 from .core.config import settings
 from .core.logging import configure_logging
 from .core.middleware import ServiceMiddleware
@@ -17,6 +18,9 @@ from .retrieval.hybrid_search import retrieval_state
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.job_recovery = job_manager.reconcile_interrupted_jobs()
+    app.state.source_revision_recovery_count = reconcile_interrupted_source_revisions(
+        app.state.job_recovery.get("recovered", [])
+    )
     logging.info(
         "job_startup_reconciliation_completed",
         extra={"extra_data": app.state.job_recovery},
@@ -45,6 +49,7 @@ def create_app() -> FastAPI:
     app.include_router(integrations.router)
     app.include_router(knowledge.router)
     app.include_router(admin.router)
+    app.include_router(sources.router)
     app.include_router(chat.router)
 
     @app.get("/")

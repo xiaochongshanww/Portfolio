@@ -18,6 +18,7 @@ from .gate import (
     render_quality_gate_markdown,
     summarize_jobs,
 )
+from .report_compare import compare_quality_runs, list_complete_quality_runs
 from .report_store import (
     QUALITY_REPORT_STORE_LOCK_NAME,
     QUALITY_RUN_LATEST_POINTER_NAME,
@@ -80,6 +81,8 @@ __all__ = [
     "resolve_latest_quality_artifact",
     "resolve_latest_quality_artifacts",
     "write_quality_report",
+    "compare_quality_runs",
+    "list_complete_quality_runs",
     "QUALITY_RUN_RETENTION_SCHEMA_VERSION",
     "QualityRunRetentionError",
     "QualityRunRetentionPolicy",

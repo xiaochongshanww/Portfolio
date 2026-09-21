@@ -66,6 +66,9 @@ DEFINITION_HEADING_RE = re.compile(
     r"(?:^|\n)\s*(?:[A-Z]\.)?\d+(?:\.\d+){1,3}\s*[^\n]{0,40}(?:标准值|设计值)"
 )
 
+CLAUSE_EXACT_BODY_BOOST = 4.0
+CLAUSE_EXPLANATION_PENALTY = 4.5
+
 
 def tokenize_chinese(text: str) -> list[str]:
     normalized = re.sub(r"[^一-鿿\w]", " ", text.lower())
@@ -326,6 +329,31 @@ class RetrievalState:
             self.runtime_data = candidate.runtime_data
             self.db_dir = candidate.db_dir
 
+    def snapshot(self) -> "RetrievalState":
+        """Capture the current in-memory runtime so an activation can be rolled back."""
+        snapshot = RetrievalState(self.config, reranker=self.reranker)
+        with self._state_lock:
+            snapshot.zhipu_client = self.zhipu_client
+            snapshot.chroma_client = self.chroma_client
+            snapshot.chroma_collection = self.chroma_collection
+            snapshot.dense_vector_store = self.dense_vector_store
+            snapshot.bm25_index = self.bm25_index
+            snapshot.bm25_texts = self.bm25_texts
+            snapshot.runtime_data = self.runtime_data
+            snapshot.db_dir = self.db_dir
+        return snapshot
+
+    def restore(self, snapshot: "RetrievalState") -> None:
+        with self._state_lock:
+            self.zhipu_client = snapshot.zhipu_client
+            self.chroma_client = snapshot.chroma_client
+            self.chroma_collection = snapshot.chroma_collection
+            self.dense_vector_store = snapshot.dense_vector_store
+            self.bm25_index = snapshot.bm25_index
+            self.bm25_texts = snapshot.bm25_texts
+            self.runtime_data = snapshot.runtime_data
+            self.db_dir = snapshot.db_dir
+
     @property
     def ready(self) -> bool:
         with self._state_lock:
@@ -353,12 +381,8 @@ class RetrievalState:
             return self.dense_vector_store.query(embedding, n_results)
         if not self.chroma_collection:
             return []
-        result = self.chroma_collection.query(
-            query_embeddings=[embedding], n_results=n_results
-        )
-        return list(
-            zip(result["ids"][0], result["distances"][0], strict=True)
-        )
+        result = self.chroma_collection.query(query_embeddings=[embedding], n_results=n_results)
+        return list(zip(result["ids"][0], result["distances"][0], strict=True))
 
     def hybrid_search(self, query: str, top_k: int) -> list[RetrievalResult]:
         with self._state_lock:
@@ -486,7 +510,10 @@ class RetrievalState:
                     or title_text.startswith(clause_num)
                     or title_text.startswith(f"{clause_num} ")
                     or text_contains_clause_heading(title_text, clause_num)
-                    or (section_type == "body" and text_contains_clause_heading(text, clause_num))
+                    or (
+                        section_type in {"body", "body_table"}
+                        and text_contains_clause_heading(text, clause_num)
+                    )
                 )
                 has_clause_reference = text_mentions_clause(
                     title_text, clause_num
@@ -690,11 +717,11 @@ class RetrievalState:
             elif query_info.intent == "clause_requirement":
                 clause_match_kind = str(meta.get("clause_match_kind") or "")
                 if section_type == "explanation":
-                    candidate.score -= 3.5
+                    candidate.score -= CLAUSE_EXPLANATION_PENALTY
                     candidate.add_source("domain")
                     candidate.add_reason("clause query de-prioritizes explanation")
                 elif clause_match_kind == "heading" and section_type in {"body", "body_table"}:
-                    candidate.score += 2.5
+                    candidate.score += CLAUSE_EXACT_BODY_BOOST
                     candidate.add_source("domain")
                     candidate.add_reason("clause query prefers exact body evidence")
                 elif section_type in {"body", "body_table"}:

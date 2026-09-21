@@ -21,6 +21,7 @@ from src.pipeline.paths import (
     PROCESSED_DIR,
     RAW_DIR,
 )
+from src.pipeline.progress import ProgressCallback, emit_progress
 
 DEFAULT_PARSER_BACKEND = os.environ.get("PDF_PARSER_BACKEND", "mineru")
 
@@ -140,12 +141,40 @@ def process_pdf(
     parser: PdfParser,
     *,
     apply_corrections: bool = True,
+    progress_callback: ProgressCallback | None = None,
+    document_index: int = 0,
+    document_total: int = 0,
 ) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
     image_dir.mkdir(parents=True, exist_ok=True)
     logging.info("处理: %s parser=%s", pdf_path.name, parser.name)
 
-    parse_result = parser.parse(pdf_path, image_dir)
+    emit_progress(
+        progress_callback,
+        "parse_document",
+        "开始解析文档",
+        document=pdf_path.name,
+        document_index=document_index,
+        document_total=document_total,
+        parser_backend=parser.name,
+    )
+    if progress_callback is None:
+        parse_result = parser.parse(pdf_path, image_dir)
+    else:
+        parse_result = parser.parse(
+            pdf_path,
+            image_dir,
+            progress_callback=progress_callback,
+        )
+    emit_progress(
+        progress_callback,
+        "audit_document",
+        "解析完成，正在执行结构审计",
+        document=pdf_path.name,
+        document_index=document_index,
+        document_total=document_total,
+        element_count=len(parse_result.elements),
+    )
     audit_report = audit_elements(pdf_path.name, parse_result.elements, parse_result.artifacts)
     elements = parse_result.elements
     correction_summary = {
@@ -157,10 +186,27 @@ def process_pdf(
         "skipped": [],
     }
     if apply_corrections:
+        emit_progress(
+            progress_callback,
+            "apply_corrections",
+            "正在应用已审批修正",
+            document=pdf_path.name,
+            document_index=document_index,
+            document_total=document_total,
+        )
         elements, correction_summary = apply_approved_corrections(
             elements, pdf_path.name, CORRECTIONS_DIR
         )
 
+    emit_progress(
+        progress_callback,
+        "chunk_documents",
+        "正在生成结构化 Chunk",
+        document=pdf_path.name,
+        document_index=document_index,
+        document_total=document_total,
+        element_count=len(elements),
+    )
     raw_chunks = chunk_to_paragraphs(elements)
     chunks = normalize_chunks(raw_chunks, spec)
     quality = build_quality_entry(pdf_path, elements, chunks, parse_result.artifacts)
@@ -191,6 +237,16 @@ def process_pdf(
     (out_dir / f"{basename}_chunks.json").write_text(
         json.dumps(chunks, ensure_ascii=False, indent=2), encoding="utf-8"
     )
+    emit_progress(
+        progress_callback,
+        "chunk_documents",
+        "文档结构化完成",
+        document=pdf_path.name,
+        document_index=document_index,
+        document_total=document_total,
+        chunk_count=len(chunks),
+        image_count=len(parse_result.media_files),
+    )
     return {
         "chunks": chunks,
         "artifacts": parse_result.artifacts,
@@ -211,10 +267,19 @@ def process_pdfs(
     parser_backend: str = DEFAULT_PARSER_BACKEND,
     mineru_output_dir: Path = MINERU_DIR,
     apply_corrections: bool = True,
+    progress_callback: ProgressCallback | None = None,
 ) -> dict[str, dict]:
     parser = create_parser(parser_backend, mineru_output_dir=mineru_output_dir)
     results_by_file: dict[str, dict] = {}
-    for pdf_file in pdf_files:
+    document_total = len(pdf_files)
+    emit_progress(
+        progress_callback,
+        "parse_documents",
+        "开始处理待构建文档",
+        document_total=document_total,
+        parser_backend=parser_backend,
+    )
+    for document_index, pdf_file in enumerate(pdf_files, start=1):
         results_by_file[pdf_file.name] = process_pdf(
             pdf_file,
             metadata[pdf_file.name],
@@ -222,6 +287,9 @@ def process_pdfs(
             image_dir,
             parser,
             apply_corrections=apply_corrections,
+            progress_callback=progress_callback,
+            document_index=document_index,
+            document_total=document_total,
         )
 
     images = list(image_dir.glob("*"))
@@ -251,6 +319,14 @@ def process_pdfs(
     }
     (out_dir / "build_quality.json").write_text(
         json.dumps(quality_report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    emit_progress(
+        progress_callback,
+        "parse_documents",
+        "文档解析与结构化全部完成",
+        document_total=document_total,
+        chunk_count=quality_report["totals"]["chunk_count"],
+        image_count=quality_report["totals"]["image_count"],
     )
     return results_by_file
 

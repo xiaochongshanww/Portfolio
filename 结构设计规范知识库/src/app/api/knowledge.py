@@ -32,6 +32,7 @@ async def knowledge_documents():
             "built_at": "",
             "parser_backend": "",
             "missing_artifact_count": 0,
+            "audit_status": {"finding_count": 0, "high_risk_count": 0},
         }
     return {
         "built": True,
@@ -44,6 +45,7 @@ async def knowledge_documents():
         "metadata_status": manifest.get("metadata_status", "unknown"),
         "parser_backend": manifest.get("build_params", {}).get("parser_backend", ""),
         "missing_artifact_count": manifest.get("artifact_status", {}).get("missing_count", 0),
+        "audit_status": manifest.get("audit_status", {"finding_count": 0, "high_risk_count": 0}),
     }
 
 

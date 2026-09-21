@@ -39,9 +39,9 @@ def test_current_runtime_manifest_is_consistent_after_repair():
 
     assert result["ok"] is True
     assert result["issues"] == []
-    assert result["document_count"] == 5
-    assert result["chunk_sum"] == 1635
-    assert result["declared_chunk_count"] == 1635
+    assert result["document_count"] == 7
+    assert result["chunk_sum"] == 2689
+    assert result["declared_chunk_count"] == 2689
 
 
 def test_runtime_manifest_accepts_matching_pointer_and_document_totals(tmp_path):

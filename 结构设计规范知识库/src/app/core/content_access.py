@@ -3,6 +3,7 @@ from pathlib import Path
 from urllib.parse import unquote
 
 from src.pipeline.metadata import VALID_ASSET_ACCESS_SCOPES, load_metadata_overrides
+from src.pipeline.source_catalog import SourceCatalogStore
 
 from .config import settings
 
@@ -24,10 +25,43 @@ def _document_records() -> list[dict] | None:
         return None
 
 
+def _catalog_document_records() -> list[dict]:
+    data_dir = getattr(settings, "data_dir", None)
+    if not data_dir:
+        return []
+    try:
+        catalog = SourceCatalogStore(Path(data_dir)).read()
+    except (OSError, ValueError, TypeError):
+        return []
+
+    records = []
+    for source in catalog.get("sources", []):
+        if not source.get("active_asset_version_id"):
+            continue
+        metadata = source.get("active_metadata") or source.get("metadata")
+        if isinstance(metadata, dict) and metadata.get("source_file"):
+            records.append(dict(metadata))
+    return records
+
+
+def _all_document_records() -> list[dict] | None:
+    records = _document_records()
+    if records is None:
+        return None
+    by_source = {
+        Path(str(record.get("source_file") or "")).name.casefold(): record for record in records
+    }
+    for record in _catalog_document_records():
+        source_file = Path(str(record.get("source_file") or "")).name.casefold()
+        if source_file:
+            by_source[source_file] = record
+    return list(by_source.values())
+
+
 def _record_for_source(source: str) -> dict | None:
     decoded = Path(unquote(source)).name.casefold()
     decoded_stem = Path(decoded).stem
-    records = _document_records()
+    records = _all_document_records()
     if records is None:
         raise RuntimeError("来源访问策略不可用")
     for record in records:
@@ -43,7 +77,7 @@ def _record_for_source(source: str) -> dict | None:
 def _record_for_image(filename: str) -> dict | None:
     image_stem = Path(unquote(filename)).name.casefold()
     matches: list[tuple[int, dict]] = []
-    records = _document_records()
+    records = _all_document_records()
     if records is None:
         raise RuntimeError("来源访问策略不可用")
     for record in records:

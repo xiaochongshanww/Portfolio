@@ -2,6 +2,7 @@ import argparse
 import json
 from pathlib import Path
 
+from .management import migrate_builtin_assets
 from .rerank_comparison import render_rerank_comparison_markdown, run_rerank_comparison
 from .runner import DEFAULT_EVAL_PATH, run_evaluation
 
@@ -17,6 +18,17 @@ def main() -> None:
     compare_parser.add_argument("--top-k", type=int, default=5)
     compare_parser.add_argument("--json-output", type=Path)
     compare_parser.add_argument("--markdown-output", type=Path)
+    migrate_parser = subparsers.add_parser(
+        "migrate", help="将内置评估集显式迁移到 DATA_DIR/evaluation_sets"
+    )
+    migrate_parser.add_argument(
+        "--set",
+        dest="evaluation_set_id",
+        choices=("regular", "structured", "answer"),
+        help="只迁移指定评估集；默认迁移全部评估集",
+    )
+    migrate_parser.add_argument("--actor", default="local-maintainer")
+    migrate_parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
     if args.command == "run":
@@ -38,6 +50,17 @@ def main() -> None:
         print(serialized)
         if not result.get("ok", False):
             raise SystemExit(1)
+    elif args.command == "migrate":
+        try:
+            result = migrate_builtin_assets(
+                args.evaluation_set_id,
+                actor=args.actor,
+                dry_run=args.dry_run,
+            )
+        except Exception as exc:
+            print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False, indent=2))
+            raise SystemExit(1) from exc
+        print(json.dumps({"ok": True, **result}, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

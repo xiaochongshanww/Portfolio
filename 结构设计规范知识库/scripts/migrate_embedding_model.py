@@ -48,7 +48,9 @@ def _production_sources(manifest: dict[str, Any]) -> list[str]:
     return sources
 
 
-def _load_processed_chunks(processed_dir: Path, sources: list[str]) -> dict[str, list[dict[str, Any]]]:
+def _load_processed_chunks(
+    processed_dir: Path, sources: list[str]
+) -> dict[str, list[dict[str, Any]]]:
     chunks_by_file: dict[str, list[dict[str, Any]]] = {}
     for source_file in sources:
         path = processed_dir / f"{Path(source_file).stem}_chunks.json"
@@ -154,7 +156,9 @@ def migrate_embedding_model(
             f"活动 manifest 与 chunk 计数不一致: expected={expected_counts}, actual={actual_counts}"
         )
 
-    version_dir = (output_dir or DB_VERSIONS_DIR / f"embedding-migration-{datetime.now(UTC):%Y%m%d%H%M%S}").resolve()
+    version_dir = (
+        output_dir or DB_VERSIONS_DIR / f"embedding-migration-{datetime.now(UTC):%Y%m%d%H%M%S}"
+    ).resolve()
     if version_dir.exists():
         raise EmbeddingMigrationError(f"候选目录已存在: {version_dir}")
     candidate_db_dir = version_dir / "db"

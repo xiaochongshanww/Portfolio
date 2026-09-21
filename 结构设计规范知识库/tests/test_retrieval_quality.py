@@ -560,6 +560,41 @@ def test_clause_heading_does_not_treat_explanation_reference_as_exact_match():
     assert pool["explanation"].meta["clause_match_kind"] == "reference"
 
 
+def test_clause_heading_treats_body_table_text_heading_as_exact_match():
+    state = RetrievalState()
+    query_info = analyze_query("荷载规范第5.1.3条对消防车活荷载有什么规定？")
+    all_data = {
+        "ids": ["table", "explanation"],
+        "metadatas": [
+            {
+                "title": "表5.1.2 消防车活荷载",
+                "clause_number": "5.1.2",
+                "chunk_type": "table",
+                "section_type": "body_table",
+                "name": "建筑结构荷载规范",
+            },
+            {
+                "title": "条文说明",
+                "clause_number": "0.386",
+                "chunk_type": "explanation",
+                "name": "建筑结构荷载规范",
+            },
+        ],
+    }
+    id_to_doc = {
+        "table": "5.1.3 消防车活荷载应按本条规定采用。",
+        "explanation": "条文说明 5.1.3 消防车荷载的背景解释。",
+    }
+    id_to_meta = dict(zip(all_data["ids"], all_data["metadatas"], strict=True))
+    pool: dict[str, RetrievalCandidate] = {}
+
+    state._add_clause_matches(query_info, all_data, id_to_doc, id_to_meta, pool)
+
+    assert pool["table"].meta["clause_match_kind"] == "heading"
+    state._apply_domain_ranking(query_info, pool)
+    assert pool["table"].score > pool["explanation"].score
+
+
 def test_rag_context_includes_source_header():
     result = RetrievalResult(
         doc_id="1",

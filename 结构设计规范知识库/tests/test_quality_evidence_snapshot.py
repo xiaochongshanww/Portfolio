@@ -314,7 +314,9 @@ def test_snapshot_validation_rejects_missing_system_card_marker(tmp_path: Path):
 
     card = project / "docs/quality/检索增强生成系统卡.md"
     card.write_text(
-        card.read_text(encoding="utf-8").replace("`verification.passed=true`", ""),
+        card.read_text(encoding="utf-8")
+        .replace("`verification.passed=true`", "")
+        .replace("`verification.passed=false`", ""),
         encoding="utf-8",
     )
 
