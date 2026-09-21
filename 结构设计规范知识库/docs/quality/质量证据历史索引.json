@@ -2,8 +2,130 @@
   "schema_version": 1,
   "entries": [
     {
+      "archive_path": "docs/quality/质量证据历史/20260831T032645Z-577bb4acbcab.json",
+      "snapshot_sha256": "577bb4acbcab24efa077d56188040fd9634c843fd9bc3512550ec7189617b070",
+      "release_quality_status": "passed",
+      "verification_generated_at": "2026-08-31T03:26:45.840474+00:00",
+      "quality_gate_generated_at": "2026-08-31T03:26:45.649640+00:00",
+      "failed_checks": [],
+      "evaluation_case_counts": {
+        "regular": 100,
+        "structured": 12,
+        "answer": 24
+      }
+    },
+    {
+      "archive_path": "docs/quality/质量证据历史/20260831T022549Z-c456d86758ef.json",
+      "snapshot_sha256": "c456d86758ef2ab67654fcbef8a69f7fb1e73f894d49693c61d1274fd0c9d98f",
+      "release_quality_status": "passed",
+      "verification_generated_at": "2026-08-31T02:25:49.338219+00:00",
+      "quality_gate_generated_at": "2026-08-31T02:25:49.129468+00:00",
+      "failed_checks": [],
+      "evaluation_case_counts": {
+        "regular": 100,
+        "structured": 12,
+        "answer": 24
+      }
+    },
+    {
+      "archive_path": "docs/quality/质量证据历史/20260831T020826Z-2eb4ec6087de.json",
+      "snapshot_sha256": "2eb4ec6087dec38f70f0f92c40c849ca489b7513cb8e8a871a0bc7f39fc7639b",
+      "release_quality_status": "not_passed",
+      "verification_generated_at": "2026-08-31T02:08:26.675850+00:00",
+      "quality_gate_generated_at": "2026-08-31T02:08:26.467418+00:00",
+      "failed_checks": [],
+      "evaluation_case_counts": {
+        "regular": 100,
+        "structured": 12,
+        "answer": 24
+      }
+    },
+    {
+      "archive_path": "docs/quality/质量证据历史/20260831T014537Z-cdd57b1aa4d5.json",
+      "snapshot_sha256": "cdd57b1aa4d53953550fd3a5a78db9cf0ea1ff03280f73e02ad5a920f24da752",
+      "release_quality_status": "passed",
+      "verification_generated_at": "2026-08-31T01:45:37.919911+00:00",
+      "quality_gate_generated_at": "2026-08-31T01:45:37.727179+00:00",
+      "failed_checks": [],
+      "evaluation_case_counts": {
+        "regular": 100,
+        "structured": 12,
+        "answer": 24
+      }
+    },
+    {
+      "archive_path": "docs/quality/质量证据历史/20260831T005355Z-d95e392febc5.json",
+      "snapshot_sha256": "d95e392febc58be186d0c395a38f77bc4c6e44bd959f0c5377860e0896cf7b5f",
+      "release_quality_status": "not_passed",
+      "verification_generated_at": "2026-08-31T00:53:55.928960+00:00",
+      "quality_gate_generated_at": "2026-08-31T00:53:55.727589+00:00",
+      "failed_checks": [
+        "unresolved_jobs"
+      ],
+      "evaluation_case_counts": {
+        "regular": 100,
+        "structured": 12,
+        "answer": 24
+      }
+    },
+    {
+      "archive_path": "docs/quality/质量证据历史/20260831T003837Z-dd1c838e3cfe.json",
+      "snapshot_sha256": "dd1c838e3cfe4fb0ab7ea7c020103fdf24642822c1ea095c2cebebed36f4b5c7",
+      "release_quality_status": "not_passed",
+      "verification_generated_at": "2026-08-31T00:38:37.316077+00:00",
+      "quality_gate_generated_at": "2026-08-31T00:38:35.411897+00:00",
+      "failed_checks": [
+        "regular_evaluation",
+        "structured_evaluation",
+        "answer_evaluation",
+        "regular_report_freshness",
+        "structured_report_freshness",
+        "answer_report_freshness",
+        "unresolved_jobs"
+      ],
+      "evaluation_case_counts": {
+        "regular": 100,
+        "structured": 12,
+        "answer": 24
+      }
+    },
+    {
+      "archive_path": "docs/quality/质量证据历史/20260830T144730Z-504904e3922e.json",
+      "snapshot_sha256": "504904e3922efb2cb4a128c11550bf7b72be37a8cb5e8df5155f5d05df8a6248",
+      "release_quality_status": "not_passed",
+      "verification_generated_at": "2026-08-30T14:47:30.548213+00:00",
+      "quality_gate_generated_at": "2026-08-30T14:47:30.143870+00:00",
+      "failed_checks": [
+        "regular_evaluation",
+        "structured_evaluation",
+        "answer_evaluation",
+        "regular_report_freshness",
+        "structured_report_freshness",
+        "answer_report_freshness",
+        "unresolved_jobs"
+      ],
+      "evaluation_case_counts": {
+        "regular": 100,
+        "structured": 12,
+        "answer": 24
+      }
+    },
+    {
       "archive_path": "docs/quality/质量证据历史/20260819T185948Z-a9d6a319550c.json",
       "snapshot_sha256": "a9d6a319550cedd19e0908339fd7783bc812f7ece096c5c5d3f54ffe101f86d9",
+      "release_quality_status": "passed",
+      "verification_generated_at": "2026-08-19T18:59:48.902003+00:00",
+      "quality_gate_generated_at": "2026-08-19T18:59:48.755867+00:00",
+      "failed_checks": [],
+      "evaluation_case_counts": {
+        "regular": 100,
+        "structured": 12,
+        "answer": 24
+      }
+    },
+    {
+      "archive_path": "docs/quality/质量证据历史/20260819T185948Z-2c7e5303f04b.json",
+      "snapshot_sha256": "2c7e5303f04bac78a87b6611be5203244ccfcbf9d4a0c3688c223536a7b03750",
       "release_quality_status": "passed",
       "verification_generated_at": "2026-08-19T18:59:48.902003+00:00",
       "quality_gate_generated_at": "2026-08-19T18:59:48.755867+00:00",

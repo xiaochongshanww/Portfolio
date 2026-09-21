@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>管理后台业务页面原型集</title>
+  <style>
+    :root {
+      --navy: #0b1730;
+      --navy-2: #122344;
+      --ink: #17233b;
+      --muted: #68758c;
+      --line: #dfe5ee;
+      --line-soft: #edf1f6;
+      --surface: #ffffff;
+      --canvas: #f3f6fa;
+      --blue: #1f66e5;
+      --blue-soft: #e9f1ff;
+      --green: #19875b;
+      --green-soft: #e8f7ef;
+      --amber: #a86500;
+      --amber-soft: #fff3d8;
+      --red: #bd3b45;
+      --red-soft: #ffe9ea;
+      --shadow: 0 4px 14px rgba(18, 35, 68, 0.06);
+      font-family: Inter, "Segoe UI", "Microsoft YaHei", sans-serif;
+      color: var(--ink);
+      background: var(--canvas);
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 1180px; background: var(--canvas); }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    button:focus { outline: none; }
+    .nav button:focus-visible { outline: 0; box-shadow: inset 0 0 0 1px rgba(159,194,255,.72); }
+    input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid #9fc2ff; outline-offset: 1px; }
+    .app { display: grid; grid-template-columns: 244px minmax(0, 1fr); min-height: 100vh; }
+    .sidebar { display: flex; flex-direction: column; background: var(--navy); color: #eef4ff; }
+    .brand { padding: 25px 22px 22px; border-bottom: 1px solid rgba(255,255,255,.1); }
+    .brand h1 { margin: 0; font-size: 17px; letter-spacing: .01em; }
+    .brand p { margin: 7px 0 0; color: #a9bbd9; font-size: 12px; line-height: 1.5; }
+    .nav { padding: 18px 12px; }
+    .nav-section { padding: 17px 12px 7px; color: #8497b8; font-size: 12px; letter-spacing: .06em; }
+    .nav button { width: 100%; display: flex; align-items: center; gap: 10px; border: 0; border-radius: 6px; padding: 11px 12px; margin-bottom: 5px; color: #c4d0e4; background: transparent; text-align: left; }
+    .nav button:hover { color: #fff; background: rgba(255,255,255,.1); }
+    .nav button.active { color: #fff; background: var(--blue); }
+    .nav .icon { width: 18px; color: #a9bbd9; text-align: center; }
+    .nav button.active .icon { color: #fff; }
+    .nav .count { margin-left: auto; min-width: 22px; padding: 2px 6px; border-radius: 10px; background: rgba(255,255,255,.14); text-align: center; font-size: 11px; }
+    .side-footer { margin-top: auto; padding: 17px 22px 22px; border-top: 1px solid rgba(255,255,255,.1); color: #9fb0cc; font-size: 12px; line-height: 1.5; }
+    .side-footer strong { display: block; margin-top: 6px; color: #eff5ff; font-size: 13px; }
+
+    .main { min-width: 0; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; min-height: 72px; padding: 0 30px; background: var(--surface); border-bottom: 1px solid var(--line); }
+    .topbar h2 { margin: 0; font-size: 20px; }
+    .topbar p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+    .top-actions { display: flex; align-items: center; gap: 10px; }
+    .connection { display: flex; align-items: center; gap: 7px; color: var(--green); font-size: 12px; }
+    .connection i { width: 8px; height: 8px; border-radius: 50%; background: #32ad73; }
+    .content { max-width: 1700px; margin: 0 auto; padding: 24px 30px 44px; }
+    .page-intro { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
+    .page-intro h3 { margin: 5px 0 0; font-size: 21px; }
+    .page-intro p { max-width: 760px; margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .eyebrow, .section-label { color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+    .section-label { margin-bottom: 10px; text-transform: none; letter-spacing: 0; }
+    .btn { border: 1px solid var(--line); border-radius: 5px; padding: 10px 14px; background: #fff; color: var(--ink); font-weight: 600; }
+    .btn:hover { border-color: #afc1dd; background: #f8fbff; }
+    .btn-primary { border-color: var(--blue); background: var(--blue); color: #fff; }
+    .btn-primary:hover { border-color: #1556c4; background: #1556c4; }
+    .btn-danger { border-color: #efb8bd; background: #fff7f7; color: var(--red); }
+    .btn-small { padding: 7px 10px; font-size: 12px; }
+    .btn[disabled] { cursor: not-allowed; opacity: .5; }
+    .panel { border: 1px solid var(--line); border-radius: 6px; background: var(--surface); box-shadow: 0 2px 8px rgba(18,35,68,.03); }
+    .panel-focus { border-color: #b9d0f5; box-shadow: var(--shadow); }
+    .panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 17px 18px; border-bottom: 1px solid var(--line); }
+    .panel-head h3 { margin: 0; font-size: 15px; }
+    .panel-head p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .panel-body { padding: 17px 18px; }
+    .muted { color: var(--muted); }
+    .pill { display: inline-flex; align-items: center; min-height: 22px; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+    .pill.blue { color: var(--blue); background: var(--blue-soft); }
+    .pill.green { color: var(--green); background: var(--green-soft); }
+    .pill.amber { color: var(--amber); background: var(--amber-soft); }
+    .pill.red { color: var(--red); background: var(--red-soft); }
+    .pill.gray { color: #59677f; background: #edf1f5; }
+    .stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+    .stat { padding: 13px 15px; border: 1px solid var(--line); border-radius: 5px; background: #fff; }
+    .stat-label { color: var(--muted); font-size: 12px; }
+    .stat-value { display: block; margin-top: 7px; font-size: 21px; font-weight: 750; }
+    .stat-note { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .blue-text { color: var(--blue); }
+    .green-text { color: var(--green); }
+    .amber-text { color: var(--amber); }
+    .red-text { color: var(--red); }
+    .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 18px; border-bottom: 1px solid var(--line); }
+    .toolbar-group { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .field { min-height: 38px; width: 100%; border: 1px solid #cbd6e5; border-radius: 5px; padding: 8px 10px; color: var(--ink); background: #fff; }
+    .field-label { display: block; margin-bottom: 6px; color: var(--muted); font-size: 12px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+    .form-grid .wide { grid-column: 1 / -1; }
+    .screen { display: none; }
+    .screen.active { display: block; }
+    .empty { display: flex; min-height: 180px; align-items: center; justify-content: center; padding: 28px; color: var(--muted); font-size: 13px; }
+    .notice { padding: 12px 14px; border-left: 3px solid var(--blue); background: var(--blue-soft); color: #50617d; font-size: 13px; line-height: 1.6; }
+    .notice.amber { border-left-color: var(--amber); background: var(--amber-soft); color: #78520c; }
+    .notice.green { border-left-color: var(--green); background: var(--green-soft); color: #236849; }
+    .toast { position: fixed; right: 28px; bottom: 24px; z-index: 5; display: none; max-width: 420px; padding: 12px 15px; border: 1px solid #bcd2f4; border-radius: 5px; background: #f7faff; box-shadow: var(--shadow); color: var(--ink); font-size: 12px; }
+    .toast.show { display: block; }
+
+    .source-layout, .quality-layout { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(430px, .85fr); gap: 14px; align-items: start; min-width: 0; }
+    .source-table, .jobs-table { width: 100%; border-collapse: collapse; }
+    .source-table th, .source-table td, .jobs-table th, .jobs-table td { padding: 13px 14px; border-bottom: 1px solid var(--line-soft); text-align: left; vertical-align: middle; font-size: 12px; }
+    .source-table th, .jobs-table th { color: var(--muted); background: #fafbfd; font-size: 11px; font-weight: 700; }
+    .source-table tr:last-child td, .jobs-table tr:last-child td { border-bottom: 0; }
+    .source-table tbody tr, .jobs-table tbody tr { cursor: pointer; }
+    .source-table tbody tr:hover, .jobs-table tbody tr:hover, .list-item:hover { background: #f6f9fe; }
+    .source-table tbody tr.selected, .jobs-table tbody tr.selected { background: var(--blue-soft); }
+    .source-name { font-weight: 700; }
+    .source-file { margin-top: 4px; color: var(--muted); font-size: 11px; word-break: break-all; }
+    .detail-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .detail-header h3 { margin: 0; font-size: 16px; line-height: 1.45; }
+    .detail-header p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+    .subsection { padding-top: 17px; margin-top: 17px; border-top: 1px solid var(--line-soft); }
+    .subsection h4 { margin: 0 0 11px; font-size: 13px; }
+    .asset-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); font-size: 12px; }
+    .asset-row:last-child { border-bottom: 0; }
+    .asset-id { color: var(--muted); font: 11px ui-monospace, SFMono-Regular, Consolas, monospace; word-break: break-all; }
+
+    .jobs-layout, .versions-layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(380px, .8fr); gap: 14px; align-items: start; min-width: 0; }
+    .jobs-table td.error { max-width: 320px; color: var(--red); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .job-id { font: 12px ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .job-progress { display: flex; align-items: center; gap: 9px; color: var(--muted); }
+    .progress { width: 92px; height: 6px; overflow: hidden; border-radius: 3px; background: #e8edf4; }
+    .progress b { display: block; height: 100%; background: var(--blue); }
+    .job-title { font-size: 16px; font-weight: 700; }
+    .job-meta { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 8px; color: var(--muted); font-size: 12px; }
+    .step-list { margin: 18px 0 0; padding: 0; list-style: none; }
+    .step-list li { display: grid; grid-template-columns: 24px minmax(0,1fr) auto; gap: 10px; align-items: start; padding: 12px 0; border-bottom: 1px solid var(--line-soft); }
+    .step-list li:last-child { border-bottom: 0; }
+    .step-icon { display: flex; width: 22px; height: 22px; align-items: center; justify-content: center; border-radius: 50%; color: #fff; background: #aab5c5; font-size: 11px; font-weight: 700; }
+    .step-list .done .step-icon { background: var(--green); }
+    .step-list .current .step-icon { background: var(--blue); }
+    .step-list strong { font-size: 12px; }
+    .step-list p { margin: 4px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .log-window { max-height: 270px; margin-top: 17px; overflow: auto; padding: 13px; border-radius: 4px; background: #0d1629; color: #d8e5ff; font: 11px/1.65 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; }
+    .version-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin-bottom: 14px; }
+    .version-card { padding: 18px; border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 5px; background: #fff; }
+    .version-card.active { border-left-color: #77c79b; background: #f5fcf8; }
+    .version-card.candidate { border-left-color: #e0ae4d; background: #fffbf2; }
+    .version-card h3 { margin: 0; font-size: 15px; }
+    .version-id { margin-top: 9px; color: var(--muted); font: 12px ui-monospace, SFMono-Regular, Consolas, monospace; word-break: break-all; }
+    .version-card p { margin: 9px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .version-values { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; color: var(--muted); font-size: 11px; }
+    .version-values b { display: block; margin-top: 3px; color: var(--ink); font-size: 13px; }
+    .version-history { width: 100%; border-collapse: collapse; }
+    .version-history th, .version-history td { padding: 12px 14px; border-bottom: 1px solid var(--line-soft); text-align: left; font-size: 12px; }
+    .version-history th { color: var(--muted); background: #fafbfd; font-size: 11px; }
+
+    .review-layout { display: grid; grid-template-columns: 250px minmax(0, 1fr) minmax(430px, .9fr); gap: 14px; align-items: stretch; min-width: 0; }
+    .source-layout > *, .quality-layout > *, .jobs-layout > *, .versions-layout > *, .review-layout > *, .table-layout > *, .chat-layout > * { min-width: 0; }
+    .review-column { min-width: 0; }
+    .review-list { max-height: 720px; overflow: auto; padding: 8px; }
+    .list-item { display: block; width: 100%; border: 0; border-bottom: 1px solid var(--line-soft); padding: 12px 10px; background: transparent; color: var(--ink); text-align: left; }
+    .list-item.active { background: var(--blue-soft); }
+    .list-item strong { display: block; font-size: 12px; }
+    .list-item small { display: block; margin-top: 5px; color: var(--muted); font-size: 11px; line-height: 1.4; }
+    .pdf-shell { padding: 14px; background: #dfe6f0; }
+    .pdf-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; color: var(--muted); font-size: 12px; }
+    .pdf-page { min-height: 680px; padding: 36px 38px; overflow: auto; background: #fff; box-shadow: 0 1px 4px rgba(18,35,68,.12); color: #253149; font-family: "SimSun", "Songti SC", serif; line-height: 1.9; }
+    .pdf-page h4 { margin: 0 0 20px; text-align: center; font-family: "SimHei", "Microsoft YaHei", sans-serif; font-size: 20px; }
+    .pdf-page p { margin: 9px 0; font-size: 15px; }
+    .pdf-page .clause { font-weight: 700; }
+    .pdf-page table { width: 100%; margin-top: 18px; border-collapse: collapse; font-family: "Microsoft YaHei", sans-serif; font-size: 12px; }
+    .pdf-page th, .pdf-page td { border: 1px solid #637087; padding: 7px; text-align: center; }
+    .detail-scroll { max-height: 730px; overflow: auto; }
+    .evidence-block { padding: 13px 14px; border-radius: 5px; background: #f7f9fc; font-size: 13px; line-height: 1.75; white-space: pre-wrap; }
+    .evidence-block.ai { background: #eef5ff; }
+    .editor { min-height: 142px; resize: vertical; line-height: 1.65; }
+    .render-preview { margin-top: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 5px; background: #fff; line-height: 1.65; }
+    .render-preview h4 { margin: 0 0 8px; font-size: 13px; }
+    .render-preview table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .render-preview th, .render-preview td { border: 1px solid #cbd6e5; padding: 6px; text-align: left; }
+
+    .table-layout { display: grid; grid-template-columns: 270px minmax(0, 1fr) minmax(440px, .9fr); gap: 14px; align-items: stretch; min-width: 0; }
+    .task-list { max-height: 760px; overflow: auto; padding: 8px; }
+    .task-item { display: block; width: 100%; border: 0; border-bottom: 1px solid var(--line-soft); padding: 12px 10px; background: transparent; color: var(--ink); text-align: left; }
+    .task-item:hover { background: #f6f9fe; }
+    .task-item.active { background: var(--blue-soft); }
+    .task-item strong { display: block; font-size: 12px; }
+    .task-item small { display: block; margin-top: 5px; color: var(--muted); font-size: 11px; line-height: 1.4; }
+    .table-canvas { min-width: 720px; padding: 22px; background: #fff; }
+    .table-canvas h3 { margin: 0 0 8px; font-size: 16px; }
+    .table-canvas p { margin: 0 0 15px; color: var(--muted); font-size: 12px; }
+    .source-table-preview { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .source-table-preview th, .source-table-preview td { min-width: 88px; border: 1px solid #718096; padding: 10px 8px; text-align: center; }
+    .source-table-preview th { background: #f1f4f8; }
+    .source-table-preview .merged { background: #fafbfd; }
+    .cell-warning { background: #fff5dd; box-shadow: inset 0 0 0 2px #e0ae4d; }
+    .structure-editor { max-height: 760px; overflow: auto; }
+    .editor-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .editor-table th, .editor-table td { padding: 9px 8px; border-bottom: 1px solid var(--line-soft); text-align: left; vertical-align: top; }
+    .editor-table th { color: var(--muted); font-size: 11px; }
+    .cell-input { width: 100%; min-width: 90px; border: 1px solid #cbd6e5; border-radius: 4px; padding: 6px; }
+    .schema-note { margin-top: 14px; padding: 11px 12px; border-radius: 4px; background: #f7f9fc; color: var(--muted); font-size: 11px; line-height: 1.6; }
+
+    .gate-list { padding: 3px 18px 8px; }
+    .gate { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 15px 0; border-bottom: 1px solid var(--line-soft); }
+    .gate:last-child { border-bottom: 0; }
+    .gate strong { display: block; font-size: 13px; }
+    .gate p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .result-box { padding: 18px; border-left: 4px solid var(--green); background: var(--green-soft); }
+    .result-box h3 { margin: 0; font-size: 17px; }
+    .result-box p { margin: 7px 0 0; color: #236849; font-size: 13px; line-height: 1.6; }
+    .metric-list { margin: 0; padding: 0; list-style: none; }
+    .metric-list li { display: flex; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line-soft); font-size: 12px; }
+    .metric-list li:last-child { border-bottom: 0; }
+    .failure-list { margin: 0; padding: 0; list-style: none; }
+    .failure-list li { padding: 12px 0; border-bottom: 1px solid var(--line-soft); }
+    .failure-list li:last-child { border-bottom: 0; }
+    .failure-list strong { font-size: 12px; }
+    .failure-list p { margin: 5px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+
+    .chat-layout { display: grid; grid-template-columns: 270px minmax(0, 1fr) 320px; gap: 14px; align-items: stretch; min-width: 0; }
+    .chat-settings, .chat-evidence { padding: 18px; }
+    .chat-settings h3, .chat-evidence h3 { margin: 0; font-size: 15px; }
+    .chat-settings p, .chat-evidence p { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .setting { padding: 15px 0; border-bottom: 1px solid var(--line-soft); }
+    .setting:last-child { border-bottom: 0; }
+    .setting-title { color: var(--muted); font-size: 11px; }
+    .setting-value { margin-top: 5px; font-size: 13px; font-weight: 700; }
+    .chat-main { display: flex; min-height: 680px; flex-direction: column; }
+    .messages { flex: 1; overflow: auto; padding: 22px; background: #fbfcfe; }
+    .message { max-width: 82%; margin-bottom: 18px; }
+    .message.user { margin-left: auto; }
+    .message-label { margin-bottom: 5px; color: var(--muted); font-size: 11px; }
+    .message-body { padding: 13px 15px; border-radius: 6px; background: #fff; box-shadow: 0 1px 4px rgba(18,35,68,.05); font-size: 13px; line-height: 1.75; }
+    .message.user .message-body { background: var(--blue-soft); }
+    .answer-title { margin: 0 0 8px; font-size: 17px; }
+    .answer-table { width: 100%; margin: 9px 0; border-collapse: collapse; font-size: 12px; }
+    .answer-table th, .answer-table td { border: 1px solid #d4ddea; padding: 8px; text-align: left; }
+    .answer-table th { background: #f6f8fb; }
+    .citation { display: inline-block; margin: 5px 5px 0 0; padding: 3px 7px; border-radius: 4px; background: var(--green-soft); color: var(--green); font-size: 11px; }
+    .chat-input { display: flex; gap: 8px; padding: 14px; border-top: 1px solid var(--line); background: #fff; }
+    .chat-input textarea { min-height: 44px; max-height: 120px; resize: vertical; }
+    .evidence-card { margin-top: 17px; padding-top: 15px; border-top: 1px solid var(--line-soft); }
+    .evidence-card strong { display: block; font-size: 12px; }
+    .evidence-card p { margin: 5px 0 0; }
+    .image-placeholder { display: flex; min-height: 150px; align-items: center; justify-content: center; margin-top: 10px; border: 1px dashed #b8c7dc; background: #f5f8fc; color: var(--muted); font-size: 12px; }
+
+    .footnote { margin-top: 18px; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    @media (max-width: 1400px) {
+      body { min-width: 1024px; }
+      .app { grid-template-columns: 210px minmax(0,1fr); }
+      .content { padding: 20px; }
+      .topbar { padding: 0 20px; }
+      .review-layout { grid-template-columns: 230px minmax(0,1fr) minmax(390px,.9fr); }
+      .table-layout { grid-template-columns: 235px minmax(0,1fr); }
+      .table-layout .structure-editor { grid-column: 1 / -1; }
+      .chat-layout { grid-template-columns: 230px minmax(0,1fr); }
+      .chat-evidence { grid-column: 1 / -1; }
+    }
+    @media (max-width: 1040px) {
+      body { min-width: 0; }
+    }
+    @media (max-width: 900px) {
+      body { min-width: 0; }
+      .app { display: block; }
+      .sidebar { display: block; }
+      .brand { padding: 18px 16px 14px; }
+      .nav { display: flex; gap: 6px; padding: 10px 12px; overflow-x: auto; }
+      .nav-section { display: none; }
+      .nav button { flex: 0 0 auto; width: auto; margin: 0; white-space: nowrap; }
+      .nav .count { margin-left: 3px; }
+      .side-footer { display: none; }
+      .topbar { min-height: 64px; padding: 12px 16px; }
+      .connection { display: none; }
+      .content { padding: 18px 16px 32px; }
+      .page-intro { display: block; }
+      .page-intro p { margin-bottom: 12px; }
+      .stat-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .source-layout, .quality-layout, .jobs-layout, .versions-layout, .review-layout, .table-layout, .chat-layout { grid-template-columns: 1fr; }
+      .review-layout .pdf-shell { order: 1; }
+      .review-layout .review-column:first-child { order: 0; }
+      .review-layout .review-column:last-child { order: 2; }
+      .table-layout .structure-editor, .chat-evidence { grid-column: auto; }
+      .table-canvas { min-width: 660px; }
+      .chat-main { min-height: 600px; }
+      .version-hero { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 560px) {
+      .topbar h2 { font-size: 18px; }
+      .stat-grid { grid-template-columns: 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+      .form-grid .wide { grid-column: auto; }
+      .toolbar { align-items: flex-start; flex-direction: column; }
+      .pdf-page { padding: 24px 20px; }
+      .page-intro h3 { font-size: 19px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <h1>结构规范知识库</h1>
+        <p>管理后台业务页面原型集</p>
+      </div>
+      <nav class="nav" aria-label="页面原型导航">
+        <div class="nav-section">知识生产</div>
+        <button data-screen="sources" class="active" aria-current="page"><span class="icon">□</span><span>规范来源</span><span class="count">7</span></button>
+        <button data-screen="jobs"><span class="icon">↻</span><span>构建与版本</span><span class="count">1</span></button>
+        <button data-screen="review"><span class="icon">✓</span><span>内容校对</span><span class="count">19</span></button>
+        <button data-screen="tables"><span class="icon">▤</span><span>复杂表结构化</span><span class="count">14</span></button>
+        <div class="nav-section">质量与运行</div>
+        <button data-screen="quality"><span class="icon">◇</span><span>质量验证</span></button>
+        <button data-screen="chat"><span class="icon">◌</span><span>问答验证</span></button>
+      </nav>
+      <div class="side-footer">
+        原型状态
+        <strong>● 六个工作区已载入</strong>
+        <span>仅用于页面评审，不连接真实 API</span>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h2 id="topTitle">规范来源管理</h2>
+          <p id="topSubtitle">登记来源、核对元数据，并形成可追溯的构建输入</p>
+        </div>
+        <div class="top-actions">
+          <span class="connection"><i></i>原型演示</span>
+          <button class="btn" id="refreshButton">刷新状态</button>
+        </div>
+      </header>
+
+      <section class="content">
+        <div class="page-intro">
+          <div>
+            <div class="eyebrow">页面原型集 · <span id="screenLabel">来源管理</span></div>
+            <h3 id="pageTitle">规范来源目录</h3>
+            <p id="pageDescription">先登记来源资产和治理边界，再确认本轮候选构建的输入范围。在线版本不会因单独保存元数据而改变。</p>
+          </div>
+          <button class="btn btn-primary" id="pageAction">上传 PDF</button>
+        </div>
+
+        <section class="screen active" data-screen-panel="sources">
+          <div class="stat-grid">
+            <div class="stat"><span class="stat-label">来源总数</span><strong class="stat-value">7</strong><span class="stat-note">已登记规范来源</span></div>
+            <div class="stat"><span class="stat-label">已上线</span><strong class="stat-value green-text">5</strong><span class="stat-note">当前活动版本中的来源</span></div>
+            <div class="stat"><span class="stat-label">待应用变更</span><strong class="stat-value amber-text">2</strong><span class="stat-note">确认后才会进入候选构建</span></div>
+            <div class="stat"><span class="stat-label">活动来源修订</span><strong class="stat-value" style="font-size:15px">src-20260823111957</strong><span class="stat-note">来源快照已固化</span></div>
+          </div>
+          <div class="source-layout">
+            <section class="panel">
+              <div class="panel-head"><div><h3>来源清单</h3><p>选择一项查看资产版本与治理信息</p></div><select class="field" style="width:160px" aria-label="筛选来源状态"><option>全部状态</option><option>已上线</option><option>待新增</option><option>待更新</option></select></div>
+              <div style="overflow:auto">
+                <table class="source-table">
+                  <thead><tr><th>规范</th><th>状态</th><th>当前资产</th><th>页数</th><th>更新时间</th></tr></thead>
+                  <tbody>
+                    <tr class="selected source-row" data-name="JGJ 94-2008 建筑桩基技术规范" data-status="待新增"><td><div class="source-name">JGJ 94-2008 建筑桩基技术规范</div><div class="source-file">07.建筑桩基技术规范 JGJ 94-2008.pdf</div></td><td><span class="pill amber">待新增</span></td><td class="muted">262c4c08894b</td><td>329</td><td class="muted">2026/8/23 19:21</td></tr>
+                    <tr class="source-row" data-name="GB 50009-2012 建筑结构荷载规范" data-status="已上线"><td><div class="source-name">GB 50009-2012 建筑结构荷载规范</div><div class="source-file">GB 50009-2012_建筑结构荷载规范.pdf</div></td><td><span class="pill green">已上线</span></td><td class="muted">d1a91530b06f</td><td>268</td><td class="muted">2026/8/23 19:19</td></tr>
+                    <tr class="source-row" data-name="GB 50011-2010 建筑抗震设计规范（2016年版）" data-status="已上线"><td><div class="source-name">GB 50011-2010 建筑抗震设计规范（2016年版）</div><div class="source-file">GB 50011-2010_建筑抗震设计规范_2016年版.pdf</div></td><td><span class="pill green">已上线</span></td><td class="muted">28283726d8dd</td><td>526</td><td class="muted">2026/8/23 19:19</td></tr>
+                    <tr class="source-row" data-name="GB 50068-2018 建筑结构可靠性设计统一标准" data-status="已上线"><td><div class="source-name">GB 50068-2018 建筑结构可靠性设计统一标准</div><div class="source-file">GB 50068-2018_建筑结构可靠性设计统一标准.pdf</div></td><td><span class="pill green">已上线</span></td><td class="muted">399ac69d99d0</td><td>144</td><td class="muted">2026/8/23 19:19</td></tr>
+                    <tr class="source-row" data-name="GB 50300-2013 建筑工程施工质量验收统一标准" data-status="已上线"><td><div class="source-name">GB 50300-2013 建筑工程施工质量验收统一标准</div><div class="source-file">GB 50300-2013_建筑工程施工质量验收统一标准.pdf</div></td><td><span class="pill green">已上线</span></td><td class="muted">ed5dc40cdba8</td><td>63</td><td class="muted">2026/8/23 19:19</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+            <section class="panel panel-focus">
+              <div class="panel-body">
+                <div class="detail-header"><div><h3 id="sourceDetailName">JGJ 94-2008 建筑桩基技术规范</h3><p>source-07-jgj-94-2008-ee85ef81</p></div><span class="pill amber" id="sourceDetailStatus">待新增</span></div>
+                <div class="subsection"><h4>规范元数据</h4><div class="form-grid"><label><span class="field-label">规范编号</span><input class="field" value="JGJ 94-2008"></label><label><span class="field-label">规范名称</span><input class="field" value="建筑桩基技术规范"></label><label><span class="field-label">版本</span><input class="field" placeholder="由来源资料确定"></label><label><span class="field-label">实施日期</span><input class="field" type="date"></label><label class="wide"><span class="field-label">别名</span><input class="field" value="桩基规范, JGJ94"></label><label class="wide"><span class="field-label">备注</span><textarea class="field" rows="3">用户上传资料，待人工核对来源信息。</textarea></label></div></div>
+                <div class="subsection"><h4>来源与使用边界</h4><div class="form-grid"><label><span class="field-label">来源类型</span><select class="field"><option>用户上传</option><option>官方发布</option><option>授权副本</option></select></label><label><span class="field-label">权利状态</span><select class="field"><option>B · 仅内部使用</option><option>A · 可分发</option><option>待确认</option></select></label><label class="wide"><span class="field-label">来源索引/凭证</span><input class="field" placeholder="填写来源网站、文件凭证或授权说明"></label><label><span class="field-label">页面截图访问</span><select class="field"><option>禁用</option><option>仅认证用户</option></select></label><label><span class="field-label">内容图片访问</span><select class="field"><option>禁用</option><option>仅认证用户</option></select></label></div></div>
+                <div class="subsection"><h4>资产版本 <span class="muted" style="font-weight:400">1 个</span></h4><div class="asset-row"><div><strong>07.建筑桩基技术规范 JGJ 94-2008.pdf</strong><div class="asset-id">262c4c08894b77212a8e0be07c3d9cd5e0032357c9744c42c86de06bac1e78087</div></div><span class="muted">329 页</span></div></div>
+                <div class="toolbar-group" style="margin-top:17px"><button class="btn btn-primary" id="saveSource">保存元数据</button><button class="btn" id="validateSource">重新校验</button><button class="btn" id="confirmSource">确认变更</button><button class="btn btn-danger" id="discardSource">撤销草稿</button></div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="screen" data-screen-panel="jobs">
+          <div class="stat-grid"><div class="stat"><span class="stat-label">运行中</span><strong class="stat-value blue-text">1</strong><span class="stat-note">source_rebuild · build_version</span></div><div class="stat"><span class="stat-label">排队中</span><strong class="stat-value">0</strong><span class="stat-note">没有等待调度的任务</span></div><div class="stat"><span class="stat-label">未解决失败</span><strong class="stat-value red-text">2</strong><span class="stat-note">不影响当前活动版本</span></div><div class="stat"><span class="stat-label">当前活动版本</span><strong class="stat-value" style="font-size:15px">c3b499dc4c42</strong><span class="stat-note">已通过候选门禁</span></div></div>
+          <div class="jobs-layout">
+            <section class="panel"><div class="toolbar"><div><strong>任务队列</strong><div class="muted" style="margin-top:5px;font-size:12px">每项任务显示当前步骤、进度和错误，不隐藏后台执行状态。</div></div><div class="toolbar-group"><select class="field" style="width:140px" aria-label="筛选任务状态"><option>全部状态</option><option>运行中</option><option>已失败</option><option>已完成</option></select><button class="btn btn-small">刷新队列</button></div></div><div style="overflow:auto"><table class="jobs-table"><thead><tr><th>任务</th><th>状态</th><th>当前步骤</th><th>进度</th><th>最近更新</th><th>错误</th></tr></thead><tbody><tr class="selected job-row"><td><div class="job-id">c3b499dc4c42</div><div class="muted" style="margin-top:4px">source_rebuild</div></td><td><span class="pill blue">运行中</span></td><td>build_version</td><td><div class="job-progress"><div class="progress"><b style="width:68%"></b></div>68%</div></td><td class="muted">刚刚</td><td class="error">-</td></tr><tr class="job-row"><td><div class="job-id">84d52998ce49</div><div class="muted" style="margin-top:4px">source_republish</div></td><td><span class="pill green">已完成</span></td><td>finished</td><td>100%</td><td class="muted">今天 21:20</td><td class="error">-</td></tr><tr class="job-row"><td><div class="job-id">f4fbd644e810</div><div class="muted" style="margin-top:4px">source_rebuild</div></td><td><span class="pill red">已失败</span></td><td>failed</td><td>-</td><td class="muted">今天 19:28</td><td class="error">未找到 PDF 解析 CLI：magic-pdf</td></tr><tr class="job-row"><td><div class="job-id">answer-evaluate-01</div><div class="muted" style="margin-top:4px">answer_evaluate</div></td><td><span class="pill red">已失败</span></td><td>failed</td><td>-</td><td class="muted">8 月 21 日</td><td class="error">回答级盲测未完成</td></tr></tbody></table></div></section>
+            <section class="panel panel-focus"><div class="panel-head"><div><h3>任务详情</h3><p>选中任务查看步骤、产物和完整日志</p></div><span class="pill blue">运行中</span></div><div class="panel-body"><div class="job-title">知识库增量候选重建</div><div class="job-meta"><span>任务 ID：<b class="job-id">c3b499dc4c42</b></span><span>启动：00:03</span><span>责任方：系统</span></div><div class="notice" style="margin-top:16px">当前正在构建候选版本。当前活动版本保持不变，只有候选门禁通过后才会激活新版本。</div><ol class="step-list"><li class="done"><span class="step-icon">✓</span><div><strong>创建来源 revision</strong><p>7 份规范输入已固化</p></div><span class="pill green">完成</span></li><li class="done"><span class="step-icon">✓</span><div><strong>复用可信解析产物</strong><p>未重新调用 MinerU，复用已验证的解析结果</p></div><span class="pill green">完成</span></li><li class="current"><span class="step-icon">3</span><div><strong>构建数据库与版本清单</strong><p>正在写入 Chunk、图片资产、结构化表和 manifest</p></div><span class="pill blue">进行中</span></li><li><span class="step-icon">4</span><div><strong>执行候选质量门禁</strong><p>等待构建产物完成后自动开始</p></div><span class="pill gray">待开始</span></li></ol><pre class="log-window">[00:03:22] INFO  [build_version] 开始构建候选版本
+[00:03:24] INFO  复用解析资产：7 documents
+[00:04:18] INFO  写入向量索引：2689 chunks
+[00:04:21] INFO  写入图片资产：847 images
+[00:04:26] INFO  当前步骤：build_version · 68%
+...</pre><div class="toolbar-group" style="margin-top:15px"><button class="btn btn-small" id="openFullLog">查看完整日志</button><button class="btn btn-small" id="cancelJob">请求停止</button></div></div></section>
+          </div>
+        </section>
+
+        <section class="screen" data-screen-panel="review">
+          <div class="notice amber" style="margin-bottom:14px">内容校对只处理文本、公式和普通表格候选；复杂表进入独立的结构化队列。批准修正会在下一次候选构建时应用，不会直接改写当前活动版本。</div>
+          <div class="review-layout">
+            <section class="panel review-column"><div class="panel-head"><div><h3>校对候选</h3><p>按规范筛选待审和已处理项</p></div><span class="pill amber">19 待审</span></div><div class="toolbar" style="padding:10px"><select class="field" aria-label="校对状态"><option>待审</option><option>已批准</option><option>已拒绝</option><option>全部</option></select></div><div class="review-list"><button class="list-item active review-item"><strong>formula_error_231</strong><small>page 42 · element 231<br>公式识别 · medium</small></button><button class="list-item review-item"><strong>issue_001</strong><small>page 40 · element 228<br>段落合并 · low</small></button><button class="list-item review-item"><strong>table_header_missing</strong><small>page 41 · element 234<br>普通表格 · medium</small></button><button class="list-item review-item"><strong>ocr_error_240</strong><small>page 42 · element 240<br>OCR 错误 · medium</small></button></div></section>
+            <section class="panel review-column pdf-shell"><div class="pdf-toolbar"><span>原 PDF 页面 · page 42</span><div class="toolbar-group"><button class="btn btn-small">缩小</button><button class="btn btn-small">放大</button><button class="btn btn-small">适应宽度</button></div></div><div class="pdf-page"><h4>5.1 楼面和屋面活荷载</h4><p class="clause">5.1.1　民用建筑楼面均布活荷载标准值及其组合值、频遇值和准永久值系数，应按表5.1.1采用。</p><p>当使用荷载较大、情况特殊或有专门要求时，应按实际情况采用。</p><p>表中所列标准值为设计时必须遵守的最低要求。</p><table><thead><tr><th>项次</th><th>类别</th><th>标准值（kN/m²）</th><th>组合值系数</th></tr></thead><tbody><tr><td>1</td><td>办公楼</td><td>2.0</td><td>0.7</td></tr><tr><td>2</td><td>会议室</td><td>2.0</td><td>0.7</td></tr><tr><td>3</td><td>档案室</td><td>5.0</td><td>0.9</td></tr></tbody></table><p style="margin-top:28px">注：本页为原文页面示意，用于核对候选内容的位置、符号和排版。</p></div></section>
+            <section class="panel review-column"><div class="panel-head"><div><h3>候选详情与审批</h3><p id="reviewItemMeta">GB 50009-2012 · page 42 · element 231</p></div><span class="pill amber">medium</span></div><div class="detail-scroll"><div class="panel-body"><div class="section-label">当前解析文本</div><div class="evidence-block" id="reviewCurrent">办公楼楼面均布活荷载标准值为 2.0 kN/m2，组合值系数为 0.7。</div><div class="section-label" style="margin-top:18px">AI 证据</div><div class="evidence-block ai">截图中的单位使用上标 ²，解析文本中的 `m2` 未保留排版信息。此候选只建议修正单位显示，不改变数值和业务含义。</div><div class="section-label" style="margin-top:18px">最终修正文</div><textarea class="field editor" id="reviewEditor">办公楼楼面均布活荷载标准值为 2.0 kN/m²，组合值系数为 0.7。</textarea><div class="render-preview"><h4>最终修正文预览</h4><p id="reviewPreview">办公楼楼面均布活荷载标准值为 2.0 kN/m²，组合值系数为 0.7。</p></div><div class="toolbar-group" style="margin-top:17px"><button class="btn btn-primary" id="approveReview">批准</button><button class="btn btn-danger" id="rejectReview">拒绝</button><button class="btn" id="saveReview">保存修正</button></div></div></div></section>
+          </div>
+        </section>
+
+        <section class="screen" data-screen-panel="tables">
+          <div class="stat-grid"><div class="stat"><span class="stat-label">待处理表格</span><strong class="stat-value amber-text">14</strong><span class="stat-note">当前阻塞候选发布</span></div><div class="stat"><span class="stat-label">已完成</span><strong class="stat-value green-text">19</strong><span class="stat-note">已发布结构化表</span></div><div class="stat"><span class="stat-label">AI 建议覆盖</span><strong class="stat-value">12 / 14</strong><span class="stat-note">仍需人工确认</span></div><div class="stat"><span class="stat-label">当前数据版本</span><strong class="stat-value" style="font-size:15px">c3b499dc4c42</strong><span class="stat-note">结构化修改不会即时上线</span></div></div>
+          <div class="table-layout">
+            <section class="panel"><div class="panel-head"><div><h3>复杂表队列</h3><p>选择任务开始对照处理</p></div><span class="pill amber">14 待处理</span></div><div class="task-list"><button class="task-item active"><strong>table_248 · 屋面雪荷载</strong><small>page 43 · table_misaligned<br>高风险 · 需确认合并单元格</small></button><button class="task-item"><strong>table_249 · 屋面形式系数</strong><small>page 44 · table_misaligned<br>高风险 · 含图示和嵌套表</small></button><button class="task-item"><strong>table_640 · 柱截面配筋率</strong><small>page 80 · ocr_error<br>中风险 · 需核对数值</small></button><button class="task-item"><strong>table_655 · 箍筋加密区</strong><small>page 81 · formula_error<br>高风险 · 含公式和脚注</small></button></div></section>
+            <section class="panel"><div class="panel-head"><div><h3>原文表格</h3><p>page 43 · 表 7.2.1 · 以 PDF 为最终证据</p></div><button class="btn btn-small">查看整页</button></div><div style="overflow:auto"><div class="table-canvas"><h3>表 7.2.1 屋面形式及积雪分布系数</h3><p>以下结构保留表头、合并关系、单位和表注；图示区域在正式页面中显示原始截图。</p><table class="source-table-preview"><thead><tr><th rowspan="2">项次</th><th rowspan="2">类别</th><th colspan="5">屋面形式及积雪分布系数 μr</th><th rowspan="2">备注</th></tr><tr><th>均匀分布</th><th>不均匀分布</th><th>坡度 α</th><th>系数</th><th>图示</th></tr></thead><tbody><tr><td>1</td><td>单跨单坡屋面</td><td>μr</td><td class="cell-warning">0.75μr</td><td>≤25°</td><td>1.0</td><td class="merged">示意图</td><td>—</td></tr><tr><td rowspan="2">2</td><td rowspan="2">单跨双坡屋面</td><td colspan="2">均匀分布的情况</td><td>α</td><td>1.0</td><td class="merged">示意图</td><td rowspan="2">按第1项采用</td></tr><tr><td colspan="2">不均匀分布的情况</td><td>α</td><td>1.25μr</td><td class="merged">示意图</td></tr><tr><td>3</td><td>拱形屋面</td><td>μr,m</td><td class="cell-warning">0.2 + 10f/l</td><td>≤60°</td><td>—</td><td class="merged">示意图</td><td>—</td></tr></tbody></table><div class="notice amber" style="margin-top:18px">黄色单元格是本任务的人工确认点：请核对原 PDF 中的符号、合并关系和脚注，不要仅根据线性化文本补全表格。</div></div></div></section>
+            <section class="panel panel-focus structure-editor"><div class="panel-head"><div><h3>结构化编辑</h3><p>保存后进入待发布草稿，需通过结构化质量门禁</p></div><span class="pill amber">草稿</span></div><div class="panel-body"><div class="section-label">表元数据</div><div class="form-grid"><label><span class="field-label">表号</span><input class="field" value="表 7.2.1"></label><label><span class="field-label">表名</span><input class="field" value="屋面形式及积雪分布系数"></label><label><span class="field-label">单位</span><input class="field" value="无量纲"></label><label><span class="field-label">来源页</span><input class="field" value="43"></label></div><div class="section-label" style="margin-top:18px">单元格内容</div><div style="overflow:auto"><table class="editor-table"><thead><tr><th>行</th><th>列</th><th>当前值</th><th>确认值</th><th>状态</th></tr></thead><tbody><tr><td>1</td><td>系数</td><td>0.75μr</td><td><input class="cell-input" value="0.75μr"></td><td><span class="pill amber">待确认</span></td></tr><tr><td>3</td><td>系数</td><td>0.2 + 10f/l</td><td><input class="cell-input" value="0.2 + 10f/l"></td><td><span class="pill amber">待确认</span></td></tr><tr><td>3</td><td>备注</td><td>—</td><td><input class="cell-input" value="—"></td><td><span class="pill green">已确认</span></td></tr></tbody></table></div><div class="schema-note">保存内容包括表号、表名、来源页、列定义、行数据、合并单元格关系、图示引用和表注。发布按钮只会生成版本草稿，不会跳过候选门禁。</div><div class="toolbar-group" style="margin-top:17px"><button class="btn btn-primary" id="saveTable">保存结构化草稿</button><button class="btn" id="aiTableSuggestion">查看 AI 建议</button><button class="btn" id="tableSourceCode">查看当前解析文本</button></div></div></section>
+          </div>
+        </section>
+
+        <section class="screen" data-screen-panel="quality">
+          <div class="stat-grid"><div class="stat"><span class="stat-label">当前门禁</span><strong class="stat-value green-text">已通过</strong><span class="stat-note">候选版本可独立加载</span></div><div class="stat"><span class="stat-label">常规评估</span><strong class="stat-value">100 条</strong><span class="stat-note">来源命中率 100%</span></div><div class="stat"><span class="stat-label">结构化评估</span><strong class="stat-value amber-text">待执行</strong><span class="stat-note">等待复杂表草稿发布</span></div><div class="stat"><span class="stat-label">回答级评估</span><strong class="stat-value amber-text">待执行</strong><span class="stat-note">绑定下一活动版本</span></div></div>
+          <div class="quality-layout"><section class="panel panel-focus"><div class="panel-head"><div><h3>候选质量门禁</h3><p>逐项展示发布前的必要条件和阻断原因</p></div><span class="pill amber">部分待执行</span></div><div class="gate-list"><div class="gate"><div><strong>候选运行时</strong><p>版本可独立加载，不影响当前活动版本</p></div><span class="pill green">已通过</span></div><div class="gate"><div><strong>常规检索评估</strong><p>100 条用例 · 来源、条文和关键词命中率达标</p></div><span class="pill green">已通过</span></div><div class="gate"><div><strong>结构化检索评估</strong><p>需要复杂表任务完成并重新生成候选版本</p></div><span class="pill amber">待执行</span></div><div class="gate"><div><strong>回答级验证</strong><p>需要在新活动版本上执行盲测和引用检查</p></div><span class="pill gray">待触发</span></div></div><div class="panel-body"><div class="notice amber">当前版本可以继续问答验证，但不应把“常规检索已通过”解释为“复杂表和回答级质量已经通过”。</div><div class="toolbar-group" style="margin-top:16px"><button class="btn btn-primary" id="runQuality">运行可执行检查</button><button class="btn" id="exportQuality">导出质量证据</button></div></div></section><section class="panel"><div class="panel-head"><div><h3>最近评估结果</h3><p>将机器指标翻译成可阅读的结论</p></div><button class="btn btn-small" id="viewRawQuality">查看原始报告</button></div><div class="panel-body"><div class="result-box"><h3>当前活动版本可继续使用</h3><p>候选运行时和常规检索评估已通过；复杂表任务完成后，需要重新构建并执行完整门禁。</p></div><div class="subsection" style="padding-top:0;margin-top:18px;border-top:0"><ul class="metric-list"><li><span>来源命中率</span><strong class="green-text">100%</strong></li><li><span>条文命中率</span><strong class="green-text">92%</strong></li><li><span>关键词命中率</span><strong class="green-text">96%</strong></li><li><span>结构化表命中率</span><strong class="amber-text">待执行</strong></li><li><span>回答级通过率</span><strong class="amber-text">待执行</strong></li></ul></div></div></section></div>
+          <div class="panel" style="margin-top:14px"><div class="panel-head"><div><h3>需要关注的失败项</h3><p>失败项不会自动修改当前活动版本，先判断是数据问题、检索问题还是外部服务问题</p></div><span class="pill red">2 项</span></div><div class="panel-body"><ul class="failure-list"><li><strong>结构化评估：表格内容未完整命中</strong><p>关联：table_248、table_249 · 建议：先完成复杂表结构化，再重跑结构化评估。</p></li><li><strong>回答级评估：10 / 24 个请求未完成</strong><p>关联：模型服务 500 · 建议：检查模型服务可用性后重新执行，不把基础设施失败当成检索质量失败。</p></li></ul></div></div>
+        </section>
+
+        <section class="screen" data-screen-panel="chat">
+          <div class="notice green" style="margin-bottom:14px">问答验证使用当前活动知识版本，答案中的引用、表格和截图都应能回到可追溯的来源资产。此页是质量抽查工作区，不是普通聊天首页。</div>
+          <div class="chat-layout"><section class="panel chat-settings"><h3>验证设置</h3><p>先固定数据版本和回答要求，再发送问题。</p><div class="setting"><div class="setting-title">当前活动版本</div><div class="setting-value">c3b499dc4c42</div></div><div class="setting"><div class="setting-title">知识库状态</div><div class="setting-value green-text">已就绪 · 2689 个 Chunk</div></div><div class="setting"><div class="setting-title">回答要求</div><div class="setting-value">必须引用规范编号、条文/表号和页码</div></div><div class="setting"><div class="setting-title">检索策略</div><select class="field" style="margin-top:7px"><option>规范领域排序</option><option>仅正文和表格</option><option>完整混合检索</option></select></div><button class="btn" id="clearChat" style="width:100%;margin-top:16px">清空会话</button></section><section class="panel chat-main"><div class="panel-head"><div><h3>问答验证</h3><p>问题、工具调用、最终答案和引用证据按顺序保留</p></div><span class="pill green">服务可用</span></div><div class="messages" id="messages"><div class="message user"><div class="message-label">用户 · 17:43</div><div class="message-body">办公楼楼面活荷载标准值是多少？</div></div><div class="message"><div class="message-label">知识库回答 · 17:43</div><div class="message-body"><h4 class="answer-title">办公楼楼面活荷载标准值</h4><p>普通办公楼楼面均布活荷载标准值为 <strong>2.0 kN/m²</strong>。会议室、档案室等用途应根据表中对应项目取值，不能用办公楼的一般值替代。</p><table class="answer-table"><thead><tr><th>项目</th><th>标准值</th><th>组合值系数 ψc</th></tr></thead><tbody><tr><td>办公楼楼面</td><td><strong>2.0 kN/m²</strong></td><td>0.7</td></tr></tbody></table><span class="citation">GB 50009-2012 · 表5.1.1 · 第30~32页</span><span class="citation">正文优先</span></div></div></div><form class="chat-input" id="chatForm"><textarea class="field" id="chatInput" placeholder="输入需要核验的问题，例如：办公楼楼面活荷载标准值是多少？"></textarea><button class="btn btn-primary" type="submit">发送</button></form></section><section class="panel chat-evidence"><h3>引用证据</h3><p>本次回答使用的来源和检索判断</p><div class="evidence-card"><strong>权威来源</strong><p>GB 50009-2012 建筑结构荷载规范</p><p>正文表5.1.1 · page 30~32</p></div><div class="evidence-card"><strong>检索判断</strong><p>问题属于“标准值取值”意图，正文表格优先于条文说明。</p></div><div class="evidence-card"><strong>页面截图</strong><div class="image-placeholder">引用截图预览 · page 32</div></div><div class="evidence-card"><strong>验证动作</strong><p>复制回答 · 标记引用正确 · 标记需要复核</p><div class="toolbar-group" style="margin-top:9px"><button class="btn btn-small" id="markCorrect">引用正确</button><button class="btn btn-small btn-danger" id="markReview">需要复核</button></div></div></section></div>
+        </section>
+
+        <p class="footnote">原型说明：页面用于统一评审后台工作流和信息层级，数据为示例，不连接真实 API。正式实现时，状态、任务数量、日志、引用和质量结论必须由后端工作流状态与知识版本产物驱动。</p>
+      </section>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+  <script>
+    const screenMeta = {
+      sources: { label: '来源管理', topTitle: '规范来源管理', topSubtitle: '登记来源、核对元数据，并形成可追溯的构建输入', title: '规范来源目录', description: '先登记来源资产和治理边界，再确认本轮候选构建的输入范围。在线版本不会因单独保存元数据而改变。', action: '上传 PDF', actionClass: 'btn-primary' },
+      jobs: { label: '构建与版本', topTitle: '构建任务与版本', topSubtitle: '查看候选构建、实时步骤、日志和版本切换边界', title: '构建任务队列', description: '每项构建任务都必须可看到当前步骤、进度、产物、错误和是否影响当前活动版本。', action: '提交候选构建', actionClass: 'btn-primary' },
+      review: { label: '内容校对', topTitle: '内容校对工作台', topSubtitle: '对照原始 PDF，确认文本、公式和普通表格候选', title: '内容校对工作台', description: '候选详情、原始页面、解析文本、AI 证据和最终修正文在同一工作区内完成闭环。', action: '刷新候选', actionClass: '' },
+      tables: { label: '复杂表结构化', topTitle: '复杂表结构化', topSubtitle: '保留表格的行列关系、合并单元格、图示和适用条件', title: '复杂表结构化队列', description: '复杂表不能被压扁成一段线性文本；人工处理结果进入结构化草稿，并在质量门禁通过后发布。', action: '扫描复杂表', actionClass: '' },
+      quality: { label: '质量验证', topTitle: '质量验证与门禁', topSubtitle: '把检索、结构化和回答级结果转成可阅读的发布结论', title: '质量验证中心', description: '门禁结果必须说明已通过什么、还缺什么、失败影响哪个版本，以及下一步需要谁处理。', action: '运行可执行检查', actionClass: 'btn-primary' },
+      chat: { label: '问答验证', topTitle: '问答验证', topSubtitle: '验证答案、引用、表格和截图是否回到可靠来源', title: '问答验证工作区', description: '问答验证是质量抽查工作区：固定知识版本，查看答案证据，并记录引用是否正确。', action: '新建验证会话', actionClass: '' }
+    }
+
+    const toast = document.getElementById('toast')
+    let toastTimer
+    function showToast(message) {
+      toast.textContent = message
+      toast.classList.add('show')
+      clearTimeout(toastTimer)
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 2600)
+    }
+
+    function showScreen(key, announce = true) {
+      const meta = screenMeta[key]
+      if (!meta) return
+      document.querySelectorAll('[data-screen-panel]').forEach(panel => panel.classList.toggle('active', panel.dataset.screenPanel === key))
+      document.querySelectorAll('[data-screen]').forEach(button => {
+        const active = button.dataset.screen === key
+        button.classList.toggle('active', active)
+        if (active) button.setAttribute('aria-current', 'page')
+        else button.removeAttribute('aria-current')
+      })
+      document.getElementById('screenLabel').textContent = meta.label
+      document.getElementById('topTitle').textContent = meta.topTitle
+      document.getElementById('topSubtitle').textContent = meta.topSubtitle
+      document.getElementById('pageTitle').textContent = meta.title
+      document.getElementById('pageDescription').textContent = meta.description
+      const pageAction = document.getElementById('pageAction')
+      pageAction.textContent = meta.action
+      pageAction.className = `btn ${meta.actionClass || ''}`.trim()
+      if (announce) showToast(`已切换到“${meta.label}”工作区`)
+    }
+
+    document.querySelectorAll('[data-screen]').forEach(button => button.addEventListener('click', () => showScreen(button.dataset.screen)))
+    document.getElementById('refreshButton').addEventListener('click', () => showToast('原型状态已刷新；正式实现时读取后端工作流状态'))
+    document.getElementById('pageAction').addEventListener('click', () => showToast('原型操作入口：请在对应工作区完成详细操作'))
+
+    document.querySelectorAll('.source-row').forEach(row => row.addEventListener('click', () => {
+      document.querySelectorAll('.source-row').forEach(item => item.classList.remove('selected'))
+      row.classList.add('selected')
+      document.getElementById('sourceDetailName').textContent = row.dataset.name
+      document.getElementById('sourceDetailStatus').textContent = row.dataset.status
+      document.getElementById('sourceDetailStatus').className = `pill ${row.dataset.status === '已上线' ? 'green' : 'amber'}`
+      showToast(`已选择来源：${row.dataset.name}`)
+    }))
+    document.getElementById('saveSource').addEventListener('click', () => showToast('元数据已保存到来源草稿'))
+    document.getElementById('validateSource').addEventListener('click', () => showToast('来源文件、哈希和页数校验通过'))
+    document.getElementById('confirmSource').addEventListener('click', () => showToast('将打开变更计划，确认后才提交候选构建'))
+    document.getElementById('discardSource').addEventListener('click', () => showToast('原型操作：撤销当前来源草稿'))
+
+    document.querySelectorAll('.job-row').forEach(row => row.addEventListener('click', () => {
+      document.querySelectorAll('.job-row').forEach(item => item.classList.remove('selected'))
+      row.classList.add('selected')
+      showToast(`已选择任务：${row.querySelector('.job-id').textContent}`)
+    }))
+    document.getElementById('openFullLog').addEventListener('click', () => showToast('将打开按任务步骤组织的完整日志'))
+    document.getElementById('cancelJob').addEventListener('click', () => showToast('将提交停止请求；系统不会强制终止正在执行的解析进程'))
+
+    document.querySelectorAll('.review-item').forEach(item => item.addEventListener('click', () => {
+      document.querySelectorAll('.review-item').forEach(entry => entry.classList.remove('active'))
+      item.classList.add('active')
+      showToast(`已打开候选：${item.querySelector('strong').textContent}`)
+    }))
+    const reviewEditor = document.getElementById('reviewEditor')
+    reviewEditor.addEventListener('input', () => { document.getElementById('reviewPreview').textContent = reviewEditor.value })
+    document.getElementById('approveReview').addEventListener('click', () => showToast('候选已标记为批准，等待下一次候选构建应用'))
+    document.getElementById('rejectReview').addEventListener('click', () => showToast('候选已标记为拒绝，不会修改当前活动版本'))
+    document.getElementById('saveReview').addEventListener('click', () => showToast('最终修正文已保存到候选记录'))
+
+    document.querySelectorAll('.task-item').forEach(item => item.addEventListener('click', () => {
+      document.querySelectorAll('.task-item').forEach(entry => entry.classList.remove('active'))
+      item.classList.add('active')
+      showToast(`已打开复杂表任务：${item.querySelector('strong').textContent}`)
+    }))
+    document.getElementById('saveTable').addEventListener('click', () => showToast('结构化草稿已保存，仍需完成确认并通过质量门禁'))
+    document.getElementById('aiTableSuggestion').addEventListener('click', () => showToast('将展示 AI 建议与人工确认差异'))
+    document.getElementById('tableSourceCode').addEventListener('click', () => showToast('将展开当前解析文本和原始结构信息'))
+
+    document.getElementById('runQuality').addEventListener('click', () => showToast('将运行当前版本可执行的质量检查'))
+    document.getElementById('exportQuality').addEventListener('click', () => showToast('将导出带版本号和评估集哈希的质量证据'))
+    document.getElementById('viewRawQuality').addEventListener('click', () => showToast('原始 JSON 仅作为证据附件，页面优先展示可阅读结论'))
+
+    document.getElementById('chatForm').addEventListener('submit', event => {
+      event.preventDefault()
+      const input = document.getElementById('chatInput')
+      const question = input.value.trim()
+      if (!question) { showToast('请输入需要核验的问题'); return }
+      const messages = document.getElementById('messages')
+      const message = document.createElement('div')
+      message.className = 'message user'
+      message.innerHTML = `<div class="message-label">用户 · 刚刚</div><div class="message-body"></div>`
+      message.querySelector('.message-body').textContent = question
+      messages.appendChild(message)
+      input.value = ''
+      showToast('原型已记录问题；正式实现时提交到问答服务并显示检索证据')
+      messages.scrollTop = messages.scrollHeight
+    })
+    document.getElementById('clearChat').addEventListener('click', () => showToast('原型操作：清空当前验证会话'))
+    document.getElementById('markCorrect').addEventListener('click', () => showToast('已记录：引用正确'))
+    document.getElementById('markReview').addEventListener('click', () => showToast('已记录：引用需要人工复核'))
+  </script>
+</body>
+</html>

@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>知识生产工作流驾驶舱原型</title>
+  <style>
+    :root {
+      --navy: #0b1730;
+      --navy-2: #122344;
+      --ink: #17233b;
+      --muted: #68758c;
+      --line: #dfe5ee;
+      --surface: #ffffff;
+      --canvas: #f3f6fa;
+      --blue: #1f66e5;
+      --blue-soft: #e9f1ff;
+      --green: #19875b;
+      --green-soft: #e8f7ef;
+      --amber: #a86500;
+      --amber-soft: #fff3d8;
+      --red: #bd3b45;
+      --red-soft: #ffe9ea;
+      --shadow: 0 8px 24px rgba(18, 35, 68, 0.07);
+      font-family: Inter, "Segoe UI", "Microsoft YaHei", sans-serif;
+      color: var(--ink);
+      background: var(--canvas);
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 1180px; background: var(--canvas); }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+
+    .app { display: grid; grid-template-columns: 244px 1fr; min-height: 100vh; }
+    .sidebar { display: flex; flex-direction: column; background: var(--navy); color: #eef4ff; }
+    .brand { padding: 25px 22px 22px; border-bottom: 1px solid rgba(255,255,255,.1); }
+    .brand h1 { margin: 0; font-size: 17px; letter-spacing: .01em; }
+    .brand p { margin: 7px 0 0; color: #a9bbd9; font-size: 12px; }
+    .nav { padding: 18px 12px; }
+    .nav button {
+      width: 100%; display: flex; align-items: center; gap: 10px; border: 0; border-radius: 6px;
+      padding: 11px 12px; margin-bottom: 5px; color: #c4d0e4; background: transparent; text-align: left;
+    }
+    .nav button:hover { color: #fff; background: rgba(255,255,255,.1); }
+    .nav button.active { color: #fff; background: var(--blue); }
+    .nav button:focus { outline: none; }
+    .nav button:focus-visible { outline: 2px solid #9fc2ff; outline-offset: 1px; }
+    .nav .count { margin-left: auto; min-width: 22px; padding: 2px 6px; border-radius: 10px; background: rgba(255,255,255,.14); text-align: center; font-size: 11px; }
+    .nav-section { padding: 17px 12px 7px; color: #8497b8; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+    .side-footer { margin-top: auto; padding: 17px 22px 22px; border-top: 1px solid rgba(255,255,255,.1); color: #9fb0cc; font-size: 12px; line-height: 1.5; }
+    .side-footer strong { display: block; margin-top: 6px; color: #eff5ff; font-size: 13px; }
+
+    .main { min-width: 0; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; min-height: 72px; padding: 0 30px; background: var(--surface); border-bottom: 1px solid var(--line); }
+    .topbar h2 { margin: 0; font-size: 20px; }
+    .topbar p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+    .top-actions { display: flex; align-items: center; gap: 10px; }
+    .connection { display: flex; align-items: center; gap: 7px; color: var(--green); font-size: 12px; }
+    .connection i { width: 8px; height: 8px; border-radius: 50%; background: #32ad73; }
+
+    .content { max-width: 1640px; margin: 0 auto; padding: 24px 30px 44px; }
+    .eyebrow { color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+    .workflow-head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 13px; }
+    .workflow-head h3 { margin: 5px 0 0; font-size: 18px; }
+    .workflow-head p { margin: 0; color: var(--muted); font-size: 13px; }
+
+    .workflow { display: grid; grid-template-columns: repeat(7, minmax(105px, 1fr)); gap: 8px; margin-bottom: 20px; }
+    .stage { position: relative; min-height: 88px; padding: 13px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); text-align: left; }
+    .stage::after { content: ""; position: absolute; top: 38px; right: -9px; width: 10px; height: 1px; background: #b7c2d1; }
+    .stage:last-child::after { display: none; }
+    .stage:hover { border-color: #8fb2f0; box-shadow: var(--shadow); }
+    .stage.active { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(31,102,229,.12); }
+    .stage.done .stage-index { background: var(--green); }
+    .stage.active .stage-index { background: var(--blue); }
+    .stage.blocked .stage-index { background: var(--amber); }
+    .stage-index { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: #aab5c5; color: #fff; font-size: 11px; font-weight: 700; }
+    .stage-title { display: block; margin-top: 9px; font-size: 13px; font-weight: 700; }
+    .stage-state { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
+
+    .next-action { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: center; padding: 20px 22px; margin-bottom: 18px; border: 1px solid #bdd2f6; border-left: 4px solid var(--blue); border-radius: 6px; background: var(--blue-soft); }
+    .next-action h3 { margin: 5px 0 6px; font-size: 20px; }
+    .next-action p { max-width: 820px; margin: 0; color: #50617d; font-size: 13px; line-height: 1.7; }
+    .next-action .meta { margin-top: 11px; color: #50617d; font-size: 12px; }
+    .primary { border: 1px solid var(--blue); border-radius: 5px; padding: 11px 16px; background: var(--blue); color: #fff; font-weight: 700; }
+    .primary:hover { background: #1556c4; }
+    .secondary { border: 1px solid var(--line); border-radius: 5px; padding: 10px 14px; background: #fff; color: var(--ink); }
+
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+    .metric { padding: 13px 15px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); }
+    .metric-label { color: var(--muted); font-size: 12px; }
+    .metric-value { display: block; margin-top: 7px; font-size: 20px; font-weight: 750; }
+    .metric-note { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .good { color: var(--green); }
+    .warning { color: var(--amber); }
+
+    .grid-main { display: grid; grid-template-columns: minmax(360px, 1.15fr) minmax(430px, 1.1fr) minmax(300px, .75fr); gap: 14px; align-items: start; }
+    .panel { border: 1px solid var(--line); border-radius: 6px; background: var(--surface); box-shadow: 0 2px 8px rgba(18,35,68,.03); }
+    .stage-panel { border-color: #b9d0f5; box-shadow: 0 4px 14px rgba(31,102,229,.08); }
+    .timeline-panel, .version-panel { box-shadow: none; }
+    .panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 17px 18px; border-bottom: 1px solid var(--line); }
+    .panel-head h3 { margin: 0; font-size: 15px; }
+    .panel-head p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .panel-body { padding: 17px 18px; }
+    .tag { display: inline-flex; align-items: center; min-height: 22px; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+    .tag.green { color: var(--green); background: var(--green-soft); }
+    .tag.blue { color: var(--blue); background: var(--blue-soft); }
+    .tag.amber { color: var(--amber); background: var(--amber-soft); }
+    .tag.red { color: var(--red); background: var(--red-soft); }
+
+    .stage-summary { display: flex; align-items: flex-start; gap: 12px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+    .stage-summary .symbol { display: flex; align-items: center; justify-content: center; flex: 0 0 36px; height: 36px; border-radius: 5px; color: var(--blue); background: var(--blue-soft); font-weight: 800; }
+    .stage-summary h4 { margin: 0; font-size: 15px; }
+    .stage-summary p { margin: 5px 0 0; color: var(--muted); font-size: 13px; line-height: 1.65; }
+    .checklist { margin: 16px 0 0; padding: 0; list-style: none; }
+    .checklist li { display: flex; gap: 9px; padding: 10px 0; border-bottom: 1px solid #eef1f5; color: #526078; font-size: 12px; line-height: 1.45; }
+    .checklist li:last-child { border-bottom: 0; }
+    .checklist .mark { flex: 0 0 18px; height: 18px; border-radius: 50%; background: var(--green-soft); color: var(--green); text-align: center; font-size: 12px; line-height: 18px; }
+    .checklist .open { background: var(--amber-soft); color: var(--amber); }
+    .panel-actions { display: flex; gap: 8px; margin-top: 17px; }
+
+    .timeline { position: relative; padding-left: 8px; }
+    .timeline::before { content: ""; position: absolute; top: 10px; bottom: 10px; left: 16px; width: 1px; background: #d8e0eb; }
+    .event { position: relative; display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 0 0 18px; }
+    .event:last-child { padding-bottom: 0; }
+    .event-dot { position: relative; z-index: 1; width: 18px; height: 18px; border: 4px solid var(--surface); border-radius: 50%; background: var(--green); box-shadow: 0 0 0 1px #c7d6e9; }
+    .event.current .event-dot { background: var(--blue); }
+    .event h4 { margin: 0; font-size: 12px; }
+    .event p { margin: 4px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .event time { color: var(--muted); font-size: 11px; white-space: nowrap; }
+    .event .actor { display: inline-block; margin-top: 5px; color: #667893; font-size: 11px; }
+
+    .version-box { padding: 13px; border: 0; border-left: 3px solid var(--line); border-radius: 3px; background: #fafbfd; }
+    .version-box + .version-box { margin-top: 10px; }
+    .version-box.current { border-left-color: #77c79b; background: #f5fcf8; }
+    .version-box.candidate { border-left-color: #e0ae4d; background: #fffbf2; }
+    .version-top { display: flex; justify-content: space-between; gap: 10px; }
+    .version-top strong { font-size: 12px; }
+    .version-id { margin-top: 8px; color: var(--muted); font: 12px ui-monospace, SFMono-Regular, Consolas, monospace; word-break: break-all; }
+    .version-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 12px; color: var(--muted); font-size: 12px; }
+    .version-meta b { display: block; margin-top: 3px; color: var(--ink); font-size: 13px; }
+    .relation { display: flex; align-items: center; gap: 8px; margin: 13px 0; color: var(--muted); font-size: 11px; }
+    .relation span { height: 1px; flex: 1; background: #ced8e6; }
+
+    .bottom-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(320px, .65fr); gap: 14px; margin-top: 14px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px 14px; border-bottom: 1px solid #edf0f4; text-align: left; font-size: 12px; vertical-align: middle; }
+    th { color: var(--muted); background: #fafbfd; font-size: 11px; font-weight: 700; }
+    tr:last-child td { border-bottom: 0; }
+    .task-title { font-weight: 700; }
+    .task-sub { margin-top: 4px; color: var(--muted); font-size: 11px; }
+    .gate-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 0; border-bottom: 1px solid #edf0f4; }
+    .gate-row:last-child { border-bottom: 0; }
+    .gate-row strong { display: block; font-size: 12px; }
+    .gate-row span { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
+    .progress { height: 6px; margin-top: 14px; border-radius: 3px; background: #e8edf4; overflow: hidden; }
+    .progress b { display: block; width: 68%; height: 100%; background: var(--amber); }
+    .footnote { margin-top: 18px; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .toast { position: fixed; right: 28px; bottom: 24px; display: none; max-width: 390px; padding: 12px 15px; border: 1px solid #bcd2f4; border-radius: 5px; background: #f7faff; box-shadow: var(--shadow); color: var(--ink); font-size: 12px; }
+    .toast.show { display: block; }
+
+    @media (max-width: 1280px) {
+      body { min-width: 1024px; }
+      .app { grid-template-columns: 210px 1fr; }
+      .content { padding: 20px; }
+      .topbar { padding: 0 20px; }
+      .workflow { grid-template-columns: repeat(7, minmax(90px, 1fr)); }
+      .grid-main { grid-template-columns: minmax(310px, .9fr) minmax(390px, 1.1fr); }
+      .grid-main .panel:last-child { grid-column: 1 / -1; }
+      .grid-main .panel:last-child .panel-body { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+      .version-box + .version-box { margin-top: 0; }
+    }
+    @media (max-width: 900px) {
+      body { min-width: 0; }
+      .app { display: block; }
+      .sidebar { display: block; }
+      .brand { padding: 18px 16px 14px; }
+      .nav { display: flex; gap: 6px; padding: 10px 12px; overflow-x: auto; }
+      .nav-section { display: none; }
+      .nav button { flex: 0 0 auto; width: auto; margin: 0; white-space: nowrap; }
+      .nav .count { margin-left: 3px; }
+      .side-footer { display: none; }
+      .topbar { min-height: 64px; padding: 12px 16px; }
+      .topbar h2 { font-size: 18px; }
+      .connection { display: none; }
+      .content { padding: 18px 16px 32px; }
+      .workflow-head { display: block; }
+      .workflow-head p { margin-top: 8px; }
+      .workflow { display: flex; gap: 8px; margin-right: -16px; padding-right: 16px; overflow-x: auto; }
+      .stage { flex: 0 0 142px; }
+      .next-action { grid-template-columns: 1fr; gap: 14px; padding: 18px; }
+      .next-action .primary { justify-self: start; }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid-main, .bottom-grid { grid-template-columns: 1fr; }
+      .grid-main .panel:last-child { grid-column: auto; }
+      .grid-main .panel:last-child .panel-body { display: block; }
+      .version-box + .version-box { margin-top: 10px; }
+    }
+
+    @media (max-width: 560px) {
+      .topbar { align-items: flex-start; }
+      .top-actions { display: block; }
+      .top-actions .secondary { padding: 8px 10px; }
+      .metrics { grid-template-columns: 1fr; }
+      .next-action h3 { font-size: 18px; line-height: 1.4; }
+      .panel-head { padding: 15px; }
+      .panel-body { padding: 15px; }
+      th, td { padding: 10px 8px; }
+      th:nth-child(2), td:nth-child(2) { display: none; }
+      .event { grid-template-columns: 18px minmax(0, 1fr); }
+      .event time { grid-column: 2; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <h1>结构规范知识库</h1>
+        <p>知识生产工作流驾驶舱</p>
+      </div>
+      <nav class="nav" aria-label="主导航">
+        <div class="nav-section">工作流</div>
+        <button class="active" aria-current="page" data-nav="工作台"><span>▦</span><span>工作台</span></button>
+        <button data-nav="来源管理"><span>□</span><span>规范来源</span></button>
+        <button data-nav="构建版本"><span>↻</span><span>构建与版本</span><span class="count">1</span></button>
+        <button data-nav="内容校对"><span>✓</span><span>内容校对</span></button>
+        <button data-nav="复杂表"><span>▤</span><span>复杂表结构化</span><span class="count">14</span></button>
+        <button data-nav="质量验证"><span>◇</span><span>质量验证</span></button>
+        <div class="nav-section">运行</div>
+        <button data-nav="问答验证"><span>◌</span><span>问答验证</span></button>
+        <button data-nav="系统设置"><span>⚙</span><span>系统设置</span></button>
+      </nav>
+      <div class="side-footer">
+        服务状态
+        <strong>● 接口已就绪 · 2689 个 Chunk</strong>
+        <span>数据版本 c3b499dc4c42</span>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h2>知识生产工作台</h2>
+          <p>从规范来源到可用知识版本的完整流程视图</p>
+        </div>
+        <div class="top-actions">
+          <span class="connection"><i></i>服务正常 · 最后更新 22:18</span>
+          <button class="secondary" id="refresh">刷新状态</button>
+        </div>
+      </header>
+
+      <section class="content">
+        <div class="workflow-head">
+          <div>
+            <div class="eyebrow">当前知识生产流程</div>
+            <h3 id="flowTitle">规范新增与校对发布</h3>
+          </div>
+          <p>原型演示 · 状态数据为示例 · 点击流程节点查看阶段职责和产物</p>
+        </div>
+
+        <div class="workflow" aria-label="知识生产流程">
+          <button class="stage done" data-stage="source"><span class="stage-index">1</span><span class="stage-title">来源管理</span><span class="stage-state">已完成</span></button>
+          <button class="stage done" data-stage="build"><span class="stage-index">2</span><span class="stage-title">构建候选</span><span class="stage-state">已完成</span></button>
+          <button class="stage done" data-stage="audit"><span class="stage-index">3</span><span class="stage-title">机器审计</span><span class="stage-state">已完成</span></button>
+          <button class="stage done" data-stage="review"><span class="stage-index">4</span><span class="stage-title">内容校对</span><span class="stage-state">0 项待审</span></button>
+          <button class="stage active" data-stage="tables"><span class="stage-index">5</span><span class="stage-title">复杂表</span><span class="stage-state">14 项待处理</span></button>
+          <button class="stage" data-stage="gate"><span class="stage-index">6</span><span class="stage-title">质量门禁</span><span class="stage-state">未开始</span></button>
+          <button class="stage" data-stage="release"><span class="stage-index">7</span><span class="stage-title">发布验证</span><span class="stage-state">未开始</span></button>
+        </div>
+
+        <section class="next-action" id="nextAction">
+          <div>
+            <div class="eyebrow">下一步操作 · 人工处理</div>
+            <h3 id="nextTitle">完成 14 个复杂表结构化任务</h3>
+            <p id="nextDescription">文本校对已完成，当前还有复杂表需要对照 PDF 页面截图确认表头、合并单元格、数值、单位和表注。完成后，系统会生成新的增量候选版本并重新执行质量门禁。</p>
+            <div class="meta" id="nextMeta">责任人：内容校对人员　·　阻塞发布：是　·　预计产物：结构化表 JSON</div>
+          </div>
+          <button class="primary" id="nextButton">进入复杂表队列</button>
+        </section>
+
+        <div class="metrics">
+          <div class="metric"><span class="metric-label">当前活动版本</span><strong class="metric-value">c3b499dc4c42</strong><span class="metric-note">已通过候选门禁</span></div>
+          <div class="metric"><span class="metric-label">来源规范</span><strong class="metric-value">7 份</strong><span class="metric-note">当前 revision 已激活</span></div>
+          <div class="metric"><span class="metric-label">待处理任务</span><strong class="metric-value warning">14 项</strong><span class="metric-note">当前阶段阻塞项</span></div>
+          <div class="metric"><span class="metric-label">构建产物状态</span><strong class="metric-value good">已就绪</strong><span class="metric-note">2689 个 Chunk · 847 个图片资产</span></div>
+        </div>
+
+        <div class="grid-main">
+          <section class="panel stage-panel">
+            <div class="panel-head"><div><h3 id="stagePanelTitle">当前阶段：复杂表结构化</h3><p id="stagePanelSubtitle">需要人工确认的高风险内容</p></div><span class="tag amber" id="stagePanelTag">人工处理</span></div>
+            <div class="panel-body">
+              <div class="stage-summary"><div class="symbol" id="stageSymbol">▤</div><div><h4 id="stageSummaryTitle">结构化队列尚未清空</h4><p id="stageSummaryText">复杂表不能仅依赖普通文本解析。每一项都需要保留来源页、表号、行列关系和适用条件。</p></div></div>
+              <ul class="checklist" id="checklist">
+                <li><span class="mark">✓</span><span>扫描解析结果并识别复杂表</span></li>
+                <li><span class="mark">✓</span><span>完成普通文本和公式候选校对</span></li>
+                <li><span class="mark open">!</span><span>对照页面截图处理 14 个复杂表任务</span></li>
+                <li><span class="mark open">4</span><span>完成后重新生成增量候选并等待质量门禁</span></li>
+              </ul>
+              <div class="panel-actions"><button class="secondary" id="stageDetail">查看输入与产物</button></div>
+            </div>
+          </section>
+
+          <section class="panel timeline-panel">
+            <div class="panel-head"><div><h3>流程时间线</h3><p>自动任务和人工动作统一显示</p></div><button class="secondary" id="showLogs">查看日志</button></div>
+            <div class="panel-body timeline">
+              <div class="event"><span class="event-dot"></span><div><h4>候选版本已激活</h4><p>候选门禁通过，知识版本 c3b499dc4c42 成为当前活动版本。</p><span class="actor">系统自动</span></div><time>22:04</time></div>
+              <div class="event current"><span class="event-dot"></span><div><h4>复杂表队列等待人工处理</h4><p>识别到 14 个复杂表任务，当前阻塞下一次正式发布。</p><span class="actor">需要人工</span></div><time>21:58</time></div>
+              <div class="event"><span class="event-dot"></span><div><h4>内容校对已完成</h4><p>19 条普通校对候选已处理，0 条待审。</p><span class="actor">人工 + 系统</span></div><time>21:46</time></div>
+              <div class="event"><span class="event-dot"></span><div><h4>增量候选构建完成</h4><p>复用已有解析产物，生成 2689 个 Chunk 和 847 个图片资产。</p><span class="actor">系统自动</span></div><time>21:20</time></div>
+              <div class="event"><span class="event-dot"></span><div><h4>来源 revision 已固化</h4><p>7 份规范来源进入本次构建输入，等待候选产物。</p><span class="actor">系统自动</span></div><time>20:51</time></div>
+            </div>
+          </section>
+
+          <section class="panel version-panel">
+            <div class="panel-head"><div><h3>版本关系</h3><p>明确当前版本与下一版本</p></div><button class="secondary" id="versionDetail">版本管理</button></div>
+            <div class="panel-body">
+              <div class="version-box current"><div class="version-top"><strong>当前活动版本</strong><span class="tag green">在线</span></div><div class="version-id">c3b499dc4c42</div><div class="version-meta"><div>Chunk<b>2689</b></div><div>来源<b>7 份</b></div><div>门禁<b class="good">通过</b></div><div>激活<b>今天 22:04</b></div></div></div>
+              <div class="relation"><span></span>下一次发布方向<span></span></div>
+              <div class="version-box candidate"><div class="version-top"><strong>待生成候选版本</strong><span class="tag amber">待处理</span></div><div class="version-id">完成复杂表后生成</div><div class="version-meta"><div>变更<b>14 张表</b></div><div>策略<b>增量候选</b></div><div>解析<b>复用优先</b></div><div>激活<b>需过门禁</b></div></div></div>
+            </div>
+          </section>
+        </div>
+
+        <div class="bottom-grid">
+          <section class="panel">
+            <div class="panel-head"><div><h3>待办清单</h3><p>按工作流顺序聚合，而不是按接口模块分散</p></div><button class="secondary" id="allTasks">查看全部</button></div>
+            <table>
+              <thead><tr><th>事项</th><th>责任方</th><th>状态</th><th>下一动作</th></tr></thead>
+              <tbody>
+                <tr><td><div class="task-title">复杂表结构化</div><div class="task-sub">14 项 · 涉及合并单元格和表格图示</div></td><td>人工</td><td><span class="tag amber">待处理</span></td><td><button class="secondary task-button">进入队列</button></td></tr>
+                <tr><td><div class="task-title">增量候选重建</div><div class="task-sub">等待复杂表发布后重新提交</div></td><td>系统</td><td><span class="tag blue">待触发</span></td><td><button class="secondary task-button">查看条件</button></td></tr>
+                <tr><td><div class="task-title">回答级评估</div><div class="task-sub">绑定下一知识版本执行</div></td><td>质量</td><td><span class="tag blue">待触发</span></td><td><button class="secondary task-button">查看评估</button></td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head"><div><h3>质量门禁预览</h3><p>发布前必须满足的条件</p></div><span class="tag blue">待前置完成</span></div>
+            <div class="panel-body">
+              <div class="gate-row"><div><strong>候选运行时</strong><span>版本可独立加载</span></div><span class="tag green">已通过</span></div>
+              <div class="gate-row"><div><strong>常规检索评估</strong><span>100 条用例</span></div><span class="tag green">已通过</span></div>
+              <div class="gate-row"><div><strong>结构化检索评估</strong><span>等待复杂表发布</span></div><span class="tag amber">待执行</span></div>
+              <div class="gate-row"><div><strong>回答级验证</strong><span>绑定新活动版本</span></div><span class="tag blue">待执行</span></div>
+              <div class="progress" aria-label="发布准备度"><b></b></div>
+              <div class="footnote">发布准备度 68% · 复杂表任务完成后自动解锁下一阶段</div>
+            </div>
+          </section>
+        </div>
+
+        <p class="footnote">原型说明：此页面只用于验证后台信息架构和交互顺序，不连接真实 API。正式实现时，阶段状态应由后端工作流状态和任务产物驱动。</p>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    const stages = {
+      source: { title: '当前阶段：规范来源管理', subtitle: '确认本轮构建输入', tag: '治理输入', tagClass: 'blue', symbol: '□', summary: '来源 revision 已固化', text: '来源元数据、PDF 资产和权利状态需要在构建前确认。保存来源不会直接修改在线知识版本。', next: '查看规范来源', nextText: '来源变更已经固化，当前可以查看本轮构建输入和权利状态。', meta: '责任人：内容治理　·　阻塞发布：否　·　产物：source revision', button: '进入来源管理' },
+      build: { title: '当前阶段：构建候选版本', subtitle: '生成完整、可验证的候选运行资产', tag: '系统自动', tagClass: 'blue', symbol: '↻', summary: '候选版本已完成', text: '系统按增量策略复用可信产物，生成完整数据库、解析文本、图片和 manifest，尚未直接覆盖活动版本。', next: '查看构建任务', nextText: '候选构建已完成，可以查看任务日志、阶段产物和版本关系。', meta: '责任人：系统　·　阻塞发布：否　·　产物：候选版本', button: '进入构建任务' },
+      audit: { title: '当前阶段：机器审计', subtitle: '自动发现结构和内容风险', tag: '系统自动', tagClass: 'blue', symbol: '◇', summary: '机器审计已完成', text: '规则审计和 AI 候选只提供风险提示，不会自动修改正文，也不能代替人工确认。', next: '查看审计结果', nextText: '机器审计已完成，建议进入内容校对和复杂表队列处理风险项。', meta: '责任人：系统　·　阻塞发布：由待审项决定　·　产物：审计报告', button: '查看审计结果' },
+      review: { title: '当前阶段：内容校对', subtitle: '确认文本、公式和普通表格', tag: '已完成', tagClass: 'green', symbol: '✓', summary: '普通内容校对已完成', text: '当前没有待审候选。已批准修正需要在下一次候选重建时应用，不会直接改写当前活动版本。', next: '查看已处理候选', nextText: '内容校对已完成，可查看已批准或已拒绝的历史候选。', meta: '责任人：人工　·　阻塞发布：否　·　产物：approved corrections', button: '进入内容校对' },
+      tables: { title: '当前阶段：复杂表结构化', subtitle: '需要人工确认的高风险内容', tag: '人工处理', tagClass: 'amber', symbol: '▤', summary: '结构化队列尚未清空', text: '复杂表不能仅依赖普通文本解析。每一项都需要保留来源页、表号、行列关系和适用条件。', next: '完成 14 个复杂表结构化任务', nextText: '文本校对已完成，当前还有复杂表需要对照 PDF 页面截图确认表头、合并单元格、数值、单位和表注。完成后，系统会生成新的增量候选版本并重新执行质量门禁。', meta: '责任人：内容校对人员　·　阻塞发布：是　·　预计产物：结构化表 JSON', button: '进入复杂表队列' },
+      gate: { title: '当前阶段：候选质量门禁', subtitle: '验证新版本是否可安全激活', tag: '待触发', tagClass: 'blue', symbol: '◇', summary: '等待新的候选版本', text: '候选门禁会独立加载运行资产，执行常规检索和结构化检索检查。门禁失败时，当前活动版本保持不变。', next: '查看门禁条件', nextText: '完成人工处理后，提交新的增量候选重建，系统会自动执行候选质量门禁。', meta: '责任人：系统　·　阻塞发布：等待候选　·　产物：candidate gate report', button: '查看门禁条件' },
+      release: { title: '当前阶段：发布与问答验证', subtitle: '确认版本正式可用', tag: '待触发', tagClass: 'blue', symbol: '→', summary: '等待质量门禁通过', text: '版本激活后需要进行回答级评估和问答抽查。回答级通过不等于来源权利或对外发布资格通过。', next: '查看发布检查单', nextText: '新版本通过候选门禁后，继续执行回答级评估和发布检查单。', meta: '责任人：质量负责人　·　阻塞发布：等待门禁　·　产物：质量证据', button: '查看发布检查单' }
+    }
+
+    const toast = document.getElementById('toast')
+    let toastTimer
+    function showToast(message) {
+      toast.textContent = message
+      toast.classList.add('show')
+      clearTimeout(toastTimer)
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 2600)
+    }
+
+    function selectStage(key) {
+      const stage = stages[key]
+      if (!stage) return
+      document.querySelectorAll('.stage').forEach(item => item.classList.toggle('active', item.dataset.stage === key))
+      document.getElementById('stagePanelTitle').textContent = stage.title
+      document.getElementById('stagePanelSubtitle').textContent = stage.subtitle
+      const tag = document.getElementById('stagePanelTag')
+      tag.textContent = stage.tag
+      tag.className = `tag ${stage.tagClass}`
+      document.getElementById('stageSymbol').textContent = stage.symbol
+      document.getElementById('stageSummaryTitle').textContent = stage.summary
+      document.getElementById('stageSummaryText').textContent = stage.text
+      document.getElementById('nextTitle').textContent = stage.next
+      document.getElementById('nextDescription').textContent = stage.nextText
+      document.getElementById('nextMeta').textContent = stage.meta
+      document.getElementById('nextButton').textContent = stage.button
+      showToast(`已切换到“${stage.title.replace('当前阶段：', '')}”`)
+    }
+
+    document.querySelectorAll('.stage').forEach(item => item.addEventListener('click', () => selectStage(item.dataset.stage)))
+    document.querySelectorAll('[data-nav]').forEach(item => item.addEventListener('click', () => showToast(`原型导航：${item.dataset.nav}（正式重构时接入对应工作流节点）`)))
+    document.querySelectorAll('.task-button').forEach(item => item.addEventListener('click', () => showToast(`原型操作：${item.textContent.trim()}`)))
+    document.getElementById('nextButton').addEventListener('click', () => showToast('将进入当前阶段的详细工作区'))
+    document.getElementById('stageDetail').addEventListener('click', () => showToast('阶段详情应展示输入、产物、责任人和完成条件'))
+    document.getElementById('showLogs').addEventListener('click', () => showToast('将打开按阶段组织的任务日志'))
+    document.getElementById('versionDetail').addEventListener('click', () => showToast('将进入版本关系与回退管理'))
+    document.getElementById('allTasks').addEventListener('click', () => showToast('将打开按流程排序的全部待办'))
+    document.getElementById('refresh').addEventListener('click', () => showToast('原型状态已刷新（正式实现时读取后端工作流状态）'))
+  </script>
+</body>
+</html>
