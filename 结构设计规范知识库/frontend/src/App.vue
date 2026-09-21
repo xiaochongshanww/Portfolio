@@ -1,95 +1,119 @@
 <template>
-  <div class="flex h-dvh flex-col overflow-hidden bg-slate-100 md:flex-row">
-    <aside class="flex w-full shrink-0 flex-col border-b border-slate-800 bg-slate-950 text-slate-100 md:w-64 md:border-r md:border-b-0 md:border-slate-200">
-      <div class="hidden border-b border-slate-800 px-5 py-4 md:block">
-        <div class="text-base font-semibold">结构规范知识库</div>
-        <div class="mt-1 text-xs text-slate-400">Build · Review · Evaluate</div>
+  <div class="app-shell">
+    <aside class="app-sidebar">
+      <div class="app-brand">
+        <div class="app-brand-mark">结</div>
+        <div class="min-w-0">
+          <div class="app-brand-title">结构规范知识库</div>
+          <div class="app-brand-subtitle">Build · Review · Evaluate</div>
+        </div>
       </div>
-      <nav class="flex shrink-0 gap-1 overflow-x-auto px-2 py-2 md:flex-1 md:block md:space-y-1 md:overflow-visible md:px-3 md:py-4">
+
+      <div class="sidebar-current">
+        <span>当前工作区</span>
+        <strong>{{ pageMeta.title }}</strong>
+      </div>
+
+      <nav class="app-nav" aria-label="管理后台导航">
+        <div class="nav-section-label">生产流程</div>
         <button
-          v-for="item in navItems"
+          v-for="item in workflowNavItems"
           :key="item.key"
-          class="flex w-auto shrink-0 items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition md:w-full"
-          :class="activeTab === item.key ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800'"
+          class="nav-item"
+          :class="activeTab === item.key ? 'nav-item-active' : ''"
+          :aria-current="activeTab === item.key ? 'page' : undefined"
+          type="button"
           @click="activeTab = item.key"
         >
           <span>{{ item.label }}</span>
-          <span v-if="item.count !== undefined" class="rounded bg-white/10 px-2 py-0.5 text-xs">{{ item.count }}</span>
+          <span v-if="item.count" class="nav-count">{{ item.count }}</span>
+        </button>
+
+        <div class="nav-section-label nav-section-label-spaced">治理与验证</div>
+        <button
+          v-for="item in governanceNavItems"
+          :key="item.key"
+          class="nav-item"
+          :class="activeTab === item.key ? 'nav-item-active' : ''"
+          :aria-current="activeTab === item.key ? 'page' : undefined"
+          type="button"
+          @click="activeTab = item.key"
+        >
+          <span>{{ item.label }}</span>
+          <span v-if="item.count" class="nav-count">{{ item.count }}</span>
         </button>
       </nav>
-      <div class="hidden border-t border-slate-800 p-3 md:block">
-        <label class="mb-1 block text-xs text-slate-400">API Key</label>
-        <form class="flex gap-2" @submit.prevent="persistApiKey">
-          <input v-model="apiKey" class="field h-9 min-w-0 flex-1 bg-slate-900 text-slate-100" type="password" autocomplete="current-password">
-          <button class="btn px-2" type="submit">验证</button>
+
+      <div class="sidebar-api-key">
+        <label for="sidebar-api-key">API Key</label>
+        <form class="sidebar-api-form" @submit.prevent="persistApiKey">
+          <input id="sidebar-api-key" v-model="apiKey" type="password" autocomplete="current-password" placeholder="输入后验证">
+          <button class="btn btn-sidebar" type="submit">验证</button>
         </form>
+        <p>仅保存在当前浏览器 localStorage。</p>
       </div>
     </aside>
 
-    <main class="flex min-h-0 min-w-0 flex-1 flex-col">
-      <header class="flex min-h-14 shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-3 py-2 md:px-5">
-        <div class="min-w-0">
-          <h1 class="text-base font-semibold md:text-lg">结构设计规范知识库控制台</h1>
-          <p class="text-xs text-slate-500">{{ statusLine }}</p>
+    <main class="app-main">
+      <header class="app-header">
+        <div class="app-header-copy">
+          <div class="app-breadcrumb">管理后台 <span>/</span> {{ pageMeta.section }}</div>
+          <h1>{{ pageMeta.title }}</h1>
+          <p>{{ pageMeta.subtitle }}</p>
+          <span class="app-header-status">{{ statusLine }}</span>
         </div>
-        <div class="flex items-center gap-2">
-          <a class="text-sm text-blue-600" href="http://localhost:3000" target="_blank">Open WebUI</a>
-          <button class="btn" :disabled="refreshing" @click="refreshAll()">
+        <div class="app-header-actions">
+          <a href="http://localhost:3000" target="_blank" rel="noreferrer">打开 Open WebUI</a>
+          <button class="btn" type="button" :disabled="refreshing" @click="refreshCurrentPage()">
             {{ refreshing ? '刷新中' : '刷新' }}
+          </button>
+          <button
+            v-if="bootstrapState === 'ready' && pageMeta.action"
+            class="btn"
+            :class="pageMeta.actionPrimary ? 'btn-primary' : ''"
+            type="button"
+            :disabled="refreshing || pageActionBusy"
+            @click="handlePageAction"
+          >
+            {{ pageMeta.action }}
           </button>
         </div>
       </header>
 
-      <section class="min-h-0 flex-1 overflow-auto p-3 md:p-5">
-        <div
-          v-if="bootstrapState === 'checking'"
-          class="flex min-h-64 items-center justify-center text-sm text-slate-500"
-          aria-live="polite"
-        >
-          正在连接后端...
+      <section class="app-content">
+        <div v-if="bootstrapState === 'checking'" class="app-state-panel" aria-live="polite">
+          <div class="loading-dot" aria-hidden="true"></div>
+          <strong>正在连接后端</strong>
+          <span>正在读取知识库运行状态和工作流数据</span>
         </div>
-        <div
-          v-else-if="bootstrapState === 'unavailable'"
-          class="mx-auto mt-10 max-w-xl border border-rose-200 bg-white p-6 shadow-sm"
-          role="alert"
-        >
-          <h2 class="text-base font-semibold text-slate-900">后端暂时不可用</h2>
-          <p class="mt-2 break-words text-sm text-slate-600">{{ bootstrapError }}</p>
-          <button class="btn btn-primary mt-5" :disabled="refreshing" @click="refreshAll()">重新连接</button>
+        <div v-else-if="bootstrapState === 'unavailable'" class="app-state-panel app-state-error" role="alert">
+          <strong>后端暂时不可用</strong>
+          <span>{{ bootstrapError }}</span>
+          <button class="btn btn-primary" type="button" :disabled="refreshing" @click="refreshAll()">重新连接</button>
         </div>
         <template v-else-if="bootstrapState === 'ready'">
-          <OverviewTab v-if="activeTab === 'overview'" :ready="ready" :documents="documents" :metrics="metrics" :quality="quality" />
+          <OverviewTab v-if="activeTab === 'overview'" :ready="ready" :documents="documents" :metrics="metrics" :quality="quality" @navigate="activeTab = $event" />
           <JobsTab v-if="activeTab === 'jobs'" :jobs="jobs" @refresh="refreshJobs" />
           <VersionsTab v-if="activeTab === 'versions'" @refresh-jobs="refreshJobs" />
+          <SourcesTab v-if="activeTab === 'sources'" @refresh-jobs="refreshJobs" />
           <ReviewTab v-if="activeTab === 'review'" :candidate-docs="candidateDocs" @refresh="refreshCandidates" />
-          <ManualStructuringTab v-if="activeTab === 'manual'" :documents="manualDocs" @refresh="refreshManualStructuring" />
-          <EvaluationTab v-if="activeTab === 'evaluation'" :evaluation="evaluation" :jobs="jobs" @refresh="refreshJobs" />
+          <ManualStructuringTab v-if="activeTab === 'manual'" :documents="manualDocs" :active-data-version="documents.data_version_hash" @refresh="refreshManualStructuring" />
+          <EvaluationTab v-if="activeTab === 'evaluation'" :evaluation="evaluation" :quality="quality" :jobs="jobs" @busy="pageActionBusy = $event" @refresh="refreshEvaluationData" />
+          <EvaluationSetsTab v-if="activeTab === 'evaluationSets'" @navigate="activeTab = $event" />
           <ChatTab v-if="activeTab === 'chat'" />
         </template>
       </section>
     </main>
 
-    <div v-if="authRequired" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
-      <form
-        class="w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-xl"
-        data-testid="auth-form"
-        @submit.prevent="authenticate"
-      >
-        <h2 class="text-lg font-semibold">需要 API Key</h2>
-        <p class="mt-2 text-sm text-slate-600">
-          后端已拒绝当前访问凭据。请输入有效的 API Key 后继续。
-        </p>
-        <label class="mt-5 block text-sm font-medium text-slate-700" for="auth-api-key">API Key</label>
-        <input
-          id="auth-api-key"
-          v-model="authCandidate"
-          class="field mt-2 w-full"
-          type="password"
-          autocomplete="current-password"
-          autofocus
-        >
-        <p v-if="authError" class="mt-3 rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">{{ authError }}</p>
-        <button class="btn btn-primary mt-5 w-full" type="submit" :disabled="authenticating">
+    <div v-if="authRequired" class="auth-overlay">
+      <form class="auth-dialog" data-testid="auth-form" @submit.prevent="authenticate">
+        <div class="auth-dialog-kicker">访问控制</div>
+        <h2>需要 API Key</h2>
+        <p>后端已拒绝当前访问凭据。请输入有效的 API Key 后继续。</p>
+        <label for="auth-api-key">API Key</label>
+        <input id="auth-api-key" v-model="authCandidate" class="field" type="password" autocomplete="current-password" autofocus>
+        <p v-if="authError" class="auth-error" role="alert">{{ authError }}</p>
+        <button class="btn btn-primary auth-submit" type="submit" :disabled="authenticating">
           {{ authenticating ? '正在验证...' : '验证并进入' }}
         </button>
       </form>
@@ -125,11 +149,14 @@ import type {
   ReadinessResponse,
 } from './contracts'
 import OverviewTab from './components/OverviewTab.vue'
+
 const JobsTab = defineAsyncComponent(() => import('./components/JobsTab.vue'))
 const VersionsTab = defineAsyncComponent(() => import('./components/VersionsTab.vue'))
+const SourcesTab = defineAsyncComponent(() => import('./components/SourcesTab.vue'))
 const ReviewTab = defineAsyncComponent(() => import('./components/ReviewTab.vue'))
 const ManualStructuringTab = defineAsyncComponent(() => import('./components/ManualStructuringTab.vue'))
 const EvaluationTab = defineAsyncComponent(() => import('./components/EvaluationTab.vue'))
+const EvaluationSetsTab = defineAsyncComponent(() => import('./components/EvaluationSetsTab.vue'))
 const ChatTab = defineAsyncComponent(() => import('./components/ChatTab.vue'))
 
 const activeTab = ref('overview')
@@ -141,6 +168,7 @@ const authenticating = ref(false)
 const bootstrapState = ref<'checking' | 'ready' | 'auth-required' | 'unavailable'>('checking')
 const bootstrapError = ref('')
 const refreshing = ref(false)
+const pageActionBusy = ref(false)
 const ready = ref<ReadinessResponse | null>(null)
 const metrics = ref<Record<string, unknown>>({})
 const documents = ref<KnowledgeDocumentsView>({
@@ -160,30 +188,51 @@ const jobs = ref<JobResponse[]>([])
 const evaluation = ref<EvaluationStatusView>({})
 const quality = ref<QualityStatusView>({})
 
-const navItems = computed(() => [
-  { key: 'overview', label: '概览' },
-  { key: 'jobs', label: '构建任务', count: runningJobs.value || undefined },
-  { key: 'versions', label: '版本管理' },
-  { key: 'review', label: '校对工作台', count: pendingCount.value || undefined },
-  { key: 'manual', label: '结构化队列', count: manualPendingCount.value || undefined },
-  { key: 'evaluation', label: '评估' },
-  { key: 'chat', label: '问答验证' },
-])
-
 const pendingCount = computed(() => candidateDocs.value.reduce((sum, item) => sum + Number(item.pending_count || 0), 0))
 const manualPendingCount = computed(() => manualDocs.value.reduce(
   (sum, item) => sum + Number(item.pending_task_count ?? item.pending_count ?? 0),
   0,
 ))
 const runningJobs = computed(() => jobs.value.filter(job => ['queued', 'running'].includes(job.status)).length)
+
+const workflowNavItems = computed(() => [
+  { key: 'overview', label: '工作流驾驶舱', count: undefined },
+  { key: 'sources', label: '规范来源目录', count: undefined },
+  { key: 'jobs', label: '构建任务队列', count: runningJobs.value || undefined },
+  { key: 'review', label: '内容校对工作台', count: pendingCount.value || undefined },
+  { key: 'manual', label: '复杂表结构化', count: manualPendingCount.value || undefined },
+])
+
+const governanceNavItems = computed(() => [
+  { key: 'versions', label: '版本管理', count: undefined },
+  { key: 'evaluation', label: '质量验证', count: undefined },
+  { key: 'evaluationSets', label: '评估集管理', count: undefined },
+  { key: 'chat', label: '问答验证', count: undefined },
+])
+
+const pageMeta = computed(() => {
+  const meta: Record<string, { section: string, title: string, subtitle: string, action: string, actionPrimary?: boolean }> = {
+    overview: { section: '生产流程', title: '知识生产工作流', subtitle: '从规范来源到可验证知识包，查看当前阶段、阻塞项和下一步动作。', action: '' },
+    sources: { section: '生产流程', title: '规范来源目录', subtitle: '登记来源、审核使用边界，并管理不可变资产版本。', action: '上传 PDF', actionPrimary: true },
+    jobs: { section: '生产流程', title: '构建任务队列', subtitle: '提交候选构建，跟踪每个阶段的进度、日志和失败原因。', action: '' },
+    review: { section: '生产流程', title: '内容校对工作台', subtitle: '对照原 PDF、解析文本和 AI 证据，完成逐项人工审核。', action: '刷新候选' },
+    manual: { section: '生产流程', title: '复杂表结构化队列', subtitle: '保留原页面、行列关系和结构化草稿，完成复杂表人工确认。', action: '扫描复杂表' },
+    versions: { section: '治理与验证', title: '版本管理', subtitle: '查看活动版本、候选产物和受保护的版本清理策略。', action: '刷新版本' },
+    evaluation: { section: '治理与验证', title: '质量验证中心', subtitle: '把检索、结构化和回答级结果转成可阅读的发布结论。', action: '运行可执行检查', actionPrimary: true },
+    evaluationSets: { section: '治理与验证', title: '评估集管理', subtitle: '管理评估用例、版本记录和发布版本，并与质量验证保持清晰分工。', action: '' },
+    chat: { section: '治理与验证', title: '问答验证工作区', subtitle: '用真实问题检查检索依据、引用截图和答案渲染效果。', action: '新建验证会话' },
+  }
+  return meta[activeTab.value] || meta.overview
+})
+
 const statusLine = computed(() => {
   if (bootstrapState.value === 'checking') return '正在连接后端'
   if (bootstrapState.value === 'auth-required') return '等待 API Key 验证'
   if (bootstrapState.value === 'unavailable') return '后端连接失败'
-  const built = documents.value?.built ? 'built' : 'not built'
+  const built = documents.value?.built ? '知识库已构建' : '知识库未构建'
   const count = documents.value?.chunk_count ?? '-'
-  const readyText = ready.value?.ready ? 'ready' : 'not ready'
-  return `${readyText} · ${built} · ${count} chunks`
+  const readyText = ready.value?.ready ? '服务已就绪' : '服务未就绪'
+  return `${readyText} · ${built} · ${count} 个 Chunk`
 })
 
 async function persistApiKey() {
@@ -192,9 +241,7 @@ async function persistApiKey() {
 }
 
 function requireAuthentication(event?: Event) {
-  if (!authRequired.value && !authenticating.value) {
-    authCandidate.value = apiKey.value
-  }
+  if (!authRequired.value && !authenticating.value) authCandidate.value = apiKey.value
   const detail = event instanceof CustomEvent ? event.detail : null
   if (detail?.message) authError.value = String(detail.message)
   authRequired.value = true
@@ -203,9 +250,7 @@ function requireAuthentication(event?: Event) {
 }
 
 function connectionErrorMessage(error: unknown) {
-  if (error instanceof ApiError && error.message) {
-    return `后端请求失败（HTTP ${error.status}）：${error.message}`
-  }
+  if (error instanceof ApiError && error.message) return `后端请求失败（HTTP ${error.status}）：${error.message}`
   return '无法连接后端，请确认 API 服务正在运行。'
 }
 
@@ -218,9 +263,8 @@ async function probeApiAccess() {
     bootstrapState.value = 'ready'
     return true
   } catch (error) {
-    if (error instanceof ApiError && error.status === 401) {
-      requireAuthentication()
-    } else {
+    if (error instanceof ApiError && error.status === 401) requireAuthentication()
+    else {
       authRequired.value = false
       bootstrapState.value = 'unavailable'
       bootstrapError.value = connectionErrorMessage(error)
@@ -235,7 +279,6 @@ async function authenticate() {
     authError.value = '请输入 API Key。'
     return
   }
-
   authenticating.value = true
   authError.value = ''
   try {
@@ -263,6 +306,13 @@ async function refreshAll(options: { skipAccessProbe?: boolean } = {}) {
     await Promise.allSettled([refreshStatus(), refreshCandidates(), refreshManualStructuring(), refreshJobs(), refreshEvaluation(), refreshQuality()])
   } finally {
     refreshing.value = false
+  }
+}
+
+async function refreshCurrentPage() {
+  await refreshAll()
+  if (activeTab.value === 'evaluationSets') {
+    window.dispatchEvent(new CustomEvent('admin-page-action', { detail: { key: 'evaluationSets' } }))
   }
 }
 
@@ -294,6 +344,30 @@ async function refreshEvaluation() {
 
 async function refreshQuality() {
   quality.value = await getAdminQualityStatus()
+}
+
+async function refreshEvaluationData() {
+  await Promise.allSettled([refreshJobs(), refreshEvaluation(), refreshQuality()])
+}
+
+async function handlePageAction() {
+  if (pageActionBusy.value) return
+  pageActionBusy.value = true
+  try {
+    if (activeTab.value === 'overview') {
+      activeTab.value = manualPendingCount.value ? 'manual' : 'sources'
+    } else if (activeTab.value === 'review') {
+      await refreshCandidates()
+    } else if (activeTab.value === 'jobs') {
+      window.dispatchEvent(new CustomEvent('admin-page-action', { detail: { key: 'jobs' } }))
+    } else if (activeTab.value === 'versions') {
+      window.dispatchEvent(new CustomEvent('admin-page-action', { detail: { key: 'versions' } }))
+    } else {
+      window.dispatchEvent(new CustomEvent('admin-page-action', { detail: { key: activeTab.value } }))
+    }
+  } finally {
+    pageActionBusy.value = false
+  }
 }
 
 watch(activeTab, () => refreshAll())

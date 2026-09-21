@@ -4,10 +4,9 @@
       <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-4">
         <div>
           <h2 class="panel-title">知识版本</h2>
-          <p class="muted mt-1">{{ inventory.active_version_id ? `活动版本 ${inventory.active_version_id}` : '未识别活动版本' }}</p>
+          <p class="muted mt-1">{{ inventory.active_version_id ? `活动版本 ${inventory.active_version_label || inventory.active_version_id}` : '未识别活动版本' }}</p>
         </div>
         <div class="flex gap-2">
-          <button class="btn" :disabled="busy" @click="loadInventory">刷新</button>
           <button class="btn btn-primary" :disabled="busy" @click="createPlan">生成清理计划</button>
         </div>
       </div>
@@ -62,7 +61,10 @@
           </thead>
           <tbody>
             <tr v-for="item in plan.candidates" :key="item.version_id" class="border-t border-slate-100">
-              <td class="px-4 py-3 font-medium">{{ item.version_id }}</td>
+              <td class="px-4 py-3">
+                <div class="font-medium">{{ item.version_label || item.version_id }}</div>
+                <div class="mt-1 font-mono text-xs text-slate-500">内部 ID：{{ item.version_id }}</div>
+              </td>
               <td class="px-4 py-3">{{ cleanupReason(item.reason) }}</td>
               <td class="px-4 py-3 text-slate-500">{{ formatDate(item.modified_at) }}</td>
               <td class="px-4 py-3 text-right tabular-nums">{{ formatBytes(item.size_bytes) }}</td>
@@ -83,8 +85,51 @@
     </section>
 
     <section class="panel overflow-hidden">
-      <div class="border-b border-slate-200 p-4">
-        <h2 class="panel-title">版本清单</h2>
+      <div class="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 p-4">
+        <div>
+          <div class="flex items-baseline gap-2">
+            <h2 class="panel-title">版本清单</h2>
+            <span class="muted text-xs">{{ matchedVersionCount }} / {{ inventory.version_count ?? 0 }} 个</span>
+          </div>
+          <p class="muted mt-1 text-xs">活动版本、运行版本和受保护版本不会进入清理计划。</p>
+        </div>
+        <div class="flex flex-wrap items-end gap-2">
+          <label class="text-xs text-slate-600">
+            搜索版本
+            <input v-model.trim="versionQuery" class="field mt-1 h-9 w-48" type="search" placeholder="版本名称、内部 ID或错误信息">
+          </label>
+          <label class="text-xs text-slate-600">
+            状态
+            <select v-model="versionState" class="field mt-1 h-9 w-36" aria-label="筛选版本状态">
+              <option value="all">全部状态</option>
+              <option value="active">活动</option>
+              <option value="running">构建中</option>
+              <option value="passed">门禁通过</option>
+              <option value="failed_gate">门禁失败</option>
+              <option value="invalid_gate">门禁记录异常</option>
+              <option value="legacy_complete">旧版完整</option>
+              <option value="incomplete">不完整</option>
+              <option value="unsafe">路径异常</option>
+            </select>
+          </label>
+          <label class="text-xs text-slate-600">
+            范围
+            <select v-model="versionScope" class="field mt-1 h-9 w-32" aria-label="筛选版本范围">
+              <option value="all">全部版本</option>
+              <option value="cleanup">可清理</option>
+              <option value="protected">受保护</option>
+              <option value="pinned">人工固定</option>
+            </select>
+          </label>
+          <label class="text-xs text-slate-600">
+            每页
+            <select v-model.number="versionPageSize" class="field mt-1 h-9 w-24" aria-label="每页版本数">
+              <option :value="10">10 个</option>
+              <option :value="20">20 个</option>
+              <option :value="50">50 个</option>
+            </select>
+          </label>
+        </div>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full min-w-[980px] text-left text-sm">
@@ -97,16 +142,25 @@
               <th class="px-4 py-3 text-right">文件</th>
               <th class="px-4 py-3 text-right">占用</th>
               <th class="px-4 py-3 text-center">人工固定</th>
+              <th class="px-4 py-3 text-center">详情</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in inventory.versions || []" :key="item.version_id" class="border-t border-slate-100">
+            <tr
+              v-for="item in paginatedVersions"
+              :key="item.version_id"
+              class="border-t border-slate-100"
+              :class="item.version_id === inventory.active_version_id ? 'bg-blue-50/60' : ''"
+            >
               <td class="px-4 py-3">
-                <div class="font-medium">{{ item.version_id }}</div>
-                <div v-if="item.scan_error" class="mt-1 max-w-[360px] truncate text-xs text-red-600">{{ item.scan_error }}</div>
+                <button type="button" class="text-left font-medium text-blue-700 hover:underline" @click="openVersion(item)">
+                  {{ item.version_label || item.version_id }}
+                </button>
+                <div class="mt-1 font-mono text-xs text-slate-500">内部 ID：{{ item.version_id }}</div>
+                <div v-if="item.scan_error" class="mt-1 max-w-[360px] truncate text-xs text-red-600" :title="item.scan_error">{{ item.scan_error }}</div>
               </td>
               <td class="px-4 py-3"><span :class="stateClass(item.state)">{{ stateLabel(item.state) }}</span></td>
-              <td class="px-4 py-3 text-slate-600">{{ protectionText(item) }}</td>
+              <td class="max-w-[220px] truncate px-4 py-3 text-slate-600" :title="protectionText(item)">{{ protectionText(item) }}</td>
               <td class="px-4 py-3 text-slate-500">{{ formatDate(item.modified_at) }}</td>
               <td class="px-4 py-3 text-right tabular-nums">{{ item.file_count ?? '-' }}</td>
               <td class="px-4 py-3 text-right tabular-nums">{{ formatBytes(item.size_bytes) }}</td>
@@ -116,25 +170,86 @@
                   class="h-4 w-4 rounded border-slate-300"
                   :checked="item.pinned"
                   :disabled="busy || pinning === item.version_id || !item.safe"
+                  :aria-label="`${item.pinned ? '取消固定' : '固定'}版本 ${item.version_label || item.version_id}`"
+                  @click.stop
                   @change="togglePin(item, ($event.target as HTMLInputElement).checked)"
                 >
               </td>
+              <td class="px-4 py-3 text-center">
+                <button type="button" class="btn h-8 px-3 text-xs" @click="openVersion(item)">查看</button>
+              </td>
             </tr>
-            <tr v-if="!inventory.versions?.length">
-              <td colspan="7" class="px-4 py-12 text-center text-slate-500">暂无版本目录。</td>
+            <tr v-if="!paginatedVersions.length">
+              <td colspan="8" class="px-4 py-12 text-center text-slate-500">
+                {{ inventory.versions?.length ? '暂无符合条件的版本。' : '暂无版本目录。' }}
+              </td>
             </tr>
           </tbody>
         </table>
+      </div>
+      <div v-if="matchedVersionCount" class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-3">
+        <span class="text-xs text-slate-500">第 {{ versionPage }} / {{ totalVersionPages }} 页，共 {{ matchedVersionCount }} 个</span>
+        <div class="flex items-center gap-2">
+          <button class="btn h-8 px-3 text-xs" :disabled="busy || versionPage <= 1" @click="goToVersionPage(versionPage - 1)">上一页</button>
+          <button class="btn h-8 px-3 text-xs" :disabled="busy || versionPage >= totalVersionPages" @click="goToVersionPage(versionPage + 1)">下一页</button>
+        </div>
       </div>
     </section>
 
     <p v-if="message" class="rounded-md bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{{ message }}</p>
     <p v-if="error" class="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">{{ error }}</p>
+
+    <div v-if="selectedVersion" class="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/50 p-4" role="presentation" @click.self="closeVersion">
+        <section class="w-full max-w-2xl rounded-lg bg-white shadow-xl" role="dialog" aria-modal="true" :aria-label="`版本详情 ${selectedVersion.version_label || selectedVersion.version_id}`">
+        <div class="flex items-start justify-between gap-4 border-b border-slate-200 p-5">
+          <div>
+            <div class="text-xs text-slate-500">版本详情</div>
+            <h2 class="mt-1 break-all text-lg font-semibold text-slate-900">{{ selectedVersion.version_label || selectedVersion.version_id }}</h2>
+            <div class="mt-1 break-all font-mono text-xs text-slate-500">内部 ID：{{ selectedVersion.version_id }}</div>
+          </div>
+          <button class="btn" type="button" @click="closeVersion">关闭</button>
+        </div>
+        <div class="grid gap-4 p-5 sm:grid-cols-2">
+          <div><div class="text-xs text-slate-500">状态</div><div class="mt-1"><span :class="stateClass(selectedVersion.state)">{{ stateLabel(selectedVersion.state) }}</span></div></div>
+          <div><div class="text-xs text-slate-500">最后变化</div><div class="mt-1 text-sm">{{ formatDate(selectedVersion.modified_at) }}</div></div>
+          <div><div class="text-xs text-slate-500">文件与占用</div><div class="mt-1 text-sm">{{ selectedVersion.file_count }} 个文件 · {{ formatBytes(selectedVersion.size_bytes) }}</div></div>
+          <div><div class="text-xs text-slate-500">保护判断</div><div class="mt-1 text-sm">{{ protectionText(selectedVersion) }}</div></div>
+          <div class="sm:col-span-2"><div class="text-xs text-slate-500">版本指纹</div><div class="mt-1 break-all font-mono text-xs text-slate-600">{{ selectedVersion.fingerprint || '-' }}</div></div>
+          <div v-if="selectedVersion.scan_error" class="sm:col-span-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"><strong>扫描错误：</strong>{{ selectedVersion.scan_error }}</div>
+          <div class="sm:col-span-2 rounded-md bg-slate-50 px-3 py-3 text-sm text-slate-700">
+            <div class="font-medium">状态说明</div>
+            <p class="mt-1">{{ stateDescription(selectedVersion.state) }}</p>
+          </div>
+          <label class="sm:col-span-2 text-sm text-slate-700">
+            人工固定备注
+            <textarea
+              v-model="selectedPinNote"
+              class="field mt-1 min-h-20 w-full"
+              :disabled="!selectedVersion.pinned || pinNoteBusy || !selectedVersion.safe"
+              placeholder="固定版本后填写保留原因，例如：用于回滚验证或故障取证。"
+            ></textarea>
+            <span v-if="!selectedVersion.pinned" class="mt-1 block text-xs text-slate-500">请先在版本清单中固定此版本，再填写保留原因。</span>
+          </label>
+        </div>
+        <div class="flex flex-wrap justify-end gap-2 border-t border-slate-200 p-4">
+          <button class="btn" type="button" @click="closeVersion">关闭</button>
+          <button
+            v-if="selectedVersion.pinned"
+            class="btn btn-primary"
+            type="button"
+            :disabled="pinNoteBusy || !selectedVersion.safe"
+            @click="savePinNote"
+          >
+            {{ pinNoteBusy ? '保存中' : '保存备注' }}
+          </button>
+        </div>
+      </section>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   createAdminVersionCleanupPlan,
   getAdminVersions,
@@ -158,17 +273,66 @@ const busy = ref(false)
 const pinning = ref('')
 const message = ref('')
 const error = ref('')
+const versionQuery = ref('')
+type VersionStateFilter = 'active' | 'running' | 'passed' | 'failed_gate' | 'invalid_gate' | 'legacy_complete' | 'incomplete' | 'unsafe'
+type VersionScopeFilter = 'cleanup' | 'protected' | 'pinned'
+const versionState = ref<'all' | VersionStateFilter>('all')
+const versionScope = ref<'all' | VersionScopeFilter>('all')
+const versionPage = ref(1)
+const versionPageSize = ref(20)
+const selectedVersion = ref<VersionSummary | null>(null)
+const selectedPinNote = ref('')
+const pinNoteBusy = ref(false)
+
+const paginatedVersions = computed(() => inventory.value.versions || [])
+const matchedVersionCount = computed(() => Number(inventory.value.matched_version_count ?? inventory.value.version_count ?? 0))
+const totalVersionPages = computed(() => Math.max(1, Math.ceil(matchedVersionCount.value / versionPageSize.value)))
+
+let versionFilterTimer: number | undefined
+watch([versionQuery, versionState, versionScope, versionPageSize], () => {
+  versionPage.value = 1
+  if (versionFilterTimer) window.clearTimeout(versionFilterTimer)
+  versionFilterTimer = window.setTimeout(() => { void loadInventory() }, 250)
+})
+watch(totalVersionPages, (pages) => {
+  if (versionPage.value > pages) {
+    versionPage.value = pages
+    void loadInventory()
+  }
+})
 
 async function loadInventory() {
   busy.value = true
   error.value = ''
   try {
-    inventory.value = await getAdminVersions()
+    const response = await getAdminVersions({
+      query: {
+        q: versionQuery.value.trim() || undefined,
+        state: versionState.value === 'all' ? undefined : versionState.value,
+        scope: versionScope.value === 'all' ? undefined : versionScope.value,
+        offset: (versionPage.value - 1) * versionPageSize.value,
+        limit: versionPageSize.value,
+      },
+    })
+    inventory.value = response
+    if (selectedVersion.value) {
+      const refreshed = inventory.value.versions.find(item => item.version_id === selectedVersion.value?.version_id)
+      if (refreshed) {
+        selectedVersion.value = refreshed
+        selectedPinNote.value = refreshed.pin_note || ''
+      }
+    }
   } catch (err: unknown) {
     error.value = errorMessage(err)
   } finally {
     busy.value = false
   }
+}
+
+async function goToVersionPage(page: number) {
+  if (page < 1 || page > totalVersionPages.value || page === versionPage.value) return
+  versionPage.value = page
+  await loadInventory()
 }
 
 async function createPlan() {
@@ -216,7 +380,9 @@ async function togglePin(item: VersionSummary, pinned: boolean) {
       path: { version_id: item.version_id },
       body: { pinned, note: item.pin_note || '' },
     })
-    message.value = pinned ? `已固定版本 ${item.version_id}` : `已取消固定版本 ${item.version_id}`
+    message.value = pinned
+      ? `已固定版本 ${item.version_label || item.version_id}`
+      : `已取消固定版本 ${item.version_label || item.version_id}`
     plan.value = null
     planConfirmed.value = false
     await loadInventory()
@@ -225,6 +391,36 @@ async function togglePin(item: VersionSummary, pinned: boolean) {
     await loadInventory()
   } finally {
     pinning.value = ''
+  }
+}
+
+function openVersion(item: VersionSummary) {
+  selectedVersion.value = item
+  selectedPinNote.value = item.pin_note || ''
+}
+
+function closeVersion() {
+  if (pinNoteBusy.value) return
+  selectedVersion.value = null
+  selectedPinNote.value = ''
+}
+
+async function savePinNote() {
+  if (!selectedVersion.value?.pinned || !selectedVersion.value.safe) return
+  pinNoteBusy.value = true
+  error.value = ''
+  try {
+    const result = await updateAdminVersionRetention({
+      path: { version_id: selectedVersion.value.version_id },
+      body: { pinned: true, note: selectedPinNote.value.trim() },
+    })
+    message.value = `已保存版本 ${selectedVersion.value.version_label || selectedVersion.value.version_id} 的固定备注`
+    selectedVersion.value.pin_note = result.note
+    await loadInventory()
+  } catch (err: unknown) {
+    error.value = errorMessage(err)
+  } finally {
+    pinNoteBusy.value = false
   }
 }
 
@@ -264,6 +460,19 @@ function stateLabel(state: string) {
   } as Record<string, string>)[state] || state || '-'
 }
 
+function stateDescription(state: string) {
+  return ({
+    active: '这是当前在线使用的知识库版本，不能进入清理计划。',
+    running: '该版本仍与运行中的构建任务相关，任务结束前不会被清理。',
+    passed: '候选版本已通过质量门禁，可以作为后续激活或回滚候选。',
+    failed_gate: '候选版本未通过质量门禁，应在构建任务或质量验证中心查看失败原因。',
+    invalid_gate: '门禁记录缺失或格式异常，系统按风险状态保留该版本。',
+    legacy_complete: '该版本具备旧版完整产物，但缺少当前版本格式的全部治理证据。',
+    incomplete: '该版本缺少必要构建产物，通常不能用于加载或发布。',
+    unsafe: '系统无法安全扫描该版本目录，已按保护状态处理。',
+  } as Record<string, string>)[state] || '该版本状态暂无进一步说明。'
+}
+
 function stateClass(state: string) {
   const base = 'rounded px-2 py-1 text-xs font-semibold'
   if (state === 'active') return `${base} bg-blue-100 text-blue-700`
@@ -296,5 +505,17 @@ function cleanupReason(reason?: string) {
   } as Record<string, string>)[reason] || reason
 }
 
-onMounted(loadInventory)
+function handlePageAction(event: Event) {
+  const detail = (event as CustomEvent<{ key?: string }>).detail
+  if (detail?.key === 'versions') void loadInventory()
+}
+
+onMounted(() => {
+  loadInventory()
+  window.addEventListener('admin-page-action', handlePageAction)
+})
+onBeforeUnmount(() => window.removeEventListener('admin-page-action', handlePageAction))
+onBeforeUnmount(() => {
+  if (versionFilterTimer) window.clearTimeout(versionFilterTimer)
+})
 </script>

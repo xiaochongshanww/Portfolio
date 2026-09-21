@@ -201,4 +201,21 @@ describe('console authentication bootstrap', () => {
     expect(wrapper.text()).toContain('后端请求失败（HTTP 503）：服务正在启动。')
     expect(wrapper.text()).not.toContain('需要 API Key')
   })
+
+  it('does not expose a misleading submit action in the multi-operation build page header', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (requestPath(input) === '/admin/status') return jsonResponse({ built: true })
+      return jsonResponse(successfulPayload(input))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    wrapper = mountConsole()
+    await settleConsole()
+    const jobsNav = wrapper.findAll('button').find(button => button.text() === '构建任务队列')
+    expect(jobsNav).toBeDefined()
+    await jobsNav!.trigger('click')
+    await settleConsole()
+
+    expect(wrapper.find('.app-header-actions').text()).not.toContain('提交候选构建')
+  })
 })

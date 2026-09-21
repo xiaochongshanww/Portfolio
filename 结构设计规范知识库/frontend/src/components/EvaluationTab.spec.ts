@@ -41,9 +41,8 @@ describe('EvaluationTab', () => {
   })
 
   it.each([
-    ['常规评估', startAdminEvaluation, { top_k: 5, evaluation_set: 'regular' }],
-    ['结构化专项', startAdminEvaluation, { top_k: 5, evaluation_set: 'structured' }],
-    ['回答盲测', startAdminAnswerEvaluation, { evaluation_set: 'answer' }],
+    ['单独运行结构化评估', startAdminEvaluation, { top_k: 5, evaluation_set: 'structured' }],
+    ['单独运行回答盲测', startAdminAnswerEvaluation, { evaluation_set: 'answer' }],
   ])('为%s发送内置评估集标识', async (label, operation, payload) => {
     const wrapper = mount(EvaluationTab, {
       props: { evaluation: {}, jobs: [] },
@@ -54,6 +53,50 @@ describe('EvaluationTab', () => {
 
     expect(operation).toHaveBeenCalledWith({ body: payload })
     expect(JSON.stringify(vi.mocked(operation).mock.calls[0][0])).not.toContain('file')
+  })
+
+  it('按门禁状态展示待更新而不是把过期报告显示为通过', async () => {
+    const wrapper = mount(EvaluationTab, {
+      props: {
+        evaluation: {
+          latest: { case_count: 100, source_hit_rate: 1, clause_hit_rate: 1, keyword_hit_rate: 1, failures: [] },
+          structured_latest: { case_count: 12, structured_table_hit_rate: 1, failures: [] },
+          answer_latest: { case_count: 24, pass_rate: 1, failures: [] },
+        },
+        quality: {
+          quality_gate: {
+            passed: false,
+            failed_checks: ['regular_report_freshness'],
+            checks: [
+              { name: 'regular_evaluation', status: 'passed', message: '常规评估 100 项，失败 0 项' },
+              { name: 'regular_report_freshness', status: 'failed', message: '常规评估报告已过期' },
+            ],
+          },
+          candidate_activation: { available: true, passed: true },
+          regular_evaluation: { case_count: 100, authority_hit_rate: 1, failure_count: 0 },
+          structured_evaluation: { case_count: 0, failure_count: 0 },
+          answer_evaluation: { case_count: 0, failure_count: 0 },
+        },
+        jobs: [],
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('常规检索评估')
+    expect(wrapper.text()).toContain('待更新')
+    expect(wrapper.text()).toContain('当前活动版本仍可继续使用')
+  })
+
+  it('顶部质量检查提交常规、结构化和回答级评估', async () => {
+    const wrapper = mount(EvaluationTab, { props: { evaluation: {}, quality: {}, jobs: [] } })
+
+    await button(wrapper, '运行可执行检查').trigger('click')
+    await flushPromises()
+
+    expect(startAdminEvaluation).toHaveBeenCalledWith({ body: { top_k: 5, evaluation_set: 'regular' } })
+    expect(startAdminEvaluation).toHaveBeenCalledWith({ body: { top_k: 5, evaluation_set: 'structured' } })
+    expect(startAdminAnswerEvaluation).toHaveBeenCalledWith({ body: { evaluation_set: 'answer' } })
   })
 
   it('浏览评估集用例及其详情', async () => {

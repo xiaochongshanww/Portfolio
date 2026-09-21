@@ -1,35 +1,74 @@
 <template>
-  <div
-    class="grid h-full min-h-[760px] gap-5"
-    :class="focusEditor ? 'grid-cols-1' : 'grid-cols-[300px_minmax(480px,1fr)_minmax(480px,34vw)]'"
-  >
-    <section v-if="!focusEditor" class="panel flex min-h-0 flex-col">
+  <div class="manual-page" :class="focusEditor ? 'manual-page-focus' : ''">
+    <div v-if="!focusEditor" class="manual-stat-grid">
+      <section class="panel p-4">
+        <div class="muted">待处理表格</div>
+        <strong class="mt-2 block text-2xl text-slate-900">{{ totalPending }}</strong>
+        <div class="muted mt-1">当前阻塞候选发布</div>
+      </section>
+      <section class="panel p-4">
+        <div class="muted">已完成</div>
+        <strong class="mt-2 block text-2xl text-slate-900">{{ totalApproved }}</strong>
+        <div class="muted mt-1">已发布结构化表</div>
+      </section>
+      <section class="panel p-4">
+        <div class="muted">AI 建议覆盖</div>
+        <strong class="mt-2 block text-2xl text-slate-900">{{ suggestionCoverage }}</strong>
+        <div class="muted mt-1">仍需人工确认</div>
+      </section>
+      <section class="panel p-4">
+        <div class="muted">当前数据版本</div>
+        <strong class="mt-2 block truncate font-mono text-xl text-slate-900" :title="activeDataVersion">{{ activeDataVersionLabel }}</strong>
+        <div class="muted mt-1">结构化修改不会即时上线</div>
+      </section>
+    </div>
+
+    <div class="manual-workspace" :class="focusEditor ? 'manual-workspace-focus' : ''">
+    <section v-if="!focusEditor" class="panel flex min-h-0 flex-col overflow-hidden">
       <div class="border-b border-slate-200 p-4">
-        <h2 class="panel-title">人工结构化</h2>
-        <p class="muted mt-1">{{ totalPending }} 个复杂表待处理</p>
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h2 class="panel-title">复杂表队列</h2>
+            <p class="muted mt-1">按规范筛选待处理和已完成项</p>
+          </div>
+          <span class="rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">{{ totalPending }} 待处理</span>
+        </div>
+        <p class="muted mt-2">共 {{ totalTaskCount }} 个复杂表任务</p>
       </div>
       <div class="border-b border-slate-200 p-3">
-        <div class="grid grid-cols-2 gap-2">
-          <button class="btn" :disabled="busy" @click="scanQueue">扫描复杂表</button>
-          <button class="btn btn-primary" :disabled="busy" @click="startBatchSuggestions">批量 AI 建议</button>
-        </div>
+        <label for="manual-doc-filter" class="mb-1 block text-xs font-semibold text-slate-500">来源规范</label>
+        <select id="manual-doc-filter" v-model="selectedDoc" class="field w-full" :disabled="!documents.length" @change="selectDoc(selectedDoc)">
+          <option v-for="doc in documents" :key="doc.doc" :value="doc.doc">{{ doc.doc }}</option>
+        </select>
+        <label for="manual-status-filter" class="sr-only">结构化状态</label>
+        <select id="manual-status-filter" v-model="statusFilter" class="field mt-2 w-full">
+          <option value="pending">待处理</option>
+          <option value="approved">已结构化</option>
+          <option value="rejected">暂不处理</option>
+          <option value="">全部</option>
+        </select>
+        <button class="btn btn-primary mt-2 w-full" type="button" :disabled="busy" @click="startBatchSuggestions">批量 AI 建议</button>
       </div>
-      <div class="min-h-0 flex-1 overflow-auto p-3">
+      <div class="manual-task-list min-h-0 flex-1 overflow-auto p-3" aria-live="polite">
         <button
-          v-for="doc in documents"
-          :key="doc.doc"
+          v-for="item in filteredItems"
+          :key="item.id"
           class="mb-2 w-full rounded-md border border-slate-200 p-3 text-left transition hover:border-blue-300 hover:bg-blue-50"
-          :class="selectedDoc === doc.doc ? 'border-blue-500 bg-blue-50' : 'bg-white'"
-          @click="selectDoc(doc.doc)"
+          :class="selectedItem?.id === item.id ? 'border-blue-500 bg-blue-50' : 'bg-white'"
+          type="button"
+          @click="openItem(item)"
         >
-          <div class="line-clamp-2 text-sm font-semibold">{{ doc.doc }}</div>
-          <div class="mt-2 flex items-center gap-2 text-xs text-slate-500">
-            <span>{{ doc.pending_task_count ?? doc.pending_count ?? 0 }} pending</span>
-            <span>{{ doc.approved_task_count ?? doc.approved_count ?? 0 }} done</span>
-            <span>{{ doc.suggestion_count || 0 }} AI</span>
+          <div class="flex items-start justify-between gap-2 text-sm font-semibold">
+            <span class="min-w-0 break-words">{{ displayItemTitle(item) }}</span>
+            <span :class="riskClass(item.severity)">{{ severityLabel(item.severity) }}</span>
+          </div>
+          <div class="mt-1 text-xs text-slate-500">
+            {{ item.group_size > 1 ? `第 ${(item.group_pages || []).join('、')} 页` : `第 ${item.page} 页` }}
+            · 元素 {{ item.element_index }} · {{ issueTypeLabel(item.issue_type) }} · {{ statusLabel(item.status) }}
           </div>
         </button>
         <p v-if="!documents.length" class="p-4 text-sm text-slate-500">暂无复杂表队列。</p>
+        <p v-else-if="!filteredItems.length" class="p-4 text-sm leading-6 text-slate-500">当前筛选下暂无任务，请切换规范或状态。</p>
       </div>
     </section>
 
@@ -39,7 +78,7 @@
           <h2 class="panel-title">原 PDF 页面</h2>
           <p class="muted mt-1">{{ previewItem ? `page ${previewItem.page} · element ${previewItem.element_index}` : '选择任务后显示页面截图' }}</p>
         </div>
-        <button class="btn" :disabled="!selectedDoc" @click="loadDocQueue">刷新队列</button>
+        <button class="btn" type="button" :disabled="!selectedDoc" @click="loadDocQueue">刷新队列</button>
       </div>
       <div v-if="groupMembers.length > 1" class="flex gap-2 overflow-x-auto border-b border-slate-200 px-4 py-2">
         <button
@@ -47,64 +86,64 @@
           :key="member.id"
           class="btn h-8 shrink-0 px-3 text-xs"
           :class="previewItem?.id === member.id ? 'border-blue-500 bg-blue-50 text-blue-700' : ''"
+          type="button"
           @click="previewMember(member)"
         >
-          page {{ member.page }}
+          第 {{ member.page }} 页
         </button>
       </div>
       <div class="min-h-0 flex-1 overflow-auto bg-slate-200 p-5">
-        <img v-if="pageImageUrl" :src="pageImageUrl" class="mx-auto max-w-full rounded-sm bg-white shadow" />
-        <div v-else class="flex h-full items-center justify-center text-slate-500">暂无页面预览</div>
+        <div v-if="pageImageStatus === 'loading' && !pageImageUrl" class="flex h-full items-center justify-center text-sm text-slate-500" aria-live="polite">
+          正在加载页面截图...
+        </div>
+        <div v-else-if="pageImageStatus === 'error'" class="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-sm text-slate-600" role="alert">
+          <div class="font-semibold text-slate-700">原始 PDF 页面暂时无法显示</div>
+          <div class="max-w-md leading-6">{{ pageImageError }}</div>
+          <button class="btn h-8 px-3 text-xs" type="button" @click="retryPageImage">重新加载</button>
+        </div>
+        <img
+          v-else-if="pageImageUrl"
+          :src="pageImageUrl"
+          :alt="`${selectedDoc || '原 PDF'} 第 ${previewItem?.page || ''} 页`"
+          class="mx-auto max-w-full rounded-sm bg-white shadow"
+          @error="handlePageImageError"
+          @load="pageImageStatus = 'ready'"
+        />
+        <div v-else class="flex h-full items-center justify-center text-sm text-slate-500">从左侧队列中选择一项开始核对。</div>
       </div>
     </section>
 
-    <section class="panel flex min-h-0 flex-col">
+    <section class="manual-detail-panel panel flex min-h-0 flex-col overflow-hidden">
       <div class="flex items-center justify-between border-b border-slate-200 p-4">
         <div>
-          <h2 class="panel-title">复杂表详情</h2>
+          <h2 class="panel-title">结构化编辑</h2>
           <p class="muted mt-1">{{ selectedDoc || '未选择文档' }}</p>
         </div>
-        <button class="btn" :disabled="!selectedItem" @click="focusEditor = !focusEditor">
+        <button class="btn" type="button" :disabled="!selectedItem" @click="focusEditor = !focusEditor">
           {{ focusEditor ? '退出专注' : '专注编辑' }}
         </button>
       </div>
 
-      <div class="min-h-0 flex-1 overflow-auto">
-        <div class="border-b border-slate-200 p-3">
-          <select v-model="statusFilter" class="field h-9">
-            <option value="pending">待处理</option>
-            <option value="approved">已完成</option>
-            <option value="rejected">暂不处理</option>
-            <option value="">全部</option>
-          </select>
-        </div>
-
-        <div class="max-h-72 overflow-auto border-b border-slate-200 p-3">
-          <button
-            v-for="item in filteredItems"
-            :key="item.id"
-            class="mb-2 w-full rounded-md border border-slate-200 p-3 text-left hover:bg-blue-50"
-            :class="selectedItem?.id === item.id ? 'border-blue-500 bg-blue-50' : 'bg-white'"
-            @click="openItem(item)"
-          >
-            <div class="flex items-center justify-between gap-2 text-sm font-semibold">
-              <span class="line-clamp-1">{{ item.title || item.id }}</span>
-              <span :class="riskClass(item.severity)">{{ item.severity }}</span>
-            </div>
+      <div v-if="selectedItem" class="border-b border-slate-200 bg-slate-50 p-3">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <div class="break-words text-sm font-semibold text-slate-800">{{ displayItemTitle(selectedItem) }}</div>
             <div class="mt-1 text-xs text-slate-500">
-              {{ item.group_size > 1 ? `pages ${(item.group_pages || []).join(', ')}` : `page ${item.page}` }}
-              · element {{ item.element_index }} · {{ item.issue_type }} · {{ item.status }}
+              {{ selectedItem.group_size > 1 ? `第 ${(selectedItem.group_pages || []).join('、')} 页` : `第 ${selectedItem.page} 页` }}
+              · 元素 {{ selectedItem.element_index }} · {{ issueTypeLabel(selectedItem.issue_type) }}
             </div>
-          </button>
-          <p v-if="selectedDoc && !filteredItems.length" class="p-4 text-sm text-slate-500">该筛选下暂无任务。</p>
+          </div>
+          <span :class="riskClass(selectedItem.severity)">{{ severityLabel(selectedItem.severity) }}</span>
         </div>
+      </div>
 
+      <div class="manual-detail-scroll min-h-0 flex-1 overflow-auto">
         <div v-if="selectedItem" class="space-y-4 p-4">
           <div v-if="selectedItem.group_size > 1" class="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">
             <div class="font-semibold">跨页合并任务 · {{ selectedItem.group_size }} 个来源元素</div>
             <div class="mt-1">页码：{{ (selectedItem.group_pages || []).join('、') }}</div>
             <div class="mt-1 text-xs text-blue-700">
-              {{ selectedItem.group_reason }} · {{ selectedItem.group_confidence }} confidence
+              {{ selectedItem.group_reason }} · 置信度 {{ formatConfidence(selectedItem.group_confidence) }}
             </div>
           </div>
 
@@ -114,7 +153,7 @@
               <div v-for="rule in selectedItem.matched_rules" :key="rule.id" class="rounded-md bg-amber-50 p-3 text-sm leading-6 text-amber-900">
                 <div class="font-semibold">{{ rule.label || rule.id }}</div>
                 <div>{{ rule.reason }}</div>
-                <div class="text-xs text-amber-700">terms: {{ (rule.matched_terms || []).join(' / ') }}</div>
+                <div class="text-xs text-amber-700">命中词：{{ (rule.matched_terms || []).join(' / ') }}</div>
               </div>
               <div v-if="!selectedItem.matched_rules?.length" class="rounded-md bg-slate-50 p-3 text-sm text-slate-600">
                 通用复杂度命中：{{ (selectedItem.generic_reasons || []).join(' / ') }}
@@ -148,20 +187,21 @@
                 <span class="rounded bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">{{ draftStatus }}</span>
               </div>
               <div class="flex gap-2">
-                <button class="btn h-8 px-3 text-xs" :disabled="busy" @click="buildDraft">
+                <button class="btn h-8 px-3 text-xs" type="button" :disabled="busy" @click="buildDraft">
                   {{ selectedItem.group_size > 1 ? '生成合并草稿' : '生成' }}
                 </button>
                 <button
                   class="btn h-8 px-3 text-xs"
                   :disabled="busy || aiGenerating || !draftText.trim()"
+                  type="button"
                   @click="generateAiSuggestion"
                 >
                   {{ aiGenerating ? 'AI 生成中' : 'AI 生成建议' }}
                 </button>
-                <button class="btn h-8 px-3 text-xs" :disabled="busy || !draftText.trim()" @click="saveDraft">保存草稿</button>
-                <button class="btn h-8 px-3 text-xs" :disabled="busy || !draftText.trim()" @click="validateDraft">校验</button>
-                <button class="btn btn-primary h-8 px-3 text-xs" :disabled="busy || draftStatus !== 'validated'" @click="publishDraft">发布</button>
-                <button class="btn btn-danger h-8 px-3 text-xs" :disabled="busy || draftStatus !== 'published'" @click="rollbackDraft">回滚</button>
+                <button class="btn h-8 px-3 text-xs" type="button" :disabled="busy || !draftText.trim()" @click="saveDraft">保存草稿</button>
+                <button class="btn h-8 px-3 text-xs" type="button" :disabled="busy || !draftText.trim()" @click="validateDraft">校验</button>
+                <button class="btn btn-primary h-8 px-3 text-xs" type="button" :disabled="busy || draftState !== 'validated'" @click="publishDraft">发布</button>
+                <button class="btn btn-danger h-8 px-3 text-xs" type="button" :disabled="busy || draftState !== 'published'" @click="rollbackDraft">回滚</button>
               </div>
             </div>
             <StructuredDraftEditor v-model="draftText" :validation="validationResult" />
@@ -177,6 +217,7 @@
               </div>
               <button
                 class="btn btn-primary h-8 px-3 text-xs"
+                type="button"
                 :disabled="aiSuggestion.stale || aiSuggestion.proposal?.quality?.applicable === false"
                 @click="applyAiSuggestion"
               >
@@ -266,19 +307,22 @@
         <div v-else class="p-6 text-sm text-slate-500">选择左侧复杂表任务开始处理。</div>
       </div>
 
-      <div class="grid grid-cols-3 gap-2 border-t border-slate-200 p-4">
-        <button class="btn btn-primary" :disabled="!selectedItem" @click="setStatus('approved')">已结构化</button>
-        <button class="btn" :disabled="!selectedItem" @click="setStatus('pending')">待处理</button>
-        <button class="btn btn-danger" :disabled="!selectedItem" @click="setStatus('rejected')">暂不处理</button>
+      <div class="manual-action-bar border-t border-slate-200 bg-white p-4">
+        <div class="grid grid-cols-3 gap-2">
+          <button class="btn btn-primary" type="button" :disabled="!selectedItem" @click="setStatus('approved')">已结构化</button>
+          <button class="btn" type="button" :disabled="!selectedItem" @click="setStatus('pending')">待处理</button>
+          <button class="btn btn-danger" type="button" :disabled="!selectedItem" @click="setStatus('rejected')">暂不处理</button>
+        </div>
+        <p v-if="message" class="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{{ message }}</p>
+        <p v-if="error" class="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{{ error }}</p>
       </div>
-      <p v-if="message" class="mx-4 mb-3 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{{ message }}</p>
-      <p v-if="error" class="mx-4 mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{{ error }}</p>
     </section>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   buildManualStructuringDraft,
   getAdminJob,
@@ -307,7 +351,10 @@ import type {
 } from '../contracts'
 import StructuredDraftEditor from './StructuredDraftEditor.vue'
 
-const props = defineProps<{ documents: ManualDocumentSummary[] }>()
+const props = defineProps<{
+  documents: ManualDocumentSummary[]
+  activeDataVersion?: string
+}>()
 const emit = defineEmits<{ refresh: [] }>()
 
 const selectedDoc = ref('')
@@ -316,6 +363,8 @@ const selectedItem = ref<ManualStructuringItemView | null>(null)
 const previewItem = ref<ManualStructuringItemView | null>(null)
 const statusFilter = ref('pending')
 const pageImageUrl = ref('')
+const pageImageStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
+const pageImageError = ref('')
 const notes = ref('')
 const draftText = ref('')
 const busy = ref(false)
@@ -326,12 +375,28 @@ const validationResult = ref<ManualValidationResponse | null>(null)
 const versions = ref<ManualVersionSummary[]>([])
 const aiSuggestion = ref<StructuringSuggestionView | null>(null)
 const aiGenerating = ref(false)
+let previewRequest = 0
 
 const totalPending = computed(() => props.documents.reduce(
   (sum, item) => sum + Number(item.pending_task_count ?? item.pending_count ?? 0),
   0,
 ))
-const draftStatus = computed(() => {
+const totalApproved = computed(() => props.documents.reduce(
+  (sum, item) => sum + Number(item.approved_task_count ?? item.approved_count ?? 0),
+  0,
+))
+const totalTaskCount = computed(() => props.documents.reduce(
+  (sum, item) => sum + Number(item.task_count ?? 0),
+  0,
+))
+const totalSuggestionCount = computed(() => props.documents.reduce(
+  (sum, item) => sum + Number(item.suggestion_count ?? 0),
+  0,
+))
+const suggestionCoverage = computed(() => `${totalSuggestionCount.value} / ${totalTaskCount.value}`)
+const activeDataVersion = computed(() => props.activeDataVersion || '-')
+const activeDataVersionLabel = computed(() => activeDataVersion.value === '-' ? '-' : activeDataVersion.value.slice(0, 12))
+const draftState = computed(() => {
   try {
     const draft = parseJsonObject(draftText.value || '{}')
     return stringValue(draft.draft_status, '未生成')
@@ -339,6 +404,7 @@ const draftStatus = computed(() => {
     return 'JSON 无效'
   }
 })
+const draftStatus = computed(() => draftStatusLabel(draftState.value))
 const filteredItems = computed(() => {
   const filtered = statusFilter.value
     ? items.value.filter(item => item.status === statusFilter.value)
@@ -396,7 +462,8 @@ async function selectDoc(doc: string) {
   selectedDoc.value = doc
   selectedItem.value = null
   previewItem.value = null
-  pageImageUrl.value = ''
+  items.value = []
+  releasePageImage()
   await loadDocQueue()
 }
 
@@ -428,15 +495,38 @@ async function previewMember(item: ManualStructuringItemView) {
 }
 
 async function loadPreviewImage(item: ManualStructuringItemView) {
-  if (pageImageUrl.value) URL.revokeObjectURL(pageImageUrl.value)
-  pageImageUrl.value = ''
+  releasePageImage()
+  const request = ++previewRequest
+  pageImageStatus.value = 'loading'
+  pageImageError.value = ''
   try {
-    pageImageUrl.value = await getAdminPageImageObjectUrl({
+    const objectUrl = await getAdminPageImageObjectUrl({
       path: { doc: selectedDoc.value, page: Number(item.page) },
     })
-  } catch {
-    pageImageUrl.value = ''
+    if (request !== previewRequest) {
+      URL.revokeObjectURL(objectUrl)
+      return
+    }
+    pageImageUrl.value = objectUrl
+    pageImageStatus.value = 'ready'
+  } catch (err: unknown) {
+    if (request !== previewRequest) return
+    pageImageStatus.value = 'error'
+    const detail = errorMessage(err)
+    pageImageError.value = detail.includes('404')
+      ? '当前数据源目录中没有找到对应的源 PDF。请先补充该规范的原始 PDF，再重新扫描队列。'
+      : `页面截图加载失败：${detail || '请求未完成'}。请检查服务状态后重试。`
   }
+}
+
+async function retryPageImage() {
+  if (previewItem.value) await loadPreviewImage(previewItem.value)
+}
+
+function handlePageImageError() {
+  releasePageImage()
+  pageImageStatus.value = 'error'
+  pageImageError.value = '页面截图返回了无效内容，请检查源 PDF 和页面资源后重试。'
 }
 
 async function setStatus(status: string) {
@@ -447,7 +537,7 @@ async function setStatus(status: string) {
     body: { status, notes: notes.value },
   })
   items.value = items.value.map(item => item.id === currentId ? { ...item, status, notes: notes.value } : item)
-  message.value = `已标记为 ${status}`
+  message.value = `已标记为 ${statusLabel(status)}`
   emit('refresh')
   if (statusFilter.value && statusFilter.value !== status) {
     const next = filteredItems.value.find(item => item.id !== currentId)
@@ -646,8 +736,50 @@ function formatTimestamp(value?: number | null) {
 }
 
 function formatConfidence(value: unknown) {
+  if (typeof value === 'string' && value.endsWith('%')) return value
   const number = Number(value)
   return Number.isFinite(number) ? `${Math.round(number * 100)}%` : '-'
+}
+
+function statusLabel(status: string) {
+  if (status === 'approved') return '已结构化'
+  if (status === 'rejected') return '暂不处理'
+  return '待处理'
+}
+
+function severityLabel(severity: string) {
+  if (severity === 'high') return '高风险'
+  if (severity === 'medium') return '中风险'
+  return '低风险'
+}
+
+function issueTypeLabel(issueType: string) {
+  const labels: Record<string, string> = {
+    complex_snow_distribution: '复杂表格',
+    complex_table: '复杂表格',
+    table_misaligned: '普通表格',
+    table_header_missing: '表头缺失',
+    ocr_error: 'OCR 错误',
+    formula_error: '公式识别',
+  }
+  return labels[issueType] || issueType.replaceAll('_', ' ')
+}
+
+function displayItemTitle(item: ManualStructuringItemView) {
+  const title = (item.title || item.id).replace(/\$[\s\S]*?\$/g, '').replace(/\s+/g, ' ').trim()
+  return title || item.id
+}
+
+function draftStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    needs_review: '待校对',
+    validated: '已校验',
+    published: '已发布',
+    draft: '草稿',
+    '未生成': '未生成',
+    'JSON 无效': 'JSON 无效',
+  }
+  return labels[status] || status
 }
 
 function delay(ms: number) {
@@ -727,8 +859,15 @@ function clearSelection() {
   validationResult.value = null
   versions.value = []
   aiSuggestion.value = null
+  releasePageImage()
+}
+
+function releasePageImage() {
+  previewRequest += 1
   if (pageImageUrl.value) URL.revokeObjectURL(pageImageUrl.value)
   pageImageUrl.value = ''
+  pageImageStatus.value = 'idle'
+  pageImageError.value = ''
 }
 
 function riskClass(severity: string) {
@@ -753,12 +892,64 @@ watch(() => props.documents, docs => {
   if (!selectedDoc.value && docs.length) selectDoc(docs[0].doc)
 }, { deep: true })
 
+function handlePageAction(event: Event) {
+  const detail = (event as CustomEvent<{ key?: string }>).detail
+  if (detail?.key === 'manual') void scanQueue()
+}
+
 onMounted(() => {
   if (props.documents.length) selectDoc(props.documents[0].doc)
+  window.addEventListener('admin-page-action', handlePageAction)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('admin-page-action', handlePageAction)
+  releasePageImage()
 })
 </script>
 
 <style scoped>
+.manual-page {
+  min-width: 0;
+}
+
+.manual-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.manual-workspace {
+  height: calc(100dvh - 250px);
+  min-height: 680px;
+}
+
+.manual-detail-panel,
+.manual-detail-scroll,
+.manual-task-list {
+  min-height: 0;
+}
+
+.manual-action-bar {
+  flex: none;
+}
+
+@media (max-width: 1180px) {
+  .manual-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .manual-workspace {
+    height: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .manual-stat-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .table-preview :deep(table) {
   width: max-content;
   min-width: 100%;

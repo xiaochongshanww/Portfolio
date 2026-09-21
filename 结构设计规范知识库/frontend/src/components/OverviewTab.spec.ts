@@ -1,152 +1,67 @@
-import { flushPromises, mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-
-const probeModelProviders = vi.hoisted(() => vi.fn())
-
-vi.mock('../admin-api', () => ({ probeModelProviders }))
-
+import { mount } from '@vue/test-utils'
+import { describe, expect, it } from 'vitest'
 import OverviewTab from './OverviewTab.vue'
 
-function mountOverview() {
-  return mount(OverviewTab, {
-    props: {
-      ready: {
-        ready: true,
-        status: 'ready',
-        reasons: [],
-        checks: {},
-        built_at: '',
-        checked_at: '2026-08-12T00:00:00+00:00',
-        data_version_hash: '',
-        version: '',
-      },
-      documents: {
-        built: true,
-        documents: [],
-        document_count: 0,
-        chunk_count: 0,
-        image_count: 0,
-        data_version_hash: '',
-        built_at: '',
-        parser_backend: '',
-        missing_artifact_count: 0,
-      },
-      metrics: {},
-      quality: {},
-    },
-  })
+const documents = {
+  built: true,
+  documents: [],
+  document_count: 7,
+  chunk_count: 2689,
+  image_count: 0,
+  data_version_hash: '382c8904807c1234',
+  built_at: '2026-08-24T02:06:20Z',
+  parser_backend: 'mineru',
+  missing_artifact_count: 0,
+  applied_correction_count: 5,
+  audit_status: { finding_count: 3, high_risk_count: 0 },
 }
 
-describe('provider capability diagnostics', () => {
-  beforeEach(() => {
-    probeModelProviders.mockReset()
-  })
+const quality = {
+  pending_task_count: 14,
+  recent_failed_job_count: 0,
+  unresolved_failed_job_count: 0,
+  candidate_activation: { available: true, passed: true },
+  structured_evaluation: { structured_table_hit_rate: 1 },
+  answer_evaluation: { pass_rate: 1 },
+}
 
-  it('does not spend provider calls until the operator clicks detect', async () => {
-    probeModelProviders.mockResolvedValue({
-      ok: true,
-      checked_at: '2026-08-12T00:00:00+00:00',
-      providers: [
-        {
-          provider: 'zhipuai',
-          capability: 'embedding',
-          model: 'embedding-3',
-          ok: true,
-          status: 'ok',
-          latency_ms: 120,
-          http_status: null,
+describe('OverviewTab', () => {
+  it('shows the machine-audit stage as done and keeps one current stage', () => {
+    const wrapper = mount(OverviewTab, {
+      props: {
+        ready: {
+          ready: true,
+          status: 'ready',
+          reasons: [],
+          built_at: documents.built_at,
+          checked_at: documents.built_at,
+          checks: {},
+          data_version_hash: documents.data_version_hash,
+          version: documents.data_version_hash,
         },
-        {
-          provider: 'mimo',
-          capability: 'chat',
-          model: 'mimo-v2-omni',
-          ok: true,
-          status: 'ok',
-          latency_ms: 180,
-          http_status: null,
-        },
-      ],
+        documents,
+        metrics: {},
+        quality,
+      },
     })
 
-    const wrapper = mountOverview()
-    expect(probeModelProviders).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain('尚未检测')
-
-    await wrapper.setProps({ metrics: { requests_total: 1 } })
-    expect(probeModelProviders).not.toHaveBeenCalled()
-
-    await wrapper.get('[data-testid="provider-probe-button"]').trigger('click')
-    await flushPromises()
-
-    expect(probeModelProviders).toHaveBeenCalledTimes(1)
-    expect(wrapper.text()).toContain('智谱 Embedding')
-    expect(wrapper.text()).toContain('MiMo 聊天')
-    expect(wrapper.text()).toContain('120 ms')
-    expect(wrapper.text().match(/可用/g)).toHaveLength(2)
+    const stages = wrapper.findAll('.workflow-stage')
+    expect(stages).toHaveLength(7)
+    expect(wrapper.text()).toContain('机器审计')
+    expect(stages[2].classes()).toContain('workflow-stage-done')
+    expect(wrapper.findAll('.workflow-stage-current')).toHaveLength(1)
+    expect(wrapper.findAll('.workflow-stage-current')[0].text()).toContain('复杂表')
+    expect(stages[5].classes()).toContain('workflow-stage-pending')
   })
 
-  it('renders stable provider failures and transport errors', async () => {
-    probeModelProviders.mockResolvedValueOnce({
-      ok: false,
-      checked_at: '2026-08-12T00:00:00+00:00',
-      providers: [
-        {
-          provider: 'zhipuai',
-          capability: 'embedding',
-          model: 'embedding-3',
-          ok: false,
-          status: 'auth_failed',
-          latency_ms: 90,
-          http_status: 401,
-        },
-        {
-          provider: 'mimo',
-          capability: 'chat',
-          model: 'mimo-v2-omni',
-          ok: false,
-          status: 'rate_limited',
-          latency_ms: 140,
-          http_status: 429,
-        },
-      ],
+  it('keeps the hero as the only primary action for the overview', () => {
+    const wrapper = mount(OverviewTab, {
+      props: { ready: null, documents, metrics: {}, quality },
     })
 
-    const wrapper = mountOverview()
-    await wrapper.get('[data-testid="provider-probe-button"]').trigger('click')
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('鉴权失败')
-    expect(wrapper.text()).toContain('HTTP 401')
-    expect(wrapper.text()).toContain('已限流')
-    expect(wrapper.text()).toContain('HTTP 429')
-
-    probeModelProviders.mockRejectedValueOnce(new Error('供应商探测端点不可达'))
-    await wrapper.get('[data-testid="provider-probe-button"]').trigger('click')
-    await flushPromises()
-
-    expect(wrapper.get('[role="alert"]').text()).toBe('供应商探测端点不可达')
-    expect(wrapper.text()).not.toContain('智谱 Embedding')
-  })
-
-  it('suppresses duplicate clicks while a provider probe is running', async () => {
-    let resolveProbe: (value: unknown) => void = () => undefined
-    probeModelProviders.mockReturnValue(new Promise(resolve => {
-      resolveProbe = resolve
-    }))
-
-    const wrapper = mountOverview()
-    const button = wrapper.get('[data-testid="provider-probe-button"]')
-    await button.trigger('click')
-    await button.trigger('click')
-
-    expect(probeModelProviders).toHaveBeenCalledTimes(1)
-    expect(button.attributes('disabled')).toBeDefined()
-    expect(button.text()).toBe('检测中')
-
-    resolveProbe({ ok: true, checked_at: '', providers: [] })
-    await flushPromises()
-
-    expect(button.attributes('disabled')).toBeUndefined()
-    expect(button.text()).toBe('检测')
+    expect(wrapper.findAll('.btn-primary')).toHaveLength(1)
+    expect(wrapper.find('.current-stage-panel .btn-primary').exists()).toBe(false)
+    expect(wrapper.find('.cockpit-hero').text()).toContain('完成 14 个复杂表结构化任务')
+    expect(wrapper.find('.cockpit-hero-meta').text()).toContain('阻塞发布：是')
   })
 })
