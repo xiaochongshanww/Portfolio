@@ -28,6 +28,7 @@ env/
 Thumbs.db
 
 # Project-specific (generated data, DB, logs)
+/tmp/
 /data/processed/
 /data/chunks/
 /data/images/
