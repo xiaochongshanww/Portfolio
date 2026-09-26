@@ -1,9 +1,18 @@
+import hashlib
 import logging
+import re
+import shutil
+import tempfile
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from src.app.core.config import settings
+from src.app.core.job_cancellation import (
+    job_cancellation_safe_section,
+    raise_if_job_cancelled,
+)
 from src.app.retrieval.hybrid_search import retrieval_state
 from src.evaluation.answer_runner import (
     render_answer_evaluation_markdown,
@@ -106,6 +115,7 @@ class _JobProgressReporter:
         self._last_step = ""
 
     def __call__(self, step: str, message: str, details: dict[str, Any]) -> None:
+        raise_if_job_cancelled()
         now = time.monotonic()
         if step == self._last_step and now - self._last_emit_at < self.min_interval_seconds:
             return
@@ -157,6 +167,7 @@ def _activate_candidate_version(
         images_dir=images_dir,
     )
     gate_artifacts = write_candidate_activation_artifacts(assessment, quality_dir)
+    raise_if_job_cancelled()
     if not assessment.result["passed"] or assessment.retrieval_state is None:
         failed = ", ".join(assessment.result.get("failed_checks", [])) or "candidate_runtime"
         store.append_log(
@@ -186,37 +197,38 @@ def _activate_candidate_version(
         "candidate_gate_report": gate_artifacts["gate_report"],
         "source_catalog_revision": source_catalog_revision,
     }
-    old_manifest = _snapshot_file(MANIFEST_PATH)
-    old_pointer = _snapshot_file(ACTIVE_DB_PATH)
-    old_retrieval_state = retrieval_state.snapshot()
-    _set_step(
-        job,
-        store,
-        "activate_version",
-        "提交候选版本并切换活动指针",
-        db_dir=str(db_dir),
-        candidate_job_id=version_job_id,
-    )
-    try:
-        write_manifest(MANIFEST_PATH, manifest)
-        write_active_db(pointer_payload, ACTIVE_DB_PATH)
-        retrieval_state.adopt(assessment.retrieval_state)
-        if source_catalog_revision:
-            source_catalog_store.activate_revision(
-                source_catalog_revision, str(manifest.get("data_version_hash", ""))
-            )
-    except Exception:
-        _restore_file(ACTIVE_DB_PATH, old_pointer)
-        _restore_file(MANIFEST_PATH, old_manifest)
-        retrieval_state.restore(old_retrieval_state)
-        if source_catalog_revision:
-            try:
-                source_catalog_store.fail_revision(
-                    source_catalog_revision, "候选版本激活失败，已恢复旧在线版本"
+    with job_cancellation_safe_section():
+        old_manifest = _snapshot_file(MANIFEST_PATH)
+        old_pointer = _snapshot_file(ACTIVE_DB_PATH)
+        old_retrieval_state = retrieval_state.snapshot()
+        _set_step(
+            job,
+            store,
+            "activate_version",
+            "提交候选版本并切换活动指针",
+            db_dir=str(db_dir),
+            candidate_job_id=version_job_id,
+        )
+        try:
+            write_manifest(MANIFEST_PATH, manifest)
+            write_active_db(pointer_payload, ACTIVE_DB_PATH)
+            retrieval_state.adopt(assessment.retrieval_state)
+            if source_catalog_revision:
+                source_catalog_store.activate_revision(
+                    source_catalog_revision, str(manifest.get("data_version_hash", ""))
                 )
-            except Exception:
-                logging.exception("source_revision_failure_status_update_failed")
-        raise
+        except Exception:
+            _restore_file(ACTIVE_DB_PATH, old_pointer)
+            _restore_file(MANIFEST_PATH, old_manifest)
+            retrieval_state.restore(old_retrieval_state)
+            if source_catalog_revision:
+                try:
+                    source_catalog_store.fail_revision(
+                        source_catalog_revision, "候选版本激活失败，已恢复旧在线版本"
+                    )
+                except Exception:
+                    logging.exception("source_revision_failure_status_update_failed")
+            raise
 
     cache_index = ""
     try:
@@ -387,6 +399,156 @@ def republish_candidate_workflow(job: Job, store: JobStore) -> dict[str, Any]:
         rebuild_mode="candidate_republish",
         version_job_id=candidate_job_id,
     )
+
+
+def revalidate_candidate_workflow(job: Job, store: JobStore) -> dict[str, Any]:
+    """Assess a failed candidate without changing its status or the active version."""
+    candidate_job_id = str(job.params.get("candidate_job_id") or "")
+    source_catalog_revision = str(job.params.get("source_catalog_revision") or "")
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", candidate_job_id):
+        raise RuntimeError("候选复核缺少有效的 candidate_job_id")
+    if not source_catalog_revision:
+        raise RuntimeError("候选复核缺少 source_catalog_revision")
+
+    original = store.read(candidate_job_id)
+    if (
+        not original
+        or original.get("type") != "source_rebuild"
+        or original.get("status") != "failed"
+    ):
+        raise RuntimeError("仅支持复核仍处于失败状态的来源候选任务")
+    original_params = original.get("params") if isinstance(original.get("params"), dict) else {}
+    if str(original_params.get("source_catalog_revision") or "") != source_catalog_revision:
+        raise RuntimeError("候选任务与来源 revision 不一致")
+
+    source_snapshot = source_catalog_store.validate_republish_revision(source_catalog_revision)
+    versions_root = DB_VERSIONS_DIR.resolve()
+    candidate_root = (versions_root / candidate_job_id).resolve(strict=True)
+    if not candidate_root.is_relative_to(versions_root):
+        raise RuntimeError("候选版本目录越界")
+    manifest_path = (candidate_root / "manifest.json").resolve(strict=True)
+    if not manifest_path.is_relative_to(candidate_root):
+        raise RuntimeError("候选 manifest 路径越界")
+    manifest_bytes = manifest_path.read_bytes()
+    manifest_hash = hashlib.sha256(manifest_bytes).hexdigest()
+    manifest = read_manifest(manifest_path)
+    if not manifest:
+        raise RuntimeError("候选版本 manifest 不存在")
+    build_params = manifest.get("build_params")
+    recorded_revision = (
+        str(build_params.get("source_catalog_revision") or "")
+        if isinstance(build_params, dict)
+        else ""
+    )
+    if recorded_revision != source_catalog_revision:
+        raise RuntimeError("候选版本与来源 revision 不一致")
+
+    def evaluation_snapshot(set_id: str) -> tuple[Path, str, str]:
+        path = resolve_evaluation_asset(set_id, allowed_ids=frozenset({set_id})).resolve(
+            strict=True
+        )
+        return path, hashlib.sha256(path.read_bytes()).hexdigest(), published_revision_id(set_id)
+
+    before_evaluations = {
+        set_id: evaluation_snapshot(set_id) for set_id in ("regular", "structured")
+    }
+    _set_step(
+        job,
+        store,
+        "candidate_revalidate",
+        "仅复核已有候选（不重新解析、不发布）",
+        candidate_job_id=candidate_job_id,
+        source_catalog_revision=source_catalog_revision,
+        regular_cases=100,
+        structured_cases=12,
+    )
+    assessment = assess_candidate_activation(
+        manifest_path=manifest_path,
+        db_dir=candidate_root / "db",
+        processed_dir=candidate_root / "processed",
+        images_dir=candidate_root / "images",
+    )
+    if assessment.result.get("data_version_hash") != manifest.get("data_version_hash"):
+        raise RuntimeError("复核门禁结果与候选数据版本不一致，报告未保存")
+    assessment.result["report_source"] = "revalidation"
+    assessment.result["revalidation_job_id"] = job.job_id
+    assessment.result["candidate_job_id"] = candidate_job_id
+
+    revalidations_root = candidate_root / "quality" / "revalidations"
+    revalidations_root.mkdir(parents=True, exist_ok=True)
+    staging_dir = Path(tempfile.mkdtemp(prefix=".pending-", dir=revalidations_root))
+    try:
+        artifacts = write_candidate_activation_artifacts(assessment, staging_dir)
+
+        current_manifest_hash = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+        if current_manifest_hash != manifest_hash:
+            raise RuntimeError("候选 manifest 在复核期间发生变化，报告未保存")
+        current_source_snapshot = source_catalog_store.validate_republish_revision(
+            source_catalog_revision
+        )
+        if current_source_snapshot != source_snapshot:
+            raise RuntimeError("来源 revision 在复核期间发生变化，报告未保存")
+        latest_original = store.read(candidate_job_id)
+        latest_original_params = (
+            latest_original.get("params") if isinstance(latest_original, dict) else None
+        )
+        if (
+            not isinstance(latest_original, dict)
+            or latest_original.get("type") != "source_rebuild"
+            or latest_original.get("status") != "failed"
+            or not isinstance(latest_original_params, dict)
+            or str(latest_original_params.get("source_catalog_revision") or "")
+            != source_catalog_revision
+        ):
+            raise RuntimeError("原候选任务状态在复核期间发生变化，报告未保存")
+        after_evaluations = {
+            set_id: evaluation_snapshot(set_id) for set_id in ("regular", "structured")
+        }
+        if after_evaluations != before_evaluations:
+            raise RuntimeError("评估集在复核期间发生变化，报告未保存")
+
+        report_payloads = {
+            "regular": assessment.regular_evaluation,
+            "structured": assessment.structured_evaluation,
+        }
+        for set_id, payload in report_payloads.items():
+            _, expected_hash, expected_revision = before_evaluations[set_id]
+            if payload.get("evaluation_set_hash") != expected_hash:
+                raise RuntimeError(f"{set_id} 评估报告与本次评估集不一致，报告未保存")
+            recorded_report_revision = assessment.result.get(f"{set_id}_evaluation_set_revision_id")
+            if recorded_report_revision and recorded_report_revision != expected_revision:
+                raise RuntimeError(f"{set_id} 评估修订不一致，报告未保存")
+            if payload.get("data_version_hash") != manifest.get("data_version_hash"):
+                raise RuntimeError(f"{set_id} 评估报告与候选数据版本不一致，报告未保存")
+
+        run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
+        final_dir = revalidations_root / run_id
+        if final_dir.exists():
+            raise RuntimeError("候选复核报告目录发生时间戳冲突，请重新提交")
+        staging_dir.replace(final_dir)
+    except Exception:
+        shutil.rmtree(staging_dir, ignore_errors=True)
+        raise
+
+    published_artifacts = {key: str(final_dir / Path(path).name) for key, path in artifacts.items()}
+    _set_step(
+        job,
+        store,
+        "candidate_revalidate_report",
+        "候选复核报告已保存；候选未发布或激活",
+        candidate_job_id=candidate_job_id,
+        report_path=published_artifacts["gate_report"],
+        passed=bool(assessment.result.get("passed")),
+    )
+    return {
+        "candidate_job_id": candidate_job_id,
+        "source_catalog_revision": source_catalog_revision,
+        "data_version_hash": manifest.get("data_version_hash", ""),
+        "passed": bool(assessment.result.get("passed")),
+        "candidate_gate": assessment.result,
+        **published_artifacts,
+        "revalidation_only": True,
+    }
 
 
 def cleanup_versions_workflow(job: Job, store: JobStore) -> dict[str, Any]:

@@ -6,13 +6,15 @@ from pathlib import Path
 from threading import Event, Thread
 from types import SimpleNamespace
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from src.app.admin.job_diagnostics import diagnose_job
-from src.app.admin.jobs import JobManager
+from src.app.admin.jobs import JobCancellationError, JobManager
 from src.app.admin.models import Job
 from src.app.admin.storage import INTERRUPTED_ERROR_CODE, JobStore
 from src.app.api import admin
+from src.app.core.job_cancellation import raise_if_job_cancelled
 from src.app.main import lifespan
 from src.quality.gate import summarize_jobs
 
@@ -151,6 +153,102 @@ def test_job_manager_writes_live_heartbeat_and_stops_at_terminal_state(tmp_path:
     terminal_heartbeat = finished["heartbeat_at"]
     time.sleep(0.05)
     assert store.read(job.job_id)["heartbeat_at"] == terminal_heartbeat
+
+
+def test_job_manager_cancels_queued_build_without_running_workflow(tmp_path: Path):
+    store = JobStore(tmp_path)
+    manager = JobManager(store, heartbeat_seconds=0.02, worker_id="worker-cancel-queued")
+    first_started = Event()
+    release_first = Event()
+    queued_workflow_called = Event()
+
+    def blocking_workflow(_job, _store):
+        first_started.set()
+        assert release_first.wait(2)
+        return {"ok": True}
+
+    manager.submit("audit", {}, blocking_workflow)
+    assert first_started.wait(1)
+    queued = manager.submit(
+        "source_rebuild",
+        {},
+        lambda _job, _store: queued_workflow_called.set() or {"ok": True},
+    )
+
+    cancelled = manager.cancel(queued.job_id)
+    release_first.set()
+    finished = _wait_for(
+        lambda: payload if (payload := store.read(queued.job_id))["status"] == "cancelled" else None
+    )
+    manager.executor.shutdown(wait=True)
+
+    assert cancelled.status == "cancelled"
+    assert finished["error_code"] == "JOB_CANCELLED"
+    assert finished["finished_at"]
+    assert not queued_workflow_called.is_set()
+
+
+def test_job_manager_cooperatively_cancels_running_build(tmp_path: Path):
+    store = JobStore(tmp_path)
+    manager = JobManager(store, heartbeat_seconds=0.02, worker_id="worker-cancel-running")
+    started = Event()
+
+    def workflow(_job, _store):
+        started.set()
+        while True:
+            raise_if_job_cancelled()
+            time.sleep(0.005)
+
+    job = manager.submit("rebuild", {}, workflow)
+    assert started.wait(1)
+
+    requested = manager.cancel(job.job_id)
+    finished = _wait_for(
+        lambda: payload if (payload := store.read(job.job_id))["status"] == "cancelled" else None
+    )
+    manager.executor.shutdown(wait=True)
+
+    assert requested.cancellation_requested is True
+    assert finished["error_code"] == "JOB_CANCELLED"
+    assert finished["step"] == "cancelled"
+    assert store.logs(job.job_id)[-1]["error_code"] == "JOB_CANCELLED"
+
+
+def test_job_manager_rejects_cancel_during_activation_commit(tmp_path: Path):
+    store = JobStore(tmp_path)
+    manager = JobManager(store, heartbeat_seconds=0.02, worker_id="worker-cancel-commit")
+    commit_entered = Event()
+    release_commit = Event()
+
+    def workflow(job, _store):
+        job.step = "activate_version"
+        commit_entered.set()
+        assert release_commit.wait(2)
+        return {"ok": True}
+
+    job = manager.submit("source_rebuild", {}, workflow)
+    assert commit_entered.wait(1)
+    with pytest.raises(JobCancellationError, match="原子激活"):
+        manager.cancel(job.job_id)
+    release_commit.set()
+    finished = _wait_for(
+        lambda: payload if (payload := store.read(job.job_id))["status"] == "succeeded" else None
+    )
+    manager.executor.shutdown(wait=True)
+
+    assert finished["status"] == "succeeded"
+    assert finished["cancellation_requested"] is False
+
+
+def test_job_manager_rejects_cancel_for_non_build_jobs(tmp_path: Path):
+    store = JobStore(tmp_path)
+    manager = JobManager(store, heartbeat_seconds=0.02, worker_id="worker-cancel-type")
+    release = Event()
+    job = manager.submit("audit", {}, lambda _job, _store: release.wait(1) or {"ok": True})
+    with pytest.raises(JobCancellationError, match="仅支持取消知识库构建任务"):
+        manager.cancel(job.job_id)
+    release.set()
+    manager.executor.shutdown(wait=True)
 
 
 def test_diagnostics_separate_progress_stall_from_worker_heartbeat():

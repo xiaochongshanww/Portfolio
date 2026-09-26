@@ -28,7 +28,29 @@ from .paths import (
 )
 
 INCREMENTAL_SCHEMA_VERSION = 1
-PIPELINE_CONTRACT_VERSION = 1
+BUILD_CONTRACT_SCHEMA_VERSION = 2
+DOCUMENT_OUTPUT_CONTRACT_VERSION = 1
+CHUNK_OUTPUT_CONTRACT_VERSION = 1
+INDEX_CONTRACT_VERSION = 1
+
+# The active Aug-2026 manifest predates progress reporting, Chroma persistence
+# verification, and MinerU stage timing metadata. The current MinerU adapter also
+# streams progress and supports managed cancellation without changing extracted artifacts.
+# Approve only exact, reviewed non-semantic transitions; unknown legacy code still reparses.
+LEGACY_V1_CODE_HASH_TRANSITIONS = {
+    "process_documents_sha256": (
+        "5b6abbfcb6e8adf3cb2da180f31e8427754eedd7b9c20fb8e24c45481c2a23cc",
+        "84dc626717b4781099c2c308cd9317876fff94bfc8003d4db27a56a33cc8b5b6",
+    ),
+    "parser_adapter_sha256": (
+        "fdc6e1b64f0503ad4198b77cd58a3f92ce5c533fa6603bd5328158902cd3f22b",
+        "a28a161e44b5b19fde1ae69b4e7873cdbcecfa4f53d98984e532ebd29fc03d7f",
+    ),
+    "chunks_sha256": (
+        "1793d185c7cafff672c52f4c2674cd77e835e975ea575635affab9fa944e9275",
+        "1793d185c7cafff672c52f4c2674cd77e835e975ea575635affab9fa944e9275",
+    ),
+}
 
 
 def _stable_hash(value: Any) -> str:
@@ -51,6 +73,14 @@ def _matching_structured_files(spec: SpecMetadata) -> list[Path]:
     return sorted(
         path for path in STRUCTURED_TABLES_DIR.glob(f"{code_token}*.json") if path.is_file()
     )
+
+
+def _embedding_contract() -> dict[str, Any]:
+    return {
+        "model": settings.embedding_model,
+        "dimensions": settings.embedding_dimensions,
+        "request_contract": "embedding_request_kwargs:v1",
+    }
 
 
 def document_fingerprint(
@@ -87,30 +117,31 @@ def build_contract(
 ) -> dict[str, Any]:
     pipeline_dir = Path(__file__).resolve().parent
     parser_file = pipeline_dir / "parsers" / f"{parser_backend}.py"
+    implementation_hashes = {
+        "process_documents_sha256": _source_hash(pipeline_dir / "process_documents.py"),
+        "chunks_sha256": _source_hash(pipeline_dir / "chunks.py"),
+        "parser_adapter_sha256": _source_hash(parser_file),
+        "load_to_db_sha256": _source_hash(pipeline_dir / "load_to_db.py"),
+    }
     processing = {
-        "version": PIPELINE_CONTRACT_VERSION,
+        "version": DOCUMENT_OUTPUT_CONTRACT_VERSION,
+        "chunk_output_version": CHUNK_OUTPUT_CONTRACT_VERSION,
         "parser_backend": parser_backend,
         "parser_implementation": parser_environment.get("implementation", parser_backend),
         "parser_version": parser_environment.get("version", ""),
         "parser_compatibility": parser_environment.get("compatibility", "not_applicable"),
         "mineru_args": os.environ.get("MINERU_ARGS", ""),
         "apply_corrections": apply_corrections,
-        "process_documents_sha256": _source_hash(pipeline_dir / "process_documents.py"),
-        "chunks_sha256": _source_hash(pipeline_dir / "chunks.py"),
-        "parser_adapter_sha256": _source_hash(parser_file),
+        "implementation_hashes": implementation_hashes,
     }
-    embedding = {
-        "model": settings.embedding_model,
-        "dimensions": settings.embedding_dimensions,
-        "request_contract": "embedding_request_kwargs:v1",
-    }
+    embedding = _embedding_contract()
     index = {
+        "version": INDEX_CONTRACT_VERSION,
         "collection_name": settings.collection_name,
         "dense_vector_schema_version": VECTOR_SCHEMA_VERSION,
-        "load_to_db_sha256": _source_hash(pipeline_dir / "load_to_db.py"),
     }
     payload = {
-        "schema_version": INCREMENTAL_SCHEMA_VERSION,
+        "schema_version": BUILD_CONTRACT_SCHEMA_VERSION,
         "processing": processing,
         "embedding": embedding,
         "index": index,
@@ -135,6 +166,8 @@ class IncrementalPlan:
     active_data_version_hash: str
     contract: dict[str, Any]
     documents: list[DocumentChange]
+    embedding_cache_compatible: bool
+    embedding_cache_reason: str
 
     def to_dict(self) -> dict[str, Any]:
         documents = [asdict(item) for item in self.documents]
@@ -150,9 +183,73 @@ class IncrementalPlan:
             "fallback_reasons": self.fallback_reasons,
             "active_data_version_hash": self.active_data_version_hash,
             "contract": self.contract,
+            "embedding_cache_compatible": self.embedding_cache_compatible,
+            "embedding_cache_reason": self.embedding_cache_reason,
             "counts": counts,
             "documents": documents,
         }
+
+
+def _legacy_v1_processing_compatible(previous: dict[str, Any], current: dict[str, Any]) -> bool:
+    previous_processing = previous.get("processing")
+    current_processing = current.get("processing")
+    if not isinstance(previous_processing, dict) or not isinstance(current_processing, dict):
+        return False
+    expected_legacy_keys = {
+        "version",
+        "parser_backend",
+        "parser_implementation",
+        "parser_version",
+        "parser_compatibility",
+        "mineru_args",
+        "apply_corrections",
+        "process_documents_sha256",
+        "chunks_sha256",
+        "parser_adapter_sha256",
+    }
+    if set(previous_processing) != expected_legacy_keys:
+        return False
+    current_hashes = current_processing.get("implementation_hashes")
+    if not isinstance(current_hashes, dict):
+        return False
+    for key in (
+        "version",
+        "parser_backend",
+        "parser_implementation",
+        "parser_version",
+        "parser_compatibility",
+        "mineru_args",
+        "apply_corrections",
+    ):
+        if previous_processing.get(key) != current_processing.get(key):
+            return False
+    return all(
+        previous_processing.get(key) == old_hash and current_hashes.get(key) == current_hash
+        for key, (old_hash, current_hash) in LEGACY_V1_CODE_HASH_TRANSITIONS.items()
+    )
+
+
+def _processing_contract_compatible(previous: Any, current: dict[str, Any]) -> bool:
+    if not isinstance(previous, dict):
+        return False
+    if previous.get("schema_version") == BUILD_CONTRACT_SCHEMA_VERSION:
+        old_processing = previous.get("processing")
+        new_processing = current.get("processing")
+        if not isinstance(old_processing, dict) or not isinstance(new_processing, dict):
+            return False
+        old_semantics = {
+            key: value for key, value in old_processing.items() if key != "implementation_hashes"
+        }
+        new_semantics = {
+            key: value for key, value in new_processing.items() if key != "implementation_hashes"
+        }
+        return old_semantics == new_semantics
+    if (
+        previous.get("schema_version") == 1
+        and current.get("schema_version") == BUILD_CONTRACT_SCHEMA_VERSION
+    ):
+        return _legacy_v1_processing_compatible(previous, current)
+    return False
 
 
 def _active_document_usable(source_file: str, document: dict[str, Any]) -> tuple[bool, list[str]]:
@@ -193,11 +290,13 @@ def plan_incremental_build(
     )
     active_manifest = read_active_manifest(ACTIVE_DB_PATH)
     fallback_reasons: list[str] = []
+    embedding_cache_compatible = False
+    embedding_cache_reason = "not_checked"
     if requested_mode == "full":
         fallback_reasons.append("full_rebuild_requested")
     elif not active_manifest:
         fallback_reasons.append("active_manifest_missing")
-    elif active_manifest.get("build_contract", {}).get("fingerprint") != contract["fingerprint"]:
+    elif not _processing_contract_compatible(active_manifest.get("build_contract", {}), contract):
         fallback_reasons.append("build_contract_incompatible")
 
     active_documents = {
@@ -258,16 +357,26 @@ def plan_incremental_build(
     )
 
     if not fallback_reasons:
-        try:
-            store = load_dense_vector_store(
-                active_db_dir(ACTIVE_DB_PATH),
-                embedding_model=settings.embedding_model,
-                dimensions=settings.embedding_dimensions,
-            )
-            if store is None:
-                fallback_reasons.append("active_embedding_cache_missing")
-        except ValueError:
-            fallback_reasons.append("active_embedding_cache_invalid")
+        active_contract = active_manifest.get("build_contract")
+        active_embedding_contract = (
+            active_contract.get("embedding") if isinstance(active_contract, dict) else None
+        )
+        if active_embedding_contract != contract["embedding"]:
+            embedding_cache_reason = "embedding_contract_incompatible"
+        else:
+            try:
+                store = load_dense_vector_store(
+                    active_db_dir(ACTIVE_DB_PATH),
+                    embedding_model=settings.embedding_model,
+                    dimensions=settings.embedding_dimensions,
+                )
+                if store is None:
+                    embedding_cache_reason = "active_embedding_cache_missing"
+                else:
+                    embedding_cache_compatible = True
+                    embedding_cache_reason = "compatible"
+            except ValueError:
+                embedding_cache_reason = "active_embedding_cache_invalid"
 
     fallback = bool(fallback_reasons)
     if fallback:
@@ -283,6 +392,8 @@ def plan_incremental_build(
         active_data_version_hash=str(active_manifest.get("data_version_hash") or ""),
         contract=contract,
         documents=changes,
+        embedding_cache_compatible=embedding_cache_compatible,
+        embedding_cache_reason=embedding_cache_reason,
     )
 
 
@@ -386,11 +497,21 @@ def _active_quality_entry(
 
 
 def reusable_embedding_map() -> dict[str, list[float]]:
-    store = load_dense_vector_store(
-        active_db_dir(ACTIVE_DB_PATH),
-        embedding_model=settings.embedding_model,
-        dimensions=settings.embedding_dimensions,
+    active_manifest = read_active_manifest(ACTIVE_DB_PATH) or {}
+    active_contract = active_manifest.get("build_contract")
+    active_embedding_contract = (
+        active_contract.get("embedding") if isinstance(active_contract, dict) else None
     )
+    if active_embedding_contract != _embedding_contract():
+        return {}
+    try:
+        store = load_dense_vector_store(
+            active_db_dir(ACTIVE_DB_PATH),
+            embedding_model=settings.embedding_model,
+            dimensions=settings.embedding_dimensions,
+        )
+    except ValueError:
+        return {}
     if store is None:
         return {}
     return {item: store.vectors[index].tolist() for index, item in enumerate(store.ids)}

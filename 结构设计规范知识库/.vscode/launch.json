@@ -40,10 +40,18 @@
     },
     {
       "name": "前端：Vite",
-      "type": "node-terminal",
+      "type": "node",
       "request": "launch",
-      "command": "npm run dev",
-      "cwd": "${workspaceFolder}/frontend"
+      "program": "${workspaceFolder}/frontend/node_modules/vite/bin/vite.js",
+      "args": [
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "5173",
+        "--strictPort"
+      ],
+      "cwd": "${workspaceFolder}/frontend",
+      "console": "integratedTerminal"
     }
   ],
   "compounds": [

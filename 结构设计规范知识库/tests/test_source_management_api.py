@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from src.app.api import sources as sources_api
 from src.app.core.config import settings
 from src.app.main import app
+from src.pipeline import incremental
 from src.pipeline.source_catalog import SourceCatalogStore
 
 
@@ -23,6 +24,21 @@ def auth_headers() -> dict[str, str]:
     if settings.api_auth_enabled and settings.api_keys:
         return {"Authorization": f"Bearer {settings.api_keys[0]}"}
     return {}
+
+
+def previewed_build_options(client: TestClient) -> dict[str, object]:
+    options: dict[str, object] = {
+        "parser_backend": "pymupdf",
+        "mode": "incremental",
+        "apply_corrections": True,
+    }
+    preview = client.post("/admin/sources/changes/preview", json=options, headers=auth_headers())
+    assert preview.status_code == 200, preview.text
+    return {
+        **options,
+        "preflight_token": preview.json()["preflight_token"],
+        "confirm_full_rebuild": True,
+    }
 
 
 def test_upload_edit_plan_and_revision_listing(tmp_path: Path, monkeypatch) -> None:
@@ -63,6 +79,7 @@ def test_upload_edit_plan_and_revision_listing(tmp_path: Path, monkeypatch) -> N
 def test_managed_build_submits_snapshot_paths(tmp_path: Path, monkeypatch) -> None:
     store = SourceCatalogStore(tmp_path / "data")
     monkeypatch.setattr(sources_api, "source_catalog_store", store)
+    monkeypatch.setattr(incremental, "ACTIVE_DB_PATH", tmp_path / "active_db.json")
     pdf = tmp_path / "source.pdf"
     pdf.write_bytes(pdf_bytes())
     source = store.register_upload(pdf, "GB 50000-2026_测试规范.pdf")
@@ -86,7 +103,7 @@ def test_managed_build_submits_snapshot_paths(tmp_path: Path, monkeypatch) -> No
     client = TestClient(app)
     response = client.post(
         "/admin/sources/changes/build",
-        json={"parser_backend": "pymupdf", "mode": "incremental", "apply_corrections": True},
+        json=previewed_build_options(client),
         headers=auth_headers(),
     )
 
@@ -102,6 +119,7 @@ def test_managed_build_marks_revision_failed_when_job_submission_fails(
 ) -> None:
     store = SourceCatalogStore(tmp_path / "data")
     monkeypatch.setattr(sources_api, "source_catalog_store", store)
+    monkeypatch.setattr(incremental, "ACTIVE_DB_PATH", tmp_path / "active_db.json")
     pdf = tmp_path / "source.pdf"
     pdf.write_bytes(pdf_bytes())
     source = store.register_upload(pdf, "GB 50000-2026_测试规范.pdf")
@@ -112,9 +130,10 @@ def test_managed_build_marks_revision_failed_when_job_submission_fails(
         lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("executor unavailable")),
     )
 
-    response = TestClient(app).post(
+    client = TestClient(app)
+    response = client.post(
         "/admin/sources/changes/build",
-        json={"parser_backend": "pymupdf", "mode": "incremental", "apply_corrections": True},
+        json=previewed_build_options(client),
         headers=auth_headers(),
     )
 
@@ -180,6 +199,84 @@ def test_republish_failed_candidate_submits_without_rebuilding(tmp_path: Path, m
         "source_catalog_revision": snapshot["revision_id"],
     }
     assert captured["workflow"].__name__ == "republish_candidate_workflow"
+
+
+def test_candidate_revalidation_submits_independent_read_only_task(
+    tmp_path: Path, monkeypatch
+) -> None:
+    store = SourceCatalogStore(tmp_path / "data")
+    pdf = tmp_path / "source.pdf"
+    pdf.write_bytes(pdf_bytes())
+    source = store.register_upload(pdf, "GB 50000-2026_测试规范.pdf")
+    store.update_source(source["source_id"], {"code": "GB 50000-2026", "name": "测试规范"}, {})
+    snapshot = store.create_revision()
+    store.fail_revision(snapshot["revision_id"], "candidate gate failed")
+    monkeypatch.setattr(sources_api, "source_catalog_store", store)
+
+    candidate_job_id = "candidate-revalidate"
+    candidate_dir = tmp_path / "versions" / candidate_job_id
+    candidate_dir.mkdir(parents=True)
+    (candidate_dir / "manifest.json").write_text(
+        json.dumps(
+            {"build_params": {"source_catalog_revision": snapshot["revision_id"]}},
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sources_api, "DB_VERSIONS_DIR", tmp_path / "versions")
+    monkeypatch.setattr(
+        sources_api.job_manager.store,
+        "read",
+        lambda job_id: {
+            "job_id": candidate_job_id,
+            "type": "source_rebuild",
+            "status": "failed",
+            "params": {"source_catalog_revision": snapshot["revision_id"]},
+        },
+    )
+    active_tasks: list[dict[str, object]] = []
+    monkeypatch.setattr(sources_api.job_manager.store, "list", lambda: active_tasks)
+    captured = {}
+
+    def submit(job_type, params, workflow):
+        captured.update({"job_type": job_type, "params": params, "workflow": workflow})
+        return SimpleNamespace(
+            to_dict=lambda: {
+                "job_id": "revalidation-1",
+                "type": job_type,
+                "status": "queued",
+                "params": params,
+            }
+        )
+
+    monkeypatch.setattr(sources_api.job_manager, "submit", submit)
+    client = TestClient(app)
+    response = client.post(
+        f"/admin/sources/candidates/{candidate_job_id}/revalidate",
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 200, response.text
+    assert captured["job_type"] == "candidate_revalidation"
+    assert captured["params"] == {
+        "candidate_job_id": candidate_job_id,
+        "source_catalog_revision": snapshot["revision_id"],
+    }
+    assert captured["workflow"].__name__ == "revalidate_candidate_workflow"
+
+    active_tasks.append(
+        {
+            "type": "candidate_revalidation",
+            "status": "running",
+            "params": {"candidate_job_id": candidate_job_id},
+        }
+    )
+    duplicate = client.post(
+        f"/admin/sources/candidates/{candidate_job_id}/revalidate",
+        headers=auth_headers(),
+    )
+    assert duplicate.status_code == 409
+    assert "正在执行" in duplicate.text
 
 
 def test_upload_rejects_unsafe_filename_and_duplicate(tmp_path: Path, monkeypatch) -> None:

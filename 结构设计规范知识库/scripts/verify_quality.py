@@ -5,6 +5,7 @@ import ipaddress
 import json
 import os
 import re
+import signal
 import socket
 import subprocess
 import sys
@@ -226,22 +227,41 @@ class ManagedApiProcess:
 
     def stop(self, *, timeout_seconds: float = 10) -> dict[str, Any]:
         forced = False
+        shutdown_signal = "not_needed"
         process = self.process
         try:
             if process is None:
-                return {"ok": True, "already_stopped": True, "forced": False}
+                return {
+                    "ok": True,
+                    "already_stopped": True,
+                    "forced": False,
+                    "shutdown_signal": shutdown_signal,
+                }
             if process.poll() is None:
-                process.terminate()
+                if sys.platform == "win32" and hasattr(signal, "CTRL_BREAK_EVENT"):
+                    shutdown_signal = "CTRL_BREAK_EVENT"
+                    try:
+                        process.send_signal(signal.CTRL_BREAK_EVENT)
+                    except OSError:
+                        forced = True
+                        shutdown_signal = "terminate_fallback"
+                        process.terminate()
+                else:
+                    shutdown_signal = "SIGTERM"
+                    process.terminate()
                 try:
                     process.wait(timeout=timeout_seconds)
                 except subprocess.TimeoutExpired:
                     forced = True
+                    shutdown_signal = f"{shutdown_signal}+kill"
                     process.kill()
                     process.wait(timeout=timeout_seconds)
+            exit_code = process.returncode
             return {
-                "ok": True,
+                "ok": process.poll() is not None,
                 "forced": forced,
-                "exit_code": process.returncode,
+                "shutdown_signal": shutdown_signal,
+                "exit_code": exit_code,
             }
         except (OSError, subprocess.TimeoutExpired) as exc:
             return {"ok": False, "forced": forced, "error": f"托管 API 回收失败：{exc}"}

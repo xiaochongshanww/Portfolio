@@ -58,6 +58,7 @@
               <option value="all">全部任务</option>
               <option value="running">运行中</option>
               <option value="queued">排队中</option>
+              <option value="cancelled">已取消</option>
               <option value="failed">已失败</option>
               <option value="succeeded">已成功</option>
             </select>
@@ -96,7 +97,7 @@
                 <td class="max-w-0 truncate px-4 py-3 font-medium" :title="job.type">{{ formatJobType(job.type) }}</td>
                 <td class="px-4 py-3">
                   <div class="flex flex-wrap gap-1">
-                    <span :class="statusClass(job.status)">{{ statusLabel(job) }}</span>
+                    <span :class="statusClass(job)">{{ statusLabel(job) }}</span>
                     <span v-if="job.resolution?.status" class="whitespace-nowrap rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">{{ resolutionLabel(job) }}</span>
                     <span v-if="job.diagnostics?.stalled" class="rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">疑似卡滞</span>
                   </div>
@@ -127,17 +128,108 @@
         <div class="border-b border-slate-800 p-4">
           <div class="flex items-center justify-between gap-2">
             <div class="min-w-0 truncate text-sm font-semibold">{{ selectedJob?.job_id || '任务日志' }}</div>
-            <span v-if="selectedJob" :class="statusClass(selectedJob.status)">{{ statusLabel(selectedJob) }}</span>
+            <span v-if="selectedJob" :class="statusClass(selectedJob)">{{ statusLabel(selectedJob) }}</span>
           </div>
           <div class="mt-1 text-xs text-slate-400">{{ selectedJob ? `${formatJobType(selectedJob.type)} · ${formatJobStep(selectedJob.step)}` : '选择左侧任务查看日志' }}</div>
-           <div v-if="selectedJob?.diagnostics?.stalled" class="mt-3 rounded bg-amber-400/15 px-3 py-2 text-xs text-amber-200">
-             {{ diagnosticLabel(selectedJob) }}。系统不会强制终止线程，请结合日志和进程状态处理。
-           </div>
-          <div v-if="canRepublishCandidate" class="mt-3 rounded border border-slate-700 bg-slate-900 p-3">
-            <p class="text-xs leading-5 text-slate-300">该候选已经完成解析，可重新执行候选门禁并发布，不会再次调用 MinerU。</p>
-            <button class="btn mt-3 w-full border-blue-400/50 bg-blue-500 text-white hover:bg-blue-400" :disabled="busy" @click="republishCandidate">
-              重试发布候选（复用已解析结果）
+          <div v-if="selectedJob?.diagnostics?.stalled" class="mt-3 rounded bg-amber-400/15 px-3 py-2 text-xs text-amber-200">
+            {{ diagnosticLabel(selectedJob) }}。系统不会自动终止任务；知识库构建可在此发起受控取消。
+          </div>
+          <div v-if="selectedJob?.cancellation_requested && selectedJob.status !== 'cancelled'" class="mt-3 rounded border border-amber-700/60 bg-amber-400/10 px-3 py-2 text-xs leading-5 text-amber-100" role="status">
+            取消请求已提交，正在等待当前处理步骤停止。若正在运行 MinerU，系统会同时结束其解析子进程；任务状态将在安全收尾后更新。
+          </div>
+          <div v-else-if="isActivationCommit" class="mt-3 rounded border border-slate-700 bg-slate-900 px-3 py-2 text-xs leading-5 text-slate-300" role="status">
+            候选版本正在原子激活，提交阶段不可取消，以免活动版本指针处于不一致状态。
+          </div>
+          <div v-else-if="canCancelSelectedJob" class="mt-3 rounded border border-slate-700 bg-slate-900 p-3">
+            <p class="text-xs leading-5 text-slate-300">可取消当前 API 进程执行的知识库构建任务。取消会停止后续步骤并尝试回收解析子进程；已完成的文件处理不会回滚。</p>
+            <button class="btn mt-3 w-full border-red-400/50 bg-red-500 text-white hover:bg-red-400" :disabled="busy" @click="cancelSelectedJob">
+              取消构建任务
             </button>
+          </div>
+          <div v-if="canRepublishCandidate" class="mt-3 rounded border border-slate-700 bg-slate-900 p-3">
+            <p class="text-xs leading-5 text-slate-300">该候选已有匹配的版本清单与来源快照。提交后会按当前评估集重新执行激活门禁；只有全部通过才会切换活动版本，不会再次调用 MinerU。</p>
+            <button class="btn mt-3 w-full border-slate-600 bg-slate-800 text-slate-100 hover:bg-slate-700" :disabled="busy" @click="revalidateCandidate">
+              仅复核候选（不发布）
+            </button>
+            <p class="mt-2 text-[11px] leading-4 text-slate-400">重新运行当前 100 项常规检索和 12 项结构化检索评估；可能调用 embedding 服务。不会重解析、修改原失败任务或切换活动版本。</p>
+            <button class="btn mt-3 w-full border-blue-400/50 bg-blue-500 text-white hover:bg-blue-400" :disabled="busy" @click="republishCandidate">
+              重新验证并尝试发布（不重新解析）
+            </button>
+          </div>
+          <div v-else-if="selectedJob?.type === 'source_rebuild' && selectedJob.status === 'failed' && selectedJob.candidate_republish_reason" class="mt-3 rounded border border-slate-700 bg-slate-900 p-3 text-xs leading-5 text-amber-200">
+            {{ selectedJob.candidate_republish_reason }}
+          </div>
+          <div v-if="candidateReportLoading" class="mt-3 rounded border border-slate-700 bg-slate-900 p-3 text-xs text-slate-300" role="status">
+            正在读取候选门禁评估详情...
+          </div>
+          <section
+            v-else-if="candidateGateReport?.available"
+            class="mt-3 rounded border p-3 text-xs"
+            :class="candidateGateReport.passed === true ? 'border-emerald-800/70 bg-emerald-950/30' : candidateGateReport.passed === false ? 'border-rose-800/70 bg-rose-950/40' : 'border-slate-700 bg-slate-900'"
+          >
+            <div class="font-semibold" :class="candidateGateReport.passed === true ? 'text-emerald-200' : candidateGateReport.passed === false ? 'text-rose-200' : 'text-slate-200'">
+              {{ candidateGateReport.report_source === 'revalidation' ? '最近一次候选复核' : '候选激活门禁' }}{{ candidateGateReport.passed === true ? '通过' : candidateGateReport.passed === false ? '未通过' : '状态未知' }}
+            </div>
+            <div v-if="candidateGateReport.report_source === 'revalidation'" class="mt-1 text-slate-300">
+              {{ formatDateTime(candidateGateReport.generated_at) }} · 复核结果不代表候选已发布或已激活。
+            </div>
+            <div class="mt-1 text-slate-300">
+              版本 {{ candidateGateReport.candidate_version_id }}
+              <span v-if="(candidateGateReport.failed_checks || []).length"> · 阻断项：{{ (candidateGateReport.failed_checks || []).map(gateCheckLabel).join('、') }}</span>
+              <span v-else-if="candidateGateReport.passed === true"> · 无阻断项</span>
+            </div>
+            <div v-if="candidateGateReport.evaluation_sets_current === false" class="mt-2 rounded border border-amber-700/60 bg-amber-400/10 p-2 text-amber-100" role="status">
+              评估集已更新：以下失败结果只代表报告中的旧评估条件，不能视为当前评估集的结论。
+              <div v-for="item in (candidateGateReport.evaluation_set_status || []).filter(status => status.freshness === 'stale')" :key="item.evaluation_set_id" class="mt-1 text-amber-200">
+                {{ item.evaluation_set_id === 'regular' ? '常规检索评估' : '结构化评估' }}：{{ item.snapshot_revision_id || '修订未知' }} → {{ item.current_revision_id || '当前修订未知' }}
+              </div>
+            </div>
+            <div v-else-if="candidateGateReport.evaluation_sets_current !== true" class="mt-2 rounded border border-amber-700/60 bg-amber-400/10 p-2 text-amber-100" role="status">
+              无法核对报告使用的评估集版本；这份结果只能作为历史诊断，不能证明当前评估集已通过。
+            </div>
+            <div v-if="(candidateGateReport.checks || []).some(item => item.status === 'failed')" class="mt-2 space-y-1">
+              <p v-for="check in (candidateGateReport.checks || []).filter(item => item.status === 'failed')" :key="String(check.name)" class="leading-5 text-rose-100">
+                {{ gateCheckLabel(String(check.name || '')) }}：{{ check.message || '未通过' }}
+              </p>
+            </div>
+            <div v-for="evaluation in candidateEvaluationSummaries" :key="evaluation.key" class="mt-3 border-t border-slate-700 pt-3">
+              <div class="font-semibold text-slate-100">{{ evaluation.label }}：{{ evaluation.caseCount - evaluation.failureCount }}/{{ evaluation.caseCount }} 通过，{{ evaluation.failureCount }} 项失败</div>
+              <details v-if="evaluation.failures.length" class="mt-2">
+                <summary class="cursor-pointer text-rose-200">查看失败用例{{ evaluation.failuresTruncated ? '（仅显示前 50 项）' : '' }}</summary>
+                <article v-for="failure in evaluation.failures" :key="`${evaluation.key}-${failure.id}`" class="mt-2 rounded border border-slate-700 bg-slate-900 p-2">
+                  <div class="flex flex-wrap items-center justify-between gap-2">
+                    <strong class="text-slate-100">{{ failure.id }} · {{ failure.type }}</strong>
+                    <span class="text-rose-200">{{ (failure.failed_checks || []).map(failureCheckLabel).join('、') || '未通过' }}</span>
+                  </div>
+                  <p class="mt-1 whitespace-pre-wrap leading-5 text-slate-300">{{ failure.query }}</p>
+                  <div v-if="failureCheckResults(failure).length" class="mt-2 flex flex-wrap gap-1.5">
+                    <span
+                      v-for="check in failureCheckResults(failure)"
+                      :key="`${failure.id}-${check.key}`"
+                      :class="check.passed ? 'rounded bg-emerald-400/15 px-2 py-1 text-emerald-200' : 'rounded bg-rose-400/15 px-2 py-1 text-rose-200'"
+                    >
+                      {{ check.label }}：{{ check.passed ? '通过' : '未通过' }}
+                    </span>
+                  </div>
+                  <p v-if="failure.expected_authority_type" class="mt-2 text-slate-300">
+                    期望依据类型：{{ authorityTypeLabel(failure.expected_authority_type) }}
+                  </p>
+                  <ol v-if="(failure.top_results || []).length" class="mt-2 space-y-1 text-slate-400">
+                    <li v-for="(result, index) in (failure.top_results || [])" :key="`${failure.id}-result-${index}`" class="break-words">
+                      {{ index + 1 }}. {{ result.source_file || result.table_name || '未标注来源' }} · {{ result.clause_number || result.table_id || '无条文/表号' }} · {{ sectionTypeLabel(String(result.section_type || '')) }} · {{ formatScore(result.score) }}
+                    </li>
+                  </ol>
+                  <ol v-if="(failure.top_structured_results || []).length" class="mt-2 space-y-1 text-slate-400">
+                    <li v-for="(result, index) in failure.top_structured_results" :key="`${failure.id}-structured-${index}`" class="break-words">
+                      结构化表 {{ index + 1 }}. {{ result.table_name || '未命名表格' }} · {{ result.table_id || '无表号' }} · {{ formatScore(result.score) }}
+                    </li>
+                  </ol>
+                </article>
+              </details>
+            </div>
+          </section>
+          <div v-else-if="candidateReportError" class="mt-3 rounded border border-amber-700/60 bg-amber-400/10 p-3 text-xs leading-5 text-amber-100">
+            候选评估详情暂不可用：{{ candidateReportError }}
           </div>
           <div v-if="canResolveJob" class="mt-3 rounded border border-amber-700/60 bg-amber-400/10 p-3">
             <p class="text-xs leading-5 text-amber-100">原始失败结果不可修改。记录处置后，质量门禁将不再把这条历史失败计为未解决。</p>
@@ -222,8 +314,10 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
+  getAdminCandidateGateReport,
   getAdminJobLogs,
   getAdminRebuildPlan,
+  cancelAdminJob,
   resolveAdminJob,
   startAdminAudit,
   startAdminEvaluation,
@@ -231,8 +325,8 @@ import {
   startAdminReview,
 } from '../admin-api'
 import { errorMessage } from '../api'
-import type { JobRequest, JobResponse, RebuildPlanResponse } from '../contracts'
-import { republishSourceCandidate } from '../source-api'
+import type { CandidateEvaluationFailure, CandidateGateDetailsResponse, JobRequest, JobResponse, RebuildPlanResponse } from '../contracts'
+import { revalidateSourceCandidate, republishSourceCandidate } from '../source-api'
 
 const props = defineProps<{ jobs: JobResponse[] }>()
 const emit = defineEmits<{ refresh: [] }>()
@@ -244,7 +338,11 @@ const rebuildPlan = ref<RebuildPlanResponse | null>(null)
 const selectedJob = ref<JobResponse | null>(null)
 const logs = ref<Record<string, unknown>[]>([])
 const logsLoading = ref(false)
+const candidateGateReport = ref<CandidateGateDetailsResponse | null>(null)
+const candidateReportLoading = ref(false)
+const candidateReportError = ref('')
 let logsRequestSerial = 0
+let candidateReportRequestSerial = 0
 const jobFilter = ref('all')
 const jobPage = ref(1)
 const jobPageSize = ref(10)
@@ -263,6 +361,21 @@ const jobRequest = ref<JobRequest>({
 
 const logsText = computed(() => logs.value.length ? logs.value.map(formatLogEntry).join('\n') : selectedJob.value?.error || '暂无任务日志')
 const progressData = computed(() => selectedJob.value?.progress || {})
+const candidateEvaluationSummaries = computed(() => {
+  const report = candidateGateReport.value
+  if (!report?.available) return []
+  return [
+    { key: 'regular', label: '常规检索评估', summary: report.regular_evaluation },
+    { key: 'structured', label: '结构化评估', summary: report.structured_evaluation },
+  ].flatMap(item => item.summary ? [{
+    key: item.key,
+    label: item.label,
+    caseCount: item.summary.case_count ?? 0,
+    failureCount: item.summary.failure_count ?? item.summary.failures?.length ?? 0,
+    failures: item.summary.failures ?? [],
+    failuresTruncated: item.summary.failures_truncated ?? false,
+  }] : [])
+})
 const progressMessage = computed(() => String(progressData.value.message || '暂无业务进度'))
 const progressPercent = computed(() => {
   const value = Number(progressData.value.percent)
@@ -281,6 +394,7 @@ const paginatedJobs = computed(() => {
 const jobTypeLabels: Record<string, string> = {
   source_rebuild: '知识库重建',
   source_republish: '候选版本发布',
+  candidate_revalidation: '候选版本复核',
   answer_evaluate: '问答评估',
   evaluate: '结构化评估',
   rebuild: '知识库重建（旧任务）',
@@ -292,6 +406,7 @@ const jobStepLabels: Record<string, string> = {
   preflight: '预检',
   build_version: '构建版本',
   candidate_revalidate: '候选版本复核',
+  candidate_revalidate_report: '复核报告已保存',
   candidate_gate: '候选门禁',
   activate_version: '激活版本',
   active: '已激活',
@@ -305,12 +420,31 @@ const canRepublishCandidate = computed(() => {
     job
     && job.type === 'source_rebuild'
     && job.status === 'failed'
-    && typeof job.params?.source_catalog_revision === 'string'
-    && job.params.source_catalog_revision,
+    && job.candidate_republishable === true
+    && !props.jobs.some(item => (
+      ['source_republish', 'candidate_revalidation'].includes(item.type)
+      && ['queued', 'running'].includes(item.status)
+      && String(item.params?.candidate_job_id || '') === job.job_id
+    )),
   )
 })
 const canResolveJob = computed(() => Boolean(
   selectedJob.value?.status === 'failed' && !selectedJob.value?.resolution?.status,
+))
+const canCancelSelectedJob = computed(() => {
+  const job = selectedJob.value
+  return Boolean(
+    job
+    && ['rebuild', 'source_rebuild'].includes(job.type)
+    && ['queued', 'running'].includes(job.status)
+    && !job.cancellation_requested
+    && job.step !== 'activate_version',
+  )
+})
+const isActivationCommit = computed(() => Boolean(
+  selectedJob.value
+  && ['queued', 'running'].includes(selectedJob.value.status)
+  && selectedJob.value.step === 'activate_version',
 ))
 
 function progressValue(key: string) {
@@ -370,6 +504,16 @@ async function republishCandidate() {
   if (!confirm('将重新执行候选门禁并发布该版本，不会重新解析 PDF。继续吗？')) return
   await startJob(async () => {
     const result = await republishSourceCandidate(candidateJobId)
+    return result.job as unknown as JobResponse
+  })
+}
+
+async function revalidateCandidate() {
+  const candidateJobId = selectedJob.value?.job_id
+  if (!candidateJobId || !canRepublishCandidate.value) return
+  if (!confirm('将只复核已有候选，重新运行当前 100 项常规检索和 12 项结构化检索评估；可能调用 embedding 服务。此操作不会重新解析、发布候选或切换活动版本。继续吗？')) return
+  await startJob(async () => {
+    const result = await revalidateSourceCandidate(candidateJobId)
     return result.job as unknown as JobResponse
   })
 }
@@ -434,7 +578,58 @@ async function startReview() {
 async function selectJob(job: JobResponse) {
   selectedJob.value = job
   logs.value = []
-  await loadLogs(job)
+  candidateGateReport.value = null
+  candidateReportError.value = ''
+  await Promise.all([loadLogs(job), loadCandidateGateReport(job)])
+}
+
+async function cancelSelectedJob() {
+  const job = selectedJob.value
+  if (!job || !canCancelSelectedJob.value) return
+  if (!confirm('确认取消此知识库构建任务？当前步骤会先安全停止，已完成的处理不会回滚。')) return
+  busy.value = true
+  error.value = ''
+  message.value = ''
+  try {
+    const cancelled = await cancelAdminJob({ path: { job_id: job.job_id } })
+    selectedJob.value = cancelled
+    message.value = cancelled.status === 'cancelled'
+      ? `构建任务 ${job.job_id} 已取消`
+      : `已向构建任务 ${job.job_id} 发出取消请求`
+    emit('refresh')
+    await loadLogs(cancelled)
+  } catch (err: unknown) {
+    error.value = errorMessage(err)
+  } finally {
+    busy.value = false
+  }
+}
+
+async function loadCandidateGateReport(job: JobResponse) {
+  const isIndependentRevalidation =
+    job.type === 'candidate_revalidation'
+    && ['succeeded', 'failed'].includes(job.status)
+  const isCandidateGateFailure =
+    ['source_rebuild', 'source_republish'].includes(job.type)
+    && job.status === 'failed'
+    && /候选版本未通过预激活门禁/.test(job.error || '')
+  if (!isIndependentRevalidation && !isCandidateGateFailure) return
+
+  const requestSerial = ++candidateReportRequestSerial
+  candidateReportLoading.value = true
+  try {
+    const report = await getAdminCandidateGateReport({ path: { job_id: job.job_id } })
+    if (requestSerial === candidateReportRequestSerial && selectedJob.value?.job_id === job.job_id) {
+      candidateGateReport.value = report
+      if (!report.available) candidateReportError.value = report.reason || '没有可读取的报告。'
+    }
+  } catch (err: unknown) {
+    if (requestSerial === candidateReportRequestSerial && selectedJob.value?.job_id === job.job_id) {
+      candidateReportError.value = errorMessage(err)
+    }
+  } finally {
+    if (requestSerial === candidateReportRequestSerial) candidateReportLoading.value = false
+  }
 }
 
 async function loadLogs(job: JobResponse) {
@@ -474,11 +669,13 @@ function formatLogEntry(entry: Record<string, unknown>) {
 
 function statusLabel(job: JobResponse) {
   if (job?.error_code === 'PROCESS_RESTARTED') return '已中断'
+  if (job?.cancellation_requested && job?.status !== 'cancelled') return '取消中'
   return ({
     queued: '排队中',
     running: '运行中',
     succeeded: '已成功',
     failed: '已失败',
+    cancelled: '已取消',
   } as Record<string, string>)[job?.status] || job?.status || '-'
 }
 
@@ -530,6 +727,67 @@ function diagnosticLabel(job: JobResponse) {
   return '任务状态需要核对'
 }
 
+function gateCheckLabel(name: string) {
+  return ({
+    regular_evaluation: '常规检索评估',
+    structured_evaluation: '结构化评估',
+    runtime: '候选运行时检查',
+    manifest: '版本清单检查',
+  } as Record<string, string>)[name] || name
+}
+
+function failureCheckLabel(name: string) {
+  return ({
+    source: '来源未命中',
+    top1_source: '首条来源不符',
+    clause: '条文未命中',
+    keyword: '关键词未命中',
+    table: '表格未命中',
+    authority: '依据类型排序不符',
+    structured_table: '结构化表未命中',
+  } as Record<string, string>)[name] || name
+}
+
+function failureCheckResults(failure: CandidateEvaluationFailure) {
+  const checks = [
+    ['source_hit', '来源匹配'],
+    ['top1_source_hit', '首位来源'],
+    ['clause_hit', '条文号'],
+    ['keyword_hit', '关键词'],
+    ['table_hit', '表格依据'],
+    ['authority_hit', '权威依据'],
+    ['structured_table_hit', '结构化表'],
+  ] as const
+  return checks.flatMap(([key, label]) => {
+    const value = failure[key]
+    return typeof value === 'boolean' ? [{ key, label, passed: value }] : []
+  })
+}
+
+function authorityTypeLabel(value: string) {
+  return ({
+    body: '正文条文',
+    body_table: '正文表格',
+    body_or_table: '正文条文或正文表格',
+    explanation: '条文说明',
+    appendix: '附录',
+  } as Record<string, string>)[value] || value
+}
+
+function sectionTypeLabel(value: string) {
+  return ({
+    body: '正文条文',
+    body_table: '正文表格',
+    explanation: '条文说明',
+    appendix: '附录',
+  } as Record<string, string>)[value] || value || '类型未标注'
+}
+
+function formatScore(value: unknown) {
+  const score = Number(value)
+  return Number.isFinite(score) ? `分数 ${score.toFixed(3)}` : '无分数'
+}
+
 function formatJobType(type?: string) {
   if (!type) return '-'
   return jobTypeLabels[type] || type.replaceAll('_', ' ')
@@ -549,22 +807,39 @@ function goToJobPage(page: number) {
   })
 }
 
-function statusClass(status: string) {
+function statusClass(job: JobResponse) {
   const base = 'whitespace-nowrap rounded px-2 py-1 text-xs font-semibold'
-  if (status === 'succeeded') return `${base} bg-emerald-100 text-emerald-700`
-  if (status === 'failed') return `${base} bg-red-100 text-red-700`
-  if (status === 'running') return `${base} bg-blue-100 text-blue-700`
+  if (job.cancellation_requested && job.status !== 'cancelled') return `${base} bg-amber-100 text-amber-800`
+  if (job.status === 'succeeded') return `${base} bg-emerald-100 text-emerald-700`
+  if (job.status === 'failed') return `${base} bg-red-100 text-red-700`
+  if (job.status === 'running') return `${base} bg-blue-100 text-blue-700`
+  if (job.status === 'cancelled') return `${base} bg-slate-200 text-slate-700`
   return `${base} bg-slate-100 text-slate-600`
 }
 
 watch(() => props.jobs, async () => {
   if (!selectedJob.value && props.jobs.length) {
     selectedJob.value = props.jobs[0]
-    await loadLogs(selectedJob.value)
+    await Promise.all([
+      loadLogs(selectedJob.value),
+      loadCandidateGateReport(selectedJob.value),
+    ])
     return
   }
-  const updated = props.jobs.find(job => job.job_id === selectedJob.value?.job_id)
-  if (updated) selectedJob.value = updated
+  const previous = selectedJob.value
+  const updated = props.jobs.find(job => job.job_id === previous?.job_id)
+  if (updated) {
+    selectedJob.value = updated
+    if (
+      updated.type === 'candidate_revalidation'
+      && ['succeeded', 'failed'].includes(updated.status)
+      && previous?.status !== updated.status
+    ) {
+      candidateGateReport.value = null
+      candidateReportError.value = ''
+      await loadCandidateGateReport(updated)
+    }
+  }
   jobPage.value = Math.min(jobPage.value, totalJobPages.value)
 }, { immediate: true })
 

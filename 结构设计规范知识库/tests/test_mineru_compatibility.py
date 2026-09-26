@@ -9,7 +9,9 @@ from src.pipeline.parsers.base import ParserUnavailableError
 from src.pipeline.parsers.mineru import (
     MineruParser,
     ParserCompatibilityError,
+    parse_mineru_progress_line,
     probe_mineru_cli,
+    summarize_mineru_progress,
 )
 
 
@@ -17,6 +19,87 @@ def _completed(
     stdout: str = "", stderr: str = "", returncode: int = 0
 ) -> subprocess.CompletedProcess[str]:
     return subprocess.CompletedProcess(["parser", "--version"], returncode, stdout, stderr)
+
+
+def test_parse_mineru_progress_line_extracts_model_timing():
+    progress = parse_mineru_progress_line(
+        "\x1b[32mMFD Predict: 94%|...|75/80 [3:34:58<15:36, 187.38s/it]\x1b[0m"
+    )
+
+    assert progress == {
+        "stage": "MFD",
+        "percent": 94,
+        "current": 75,
+        "total": 80,
+        "elapsed_seconds": 12898,
+        "estimated_remaining_seconds": 936,
+        "seconds_per_item": 187.38,
+    }
+
+
+def test_parse_mineru_progress_line_uses_latest_carriage_return_update():
+    progress = parse_mineru_progress_line(
+        "MFD Predict: 1%|...|1/80 [00:03<04:00:00, 180s/it]\r"
+        "MFD Predict: 100%|...|80/80 [03:45:33<00:00, 169.16s/it]"
+    )
+
+    assert progress is not None
+    assert progress["current"] == 80
+    assert progress["elapsed_seconds"] == 13533
+
+
+def test_parse_mineru_progress_line_accepts_inverse_rate_layout_bar():
+    progress = parse_mineru_progress_line(
+        "Layout Predict: 100%|██████████|5/5 [00:12<00:00, 2.50it/s]"
+    )
+
+    assert progress is not None
+    assert progress["stage"] == "Layout"
+    assert progress["percent"] == 100
+    assert progress["seconds_per_item"] == pytest.approx(0.4)
+
+
+def test_parse_mineru_progress_line_accepts_table_bar_without_total():
+    progress = parse_mineru_progress_line("Table Predict: 19it [00:08, 2.20it/s]")
+
+    assert progress is not None
+    assert progress["stage"] == "Table"
+    assert progress["current"] == progress["total"] == 19
+    assert progress["percent"] == 100
+    assert progress["seconds_per_item"] == pytest.approx(1 / 2.2)
+
+
+def test_summarize_mineru_progress_preserves_repeated_stage_runs():
+    summary = summarize_mineru_progress(
+        "\r".join(
+            [
+                "OCR-rec Predict: 50%|...|1/2 [00:01<00:01, 1.00s/it]",
+                "OCR-rec Predict: 100%|...|2/2 [00:02<00:00, 1.00s/it]",
+                "OCR-rec Predict: 100%|...|1/1 [00:01<00:00, 1.00s/it]",
+            ]
+        ),
+        3.25,
+    )
+
+    assert summary["duration_seconds"] == 3.25
+    assert summary["stages"]["OCR-rec"] == [
+        {
+            "percent": 100,
+            "current": 2,
+            "total": 2,
+            "elapsed_seconds": 2,
+            "estimated_remaining_seconds": 0,
+            "seconds_per_item": 1.0,
+        },
+        {
+            "percent": 100,
+            "current": 1,
+            "total": 1,
+            "elapsed_seconds": 1,
+            "estimated_remaining_seconds": 0,
+            "seconds_per_item": 1.0,
+        },
+    ]
 
 
 def test_verified_magic_pdf_version_is_accepted(monkeypatch: pytest.MonkeyPatch):
@@ -159,7 +242,12 @@ def test_parser_records_cli_compatibility_in_artifact_index(
             encoding="utf-8",
         )
         (output / "document.md").write_text("正文", encoding="utf-8")
-        return _completed()
+        return _completed(
+            stdout=(
+                "MFD Predict: 100%|...|80/80 [3:45:33<00:00, 169.16s/it]\n"
+                "OCR-rec Predict: 100%|...|2192/2192 [2:14:17<00:00, 3.68s/it]"
+            )
+        )
 
     monkeypatch.setattr("src.pipeline.parsers.mineru.subprocess.run", fake_run)
     parser = MineruParser(tmp_path / "mineru")
@@ -167,11 +255,14 @@ def test_parser_records_cli_compatibility_in_artifact_index(
 
     assert result.metadata["parser_cli"]["verified"] is True
     assert result.metadata["parser_cli"]["implementation"] == "magic-pdf"
+    assert result.metadata["mineru_performance"]["stages"]["MFD"][0]["elapsed_seconds"] == 13533
+    assert result.metadata["mineru_performance"]["stages"]["OCR-rec"][0]["elapsed_seconds"] == 8057
     artifact_index = json.loads(
         (tmp_path / "mineru" / "document" / "artifacts.json").read_text(encoding="utf-8")
     )
     assert artifact_index["metadata"]["parser_cli"]["compatibility"] == "verified"
     assert artifact_index["metadata"]["parser_cli"]["resolved_binary"] == resolved
+    assert artifact_index["metadata"]["mineru_performance"] == result.metadata["mineru_performance"]
 
 
 def test_parser_preserves_cli_log_when_magic_pdf_swallows_parse_error(

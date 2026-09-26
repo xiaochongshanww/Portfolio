@@ -1,4 +1,6 @@
+import hashlib
 import json
+import re
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, Literal
@@ -13,6 +15,7 @@ from src.evaluation.management import (
     EvaluationSetError,
     EvaluationSetNotFound,
     list_quality_refresh_events,
+    published_revision_id,
     resolve_published_asset,
 )
 from src.evaluation.management import (
@@ -80,10 +83,12 @@ from src.pipeline.audit.manual_structuring import (
 )
 from src.pipeline.audit.multimodal import find_source_pdf, render_pdf_pages
 from src.pipeline.audit.structuring_ai import read_structuring_suggestion
+from src.pipeline.manifest import read_manifest
 from src.pipeline.paths import (
     ACTIVE_DB_PATH,
     AUDIT_DIR,
     CORRECTIONS_DIR,
+    DB_VERSIONS_DIR,
     MANUAL_STRUCTURING_DIR,
     RAW_DIR,
     STRUCTURED_TABLES_DIR,
@@ -107,7 +112,8 @@ from src.quality import (
 )
 
 from ..admin.job_diagnostics import diagnose_job, diagnose_jobs
-from ..admin.jobs import job_manager
+from ..admin.jobs import JobCancellationError, job_manager
+from ..admin.source_management import source_catalog_store
 from ..admin.storage import job_store
 from ..admin.workflows import (
     answer_evaluate_workflow,
@@ -224,11 +230,320 @@ def _read_latest_quality_reports(
 
 
 def _diagnosed_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return diagnose_jobs(
+    diagnosed = diagnose_jobs(
         jobs,
         stale_after_seconds=settings.job_stale_after_seconds,
         heartbeat_timeout_seconds=max(60, settings.job_heartbeat_seconds * 3),
     )
+    return [_candidate_republish_status(job) for job in diagnosed]
+
+
+def _candidate_republish_status(job: dict[str, Any]) -> dict[str, Any]:
+    result = {"candidate_republishable": False, "candidate_republish_reason": ""}
+    if job.get("type") != "source_rebuild" or job.get("status") != "failed":
+        return {**job, **result}
+    params = job.get("params") if isinstance(job.get("params"), dict) else {}
+    revision_id = str(params.get("source_catalog_revision") or "")
+    if not revision_id:
+        result["candidate_republish_reason"] = "任务没有关联来源版本，无法重试发布。"
+        return {**job, **result}
+    version_dir = DB_VERSIONS_DIR / str(job.get("job_id") or "")
+    manifest_path = version_dir / "manifest.json"
+    try:
+        manifest = read_manifest(manifest_path)
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        manifest = None
+    if not manifest:
+        result["candidate_republish_reason"] = "候选解析未完成，缺少版本清单。"
+        return {**job, **result}
+    build_params = manifest.get("build_params") if isinstance(manifest, dict) else None
+    recorded_revision = (
+        str(build_params.get("source_catalog_revision") or "")
+        if isinstance(build_params, dict)
+        else ""
+    )
+    if recorded_revision != revision_id:
+        result["candidate_republish_reason"] = "候选版本与来源版本不一致，不能重试发布。"
+        return {**job, **result}
+    try:
+        source_catalog_store.validate_republish_revision(revision_id)
+    except (OSError, TypeError, ValueError, KeyError):
+        result["candidate_republish_reason"] = "来源目录已变化或候选版本已失效，不能重试发布。"
+        return {**job, **result}
+    result["candidate_republishable"] = True
+    return {**job, **result}
+
+
+def _diagnosed_job(job: dict[str, Any]) -> dict[str, Any]:
+    diagnosed = diagnose_job(
+        job,
+        stale_after_seconds=settings.job_stale_after_seconds,
+        heartbeat_timeout_seconds=max(60, settings.job_heartbeat_seconds * 3),
+    )
+    return _candidate_republish_status(diagnosed)
+
+
+def _candidate_evaluation_summary(payload: Any) -> dict[str, Any] | None:
+    if not isinstance(payload, dict):
+        return None
+    failures = payload.get("failures")
+    if not isinstance(failures, list):
+        failures = []
+    normalized_failures = [
+        {
+            "id": str(item.get("id") or ""),
+            "type": str(item.get("type") or ""),
+            "query": str(item.get("query") or ""),
+            "expected_authority_type": str(item.get("expected_authority_type") or ""),
+            **{
+                key: item.get(key) if isinstance(item.get(key), bool) else None
+                for key in (
+                    "source_hit",
+                    "top1_source_hit",
+                    "clause_hit",
+                    "keyword_hit",
+                    "table_hit",
+                    "authority_hit",
+                    "structured_table_hit",
+                )
+            },
+            "failed_checks": [
+                str(value) for value in item.get("failed_checks", []) if isinstance(value, str)
+            ]
+            if isinstance(item.get("failed_checks"), list)
+            else [],
+            "top_results": [
+                {
+                    key: result[key]
+                    for key in (
+                        "source_file",
+                        "clause_number",
+                        "matched_clause_number",
+                        "section_type",
+                        "table_id",
+                        "reason",
+                        "score",
+                    )
+                    if key in result
+                }
+                for result in item.get("top_results", [])
+                if isinstance(result, dict)
+            ][:5]
+            if isinstance(item.get("top_results"), list)
+            else [],
+            "top_structured_results": [
+                {
+                    key: result[key]
+                    for key in ("table_id", "table_name", "reason", "score")
+                    if key in result
+                }
+                for result in item.get("top_structured_results", [])
+                if isinstance(result, dict)
+            ][:5]
+            if isinstance(item.get("top_structured_results"), list)
+            else [],
+        }
+        for item in failures[:50]
+        if isinstance(item, dict)
+    ]
+    return {
+        "case_count": int(payload.get("case_count") or 0),
+        "failure_count": len(failures),
+        "top1_source_hit_rate": payload.get("top1_source_hit_rate"),
+        "authority_hit_rate": payload.get("authority_hit_rate"),
+        "structured_table_hit_rate": payload.get("structured_table_hit_rate"),
+        "failures": normalized_failures,
+        "failures_truncated": len(failures) > len(normalized_failures),
+    }
+
+
+def _candidate_evaluation_set_status(
+    evaluation_set_id: Literal["regular", "structured"],
+    gate_payload: dict[str, Any],
+    evaluation_payload: dict[str, Any],
+) -> dict[str, str]:
+    snapshot_revision_id = str(
+        gate_payload.get(f"{evaluation_set_id}_evaluation_set_revision_id") or ""
+    )
+    report_hash = str(evaluation_payload.get("evaluation_set_hash") or "")
+    current_revision_id = ""
+    current_hash = ""
+    try:
+        current_revision_id = published_revision_id(evaluation_set_id)
+        current_path = resolve_published_asset(evaluation_set_id)
+        current_hash = hashlib.sha256(current_path.read_bytes()).hexdigest()
+    except (OSError, TypeError, ValueError):
+        pass
+
+    if report_hash and current_hash:
+        hash_matches = report_hash == current_hash
+        revision_matches = not snapshot_revision_id or snapshot_revision_id == current_revision_id
+        freshness = "current" if hash_matches and revision_matches else "stale"
+    elif snapshot_revision_id and current_revision_id:
+        freshness = "current" if snapshot_revision_id == current_revision_id else "stale"
+    else:
+        freshness = "unknown"
+
+    return {
+        "evaluation_set_id": evaluation_set_id,
+        "snapshot_revision_id": snapshot_revision_id,
+        "current_revision_id": current_revision_id,
+        "freshness": freshness,
+    }
+
+
+def _read_candidate_gate_details(job_id: str, job: dict[str, Any]) -> dict[str, Any]:
+    job_type = str(job.get("type") or "")
+    params = job.get("params") if isinstance(job.get("params"), dict) else {}
+    candidate_version_id = (
+        str(params.get("candidate_job_id") or "")
+        if job_type in {"source_republish", "candidate_revalidation"}
+        else job_id
+    )
+    allowed_job_types = {"source_rebuild", "source_republish", "candidate_revalidation"}
+    if job_type not in allowed_job_types or not re.fullmatch(
+        r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", candidate_version_id
+    ):
+        return {"job_id": job_id, "available": False, "reason": "该任务未关联有效的候选版本。"}
+
+    report_source = "activation"
+    gate_path: Path | None = None
+    try:
+        versions_root = DB_VERSIONS_DIR.resolve()
+        candidate_root = (versions_root / candidate_version_id).resolve(strict=True)
+        if not candidate_root.is_relative_to(versions_root):
+            raise ValueError("candidate version is outside the versions directory")
+        quality_root = candidate_root / "quality"
+        revalidations_root = quality_root / "revalidations"
+        if job_type == "candidate_revalidation":
+            outputs = job.get("outputs") if isinstance(job.get("outputs"), dict) else {}
+            report_reference = str(outputs.get("gate_report") or "")
+            if not report_reference:
+                return {
+                    "job_id": job_id,
+                    "available": False,
+                    "reason": "本次独立复核未生成完整报告。",
+                }
+            report_source = "revalidation"
+            gate_path = Path(report_reference)
+        elif revalidations_root.is_dir():
+            run_dirs = sorted(
+                path
+                for path in revalidations_root.iterdir()
+                if path.is_dir() and re.fullmatch(r"\d{8}T\d{6}(?:\d{6})?Z", path.name)
+            )
+            if run_dirs:
+                report_source = "revalidation"
+                gate_path = run_dirs[-1] / "candidate_activation_gate.json"
+
+        if gate_path is None and job_type != "candidate_revalidation":
+            logs = job_store.logs(job_id, limit=1000)
+            report_reference = next(
+                (
+                    str(item.get("gate_report"))
+                    for item in reversed(logs)
+                    if isinstance(item, dict) and item.get("gate_report")
+                ),
+                "",
+            )
+            if not report_reference:
+                return {"job_id": job_id, "available": False, "reason": "该任务没有候选门禁报告。"}
+            gate_path = Path(report_reference)
+
+        gate_path = gate_path.resolve(strict=True)
+        if report_source == "revalidation":
+            expected_parent = (quality_root / "revalidations").resolve(strict=True)
+            if (
+                not gate_path.parent.parent.is_relative_to(candidate_root)
+                or gate_path.parent.parent != expected_parent
+                or not re.fullmatch(r"\d{8}T\d{6}(?:\d{6})?Z", gate_path.parent.name)
+            ):
+                raise ValueError("invalid candidate revalidation report path")
+        else:
+            expected_parent = quality_root.resolve(strict=True)
+            if gate_path.parent != expected_parent:
+                raise ValueError("invalid candidate activation report path")
+        if (
+            not gate_path.is_relative_to(versions_root)
+            or gate_path.name != "candidate_activation_gate.json"
+        ):
+            raise ValueError("invalid candidate gate report reference")
+        quality_dir = gate_path.parent
+        gate_payload = json.loads(gate_path.read_text(encoding="utf-8"))
+        regular_path = (quality_dir / "evaluation_regular.json").resolve(strict=True)
+        structured_path = (quality_dir / "evaluation_structured.json").resolve(strict=True)
+        if (
+            not regular_path.is_relative_to(versions_root)
+            or not structured_path.is_relative_to(versions_root)
+            or regular_path.parent != quality_dir
+            or structured_path.parent != quality_dir
+        ):
+            raise ValueError("candidate evaluation report is outside the versions directory")
+        regular_payload = json.loads(regular_path.read_text(encoding="utf-8"))
+        structured_payload = json.loads(structured_path.read_text(encoding="utf-8"))
+        if not all(
+            isinstance(item, dict) for item in (gate_payload, regular_payload, structured_payload)
+        ):
+            raise ValueError("candidate reports must be JSON objects")
+        if report_source == "revalidation":
+            manifest_path = (candidate_root / "manifest.json").resolve(strict=True)
+            if not manifest_path.is_relative_to(candidate_root):
+                raise ValueError("candidate manifest is outside its version directory")
+            manifest_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+            if not isinstance(manifest_payload, dict):
+                raise ValueError("candidate manifest must be a JSON object")
+            candidate_hash = str(manifest_payload.get("data_version_hash") or "")
+            report_hashes = [
+                str(payload.get("data_version_hash") or "")
+                for payload in (gate_payload, regular_payload, structured_payload)
+            ]
+            if not candidate_hash or any(value != candidate_hash for value in report_hashes):
+                raise ValueError(
+                    "candidate revalidation reports do not match the candidate manifest"
+                )
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError):
+        return {"job_id": job_id, "available": False, "reason": "候选门禁报告不存在或引用无效。"}
+
+    evaluation_set_status = [
+        _candidate_evaluation_set_status("regular", gate_payload, regular_payload),
+        _candidate_evaluation_set_status("structured", gate_payload, structured_payload),
+    ]
+    freshness_values = [item["freshness"] for item in evaluation_set_status]
+    if "stale" in freshness_values:
+        evaluation_sets_current = False
+    elif "unknown" in freshness_values:
+        evaluation_sets_current = None
+    else:
+        evaluation_sets_current = True
+
+    return {
+        "job_id": job_id,
+        "available": True,
+        "report_source": report_source,
+        "candidate_version_id": candidate_version_id,
+        "generated_at": str(gate_payload.get("generated_at") or ""),
+        "passed": gate_payload.get("passed"),
+        "failed_checks": [
+            str(item) for item in gate_payload.get("failed_checks", []) if isinstance(item, str)
+        ]
+        if isinstance(gate_payload.get("failed_checks"), list)
+        else [],
+        "checks": [
+            {
+                key: str(item.get(key) or "")
+                for key in ("name", "status", "severity", "message")
+                if key in item
+            }
+            for item in gate_payload.get("checks", [])[:100]
+            if isinstance(item, dict)
+        ]
+        if isinstance(gate_payload.get("checks"), list)
+        else [],
+        "evaluation_sets_current": evaluation_sets_current,
+        "evaluation_set_status": evaluation_set_status,
+        "regular_evaluation": _candidate_evaluation_summary(regular_payload),
+        "structured_evaluation": _candidate_evaluation_summary(structured_payload),
+    }
 
 
 class JobRequest(BaseModel):
@@ -485,11 +800,18 @@ async def get_job(job_id: str):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not job:
         raise HTTPException(status_code=404, detail="job not found")
-    return diagnose_job(
-        job,
-        stale_after_seconds=settings.job_stale_after_seconds,
-        heartbeat_timeout_seconds=max(60, settings.job_heartbeat_seconds * 3),
-    )
+    return _diagnosed_job(job)
+
+
+@router.post("/jobs/{job_id}/cancel", response_model=admin_schemas.JobResponse)
+async def cancel_job(job_id: str):
+    try:
+        job = job_manager.cancel(job_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="job not found") from exc
+    except JobCancellationError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return _diagnosed_job(job.to_dict())
 
 
 @router.post("/jobs/{job_id}/resolve", response_model=admin_schemas.JobResponse)
@@ -505,11 +827,7 @@ async def resolve_job(job_id: str, request: admin_schemas.JobResolutionRequest):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return diagnose_job(
-        job,
-        stale_after_seconds=settings.job_stale_after_seconds,
-        heartbeat_timeout_seconds=max(60, settings.job_heartbeat_seconds * 3),
-    )
+    return _diagnosed_job(job)
 
 
 @router.get("/jobs/{job_id}/logs", response_model=admin_schemas.JobLogsResponse)
@@ -519,6 +837,20 @@ async def get_job_logs(job_id: str, limit: int = 200):
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"job_id": job_id, "logs": logs}
+
+
+@router.get(
+    "/jobs/{job_id}/candidate-gate-report",
+    response_model=admin_schemas.CandidateGateDetailsResponse,
+)
+async def get_candidate_gate_report(job_id: str):
+    try:
+        job = job_store.read(job_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not job:
+        raise HTTPException(status_code=404, detail="job not found")
+    return _read_candidate_gate_details(job_id, job)
 
 
 @router.get("/evaluation/status", response_model=admin_schemas.EvaluationStatusResponse)

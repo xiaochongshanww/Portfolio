@@ -39,6 +39,11 @@ DEFAULT_RERANK_ANSWER_REPORT = (
     PROJECT_ROOT / "data" / "audit" / "reports" / "rerank_answer_latest.json"
 )
 AUDIT_PROFILES = {"external", "internal-research"}
+EVALUATION_PATHS = {
+    "regular": Path("data/evaluation/queries.jsonl"),
+    "structured": Path("data/evaluation/complex_structured_tables.jsonl"),
+    "answer": Path("data/evaluation/answer_holdout.jsonl"),
+}
 INTERNAL_DECISION_BOUNDARIES = {
     "D-001": ("内部研究", "封闭验证", "发布资格关闭"),
     "D-002": ("宿主机运行", "知识包 CLI", "不承诺"),
@@ -167,6 +172,56 @@ def _quality_check(
             blocking=True,
             status=str(snapshot.get("release_quality_status") or "missing"),
             detail="当前质量快照不是 passed",
+        )
+    if snapshot.get("schema_version") != 2:
+        return _check(
+            "quality_evidence",
+            "质量证据",
+            ok=False,
+            blocking=True,
+            status="stale",
+            detail="质量快照缺少评估报告与当前评估集的绑定指纹，请重新生成完整质量证据",
+        )
+    evaluation_sets = snapshot.get("evaluation_sets")
+    evidence_hashes = snapshot.get("evaluation_evidence_hashes")
+    if not isinstance(evaluation_sets, dict) or not isinstance(evidence_hashes, dict):
+        return _check(
+            "quality_evidence",
+            "质量证据",
+            ok=False,
+            blocking=True,
+            status="invalid",
+            detail="质量快照缺少评估集或报告绑定指纹",
+        )
+    stale_sets: list[str] = []
+    for name, relative_path in EVALUATION_PATHS.items():
+        path = PROJECT_ROOT / relative_path
+        try:
+            raw = path.read_bytes()
+            text = raw.decode("utf-8")
+        except (OSError, UnicodeDecodeError):
+            stale_sets.append(f"{name}: 当前评估集不可读")
+            continue
+        normalized = text.replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
+        expected = {
+            "path": relative_path.as_posix(),
+            "sha256": hashlib.sha256(normalized).hexdigest(),
+            "raw_sha256": hashlib.sha256(raw).hexdigest(),
+            "hash_mode": "utf8_lf",
+            "case_count": sum(1 for line in text.splitlines() if line.strip()),
+        }
+        if evaluation_sets.get(name) != expected:
+            stale_sets.append(f"{name}: 快照与当前评估集不一致")
+        if evidence_hashes.get(name) != expected["raw_sha256"]:
+            stale_sets.append(f"{name}: 评估报告未绑定当前内容")
+    if stale_sets:
+        return _check(
+            "quality_evidence",
+            "质量证据",
+            ok=False,
+            blocking=True,
+            status="stale",
+            detail="；".join(stale_sets),
         )
     reports = snapshot.get("reports")
     if not isinstance(reports, dict) or not reports:

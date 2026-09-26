@@ -20,6 +20,11 @@ LEGACY_REPORT_PATHS = {
     "verification": Path("data/audit/reports/verification_latest.json"),
     "quality_gate": Path("data/audit/reports/quality_gate_latest.json"),
 }
+LEGACY_EVALUATION_REPORT_PATHS = {
+    "regular": Path("data/audit/reports/evaluation_latest.json"),
+    "structured": Path("data/audit/reports/evaluation_structured_latest.json"),
+    "answer": Path("data/audit/reports/evaluation_answer_latest.json"),
+}
 QUALITY_REPORTS_DIR = Path("data/audit/reports")
 QUALITY_RUN_POINTER = QUALITY_REPORTS_DIR / "quality_run_latest.json"
 QUALITY_RUN_ARTIFACTS = {
@@ -42,6 +47,11 @@ EVALUATION_PATHS = {
     "regular": Path("data/evaluation/queries.jsonl"),
     "structured": Path("data/evaluation/complex_structured_tables.jsonl"),
     "answer": Path("data/evaluation/answer_holdout.jsonl"),
+}
+EVALUATION_REPORT_ARTIFACTS = {
+    "regular": "regular_json",
+    "structured": "structured_json",
+    "answer": "answer_json",
 }
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 RUN_ID_RE = re.compile(r"^[0-9a-f]{32}$")
@@ -229,6 +239,55 @@ def _report_summary(
     }
 
 
+def _evaluation_report_paths(project_root: Path) -> dict[str, Path]:
+    pointer_path = project_root / QUALITY_RUN_POINTER
+    if not pointer_path.exists():
+        return dict(LEGACY_EVALUATION_REPORT_PATHS)
+
+    pointer = _read_json(pointer_path)
+    run_id = pointer.get("verification_run_id")
+    if not isinstance(run_id, str) or not RUN_ID_RE.fullmatch(run_id):
+        raise EvidenceSnapshotError("质量运行指针身份无效")
+    return {
+        name: _run_relative_path(run_id, QUALITY_RUN_ARTIFACTS[artifact_key])
+        for name, artifact_key in EVALUATION_REPORT_ARTIFACTS.items()
+    }
+
+
+def _evaluation_evidence_hashes(project_root: Path) -> dict[str, str | None]:
+    hashes: dict[str, str | None] = {}
+    for name, relative_path in _evaluation_report_paths(project_root).items():
+        path = project_root / relative_path
+        if not path.is_file():
+            hashes[name] = None
+            continue
+        payload = _read_json(path)
+        digest = payload.get("evaluation_set_hash")
+        set_id = payload.get("evaluation_set_id")
+        hashes[name] = (
+            digest
+            if set_id == name and isinstance(digest, str) and SHA256_RE.fullmatch(digest)
+            else None
+        )
+    return hashes
+
+
+def _release_quality_status(
+    reports: dict[str, dict[str, Any]],
+    evaluation_sets: dict[str, dict[str, Any]],
+    evidence_hashes: dict[str, str | None],
+) -> str:
+    if not all(report["passed"] for report in reports.values()):
+        return "not_passed"
+    if any(evidence_hashes[name] is None for name in EVALUATION_PATHS):
+        return "unverified"
+    if any(
+        evidence_hashes[name] != evaluation_sets[name]["raw_sha256"] for name in EVALUATION_PATHS
+    ):
+        return "stale"
+    return "passed"
+
+
 def build_snapshot(project_root: Path = PROJECT_ROOT) -> dict[str, Any]:
     reports: dict[str, dict[str, Any]] = {}
     raw_reports: dict[str, dict[str, Any]] = {}
@@ -252,17 +311,21 @@ def build_snapshot(project_root: Path = PROJECT_ROOT) -> dict[str, Any]:
         evaluation_sets[name] = {
             "path": relative_path.as_posix(),
             "sha256": _sha256_utf8_lf(absolute_path),
+            "raw_sha256": _sha256(absolute_path),
             "hash_mode": "utf8_lf",
             "case_count": _case_count(absolute_path),
         }
 
-    release_quality_passed = all(report["passed"] for report in reports.values())
+    evidence_hashes = _evaluation_evidence_hashes(project_root)
     return {
-        "schema_version": 1,
-        "release_quality_status": ("passed" if release_quality_passed else "not_passed"),
+        "schema_version": 2,
+        "release_quality_status": _release_quality_status(
+            reports, evaluation_sets, evidence_hashes
+        ),
         "reports": reports,
         "quality_gate_failed_checks": failed_checks,
         "evaluation_sets": evaluation_sets,
+        "evaluation_evidence_hashes": evidence_hashes,
     }
 
 
@@ -295,7 +358,8 @@ def _validate_report_entry(name: str, report: dict[str, Any]) -> None:
 
 
 def _validate_snapshot_structure(snapshot: dict[str, Any]) -> str:
-    if snapshot.get("schema_version") != 1:
+    schema_version = snapshot.get("schema_version")
+    if schema_version not in (1, 2):
         raise EvidenceSnapshotError("不支持的质量证据快照版本")
 
     reports = _require_mapping(snapshot, "reports")
@@ -309,7 +373,7 @@ def _validate_snapshot_structure(snapshot: dict[str, Any]) -> str:
     expected_status = (
         "passed" if all(report["passed"] for report in reports.values()) else "not_passed"
     )
-    if snapshot.get("release_quality_status") != expected_status:
+    if schema_version == 1 and snapshot.get("release_quality_status") != expected_status:
         raise EvidenceSnapshotError("发布质量状态与报告摘要不一致")
 
     failed_checks = snapshot.get("quality_gate_failed_checks")
@@ -334,6 +398,25 @@ def _validate_snapshot_structure(snapshot: dict[str, Any]) -> str:
         if not isinstance(entry.get("case_count"), int) or entry["case_count"] < 0:
             raise EvidenceSnapshotError(f"评估集数量无效：{name}")
 
+        if schema_version == 2 and (
+            not isinstance(entry.get("raw_sha256"), str)
+            or not SHA256_RE.fullmatch(entry["raw_sha256"])
+        ):
+            raise EvidenceSnapshotError(f"评估集原始哈希无效：{name}")
+
+    if schema_version == 2:
+        evidence_hashes = _require_mapping(snapshot, "evaluation_evidence_hashes")
+        if set(evidence_hashes) != set(EVALUATION_PATHS):
+            raise EvidenceSnapshotError("评估证据哈希集合与契约不一致")
+        for name, digest in evidence_hashes.items():
+            if digest is not None and (
+                not isinstance(digest, str) or not SHA256_RE.fullmatch(digest)
+            ):
+                raise EvidenceSnapshotError(f"评估证据哈希无效：{name}")
+        expected_status = _release_quality_status(reports, evaluation_sets, evidence_hashes)
+        if snapshot.get("release_quality_status") != expected_status:
+            raise EvidenceSnapshotError("发布质量状态与评估证据新鲜度不一致")
+
     return expected_status
 
 
@@ -356,6 +439,8 @@ def _system_card_markers(snapshot: dict[str, Any]) -> list[str]:
     markers.append(f"`quality_gate.failed_checks={','.join(failed_checks)}`")
     for name in ("regular", "structured", "answer"):
         markers.append(f"`evaluation_set.{name}.case_count={evaluation_sets[name]['case_count']}`")
+    if snapshot.get("schema_version") == 2:
+        markers.append(f"`release_quality_status={snapshot['release_quality_status']}`")
     return markers
 
 
@@ -380,6 +465,8 @@ def validate_snapshot(
             "hash_mode": "utf8_lf",
             "case_count": _case_count(absolute_path),
         }
+        if snapshot.get("schema_version") == 2:
+            expected["raw_sha256"] = _sha256(absolute_path)
         if entry != expected:
             raise EvidenceSnapshotError(f"评估集摘要已漂移：{name}")
 
@@ -388,6 +475,7 @@ def validate_snapshot(
         (project_root / path).exists() for path in LEGACY_REPORT_PATHS.values()
     )
     source_report_paths = _resolve_source_report_paths(project_root) if evidence_exists else {}
+    source_evaluation_hashes = _evaluation_evidence_hashes(project_root) if evidence_exists else {}
     for name, relative_path in source_report_paths.items():
         if reports[name].get("path") != relative_path.as_posix():
             raise EvidenceSnapshotError(f"本地质量运行与快照路径不一致：{name}")
@@ -401,6 +489,10 @@ def validate_snapshot(
         if name == "quality_gate" and payload.get("failed_checks") != failed_checks:
             raise EvidenceSnapshotError("本地质量门禁失败项与快照不一致")
         verified_source_reports += 1
+
+    if snapshot.get("schema_version") == 2 and evidence_exists:
+        if source_evaluation_hashes != snapshot["evaluation_evidence_hashes"]:
+            raise EvidenceSnapshotError("本地评估报告与快照绑定的评估集哈希不一致")
 
     try:
         system_card = (project_root / system_card_path).read_text(encoding="utf-8")

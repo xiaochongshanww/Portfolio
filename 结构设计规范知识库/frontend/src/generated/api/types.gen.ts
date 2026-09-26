@@ -291,6 +291,182 @@ export type CandidateDocumentsResponse = {
 };
 
 /**
+ * CandidateEvaluationFailure
+ */
+export type CandidateEvaluationFailure = {
+    /**
+     * Authority Hit
+     */
+    authority_hit?: boolean | null;
+    /**
+     * Clause Hit
+     */
+    clause_hit?: boolean | null;
+    /**
+     * Expected Authority Type
+     */
+    expected_authority_type?: string;
+    /**
+     * Failed Checks
+     */
+    failed_checks?: Array<string>;
+    /**
+     * Id
+     */
+    id?: string;
+    /**
+     * Keyword Hit
+     */
+    keyword_hit?: boolean | null;
+    /**
+     * Query
+     */
+    query?: string;
+    /**
+     * Source Hit
+     */
+    source_hit?: boolean | null;
+    /**
+     * Structured Table Hit
+     */
+    structured_table_hit?: boolean | null;
+    /**
+     * Table Hit
+     */
+    table_hit?: boolean | null;
+    /**
+     * Top1 Source Hit
+     */
+    top1_source_hit?: boolean | null;
+    /**
+     * Top Results
+     */
+    top_results?: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Top Structured Results
+     */
+    top_structured_results?: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Type
+     */
+    type?: string;
+};
+
+/**
+ * CandidateEvaluationSetStatus
+ */
+export type CandidateEvaluationSetStatus = {
+    /**
+     * Current Revision Id
+     */
+    current_revision_id?: string;
+    /**
+     * Evaluation Set Id
+     */
+    evaluation_set_id: 'regular' | 'structured';
+    /**
+     * Freshness
+     */
+    freshness?: 'current' | 'stale' | 'unknown';
+    /**
+     * Snapshot Revision Id
+     */
+    snapshot_revision_id?: string;
+};
+
+/**
+ * CandidateEvaluationSummary
+ */
+export type CandidateEvaluationSummary = {
+    /**
+     * Authority Hit Rate
+     */
+    authority_hit_rate?: number | null;
+    /**
+     * Case Count
+     */
+    case_count?: number;
+    /**
+     * Failure Count
+     */
+    failure_count?: number;
+    /**
+     * Failures
+     */
+    failures?: Array<CandidateEvaluationFailure>;
+    /**
+     * Failures Truncated
+     */
+    failures_truncated?: boolean;
+    /**
+     * Structured Table Hit Rate
+     */
+    structured_table_hit_rate?: number | null;
+    /**
+     * Top1 Source Hit Rate
+     */
+    top1_source_hit_rate?: number | null;
+};
+
+/**
+ * CandidateGateDetailsResponse
+ */
+export type CandidateGateDetailsResponse = {
+    /**
+     * Available
+     */
+    available?: boolean;
+    /**
+     * Candidate Version Id
+     */
+    candidate_version_id?: string;
+    /**
+     * Checks
+     */
+    checks?: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Evaluation Set Status
+     */
+    evaluation_set_status?: Array<CandidateEvaluationSetStatus>;
+    /**
+     * Evaluation Sets Current
+     */
+    evaluation_sets_current?: boolean | null;
+    /**
+     * Failed Checks
+     */
+    failed_checks?: Array<string>;
+    /**
+     * Generated At
+     */
+    generated_at?: string;
+    /**
+     * Job Id
+     */
+    job_id: string;
+    /**
+     * Passed
+     */
+    passed?: boolean | null;
+    /**
+     * Reason
+     */
+    reason?: string;
+    regular_evaluation?: CandidateEvaluationSummary | null;
+    /**
+     * Report Source
+     */
+    report_source?: 'activation' | 'revalidation';
+    structured_evaluation?: CandidateEvaluationSummary | null;
+};
+
+/**
  * CandidatePromotionResponse
  */
 export type CandidatePromotionResponse = {
@@ -1313,6 +1489,18 @@ export type JobResolutionRequest = {
  */
 export type JobResponse = {
     /**
+     * Cancellation Requested
+     */
+    cancellation_requested?: boolean;
+    /**
+     * Candidate Republish Reason
+     */
+    candidate_republish_reason?: string;
+    /**
+     * Candidate Republishable
+     */
+    candidate_republishable?: boolean;
+    /**
      * Created At
      */
     created_at: string;
@@ -2132,6 +2320,40 @@ export type SourceBootstrapResponse = {
 };
 
 /**
+ * SourceBuildPreviewResponse
+ */
+export type SourceBuildPreviewResponse = {
+    /**
+     * Active Revision Id
+     */
+    active_revision_id: string;
+    /**
+     * Build Plan
+     */
+    build_plan: {
+        [key: string]: unknown;
+    };
+    /**
+     * Catalog Revision
+     */
+    catalog_revision: number;
+    /**
+     * Changes
+     */
+    changes: {
+        [key: string]: Array<string>;
+    };
+    /**
+     * Desired Source Count
+     */
+    desired_source_count: number;
+    /**
+     * Preflight Token
+     */
+    preflight_token: string;
+};
+
+/**
  * SourceBuildRequest
  */
 export type SourceBuildRequest = {
@@ -2140,6 +2362,10 @@ export type SourceBuildRequest = {
      */
     apply_corrections?: boolean;
     /**
+     * Confirm Full Rebuild
+     */
+    confirm_full_rebuild?: boolean;
+    /**
      * Mode
      */
     mode?: string;
@@ -2147,6 +2373,10 @@ export type SourceBuildRequest = {
      * Parser Backend
      */
     parser_backend?: string;
+    /**
+     * Preflight Token
+     */
+    preflight_token?: string;
 };
 
 /**
@@ -3717,6 +3947,66 @@ export type GetJobAdminJobsJobIdGetResponses = {
 
 export type GetJobAdminJobsJobIdGetResponse = GetJobAdminJobsJobIdGetResponses[keyof GetJobAdminJobsJobIdGetResponses];
 
+export type CancelJobAdminJobsJobIdCancelPostData = {
+    body?: never;
+    path: {
+        /**
+         * Job Id
+         */
+        job_id: string;
+    };
+    query?: never;
+    url: '/admin/jobs/{job_id}/cancel';
+};
+
+export type CancelJobAdminJobsJobIdCancelPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CancelJobAdminJobsJobIdCancelPostError = CancelJobAdminJobsJobIdCancelPostErrors[keyof CancelJobAdminJobsJobIdCancelPostErrors];
+
+export type CancelJobAdminJobsJobIdCancelPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: JobResponse;
+};
+
+export type CancelJobAdminJobsJobIdCancelPostResponse = CancelJobAdminJobsJobIdCancelPostResponses[keyof CancelJobAdminJobsJobIdCancelPostResponses];
+
+export type GetCandidateGateReportAdminJobsJobIdCandidateGateReportGetData = {
+    body?: never;
+    path: {
+        /**
+         * Job Id
+         */
+        job_id: string;
+    };
+    query?: never;
+    url: '/admin/jobs/{job_id}/candidate-gate-report';
+};
+
+export type GetCandidateGateReportAdminJobsJobIdCandidateGateReportGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetCandidateGateReportAdminJobsJobIdCandidateGateReportGetError = GetCandidateGateReportAdminJobsJobIdCandidateGateReportGetErrors[keyof GetCandidateGateReportAdminJobsJobIdCandidateGateReportGetErrors];
+
+export type GetCandidateGateReportAdminJobsJobIdCandidateGateReportGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: CandidateGateDetailsResponse;
+};
+
+export type GetCandidateGateReportAdminJobsJobIdCandidateGateReportGetResponse = GetCandidateGateReportAdminJobsJobIdCandidateGateReportGetResponses[keyof GetCandidateGateReportAdminJobsJobIdCandidateGateReportGetResponses];
+
 export type GetJobLogsAdminJobsJobIdLogsGetData = {
     body?: never;
     path: {
@@ -4456,6 +4746,36 @@ export type RepublishSourceCandidateAdminSourcesCandidatesJobIdRepublishPostResp
 
 export type RepublishSourceCandidateAdminSourcesCandidatesJobIdRepublishPostResponse = RepublishSourceCandidateAdminSourcesCandidatesJobIdRepublishPostResponses[keyof RepublishSourceCandidateAdminSourcesCandidatesJobIdRepublishPostResponses];
 
+export type RevalidateSourceCandidateAdminSourcesCandidatesJobIdRevalidatePostData = {
+    body?: never;
+    path: {
+        /**
+         * Job Id
+         */
+        job_id: string;
+    };
+    query?: never;
+    url: '/admin/sources/candidates/{job_id}/revalidate';
+};
+
+export type RevalidateSourceCandidateAdminSourcesCandidatesJobIdRevalidatePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RevalidateSourceCandidateAdminSourcesCandidatesJobIdRevalidatePostError = RevalidateSourceCandidateAdminSourcesCandidatesJobIdRevalidatePostErrors[keyof RevalidateSourceCandidateAdminSourcesCandidatesJobIdRevalidatePostErrors];
+
+export type RevalidateSourceCandidateAdminSourcesCandidatesJobIdRevalidatePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: SourceBuildResponse;
+};
+
+export type RevalidateSourceCandidateAdminSourcesCandidatesJobIdRevalidatePostResponse = RevalidateSourceCandidateAdminSourcesCandidatesJobIdRevalidatePostResponses[keyof RevalidateSourceCandidateAdminSourcesCandidatesJobIdRevalidatePostResponses];
+
 export type BuildSourceChangesAdminSourcesChangesBuildPostData = {
     body: SourceBuildRequest;
     path?: never;
@@ -4496,6 +4816,31 @@ export type PlanSourceChangesAdminSourcesChangesPlanPostResponses = {
 };
 
 export type PlanSourceChangesAdminSourcesChangesPlanPostResponse = PlanSourceChangesAdminSourcesChangesPlanPostResponses[keyof PlanSourceChangesAdminSourcesChangesPlanPostResponses];
+
+export type PreviewSourceBuildAdminSourcesChangesPreviewPostData = {
+    body: SourceBuildRequest;
+    path?: never;
+    query?: never;
+    url: '/admin/sources/changes/preview';
+};
+
+export type PreviewSourceBuildAdminSourcesChangesPreviewPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PreviewSourceBuildAdminSourcesChangesPreviewPostError = PreviewSourceBuildAdminSourcesChangesPreviewPostErrors[keyof PreviewSourceBuildAdminSourcesChangesPreviewPostErrors];
+
+export type PreviewSourceBuildAdminSourcesChangesPreviewPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: SourceBuildPreviewResponse;
+};
+
+export type PreviewSourceBuildAdminSourcesChangesPreviewPostResponse = PreviewSourceBuildAdminSourcesChangesPreviewPostResponses[keyof PreviewSourceBuildAdminSourcesChangesPreviewPostResponses];
 
 export type ListSourceRevisionsAdminSourcesRevisionsGetData = {
     body?: never;

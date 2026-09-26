@@ -381,6 +381,45 @@ def test_domain_ranking_prefers_table_when_query_asks_which_table():
     assert "table query prefers body table" in table.reasons
 
 
+def test_table_question_accepts_direct_clause_reference_or_appendix_table():
+    case = EvaluationCase(
+        id="table-quality-division",
+        query="建筑工程分部工程和分项工程划分在哪个表？",
+        expected_sources=["GB 50300-2013"],
+        expected_clause="4.0.6",
+        expected_keywords=["分部工程", "分项工程"],
+        type="table",
+        expected_authority_type="body_or_table",
+    )
+    direct_reference = RetrievalResult(
+        doc_id="clause-4",
+        text="4.0.6 建筑工程的分部工程、分项工程划分宜按本标准附录B采用。",
+        meta={
+            "code": "GB 50300-2013",
+            "section_type": "body",
+            "clause_number": "4.0.1",
+        },
+        score=23.2,
+        source="hybrid",
+        reason="normative clause directly points to Appendix B",
+    )
+    appendix_table = RetrievalResult(
+        doc_id="appendix-b",
+        text="表B 建筑工程的分部工程、分项工程划分 <table></table>",
+        meta={"code": "GB 50300-2013", "section_type": "body_table", "is_table": True},
+        score=23.1,
+        source="hybrid",
+        reason="Appendix B table content",
+    )
+
+    summary = summarize_results([case], {case.id: [direct_reference, appendix_table]})
+
+    assert summary["authority_hit_rate"] == 1
+    assert summary["clause_hit_rate"] == 1
+    assert summary["table_hit_rate"] == 1
+    assert summary["failures"] == []
+
+
 def test_value_table_match_uses_table_title_as_evidence():
     state = RetrievalState()
     query_info = analyze_query("活荷载按楼层的折减系数应查哪个表")

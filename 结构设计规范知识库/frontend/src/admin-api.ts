@@ -54,6 +54,8 @@ export {
   adminVersionRetentionAdminVersionsVersionIdRetentionPut as updateAdminVersionRetention,
   adminVersionsAdminVersionsGet as getAdminVersions,
   getJobAdminJobsJobIdGet as getAdminJob,
+  cancelJobAdminJobsJobIdCancelPost as cancelAdminJob,
+  getCandidateGateReportAdminJobsJobIdCandidateGateReportGet as getAdminCandidateGateReport,
   getJobLogsAdminJobsJobIdLogsGet as getAdminJobLogs,
   listJobsAdminJobsGet as listAdminJobs,
   resolveJobAdminJobsJobIdResolvePost as resolveAdminJob,

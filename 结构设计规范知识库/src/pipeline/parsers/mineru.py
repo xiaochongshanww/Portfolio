@@ -2,11 +2,16 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
+import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from queue import Empty, Queue
+from threading import Thread
 from typing import Any
 
+from src.app.core.job_cancellation import job_cancellation_requested, raise_if_job_cancelled
 from src.pipeline.artifacts import (
     find_artifact,
     require_artifacts,
@@ -34,6 +39,14 @@ MINERU_VERSION_PATTERN = re.compile(
 MINERU_PAGE_PROGRESS_PATTERN = re.compile(
     r"(?:page|页(?:面)?)\D{0,12}(?P<current>\d+)\D{0,4}(?:/|of|共)\D{0,4}(?P<total>\d+)",
     re.IGNORECASE,
+)
+MINERU_ANSI_ESCAPE_PATTERN = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+MINERU_MODEL_PROGRESS_PATTERN = re.compile(
+    r"(?P<stage>Layout|MFD|MFR|OCR-det|OCR-rec|Table)\s+Predict:\s*"
+    r"(?:(?P<percent>\d{1,3})%\s*\|[^|\r\n]*\|\s*)?"
+    r"(?P<current>\d+)(?:/(?P<total>\d+)|it)\s+\["
+    r"(?P<elapsed>\d+(?::\d{1,2}){1,2})(?:<(?P<remaining>[^,\]]+))?"
+    r"(?:,\s*(?P<rate>\d+(?:\.\d+)?|\?)\s*(?P<rate_unit>s/it|it/s))?\]"
 )
 
 
@@ -181,6 +194,71 @@ def _find_markdown(output_dir: Path, pdf_stem: str) -> Path | None:
     return (preferred or candidates)[0]
 
 
+def _duration_seconds(value: str) -> int | None:
+    parts = value.strip().split(":")
+    if len(parts) not in {2, 3} or not all(part.isdigit() for part in parts):
+        return None
+    values = [int(part) for part in parts]
+    if len(values) == 2:
+        minutes, seconds = values
+        return minutes * 60 + seconds
+    hours, minutes, seconds = values
+    return hours * 3600 + minutes * 60 + seconds
+
+
+def parse_mineru_progress_line(line: str) -> dict[str, Any] | None:
+    clean_line = MINERU_ANSI_ESCAPE_PATTERN.sub("", line)
+    matches = list(MINERU_MODEL_PROGRESS_PATTERN.finditer(clean_line))
+    if not matches:
+        return None
+    match = matches[-1]
+    elapsed_seconds = _duration_seconds(match.group("elapsed"))
+    remaining_seconds = _duration_seconds(match.group("remaining") or "")
+    if elapsed_seconds is None:
+        return None
+    current = int(match.group("current"))
+    total = int(match.group("total") or current)
+    rate = match.group("rate")
+    seconds_per_item = None
+    if rate and rate != "?":
+        rate_value = float(rate)
+        if match.group("rate_unit") == "s/it":
+            seconds_per_item = rate_value
+        elif rate_value > 0:
+            seconds_per_item = 1 / rate_value
+    return {
+        "stage": match.group("stage"),
+        "percent": int(match.group("percent") or (100 if total and current >= total else 0)),
+        "current": current,
+        "total": total,
+        "elapsed_seconds": elapsed_seconds,
+        "estimated_remaining_seconds": remaining_seconds,
+        "seconds_per_item": seconds_per_item,
+    }
+
+
+def summarize_mineru_progress(stdout: str, duration_seconds: float) -> dict[str, Any]:
+    stage_runs: dict[str, list[dict[str, Any]]] = {}
+    for line in re.split(r"[\r\n]+", stdout):
+        progress = parse_mineru_progress_line(line)
+        if progress is None:
+            continue
+        stage = str(progress.pop("stage"))
+        runs = stage_runs.setdefault(stage, [])
+        if runs and (
+            progress["total"] != runs[-1]["total"] or progress["current"] < runs[-1]["current"]
+        ):
+            runs.append(progress)
+        elif runs:
+            runs[-1] = progress
+        else:
+            runs.append(progress)
+    return {
+        "duration_seconds": round(max(duration_seconds, 0.0), 3),
+        "stages": stage_runs,
+    }
+
+
 def _copy_mineru_image(
     item: dict[str, Any], artifact_dir: Path, image_dir: Path, pdf_stem: str, index: int
 ) -> tuple[str, str]:
@@ -309,8 +387,12 @@ class MineruParser:
             str(raw_dir),
             *self.extra_args,
         ]
+        parse_started = time.perf_counter()
         completed = _run_mineru_command(
             command, progress_callback=progress_callback, document=pdf_path.name
+        )
+        performance = summarize_mineru_progress(
+            completed.stdout, time.perf_counter() - parse_started
         )
         if completed.returncode != 0:
             detail = (completed.stderr or completed.stdout).strip()
@@ -327,6 +409,15 @@ class MineruParser:
             if cli_log:
                 raise RuntimeError(f"{exc}\nMinerU CLI 日志:\n{cli_log[-12000:]}") from exc
             raise
+        if progress_callback is not None:
+            emit_progress(
+                progress_callback,
+                "parse_document",
+                "MinerU 解析完成",
+                document=pdf_path.name,
+                parser_backend=self.name,
+                mineru_performance=performance,
+            )
         write_artifact_index(
             doc_dir / "artifacts.json",
             pdf_path.name,
@@ -335,6 +426,7 @@ class MineruParser:
                 "command": command,
                 "mineru_version": cli_probe.raw_version,
                 "parser_cli": cli_probe.to_dict(),
+                "mineru_performance": performance,
             },
         )
 
@@ -362,6 +454,7 @@ class MineruParser:
                 "mineru_version": cli_probe.raw_version,
                 "mineru_command": command,
                 "parser_cli": cli_probe.to_dict(),
+                "mineru_performance": performance,
             },
         )
 
@@ -373,8 +466,9 @@ def _run_mineru_command(
     document: str,
 ) -> subprocess.CompletedProcess[str]:
     """Run MinerU with live output when the build pipeline has a progress sink."""
+    raise_if_job_cancelled()
     if progress_callback is None:
-        return subprocess.run(
+        completed = subprocess.run(
             command,
             text=True,
             encoding="utf-8",
@@ -382,7 +476,14 @@ def _run_mineru_command(
             capture_output=True,
             check=False,
         )
+        raise_if_job_cancelled()
+        return completed
 
+    process_options: dict[str, Any] = {}
+    if os.name == "nt":
+        process_options["creationflags"] = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+    else:
+        process_options["start_new_session"] = True
     process = subprocess.Popen(
         command,
         text=True,
@@ -391,13 +492,41 @@ def _run_mineru_command(
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         bufsize=1,
+        **process_options,
     )
     output: list[str] = []
-    if process.stdout is not None:
-        for line in process.stdout:
-            rendered = line.rstrip()
-            if rendered:
-                output.append(rendered)
+    output_queue: Queue[object] = Queue()
+    output_finished = object()
+
+    def collect_output() -> None:
+        try:
+            if process.stdout is not None:
+                for line in process.stdout:
+                    output_queue.put(line)
+        except Exception as exc:
+            output_queue.put(exc)
+        finally:
+            output_queue.put(output_finished)
+
+    reader = Thread(target=collect_output, name=f"mineru-output-{process.pid}", daemon=True)
+    reader.start()
+    try:
+        while True:
+            if job_cancellation_requested():
+                raise_if_job_cancelled()
+            try:
+                item = output_queue.get(timeout=0.2)
+            except Empty:
+                continue
+            if item is output_finished:
+                break
+            if isinstance(item, BaseException):
+                raise item
+            rendered = str(item).rstrip()
+            if not rendered:
+                continue
+            output.append(rendered)
+            if progress_callback is not None:
                 details: dict[str, Any] = {
                     "document": document,
                     "parser_backend": "mineru",
@@ -411,11 +540,51 @@ def _run_mineru_command(
                             "page_total": int(match.group("total")),
                         }
                     )
+                stage_progress = parse_mineru_progress_line(rendered)
+                if stage_progress:
+                    details["mineru_stage_progress"] = stage_progress
                 emit_progress(progress_callback, "parse_document", "MinerU 解析中", **details)
-    returncode = process.wait()
+        returncode = process.wait()
+        raise_if_job_cancelled()
+    except BaseException:
+        if process.poll() is None:
+            _terminate_mineru_process_tree(process)
+        raise
     return subprocess.CompletedProcess(
         command,
         returncode,
         stdout="\n".join(output),
         stderr="",
     )
+
+
+def _terminate_mineru_process_tree(process: subprocess.Popen[str]) -> None:
+    if os.name == "nt":
+        try:
+            subprocess.run(
+                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                capture_output=True,
+                check=False,
+                timeout=10,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        if process.poll() is None:
+            process.kill()
+        process.wait(timeout=5)
+        return
+
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+    try:
+        process.wait(timeout=3)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        if process.poll() is None:
+            process.kill()
+        process.wait(timeout=5)

@@ -711,7 +711,11 @@ def test_managed_api_real_process_starts_and_stops(tmp_path: Path):
     assert started["api_base"] == f"http://127.0.0.1:{port}"
     assert payload == {"status": "ok"}
     assert stopped["ok"] is True
+    assert stopped["forced"] is False
+    assert stopped["shutdown_signal"] in {"CTRL_BREAK_EVENT", "SIGTERM"}
+    assert stopped["exit_code"] is not None
     assert manager.process is not None and manager.process.poll() is not None
+    assert "Application shutdown complete." in (tmp_path / "api.log").read_text(encoding="utf-8")
 
 
 def test_managed_api_failed_start_redacts_environment_secret(tmp_path: Path):
@@ -1054,7 +1058,9 @@ def test_managed_preflight_startup_failure_does_not_create_quality_report(
     assert not (reports / verify_quality.VERIFICATION_JSON_NAME).exists()
 
 
-def test_managed_api_stop_forces_kill_after_timeout(tmp_path: Path):
+def test_managed_api_stop_forces_kill_after_timeout(monkeypatch, tmp_path: Path):
+    monkeypatch.setattr(verify_quality.sys, "platform", "linux")
+
     class StubbornProcess:
         returncode = None
 
@@ -1088,5 +1094,42 @@ def test_managed_api_stop_forces_kill_after_timeout(tmp_path: Path):
 
     assert result["ok"] is True
     assert result["forced"] is True
+    assert result["shutdown_signal"] == "SIGTERM+kill"
     assert process.terminated is True
     assert process.killed is True
+
+
+def test_managed_api_stop_uses_ctrl_break_on_windows(monkeypatch, tmp_path: Path):
+    monkeypatch.setattr(verify_quality.sys, "platform", "win32")
+    monkeypatch.setattr(verify_quality.signal, "CTRL_BREAK_EVENT", 12345, raising=False)
+
+    class GracefulProcess:
+        returncode = None
+
+        def __init__(self):
+            self.signals = []
+
+        def poll(self):
+            return self.returncode
+
+        def send_signal(self, value):
+            self.signals.append(value)
+
+        def wait(self, timeout):
+            self.returncode = 0
+            return self.returncode
+
+    manager = verify_quality.ManagedApiProcess(
+        target=verify_quality._parse_managed_api_target("http://127.0.0.1:8017"),
+        log_path=tmp_path / "api.log",
+    )
+    process = GracefulProcess()
+    manager.process = process
+
+    result = manager.stop()
+
+    assert result["ok"] is True
+    assert result["forced"] is False
+    assert result["shutdown_signal"] == "CTRL_BREAK_EVENT"
+    assert result["exit_code"] == 0
+    assert process.signals == [12345]

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from src.app.core.config import settings
+from src.app.core.job_cancellation import raise_if_job_cancelled
 
 from .active_db import read_active_manifest
 from .manifest import build_manifest, write_manifest
@@ -155,6 +156,7 @@ def validate_parser_backend(parser_backend: str) -> dict[str, Any]:
         raise BuildPreflightError(f"不支持的 PDF 解析后端: {parser_backend}")
     try:
         probe = probe_mineru_cli(os.environ.get("MINERU_BIN") or DEFAULT_MINERU_BINARY)
+        raise_if_job_cancelled()
     except ParserUnavailableError as exc:
         raise BuildPreflightError(str(exc)) from exc
     return {"backend": parser_backend, **probe.to_dict()}

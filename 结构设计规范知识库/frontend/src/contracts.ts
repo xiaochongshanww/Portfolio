@@ -2,6 +2,8 @@ import type { EvaluationSummary } from './generated/api'
 
 export type {
   AdminStatusResponse,
+  CandidateEvaluationFailure,
+  CandidateGateDetailsResponse,
   CandidateDetailResponse,
   CandidateDocumentSummary,
   EvaluationStatusResponse,

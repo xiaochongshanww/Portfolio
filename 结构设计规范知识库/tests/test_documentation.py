@@ -230,6 +230,9 @@ def test_managed_quality_api_lifecycle_is_documented():
     assert command in readme
     assert "--api-start-timeout-seconds" in config_reference
     assert "managed_quality_api_latest.log" in operations
+    assert "CTRL_BREAK_EVENT" in operations
+    assert "shutdown_signal" in operations
+    assert "Application shutdown complete" in operations
     assert "一命令质量验证" in detailed_design
     assert decision.is_file()
     assert checklist.is_file()
@@ -324,6 +327,9 @@ def test_rag_system_card_matches_latest_quality_evidence():
     for name, evaluation_set in snapshot["evaluation_sets"].items():
         marker = f"`evaluation_set.{name}.case_count={evaluation_set['case_count']}`"
         assert marker in system_card
+
+    if snapshot.get("schema_version") == 2:
+        assert f"`release_quality_status={snapshot['release_quality_status']}`" in system_card
 
     if snapshot["release_quality_status"] != "passed":
         assert "当前没有可用于发布的完整通过证据" in system_card

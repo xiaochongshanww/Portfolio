@@ -70,7 +70,7 @@ describe('SourcesTab', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('确认来源变更')
     expect(wrapper.text()).toContain('新增 1')
-    expect(wrapper.text()).toContain('只有检索与结构化门禁通过后才会切换在线版本')
+    expect(wrapper.text()).toContain('只有门禁通过才会切换在线版本')
   })
 
   it('saves edited metadata through the management API', async () => {

@@ -92,7 +92,7 @@ def test_committed_quality_evidence_snapshot_is_valid():
     result = validate_snapshot()
 
     assert result["ok"] is True
-    assert result["release_quality_status"] == "passed"
+    assert result["release_quality_status"] == "not_passed"
     assert result["evaluation_set_count"] == 3
 
 
@@ -251,14 +251,7 @@ def test_snapshot_validation_rejects_evaluation_set_drift(tmp_path: Path):
         source = Path(relative_path)
         target = project / relative_path
         target.parent.mkdir(parents=True, exist_ok=True)
-        if relative_path.suffix == ".jsonl":
-            target.write_text(
-                source.read_text(encoding="utf-8"),
-                encoding="utf-8",
-                newline="\n",
-            )
-        else:
-            target.write_bytes(source.read_bytes())
+        target.write_bytes(source.read_bytes())
 
     snapshot["evaluation_sets"]["regular"]["case_count"] += 1
     (project / DEFAULT_SNAPSHOT).write_text(
@@ -283,18 +276,12 @@ def test_snapshot_validation_supports_clean_checkout_without_audit_reports(
         source = Path(relative_path)
         target = project / relative_path
         target.parent.mkdir(parents=True, exist_ok=True)
-        if relative_path.suffix == ".jsonl":
-            target.write_text(
-                source.read_text(encoding="utf-8"),
-                encoding="utf-8",
-                newline="\n",
-            )
-        else:
-            target.write_bytes(source.read_bytes())
+        target.write_bytes(source.read_bytes())
 
     result = validate_snapshot(project)
 
     assert result["ok"] is True
+    assert result["release_quality_status"] == "not_passed"
     assert result["verified_source_report_count"] == 0
 
 

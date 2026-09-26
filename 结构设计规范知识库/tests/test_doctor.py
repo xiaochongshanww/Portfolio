@@ -63,6 +63,27 @@ def _check(report: dict, check_id: str) -> dict:
     return next(item for item in report["checks"] if item["id"] == check_id)
 
 
+@pytest.mark.parametrize("python_version,expected", [("3.11.3", "2.4.6"), ("3.12.0", "2.5.1")])
+def test_lock_versions_respect_python_markers(tmp_path, monkeypatch, python_version, expected):
+    import packaging.markers
+
+    environment = packaging.markers.default_environment()
+    environment["python_full_version"] = python_version
+    monkeypatch.setattr(packaging.markers, "default_environment", lambda: environment.copy())
+    path = tmp_path / "requirements.txt"
+    _write(
+        path,
+        'numpy==2.4.6; python_full_version < "3.12" \\\n    --hash=sha256:test\nnumpy==2.5.1; python_full_version >= "3.12"\n',
+    )
+    assert doctor._locked_versions(path) == {"numpy": expected}
+
+
+def test_direct_dependencies_skip_inapplicable_markers(tmp_path):
+    path = tmp_path / "requirements.in"
+    _write(path, 'numpy; python_version >= "3.0"\nmissing; python_version < "2.0"\n')
+    assert doctor._direct_requirements(path) == {"numpy"}
+
+
 def test_runtime_profile_passes_with_complete_static_environment(tmp_path: Path):
     versions = _create_project(tmp_path, profile="runtime")
     report = doctor.run_doctor(

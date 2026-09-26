@@ -1,3 +1,4 @@
+import hashlib
 import json
 import subprocess
 import sys
@@ -17,10 +18,32 @@ def _write_context(tmp_path: Path, *, completed: bool = False) -> tuple[Path, Pa
         tmp_path / "verification.json",
         {"passed": True, "data_version_hash": "current-version"},
     )
+    evaluation_sets = {}
+    evaluation_evidence_hashes = {}
+    for name, relative_path in readiness.EVALUATION_PATHS.items():
+        evaluation_path = tmp_path / relative_path
+        evaluation_path.parent.mkdir(parents=True, exist_ok=True)
+        evaluation_path.write_text(f'{{"id":"{name}-case"}}\n', encoding="utf-8")
+        raw = evaluation_path.read_bytes()
+        digest = hashlib.sha256(raw).hexdigest()
+        normalized_digest = hashlib.sha256(
+            raw.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
+        ).hexdigest()
+        evaluation_sets[name] = {
+            "path": relative_path.as_posix(),
+            "sha256": normalized_digest,
+            "raw_sha256": digest,
+            "hash_mode": "utf8_lf",
+            "case_count": 1,
+        }
+        evaluation_evidence_hashes[name] = digest
     snapshot = _write_json(
         tmp_path / "snapshot.json",
         {
+            "schema_version": 2,
             "release_quality_status": "passed",
+            "evaluation_sets": evaluation_sets,
+            "evaluation_evidence_hashes": evaluation_evidence_hashes,
             "reports": {
                 "verification": {
                     "path": str(report.relative_to(readiness.PROJECT_ROOT)),
@@ -51,6 +74,60 @@ def _write_context(tmp_path: Path, *, completed: bool = False) -> tuple[Path, Pa
         encoding="utf-8",
     )
     return snapshot, roadmap, decisions
+
+
+def test_quality_evidence_rejects_evaluation_set_changed_after_snapshot(tmp_path, monkeypatch):
+    monkeypatch.setattr(readiness, "PROJECT_ROOT", tmp_path)
+    snapshot, _, _ = _write_context(tmp_path, completed=True)
+    changed_set = tmp_path / readiness.EVALUATION_PATHS["regular"]
+    changed_set.write_text('{"id":"changed-case"}\n', encoding="utf-8")
+
+    result = readiness._quality_check(snapshot)
+
+    assert result["ok"] is False
+    assert result["status"] == "stale"
+    assert "快照与当前评估集不一致" in result["detail"]
+
+
+def test_quality_evidence_rejects_reports_bound_to_previous_evaluation_content(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(readiness, "PROJECT_ROOT", tmp_path)
+    snapshot, _, _ = _write_context(tmp_path, completed=True)
+    changed_set = tmp_path / readiness.EVALUATION_PATHS["regular"]
+    changed_set.write_text('{"id":"new-case"}\n', encoding="utf-8")
+    raw = changed_set.read_bytes()
+    normalized = raw.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
+    payload = json.loads(snapshot.read_text(encoding="utf-8"))
+    payload["evaluation_sets"]["regular"].update(
+        {
+            "sha256": hashlib.sha256(normalized).hexdigest(),
+            "raw_sha256": hashlib.sha256(raw).hexdigest(),
+        }
+    )
+    snapshot.write_text(json.dumps(payload), encoding="utf-8")
+
+    result = readiness._quality_check(snapshot)
+
+    assert result["ok"] is False
+    assert result["status"] == "stale"
+    assert "评估报告未绑定当前内容" in result["detail"]
+
+
+def test_quality_evidence_rejects_legacy_snapshot_without_evaluation_binding(tmp_path, monkeypatch):
+    monkeypatch.setattr(readiness, "PROJECT_ROOT", tmp_path)
+    snapshot, _, _ = _write_context(tmp_path, completed=True)
+    payload = json.loads(snapshot.read_text(encoding="utf-8"))
+    payload["schema_version"] = 1
+    payload.pop("evaluation_sets")
+    payload.pop("evaluation_evidence_hashes")
+    snapshot.write_text(json.dumps(payload), encoding="utf-8")
+
+    result = readiness._quality_check(snapshot)
+
+    assert result["ok"] is False
+    assert result["status"] == "stale"
+    assert "缺少评估报告与当前评估集的绑定指纹" in result["detail"]
 
 
 def _write_rerank_evidence(tmp_path: Path) -> tuple[Path, Path]:

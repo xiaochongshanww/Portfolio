@@ -134,14 +134,42 @@
             <div class="bg-slate-50 p-3 text-sm">保持 <strong>{{ plan.changes.unchanged.length }}</strong></div>
           </div>
           <div v-if="plan.blockers.length" class="rounded-md bg-rose-50 p-3 text-sm text-rose-700"><div v-for="item in plan.blockers" :key="item.source_id">{{ item.source_id }}：{{ item.message }}</div></div>
-          <p class="text-sm text-slate-600">确认后会固化不可变来源快照并提交候选知识库构建。只有检索与结构化门禁通过后才会切换在线版本。</p>
+          <p class="text-sm text-slate-600">先预检来源变化与构建范围。预检不会解析 PDF；确认后才固化来源快照并提交候选构建，只有门禁通过才会切换在线版本。</p>
           <div class="grid gap-3 sm:grid-cols-2">
-            <label class="text-xs text-slate-600">解析器<select v-model="buildOptions.parser_backend" class="field mt-1 w-full"><option value="mineru">MinerU</option><option value="pymupdf">PyMuPDF</option></select></label>
-            <label class="text-xs text-slate-600">构建模式<select v-model="buildOptions.mode" class="field mt-1 w-full"><option value="incremental">增量候选</option><option value="full">全量候选</option></select></label>
+            <label class="text-xs text-slate-600">解析器<select v-model="buildOptions.parser_backend" class="field mt-1 w-full" @change="invalidateBuildPreview"><option value="mineru">MinerU</option><option value="pymupdf">PyMuPDF</option></select></label>
+            <label class="text-xs text-slate-600">构建模式<select v-model="buildOptions.mode" class="field mt-1 w-full" @change="invalidateBuildPreview"><option value="incremental">增量候选</option><option value="full">全量候选</option></select></label>
           </div>
           <label class="flex items-center gap-2 text-sm"><input v-model="confirmed" type="checkbox"> 已核对新增、替换和下架范围</label>
+          <button class="btn" :disabled="busy || previewBusy || !plan.ready" @click="runBuildPreview">{{ previewBusy ? '正在预检...' : '预检构建计划' }}</button>
+          <div v-if="buildPreview" class="space-y-3 rounded-md border border-slate-200 bg-slate-50 p-3" aria-live="polite">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <strong>预检结果：{{ buildPreview.build_plan.fallback_to_full ? '全量重建' : '增量构建' }}</strong>
+              <span class="text-xs text-slate-600">本次目标 {{ buildPreview.desired_source_count }} 份规范</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+              <div class="bg-white p-2">复用 {{ buildPreview.build_plan.counts.reused || 0 }}</div>
+              <div class="bg-white p-2">新增 {{ buildPreview.build_plan.counts.added || 0 }}</div>
+              <div class="bg-white p-2">重建 {{ buildPreview.build_plan.counts.changed || 0 }}</div>
+              <div class="bg-white p-2">移除 {{ buildPreview.build_plan.counts.removed || 0 }}</div>
+            </div>
+            <p v-if="buildPreview.build_plan.fallback_to_full" class="text-sm text-amber-800">
+              增量条件不满足或选择了全量模式；提交后将重新解析并构建全部 {{ buildPreview.desired_source_count }} 份规范。原因：{{ buildPreview.build_plan.fallback_reasons.join('、') }}。
+            </p>
+            <p v-else class="text-sm text-slate-600">
+              “复用”表示直接使用通过校验的 PDF 解析与结构化产物；候选向量索引仍会重新组装。{{ buildPreview.build_plan.embedding_cache_compatible ? '兼容的向量缓存可按 chunk ID 复用，未命中项再生成向量。' : '当前向量缓存不可复用，提交后会从结构化产物重新生成所需向量，但不会因此重新解析 PDF。' }}
+            </p>
+            <div class="max-h-36 space-y-1 overflow-auto text-xs text-slate-600">
+              <div v-for="item in buildPreview.build_plan.documents" :key="item.source_file" class="flex justify-between gap-3">
+                <span class="truncate">{{ item.source_file }}</span><span class="shrink-0">{{ buildActionLabel(item.action) }}</span>
+              </div>
+            </div>
+          </div>
+          <label v-if="buildPreview?.build_plan.fallback_to_full" class="flex items-start gap-2 text-sm text-amber-900">
+            <input v-model="confirmedFullRebuild" type="checkbox" class="mt-1">
+            我已了解本次会全量重新解析 {{ buildPreview.desired_source_count }} 份规范，并确认继续。
+          </label>
         </div>
-        <div class="flex justify-end gap-2 border-t border-slate-200 p-4"><button class="btn" @click="plan = null">取消</button><button class="btn btn-primary" :disabled="busy || !plan.ready || !confirmed" @click="submitBuild">提交候选构建</button></div>
+        <div class="flex justify-end gap-2 border-t border-slate-200 p-4"><button class="btn" @click="plan = null">取消</button><button class="btn btn-primary" :disabled="busy || !plan.ready || !confirmed || !buildPreview || (buildPreview.build_plan.fallback_to_full && !confirmedFullRebuild)" @click="submitBuild">提交候选构建</button></div>
       </section>
     </div>
 
@@ -160,6 +188,7 @@ import {
   discardPendingSource,
   listSources,
   planSourceChanges,
+  previewSourceBuild,
   replaceSource,
   retireSource,
   updateSource,
@@ -169,6 +198,7 @@ import {
   type SourceGovernance,
   type SourceMetadata,
   type SourcePlan,
+  type SourceBuildPreview,
   type SourceRecord,
 } from '../source-api'
 
@@ -182,6 +212,9 @@ const message = ref('')
 const error = ref('')
 const plan = ref<SourcePlan | null>(null)
 const confirmed = ref(false)
+const confirmedFullRebuild = ref(false)
+const previewBusy = ref(false)
+const buildPreview = ref<SourceBuildPreview | null>(null)
 const aliasesText = ref('')
 const uploadInput = ref<HTMLInputElement | null>(null)
 const form = reactive({ metadata: {} as SourceMetadata, governance: {} as SourceGovernance })
@@ -262,18 +295,45 @@ function deleteSelected() { if (selected.value && confirm('删除此草稿登记
 function retireSelected() { if (selected.value && confirm('将此规范加入下架计划？在线版本会保持不变，直至候选构建通过门禁。')) return run(() => retireSource(selected.value!.source_id), '已加入待下架变更。') }
 
 async function openPlan() {
-  busy.value = true; error.value = ''; confirmed.value = false
+  busy.value = true; error.value = ''; confirmed.value = false; confirmedFullRebuild.value = false; buildPreview.value = null
   try { plan.value = await planSourceChanges() } catch (err) { error.value = errorMessage(err) } finally { busy.value = false }
 }
 
+function invalidateBuildPreview() {
+  buildPreview.value = null
+  confirmedFullRebuild.value = false
+}
+
+async function runBuildPreview() {
+  previewBusy.value = true
+  error.value = ''
+  invalidateBuildPreview()
+  try {
+    buildPreview.value = await previewSourceBuild(buildOptions)
+  } catch (err) {
+    error.value = errorMessage(err)
+  } finally {
+    previewBusy.value = false
+  }
+}
+
 async function submitBuild() {
-  if (!plan.value?.ready || !confirmed.value) return
+  if (!plan.value?.ready || !confirmed.value || !buildPreview.value) return
+  if (buildPreview.value.build_plan.fallback_to_full && !confirmedFullRebuild.value) return
   await run(async () => {
-    const result = await buildSourceChanges(buildOptions)
+    const result = await buildSourceChanges({
+      ...buildOptions,
+      preflight_token: buildPreview.value!.preflight_token,
+      confirm_full_rebuild: confirmedFullRebuild.value,
+    })
     message.value = `候选构建已提交：${String(result.job.job_id || '')}`
     plan.value = null
     emit('refreshJobs')
   })
+}
+
+function buildActionLabel(action: string) {
+  return ({ reused: '复用', added: '新增解析', changed: '重新解析', removed: '移除' } as Record<string, string>)[action] || action
 }
 
 function selectedVersion(source: SourceRecord) { const id = source.pending_asset_version_id || source.active_asset_version_id; return source.versions.find(item => item.asset_version_id === id) }

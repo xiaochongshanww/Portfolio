@@ -45,6 +45,7 @@ class JobResponse(AdminResponse):
     request_id: str = ""
     job_id: str
     status: str
+    cancellation_requested: bool = False
     step: str
     progress: JsonObject = Field(default_factory=dict)
     outputs: JsonObject = Field(default_factory=dict)
@@ -60,6 +61,8 @@ class JobResponse(AdminResponse):
     recovery: JsonObject = Field(default_factory=dict)
     resolution: JsonObject = Field(default_factory=dict)
     diagnostics: JobDiagnostics | None = None
+    candidate_republishable: bool = False
+    candidate_republish_reason: str = ""
 
 
 class JobsResponse(AdminResponse):
@@ -69,6 +72,56 @@ class JobsResponse(AdminResponse):
 class JobLogsResponse(AdminResponse):
     job_id: str
     logs: list[JsonObject]
+
+
+class CandidateEvaluationFailure(AdminResponse):
+    id: str = ""
+    type: str = ""
+    query: str = ""
+    expected_authority_type: str = ""
+    source_hit: bool | None = None
+    top1_source_hit: bool | None = None
+    clause_hit: bool | None = None
+    keyword_hit: bool | None = None
+    table_hit: bool | None = None
+    authority_hit: bool | None = None
+    structured_table_hit: bool | None = None
+    failed_checks: list[str] = Field(default_factory=list)
+    top_results: list[JsonObject] = Field(default_factory=list)
+    top_structured_results: list[JsonObject] = Field(default_factory=list)
+
+
+class CandidateEvaluationSummary(AdminResponse):
+    case_count: int = 0
+    failure_count: int = 0
+    top1_source_hit_rate: float | None = None
+    authority_hit_rate: float | None = None
+    structured_table_hit_rate: float | None = None
+    failures: list[CandidateEvaluationFailure] = Field(default_factory=list)
+    failures_truncated: bool = False
+
+
+class CandidateEvaluationSetStatus(AdminResponse):
+    evaluation_set_id: Literal["regular", "structured"]
+    snapshot_revision_id: str = ""
+    current_revision_id: str = ""
+    freshness: Literal["current", "stale", "unknown"] = "unknown"
+
+
+class CandidateGateDetailsResponse(AdminResponse):
+    job_id: str
+    available: bool = False
+    reason: str = ""
+    report_source: Literal["activation", "revalidation"] = "activation"
+    candidate_version_id: str = ""
+    generated_at: str = ""
+    passed: bool | None = None
+    failed_checks: list[str] = Field(default_factory=list)
+    checks: list[JsonObject] = Field(default_factory=list)
+    evaluation_sets_current: bool | None = None
+    evaluation_set_status: list[CandidateEvaluationSetStatus] = Field(default_factory=list)
+    regular_evaluation: CandidateEvaluationSummary | None = None
+    structured_evaluation: CandidateEvaluationSummary | None = None
 
 
 class RebuildPlanResponse(AdminResponse):

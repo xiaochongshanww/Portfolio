@@ -457,8 +457,19 @@ npm run dev
 
 - `后端：FastAPI`：启动 `src.app.main:app`，支持 Python 断点。
 - `测试：当前文件`：使用 pytest 调试当前打开的测试文件。
-- `前端：Vite`：启动 Vue 开发服务器。
+- `前端：Vite`：由 Node 调试器直接启动本地 Vite CLI，固定监听 `127.0.0.1:5173`，端口冲突时明确失败，不自动漂移到其他端口。
 - `全栈：API + 前端`：同时启动后端和前端。
+
+停止全栈调试时，调试复合配置会同时停止两个被跟踪的进程。手动运行 `npm run dev` 时，请在启动该命令的终端按 `Ctrl+C`；不要通过结束 IDE 或关闭父 shell 来代替正常停止。
+
+如果调试终端已关闭但服务端口仍被占用，可从项目根目录先预览、再停止已确认属于本项目的服务进程树：
+
+```powershell
+.\scripts\stop_local_services.ps1 -WhatIf
+.\scripts\stop_local_services.ps1
+```
+
+脚本检查 API `8000` 和 Vite `5173`–`5175`。除检查端口监听者外，还会按项目 `.venv` Python + `uvicorn src.app.main:app`、本项目 Vite CLI 的精确路径扫描仍存活的服务进程，因此端口已脱离但仍空转的 Vite 孤儿也能被发现。执行前可用 `-WhatIf` 预览；无法确认属于本项目的监听者会跳过，其他端口不处理。脚本不会结束 VS Code、终端或其他项目进程。没有匹配进程时会明确报告无需处理。浏览器已打开的页面不会因停止服务而自动关闭。
 
 后端调试默认监听 `127.0.0.1:8000`，前端开发服务器默认地址为 `http://localhost:5173/static/`。如需真实问答或 Harness 联调，仍需在 `.env` 中配置有效的模型 Key、API 鉴权 Key 和签名 Key。
 

@@ -13,6 +13,8 @@ from importlib import metadata
 from pathlib import Path
 from typing import Any
 
+from packaging.requirements import Requirement
+
 from src.pipeline.active_db import active_db_dir, read_active_manifest
 from src.pipeline.parsers.base import ParserUnavailableError
 from src.pipeline.parsers.mineru import probe_mineru_cli
@@ -98,7 +100,9 @@ def _direct_requirements(path: Path, *, seen: set[Path] | None = None) -> set[st
             continue
         matched = REQUIREMENT_PATTERN.match(line)
         if matched:
-            requirements.add(_normalize_distribution_name(matched.group("name")))
+            requirement = Requirement(line)
+            if requirement.marker is None or requirement.marker.evaluate():
+                requirements.add(_normalize_distribution_name(requirement.name))
     return requirements
 
 
@@ -107,7 +111,12 @@ def _locked_versions(path: Path) -> dict[str, str]:
     for raw_line in path.read_text(encoding="utf-8").splitlines():
         matched = LOCK_PATTERN.match(raw_line.strip())
         if matched:
-            versions[_normalize_distribution_name(matched.group("name"))] = matched.group("version")
+            requirement = Requirement(raw_line.strip().removesuffix("\\").strip())
+            if requirement.marker is not None and not requirement.marker.evaluate():
+                continue
+            versions[_normalize_distribution_name(requirement.name)] = next(
+                spec.version for spec in requirement.specifier if spec.operator == "=="
+            )
     return versions
 
 

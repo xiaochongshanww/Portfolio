@@ -458,6 +458,340 @@
         "title": "CandidateDocumentsResponse",
         "type": "object"
       },
+      "CandidateEvaluationFailure": {
+        "additionalProperties": false,
+        "properties": {
+          "authority_hit": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authority Hit"
+          },
+          "clause_hit": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clause Hit"
+          },
+          "expected_authority_type": {
+            "default": "",
+            "title": "Expected Authority Type",
+            "type": "string"
+          },
+          "failed_checks": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Failed Checks",
+            "type": "array"
+          },
+          "id": {
+            "default": "",
+            "title": "Id",
+            "type": "string"
+          },
+          "keyword_hit": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keyword Hit"
+          },
+          "query": {
+            "default": "",
+            "title": "Query",
+            "type": "string"
+          },
+          "source_hit": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Hit"
+          },
+          "structured_table_hit": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Structured Table Hit"
+          },
+          "table_hit": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Table Hit"
+          },
+          "top1_source_hit": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top1 Source Hit"
+          },
+          "top_results": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Top Results",
+            "type": "array"
+          },
+          "top_structured_results": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Top Structured Results",
+            "type": "array"
+          },
+          "type": {
+            "default": "",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "title": "CandidateEvaluationFailure",
+        "type": "object"
+      },
+      "CandidateEvaluationSetStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "current_revision_id": {
+            "default": "",
+            "title": "Current Revision Id",
+            "type": "string"
+          },
+          "evaluation_set_id": {
+            "enum": [
+              "regular",
+              "structured"
+            ],
+            "title": "Evaluation Set Id",
+            "type": "string"
+          },
+          "freshness": {
+            "default": "unknown",
+            "enum": [
+              "current",
+              "stale",
+              "unknown"
+            ],
+            "title": "Freshness",
+            "type": "string"
+          },
+          "snapshot_revision_id": {
+            "default": "",
+            "title": "Snapshot Revision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "evaluation_set_id"
+        ],
+        "title": "CandidateEvaluationSetStatus",
+        "type": "object"
+      },
+      "CandidateEvaluationSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "authority_hit_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authority Hit Rate"
+          },
+          "case_count": {
+            "default": 0,
+            "title": "Case Count",
+            "type": "integer"
+          },
+          "failure_count": {
+            "default": 0,
+            "title": "Failure Count",
+            "type": "integer"
+          },
+          "failures": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateEvaluationFailure"
+            },
+            "title": "Failures",
+            "type": "array"
+          },
+          "failures_truncated": {
+            "default": false,
+            "title": "Failures Truncated",
+            "type": "boolean"
+          },
+          "structured_table_hit_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Structured Table Hit Rate"
+          },
+          "top1_source_hit_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top1 Source Hit Rate"
+          }
+        },
+        "title": "CandidateEvaluationSummary",
+        "type": "object"
+      },
+      "CandidateGateDetailsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "available": {
+            "default": false,
+            "title": "Available",
+            "type": "boolean"
+          },
+          "candidate_version_id": {
+            "default": "",
+            "title": "Candidate Version Id",
+            "type": "string"
+          },
+          "checks": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "evaluation_set_status": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateEvaluationSetStatus"
+            },
+            "title": "Evaluation Set Status",
+            "type": "array"
+          },
+          "evaluation_sets_current": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluation Sets Current"
+          },
+          "failed_checks": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Failed Checks",
+            "type": "array"
+          },
+          "generated_at": {
+            "default": "",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "passed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passed"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "regular_evaluation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CandidateEvaluationSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "report_source": {
+            "default": "activation",
+            "enum": [
+              "activation",
+              "revalidation"
+            ],
+            "title": "Report Source",
+            "type": "string"
+          },
+          "structured_evaluation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CandidateEvaluationSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "title": "CandidateGateDetailsResponse",
+        "type": "object"
+      },
       "CandidatePromotionResponse": {
         "additionalProperties": false,
         "properties": {
@@ -2145,6 +2479,21 @@
       "JobResponse": {
         "additionalProperties": false,
         "properties": {
+          "cancellation_requested": {
+            "default": false,
+            "title": "Cancellation Requested",
+            "type": "boolean"
+          },
+          "candidate_republish_reason": {
+            "default": "",
+            "title": "Candidate Republish Reason",
+            "type": "string"
+          },
+          "candidate_republishable": {
+            "default": false,
+            "title": "Candidate Republishable",
+            "type": "boolean"
+          },
           "created_at": {
             "title": "Created At",
             "type": "string"
@@ -3366,12 +3715,63 @@
         "title": "SourceBootstrapResponse",
         "type": "object"
       },
+      "SourceBuildPreviewResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "active_revision_id": {
+            "title": "Active Revision Id",
+            "type": "string"
+          },
+          "build_plan": {
+            "additionalProperties": true,
+            "title": "Build Plan",
+            "type": "object"
+          },
+          "catalog_revision": {
+            "title": "Catalog Revision",
+            "type": "integer"
+          },
+          "changes": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Changes",
+            "type": "object"
+          },
+          "desired_source_count": {
+            "title": "Desired Source Count",
+            "type": "integer"
+          },
+          "preflight_token": {
+            "title": "Preflight Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "catalog_revision",
+          "active_revision_id",
+          "changes",
+          "desired_source_count",
+          "build_plan",
+          "preflight_token"
+        ],
+        "title": "SourceBuildPreviewResponse",
+        "type": "object"
+      },
       "SourceBuildRequest": {
         "additionalProperties": false,
         "properties": {
           "apply_corrections": {
             "default": true,
             "title": "Apply Corrections",
+            "type": "boolean"
+          },
+          "confirm_full_rebuild": {
+            "default": false,
+            "title": "Confirm Full Rebuild",
             "type": "boolean"
           },
           "mode": {
@@ -3383,6 +3783,11 @@
           "parser_backend": {
             "default": "mineru",
             "title": "Parser Backend",
+            "type": "string"
+          },
+          "preflight_token": {
+            "default": "",
+            "title": "Preflight Token",
             "type": "string"
           }
         },
@@ -5738,6 +6143,90 @@
         ]
       }
     },
+    "/admin/jobs/{job_id}/cancel": {
+      "post": {
+        "operationId": "cancel_job_admin_jobs__job_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Job",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/jobs/{job_id}/candidate-gate-report": {
+      "get": {
+        "operationId": "get_candidate_gate_report_admin_jobs__job_id__candidate_gate_report_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateGateDetailsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Candidate Gate Report",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/admin/jobs/{job_id}/logs": {
       "get": {
         "operationId": "get_job_logs_admin_jobs__job_id__logs_get",
@@ -6850,6 +7339,49 @@
         ]
       }
     },
+    "/admin/sources/candidates/{job_id}/revalidate": {
+      "post": {
+        "description": "Run the candidate gate and retrieval evaluations without publication.",
+        "operationId": "revalidate_source_candidate_admin_sources_candidates__job_id__revalidate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceBuildResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revalidate Source Candidate",
+        "tags": [
+          "source-management"
+        ]
+      }
+    },
     "/admin/sources/changes/build": {
       "post": {
         "operationId": "build_source_changes_admin_sources_changes_build_post",
@@ -6907,6 +7439,47 @@
           }
         },
         "summary": "Plan Source Changes",
+        "tags": [
+          "source-management"
+        ]
+      }
+    },
+    "/admin/sources/changes/preview": {
+      "post": {
+        "operationId": "preview_source_build_admin_sources_changes_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SourceBuildRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceBuildPreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Source Build",
         "tags": [
           "source-management"
         ]

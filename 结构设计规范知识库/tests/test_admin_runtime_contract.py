@@ -147,6 +147,12 @@ RUNTIME_CASES = (
         "/admin/jobs/contract-job",
     ),
     RuntimeCase(
+        "cancel_job_admin_jobs__job_id__cancel_post",
+        "post",
+        "/admin/jobs/{job_id}/cancel",
+        "/admin/jobs/contract-job/cancel",
+    ),
+    RuntimeCase(
         "resolve_job_admin_jobs__job_id__resolve_post",
         "post",
         "/admin/jobs/{job_id}/resolve",
@@ -158,6 +164,12 @@ RUNTIME_CASES = (
         "get",
         "/admin/jobs/{job_id}/logs",
         "/admin/jobs/contract-job/logs?limit=20",
+    ),
+    RuntimeCase(
+        "get_candidate_gate_report_admin_jobs__job_id__candidate_gate_report_get",
+        "get",
+        "/admin/jobs/{job_id}/candidate-gate-report",
+        "/admin/jobs/contract-job/candidate-gate-report",
     ),
     RuntimeCase(
         "admin_evaluation_status_admin_evaluation_status_get",
@@ -458,17 +470,35 @@ RUNTIME_CASES = (
         "/admin/sources/changes/plan",
     ),
     RuntimeCase(
+        "preview_source_build_admin_sources_changes_preview_post",
+        "post",
+        "/admin/sources/changes/preview",
+        "/admin/sources/changes/preview",
+        {"parser_backend": "pymupdf", "mode": "incremental"},
+    ),
+    RuntimeCase(
         "build_source_changes_admin_sources_changes_build_post",
         "post",
         "/admin/sources/changes/build",
         "/admin/sources/changes/build",
-        {"parser_backend": "pymupdf", "mode": "incremental"},
+        {
+            "parser_backend": "pymupdf",
+            "mode": "incremental",
+            "preflight_token": "runtime-contract-token",
+            "confirm_full_rebuild": True,
+        },
     ),
     RuntimeCase(
         "republish_source_candidate_admin_sources_candidates__job_id__republish_post",
         "post",
         "/admin/sources/candidates/{job_id}/republish",
         "/admin/sources/candidates/candidate-job/republish",
+    ),
+    RuntimeCase(
+        "revalidate_source_candidate_admin_sources_candidates__job_id__revalidate_post",
+        "post",
+        "/admin/sources/candidates/{job_id}/revalidate",
+        "/admin/sources/candidates/candidate-job/revalidate",
     ),
     RuntimeCase(
         "list_source_revisions_admin_sources_revisions_get",
@@ -572,6 +602,17 @@ class FakeJobManager:
         payload = {**SAMPLE_JOB, "type": job_type, "params": params}
         return SimpleNamespace(to_dict=lambda: payload)
 
+    def cancel(self, job_id: str) -> SimpleNamespace:
+        payload = {
+            **SAMPLE_JOB,
+            "type": "rebuild",
+            "job_id": job_id,
+            "status": "running",
+            "step": "cancelling",
+            "cancellation_requested": True,
+        }
+        return SimpleNamespace(to_dict=lambda: payload)
+
 
 class FakeRetrievalState:
     db_dir = Path("contract/db")
@@ -640,6 +681,7 @@ class FakeSourceStore:
         metadata_path.write_text('{"documents":[]}', encoding="utf-8")
         return {
             "revision_id": "src-contract",
+            "catalog_revision": 1,
             "input_dir": input_dir.relative_to(self.data_dir).as_posix(),
             "metadata_path": metadata_path.relative_to(self.data_dir).as_posix(),
         }
@@ -811,6 +853,9 @@ def runtime_client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> TestClien
     for path in (raw_dir, corrections_dir, manual_dir, tables_dir, audit_dir):
         path.mkdir(parents=True)
     (raw_dir / "contract-doc.pdf").write_bytes(b"contract pdf")
+    candidate_dir = tmp_path / "versions" / "candidate-job"
+    candidate_dir.mkdir(parents=True)
+    (candidate_dir / "manifest.json").write_text("{}", encoding="utf-8")
 
     approved = corrections_dir / "approved" / "contract-doc.json"
     approved.parent.mkdir(parents=True)
@@ -844,6 +889,31 @@ def runtime_client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> TestClien
     monkeypatch.setattr(admin, "job_manager", FakeJobManager())
     monkeypatch.setattr(sources, "job_manager", FakeJobManager())
     monkeypatch.setattr(sources, "source_catalog_store", FakeSourceStore(tmp_path / "source-data"))
+    monkeypatch.setattr(sources, "DB_VERSIONS_DIR", tmp_path / "versions")
+    monkeypatch.setattr(
+        sources,
+        "_build_preview",
+        lambda _request: {
+            "catalog_revision": 1,
+            "active_revision_id": "",
+            "changes": {
+                "added": ["source-1"],
+                "replaced": [],
+                "retired": [],
+                "unchanged": [],
+            },
+            "desired_source_count": 1,
+            "build_plan": {
+                "fallback_to_full": True,
+                "fallback_reasons": ["active_manifest_missing"],
+                "embedding_cache_compatible": False,
+                "embedding_cache_reason": "not_checked",
+                "counts": {"added": 1, "changed": 0, "reused": 0, "removed": 0},
+                "documents": [],
+            },
+            "preflight_token": "runtime-contract-token",
+        },
+    )
     monkeypatch.setattr(
         sources,
         "read_manifest",
@@ -1196,7 +1266,7 @@ def _assert_complete_runtime_coverage(
 
 def test_runtime_case_inventory_covers_every_admin_operation_exactly_once() -> None:
     _assert_complete_runtime_coverage(RUNTIME_CASES, export_openapi.build_openapi_document())
-    assert len(RUNTIME_CASES) == 76
+    assert len(RUNTIME_CASES) == 80
 
 
 @pytest.mark.parametrize("case", RUNTIME_CASES, ids=lambda case: case.operation_id)

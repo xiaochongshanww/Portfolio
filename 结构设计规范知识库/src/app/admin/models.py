@@ -15,6 +15,7 @@ class Job:
     request_id: str = ""
     job_id: str = field(default_factory=lambda: uuid4().hex[:12])
     status: str = "queued"
+    cancellation_requested: bool = False
     step: str = "queued"
     progress: dict[str, Any] = field(default_factory=dict)
     outputs: dict[str, Any] = field(default_factory=dict)

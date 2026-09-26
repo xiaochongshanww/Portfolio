@@ -95,6 +95,19 @@ class SourceBuildRequest(BaseModel):
     parser_backend: str = "mineru"
     apply_corrections: bool = True
     mode: str = Field(default="incremental", pattern=r"^(incremental|full)$")
+    preflight_token: str = ""
+    confirm_full_rebuild: bool = False
+
+
+class SourceBuildPreviewResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    catalog_revision: int
+    active_revision_id: str
+    changes: dict[str, list[str]]
+    desired_source_count: int
+    build_plan: JsonObject
+    preflight_token: str
 
 
 class SourceBuildResponse(BaseModel):

@@ -7,7 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from src.app.core.config import settings
-from src.app.retrieval.dense_vector_store import build_dense_vector_store
+from src.app.retrieval.dense_vector_store import VECTOR_SCHEMA_VERSION, build_dense_vector_store
 from src.pipeline import builder, incremental, load_to_db
 from src.pipeline.active_db import write_active_db
 from src.pipeline.metadata import parse_spec_filename
@@ -108,6 +108,32 @@ def _active_version(
     )
     monkeypatch.setattr(incremental, "ACTIVE_DB_PATH", pointer)
     return processed, db_dir
+
+
+def _legacy_v1_contract(current: dict) -> dict:
+    processing = current["processing"]
+    hashes = processing["implementation_hashes"]
+    return {
+        "schema_version": 1,
+        "processing": {
+            "version": 1,
+            "parser_backend": processing["parser_backend"],
+            "parser_implementation": processing["parser_implementation"],
+            "parser_version": processing["parser_version"],
+            "parser_compatibility": processing["parser_compatibility"],
+            "mineru_args": processing["mineru_args"],
+            "apply_corrections": processing["apply_corrections"],
+            "process_documents_sha256": "5b6abbfcb6e8adf3cb2da180f31e8427754eedd7b9c20fb8e24c45481c2a23cc",
+            "chunks_sha256": hashes["chunks_sha256"],
+            "parser_adapter_sha256": "fdc6e1b64f0503ad4198b77cd58a3f92ce5c533fa6603bd5328158902cd3f22b",
+        },
+        "embedding": current["embedding"],
+        "index": {
+            "collection_name": settings.collection_name,
+            "dense_vector_schema_version": VECTOR_SCHEMA_VERSION,
+            "load_to_db_sha256": "a2bf7fa7e4b830ff93bf2cd0a7547df9309b4954d5acfcdbf2365844970addf6",
+        },
+    }
 
 
 def test_plan_classifies_added_reused_and_removed_documents(tmp_path: Path, monkeypatch) -> None:
@@ -215,6 +241,154 @@ def test_legacy_manifest_without_contract_forces_full_fallback(tmp_path: Path, m
     assert plan["fallback_to_full"] is True
     assert plan["fallback_reasons"] == ["build_contract_incompatible"]
     assert plan["counts"]["changed"] == 1
+
+
+def test_reviewed_legacy_contract_reuses_documents_after_nonsemantic_pipeline_update(
+    tmp_path: Path, monkeypatch
+) -> None:
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    current = raw / "TEST 1000-2026_测试规范.pdf"
+    added = raw / "TEST 1001-2026_新增规范.pdf"
+    current.write_bytes(b"current")
+    added.write_bytes(b"added")
+    metadata = {path.name: parse_spec_filename(path.name) for path in (current, added)}
+    environment = {"implementation": "magic-pdf", "version": "1.3.12", "compatibility": "verified"}
+    contract = incremental.build_contract(
+        parser_backend="mineru", parser_environment=environment, apply_corrections=True
+    )
+    fingerprint = incremental.document_fingerprint(
+        current, metadata[current.name], apply_corrections=True
+    )
+    legacy_contract = _legacy_v1_contract(contract)
+    _active_version(
+        tmp_path,
+        monkeypatch,
+        source_pdf=current,
+        contract=legacy_contract,
+        fingerprint=fingerprint,
+    )
+
+    plan = incremental.plan_incremental_build(
+        [current, added],
+        metadata,
+        parser_backend="mineru",
+        parser_environment=environment,
+        apply_corrections=True,
+    ).to_dict()
+
+    assert plan["fallback_to_full"] is False
+    assert plan["counts"] == {"added": 1, "changed": 0, "reused": 1, "removed": 1}
+    assert plan["embedding_cache_compatible"] is True
+
+
+def test_unreviewed_legacy_processing_hash_still_forces_full_fallback(
+    tmp_path: Path, monkeypatch
+) -> None:
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    current = raw / "TEST 1000-2026_测试规范.pdf"
+    current.write_bytes(b"current")
+    spec = parse_spec_filename(current.name)
+    environment = {"implementation": "magic-pdf", "version": "1.3.12", "compatibility": "verified"}
+    contract = incremental.build_contract(
+        parser_backend="mineru", parser_environment=environment, apply_corrections=True
+    )
+    legacy_contract = _legacy_v1_contract(contract)
+    legacy_contract["processing"]["process_documents_sha256"] = "unreviewed-change"
+    fingerprint = incremental.document_fingerprint(current, spec, apply_corrections=True)
+    _active_version(
+        tmp_path,
+        monkeypatch,
+        source_pdf=current,
+        contract=legacy_contract,
+        fingerprint=fingerprint,
+    )
+
+    plan = incremental.plan_incremental_build(
+        [current],
+        {current.name: spec},
+        parser_backend="mineru",
+        parser_environment=environment,
+        apply_corrections=True,
+    ).to_dict()
+
+    assert plan["fallback_to_full"] is True
+    assert plan["fallback_reasons"] == ["build_contract_incompatible"]
+
+
+def test_missing_embedding_cache_does_not_force_pdf_reprocessing(
+    tmp_path: Path, monkeypatch
+) -> None:
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    current = raw / "TEST 1000-2026_测试规范.pdf"
+    current.write_bytes(b"current")
+    spec = parse_spec_filename(current.name)
+    environment = {"implementation": "pymupdf", "version": "", "compatibility": "not_applicable"}
+    contract = incremental.build_contract(
+        parser_backend="pymupdf", parser_environment=environment, apply_corrections=True
+    )
+    fingerprint = incremental.document_fingerprint(current, spec, apply_corrections=True)
+    _processed, db_dir = _active_version(
+        tmp_path,
+        monkeypatch,
+        source_pdf=current,
+        contract=contract,
+        fingerprint=fingerprint,
+    )
+    (db_dir / "dense_vectors.npy").unlink()
+    (db_dir / "dense_vectors.json").unlink()
+
+    plan = incremental.plan_incremental_build(
+        [current],
+        {current.name: spec},
+        parser_backend="pymupdf",
+        parser_environment=environment,
+        apply_corrections=True,
+    ).to_dict()
+
+    assert plan["fallback_to_full"] is False
+    assert plan["counts"]["reused"] == 1
+    assert plan["embedding_cache_compatible"] is False
+    assert plan["embedding_cache_reason"] == "active_embedding_cache_missing"
+
+
+def test_embedding_contract_mismatch_reuses_documents_but_discards_cached_vectors(
+    tmp_path: Path, monkeypatch
+) -> None:
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    current = raw / "TEST 1000-2026_测试规范.pdf"
+    current.write_bytes(b"current")
+    spec = parse_spec_filename(current.name)
+    environment = {"implementation": "pymupdf", "version": "", "compatibility": "not_applicable"}
+    contract = incremental.build_contract(
+        parser_backend="pymupdf", parser_environment=environment, apply_corrections=True
+    )
+    contract["embedding"]["request_contract"] = "embedding_request_kwargs:legacy"
+    fingerprint = incremental.document_fingerprint(current, spec, apply_corrections=True)
+    _active_version(
+        tmp_path,
+        monkeypatch,
+        source_pdf=current,
+        contract=contract,
+        fingerprint=fingerprint,
+    )
+
+    plan = incremental.plan_incremental_build(
+        [current],
+        {current.name: spec},
+        parser_backend="pymupdf",
+        parser_environment=environment,
+        apply_corrections=True,
+    ).to_dict()
+
+    assert plan["fallback_to_full"] is False
+    assert plan["counts"]["reused"] == 1
+    assert plan["embedding_cache_compatible"] is False
+    assert plan["embedding_cache_reason"] == "embedding_contract_incompatible"
+    assert incremental.reusable_embedding_map() == {}
 
 
 class _EmbeddingResponse:

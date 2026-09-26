@@ -7,6 +7,8 @@ import {
   discardPendingSourceAdminSourcesSourceIdDiscardPendingPost,
   listSourcesAdminSourcesGet,
   planSourceChangesAdminSourcesChangesPlanPost,
+  previewSourceBuildAdminSourcesChangesPreviewPost,
+  revalidateSourceCandidateAdminSourcesCandidatesJobIdRevalidatePost,
   republishSourceCandidateAdminSourcesCandidatesJobIdRepublishPost,
   replaceSourceAdminSourcesSourceIdVersionsPost,
   retireSourceAdminSourcesSourceIdRetirePost,
@@ -79,6 +81,30 @@ export type SourcePlan = {
   ready: boolean
 }
 
+export type SourceBuildOptions = {
+  parser_backend: string
+  apply_corrections: boolean
+  mode: string
+}
+
+export type SourceBuildPreview = {
+  catalog_revision: number
+  active_revision_id: string
+  changes: SourcePlan['changes']
+  desired_source_count: number
+  preflight_token: string
+  build_plan: {
+    mode: string
+    requested_mode: string
+    fallback_to_full: boolean
+    fallback_reasons: string[]
+    embedding_cache_compatible: boolean
+    embedding_cache_reason: string
+    counts: Record<string, number>
+    documents: Array<{ source_file: string; action: string; reasons: string[] }>
+  }
+}
+
 export function listSources() {
   return listSourcesAdminSourcesGet() as Promise<SourceList>
 }
@@ -131,12 +157,25 @@ export function planSourceChanges() {
   return planSourceChangesAdminSourcesChangesPlanPost() as Promise<SourcePlan>
 }
 
-export function buildSourceChanges(payload: { parser_backend: string; apply_corrections: boolean; mode: string }) {
+export function previewSourceBuild(payload: SourceBuildOptions) {
+  return previewSourceBuildAdminSourcesChangesPreviewPost({ body: payload }) as Promise<SourceBuildPreview>
+}
+
+export function buildSourceChanges(payload: SourceBuildOptions & {
+  preflight_token: string
+  confirm_full_rebuild: boolean
+}) {
   return buildSourceChangesAdminSourcesChangesBuildPost({ body: payload })
 }
 
 export function republishSourceCandidate(jobId: string) {
   return republishSourceCandidateAdminSourcesCandidatesJobIdRepublishPost({
+    path: { job_id: jobId },
+  }) as Promise<{ revision_id: string; job: Record<string, unknown> }>
+}
+
+export function revalidateSourceCandidate(jobId: string) {
+  return revalidateSourceCandidateAdminSourcesCandidatesJobIdRevalidatePost({
     path: { job_id: jobId },
   }) as Promise<{ revision_id: string; job: Record<string, unknown> }>
 }

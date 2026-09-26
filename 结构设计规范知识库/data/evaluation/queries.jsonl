@@ -48,7 +48,7 @@
 {"id":"table-reliability-importance-factor","query":"结构重要性系数如何取值？","expected_sources":["建筑结构可靠性设计统一标准","GB 50068-2018"],"expected_keywords":["结构重要性系数"],"type":"table"}
 {"id":"table-reliability-action-factor","query":"建筑结构作用分项系数怎么取？","expected_sources":["建筑结构可靠性设计统一标准","GB 50068-2018"],"expected_keywords":["作用分项系数"],"type":"table"}
 {"id":"table-quality-sampling","query":"检验批最小抽样数量如何确定？","expected_sources":["建筑工程施工质量验收统一标准","GB 50300-2013"],"expected_keywords":["检验批","最小抽样数量"],"type":"table"}
-{"id":"table-quality-division","query":"建筑工程分部工程和分项工程划分在哪个表？","expected_sources":["建筑工程施工质量验收统一标准","GB 50300-2013"],"expected_keywords":["分部工程","分项工程"],"type":"table"}
+{"id":"table-quality-division","query":"建筑工程分部工程和分项工程划分在哪个表？","expected_sources":["建筑工程施工质量验收统一标准","GB 50300-2013"],"expected_clause":"4.0.6","expected_keywords":["分部工程","分项工程"],"type":"table","expected_authority_type":"body_or_table"}
 {"id":"table-quality-site-record","query":"施工现场质量管理检查记录采用哪个表？","expected_sources":["建筑工程施工质量验收统一标准","GB 50300-2013"],"expected_keywords":["施工现场质量管理检查记录"],"type":"table"}
 {"id":"clause-load-5-1-1","query":"荷载规范第5.1.1条规定了什么？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_clause":"5.1.1","expected_keywords":["表5.1.1"],"type":"clause"}
 {"id":"clause-load-5-1-2","query":"荷载规范第5.1.2条关于活荷载折减系数有什么要求？","expected_sources":["建筑结构荷载规范","GB 50009-2012"],"expected_clause":"5.1.2","expected_keywords":["折减系数"],"type":"clause"}

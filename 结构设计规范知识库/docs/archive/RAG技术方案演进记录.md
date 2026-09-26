@@ -109,7 +109,7 @@ def hybrid_search(query, top_k):
     # 2. BM25 trigram（关键词匹配）
     bm25_scores = bm25_index.get_scores(tokenize_chinese(query))
     # 3. 条文号直接查找
-    clause_nums = re.findall(r'\d+\.\d+\.?\d*', query)
+    clause_nums = re.findall(r"\d+\.\d+\.?\d*", query)
     # 4. RRF 融合 + 距离排序
 ```
 
@@ -138,10 +138,10 @@ Trigram 示例：
 
 **修复**：增加过滤规则
 ```python
-PAGE_NUM_RE = re.compile(r'^\d{1,3}$')      # 页码
-DECIMAL_RE = re.compile(r'^[\d\.\s]{1,5}$')  # 孤立数值
-URL_RE = re.compile(r'^[a-zA-Z0-9]+\.[a-z]') # 水印
-SHORT_SYMBOL_RE = re.compile(r'^[\d\.\-—·]+$') # 短符号
+PAGE_NUM_RE = re.compile(r"^\d{1,3}$")  # 页码
+DECIMAL_RE = re.compile(r"^[\d\.\s]{1,5}$")  # 孤立数值
+URL_RE = re.compile(r"^[a-zA-Z0-9]+\.[a-z]")  # 水印
+SHORT_SYMBOL_RE = re.compile(r"^[\d\.\-—·]+$")  # 短符号
 ```
 
 **效果**：13 块 → 2 块，表格内容完整保留。回答从"未找到"变为正确输出 7 个类别标准值。
@@ -160,7 +160,7 @@ SHORT_SYMBOL_RE = re.compile(r'^[\d\.\-—·]+$') # 短符号
 
 **根因**：f-string 模板中使用 Python list 而非字符串拼接
 ```python
-img_list = []                    # Python list
+img_list = []  # Python list
 user_text = f"...{img_list}..."  # 渲染为 "['item1', 'item2']"
 ```
 修复为：
