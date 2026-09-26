@@ -1,2 +1,0 @@
-# Dependency lock generator; version must match dependency-lock.json.
-uv==0.12.3
