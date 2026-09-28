@@ -1,1 +1,0 @@
-# Settings module for system configuration management
